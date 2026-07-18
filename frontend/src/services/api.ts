@@ -21,7 +21,7 @@ const api = axios.create({
 
 // Attach stored token to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('loomcraft_token');
+  const token = localStorage.getItem('loomcraftrugs_token');
   if (token) config.headers['Authorization'] = `Bearer ${token}`;
   return config;
 });
@@ -30,9 +30,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('loomcraft_token');
-      localStorage.removeItem('loomcraft_user');
-      window.location.href = '/login';
+      localStorage.removeItem('loomcraftrugs_token');
+      localStorage.removeItem('loomcraftrugs_user');
+      window.location.href = '/admin/login';
     }
     console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
@@ -378,8 +378,9 @@ export interface QuoteRequestResponse {
   message: string;
 }
 
-export const requestQuote = async (payload: QuoteRequestPayload): Promise<QuoteRequestResponse> => {
-  const { data } = await axios.post<QuoteRequestResponse>('/api/customer/request-quote', payload);
+export const requestQuote = async (payload: QuoteRequestPayload, customerToken?: string | null): Promise<QuoteRequestResponse> => {
+  const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
+  const { data } = await axios.post<QuoteRequestResponse>('/api/customer/request-quote', payload, { headers });
   return data;
 };
 
@@ -415,8 +416,45 @@ export interface CheckoutResponse {
   shipping_address: string;
 }
 
-export const customerCheckout = async (payload: CheckoutPayload): Promise<CheckoutResponse> => {
-  const { data } = await axios.post<CheckoutResponse>('/api/customer/checkout', payload);
+export const customerCheckout = async (payload: CheckoutPayload, customerToken?: string | null): Promise<CheckoutResponse> => {
+  const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
+  const { data } = await axios.post<CheckoutResponse>('/api/customer/checkout', payload, { headers });
+  return data;
+};
+
+export interface PaymentOrderResponse {
+  razorpay_order_id: string;
+  amount_paise: number;
+  currency: string;
+  key_id: string;
+  final_price: number;
+  pre_gst_price: number | null;
+  gst_pct: number | null;
+  gst_amount: number | null;
+  price_currency: string;
+  rug_name: string;
+  estimated_days: number;
+}
+
+export const createPaymentOrder = async (
+  payload: CheckoutPayload,
+  customerToken?: string | null,
+): Promise<PaymentOrderResponse> => {
+  const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
+  const { data } = await axios.post<PaymentOrderResponse>(
+    '/api/customer/checkout/create-payment-order', payload, { headers },
+  );
+  return data;
+};
+
+export const verifyPayment = async (
+  payload: CheckoutPayload & { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string },
+  customerToken?: string | null,
+): Promise<CheckoutResponse> => {
+  const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
+  const { data } = await axios.post<CheckoutResponse>(
+    '/api/customer/checkout/verify-payment', payload, { headers },
+  );
   return data;
 };
 
@@ -435,13 +473,46 @@ export interface CustomerOrder {
   created_at: string | null;
 }
 
-export const getMyOrders = async (email: string): Promise<CustomerOrder[]> => {
-  const { data } = await axios.get<CustomerOrder[]>('/api/customer/orders', { params: { email } });
+export interface PaginatedResponse<T> {
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  items: T[];
+  action_needed?: number;
+}
+
+export interface OrdersFilter {
+  status?: string;
+  sort_by?: string;
+  size_min?: number;
+  size_max?: number;
+  date_from?: string;
+  date_to?: string;
+}
+
+export const getMyOrders = async (
+  email: string,
+  page = 1,
+  page_size = 10,
+  filters: OrdersFilter = {},
+): Promise<PaginatedResponse<CustomerOrder>> => {
+  const params: Record<string, string | number> = { email, page, page_size };
+  if (filters.status && filters.status !== 'all') params.status = filters.status;
+  if (filters.sort_by) params.sort_by = filters.sort_by;
+  if (filters.size_min != null) params.size_min = filters.size_min;
+  if (filters.size_max != null) params.size_max = filters.size_max;
+  if (filters.date_from) params.date_from = filters.date_from;
+  if (filters.date_to) params.date_to = filters.date_to;
+  const { data } = await axios.get<PaginatedResponse<CustomerOrder>>(
+    '/api/customer/orders',
+    { params },
+  );
   return data;
 };
 
 export const downloadInvoice = (quoteId: number, type: 'tax' | 'export' | 'proforma' = 'tax'): void => {
-  const token = localStorage.getItem('loomcraft_token');
+  const token = localStorage.getItem('loomcraftrugs_token');
   const url = `/api/quotes/${quoteId}/invoice?invoice_type=${type}`;
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then((r) => r.blob())

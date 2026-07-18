@@ -1,6 +1,13 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -31,44 +38,49 @@ function App() {
     <AuthProvider>
       <CustomerAuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
+          {/* Customer shop — root paths */}
+          <Route path="/" element={<CustomerHome />} />
+          <Route path="/catalog" element={<CustomerCatalog />} />
+          <Route path="/catalog/:id" element={<CustomerRugDetail />} />
+          <Route path="/checkout" element={<CustomerCheckout />} />
+          <Route path="/order/:id" element={<CustomerOrderConfirm />} />
+          <Route path="/my-orders" element={<CustomerMyOrders />} />
+          <Route path="/my-quotes" element={<CustomerMyQuotes />} />
+          <Route path="/login" element={<CustomerLogin />} />
+          <Route path="/visualizer" element={<CustomerPortal />} />
+
+          {/* Admin login + pricing (public) */}
+          <Route path="/admin/login" element={<Login />} />
           <Route path="/pricing" element={<Pricing />} />
-          <Route path="/shop" element={<CustomerHome />} />
-          <Route path="/shop/catalog" element={<CustomerCatalog />} />
-          <Route path="/shop/catalog/:id" element={<CustomerRugDetail />} />
-          <Route path="/shop/checkout" element={<CustomerCheckout />} />
-          <Route path="/shop/order/:id" element={<CustomerOrderConfirm />} />
-          <Route path="/shop/my-orders" element={<CustomerMyOrders />} />
-          <Route path="/shop/my-quotes" element={<CustomerMyQuotes />} />
-          <Route path="/shop/login" element={<CustomerLogin />} />
-          <Route path="/shop/visualizer" element={<CustomerPortal />} />
 
           {/* Protected admin routes */}
           <Route
-            path="/*"
+            path="/admin/*"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/assistant" element={<AIAssistant />} />
-                    <Route path="/catalog" element={<Catalog />} />
-                    <Route path="/catalog/:id" element={<RugDetail />} />
-                    <Route path="/quote-builder" element={<QuoteBuilder />} />
-                    <Route path="/orders" element={<Orders />} />
-                    <Route path="/inventory" element={<Inventory />} />
-                    <Route path="/customers" element={<Customers />} />
-                    <Route path="/quotes" element={<Quotes />} />
-                    <Route path="/billing" element={<BillingSettings />} />
-                    <Route path="/settings" element={<BusinessSettings />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route index element={<Dashboard />} />
+                    <Route path="assistant" element={<AIAssistant />} />
+                    <Route path="catalog" element={<Catalog />} />
+                    <Route path="catalog/:id" element={<RugDetail />} />
+                    <Route path="quote-builder" element={<QuoteBuilder />} />
+                    <Route path="orders" element={<Orders />} />
+                    <Route path="inventory" element={<Inventory />} />
+                    <Route path="customers" element={<Customers />} />
+                    <Route path="quotes" element={<Quotes />} />
+                    <Route path="billing" element={<BillingSettings />} />
+                    <Route path="settings" element={<BusinessSettings />} />
+                    <Route path="*" element={<Navigate to="/admin" replace />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
             }
           />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
       </CustomerAuthProvider>

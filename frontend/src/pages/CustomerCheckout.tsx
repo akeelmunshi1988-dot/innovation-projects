@@ -1,12 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   ShoppingBag, MapPin, User, AlertTriangle, ChevronRight, Truck,
   CheckCircle, X, LogIn, UserPlus, Eye, EyeOff,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
-import { customerCheckout } from '../services/api';
+import { createPaymentOrder, verifyPayment } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
+
+declare global {
+  interface Window {
+    Razorpay: new (options: {
+      key: string; amount: number; currency: string; name: string;
+      description?: string; order_id: string;
+      handler: (r: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
+      prefill?: { name?: string; email?: string; contact?: string };
+      theme?: { color?: string };
+      modal?: { ondismiss?: () => void };
+    }) => { open(): void };
+  }
+}
 import { fmtExact, currencySymbol } from '../utils/currency';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 
@@ -33,9 +46,11 @@ export default function CustomerCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as CheckoutState | null;
-  const { customer, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
+  const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
 
   const [form, setForm] = useState({
+    name: state?.name ?? '',
+    email: state?.email ?? '',
     phone: state?.phone ?? '',
     company: '',
     address_line1: '',
@@ -47,13 +62,29 @@ export default function CustomerCheckout() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auth modal state
+  // Auth modal state — pre-fill name/email/phone if passed from visualizer
   const [authModal, setAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authForm, setAuthForm] = useState({ name: '', email: '', password: '', phone: '', company: '' });
+  const [authForm, setAuthForm] = useState({
+    name:     state?.name  ?? '',
+    email:    state?.email ?? '',
+    password: '',
+    phone:    state?.phone ?? '',
+    company:  '',
+  });
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [showAuthPwd, setShowAuthPwd] = useState(false);
+
+  // Load Razorpay checkout script once
+  useEffect(() => {
+    if (document.getElementById('razorpay-checkout-js')) return;
+    const s = document.createElement('script');
+    s.id = 'razorpay-checkout-js';
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.async = true;
+    document.body.appendChild(s);
+  }, []);
 
   if (!state) {
     return (
@@ -62,7 +93,7 @@ export default function CustomerCheckout() {
           <ShoppingBag size={36} className="mx-auto text-stone-300" />
           <h2 className="font-serif text-2xl font-light text-stone-900">No order data found</h2>
           <p className="text-stone-500 text-sm">Please start from the catalog.</p>
-          <Link to="/shop/catalog" className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
+          <Link to="/catalog" className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
             ← Back to Collection
           </Link>
         </div>
@@ -80,35 +111,61 @@ export default function CustomerCheckout() {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   };
 
-  const doPlaceOrder = async (name: string, email: string) => {
+  const initiatePayment = async (name: string, email: string) => {
     const shipping_address = [
-      form.address_line1,
-      form.address_line2,
-      form.city,
-      form.state_name,
-      form.pincode,
+      form.address_line1, form.address_line2,
+      form.city, form.state_name, form.pincode,
     ].filter(Boolean).join(', ');
+
     setSubmitting(true);
     setError(null);
     try {
-      const result: CheckoutResponse = await customerCheckout({
+      const orderPayload = {
         rug_id: state.rug_id,
-        size_w: state.size_w,
-        size_h: state.size_h,
-        qty: state.qty,
-        rush_order: state.rush_order,
-        notes: state.notes,
-        name,
-        email,
+        size_w: state.size_w, size_h: state.size_h,
+        qty: state.qty, rush_order: state.rush_order,
+        notes: state.notes, name, email,
         phone: form.phone || undefined,
         company: form.company || undefined,
         shipping_address,
+      };
+
+      const paymentOrder = await createPaymentOrder(orderPayload, customerToken);
+
+      if (!window.Razorpay) {
+        throw new Error('Payment SDK not loaded yet. Please try again in a moment.');
+      }
+
+      const rzp = new window.Razorpay({
+        key: paymentOrder.key_id,
+        amount: paymentOrder.amount_paise,
+        currency: paymentOrder.currency,
+        name: 'LoomCraftRugs',
+        description: paymentOrder.rug_name,
+        order_id: paymentOrder.razorpay_order_id,
+        prefill: { name, email, contact: form.phone || undefined },
+        theme: { color: '#1c1917' },
+        handler: async (response) => {
+          try {
+            const result: CheckoutResponse = await verifyPayment(
+              { ...orderPayload, ...response },
+              customerToken,
+            );
+            navigate(`/order/${result.order_id}`, { state: result });
+          } catch (err: unknown) {
+            const e = err as { response?: { data?: { detail?: string } } };
+            setError(e?.response?.data?.detail ?? 'Payment verified but order creation failed. Please contact support.');
+            setSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setSubmitting(false),
+        },
       });
-      navigate(`/shop/order/${result.order_id}`, { state: result });
+      rzp.open();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      setError(e?.response?.data?.detail ?? 'Something went wrong. Please try again.');
-    } finally {
+      const e = err as { response?: { data?: { detail?: string } }; message?: string };
+      setError(e?.response?.data?.detail ?? e?.message ?? 'Something went wrong. Please try again.');
       setSubmitting(false);
     }
   };
@@ -116,11 +173,13 @@ export default function CustomerCheckout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.address_line1 || !form.city || !form.state_name || !form.pincode) return;
-    if (!isCustomerAuthenticated || !customer) {
+    if (isCustomerAuthenticated && customer) {
+      await initiatePayment(customer.name, customer.email);
+    } else if (form.name.trim() && form.email.trim()) {
+      await initiatePayment(form.name.trim(), form.email.trim());
+    } else {
       setAuthModal(true);
-      return;
     }
-    await doPlaceOrder(customer.name, customer.email);
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -138,7 +197,7 @@ export default function CustomerCheckout() {
         );
       }
       setAuthModal(false);
-      await doPlaceOrder(user.name, user.email);
+      await initiatePayment(user.name, user.email);
     } catch (err: any) {
       setAuthError(err.response?.data?.detail || 'Authentication failed. Please try again.');
     } finally {
@@ -152,11 +211,11 @@ export default function CustomerCheckout() {
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-stone-400">
-          <Link to="/shop" className="hover:text-stone-900 transition-colors">Home</Link>
+          <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>
           <ChevronRight size={11} />
-          <Link to="/shop/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
+          <Link to="/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
           <ChevronRight size={11} />
-          <Link to={`/shop/catalog/${state.rug_id}`} className="hover:text-stone-900 transition-colors">{state.rug_name}</Link>
+          <Link to={`/catalog/${state.rug_id}`} className="hover:text-stone-900 transition-colors">{state.rug_name}</Link>
           <ChevronRight size={11} />
           <span className="text-stone-600">Checkout</span>
         </div>
@@ -194,7 +253,7 @@ export default function CustomerCheckout() {
                   </div>
                   {state.rush_order && (
                     <div className="flex justify-between">
-                      <span className="text-amber-600 text-xs">Rush order</span>
+                      <span className="text-amber-600 text-xs">Early delivery</span>
                       <span className="text-amber-600 text-xs">+25%</span>
                     </div>
                   )}
@@ -211,7 +270,7 @@ export default function CustomerCheckout() {
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-stone-400">Lead time</span>
+                    <span className="text-stone-400">Expected delivery</span>
                     <span className="text-stone-700 flex items-center gap-1">
                       <Truck size={12} className="text-stone-400" />
                       ~{state.estimated_days} days
@@ -282,17 +341,66 @@ export default function CustomerCheckout() {
                     </div>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAuthModal(true)}
-                    className="w-full flex items-center gap-3 border border-stone-200 hover:border-stone-400 px-3 py-3 transition-colors text-left"
-                  >
-                    <LogIn size={14} className="text-stone-400 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-stone-700 text-xs font-medium">Sign in to place your order</p>
-                      <p className="text-stone-400 text-xs">Login or create a free account</p>
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-stone-500 text-xs">Continue as guest</p>
+                      <button
+                        type="button"
+                        onClick={() => setAuthModal(true)}
+                        className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-900 transition-colors underline underline-offset-2"
+                      >
+                        <LogIn size={11} /> Sign in instead
+                      </button>
                     </div>
-                  </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Full Name *</label>
+                        <input
+                          name="name"
+                          value={form.name}
+                          onChange={handleChange}
+                          placeholder="Your name"
+                          required
+                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Email *</label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={form.email}
+                          onChange={handleChange}
+                          placeholder="you@example.com"
+                          required
+                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Phone / WhatsApp</label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={form.phone}
+                          onChange={handleChange}
+                          placeholder="+91 98765 43210"
+                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Company</label>
+                        <input
+                          name="company"
+                          value={form.company}
+                          onChange={handleChange}
+                          placeholder="Optional"
+                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -373,16 +481,16 @@ export default function CustomerCheckout() {
                 >
                   {submitting ? (
                     <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : isCustomerAuthenticated ? (
+                  ) : (isCustomerAuthenticated || (form.name.trim() && form.email.trim())) ? (
                     <ShoppingBag size={13} />
                   ) : (
                     <LogIn size={13} />
                   )}
                   {submitting
-                    ? 'Placing Order…'
-                    : isCustomerAuthenticated
-                      ? `Confirm Order · ${sym}${fmt(state.estimated_price)}`
-                      : 'Sign in & Place Order'}
+                    ? 'Opening Payment…'
+                    : (isCustomerAuthenticated || (form.name.trim() && form.email.trim()))
+                      ? `Pay ${sym}${fmt(state.estimated_price)}`
+                      : 'Fill in your details above'}
                 </button>
 
                 <p className="text-stone-400 text-xs text-center leading-relaxed">
@@ -504,9 +612,9 @@ export default function CustomerCheckout() {
                 {authLoading ? (
                   <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
                 ) : authMode === 'login' ? (
-                  <><LogIn size={13} /> Sign In & Place Order</>
+                  <><LogIn size={13} /> Sign In & Pay</>
                 ) : (
-                  <><UserPlus size={13} /> Register & Place Order</>
+                  <><UserPlus size={13} /> Register & Pay</>
                 )}
               </button>
             </form>

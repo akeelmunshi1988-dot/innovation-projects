@@ -139,7 +139,7 @@ const QuoteBuilder: React.FC = () => {
                 </select>
                 {selectedRug && (
                   <p className="text-dark-500 text-xs mt-1">
-                    {selectedRug.weave_type} · Lead time: {selectedRug.lead_time_days} days
+                    {selectedRug.weave_type} · Expected delivery: {selectedRug.lead_time_days} days
                   </p>
                 )}
               </div>
@@ -216,8 +216,8 @@ const QuoteBuilder: React.FC = () => {
               {/* Rush order toggle */}
               <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
                 <div>
-                  <p className="text-cream-200 text-sm font-medium">Rush Order</p>
-                  <p className="text-dark-400 text-xs">+25% surcharge, faster delivery</p>
+                  <p className="text-cream-200 text-sm font-medium">Early Delivery</p>
+                  <p className="text-dark-400 text-xs">+25% surcharge, faster than estimated</p>
                 </div>
                 <button
                   type="button"
@@ -276,7 +276,7 @@ const QuoteBuilder: React.FC = () => {
                   <h2 className="text-cream-100 font-bold text-lg">Quote Summary</h2>
                   {rushOrder && (
                     <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/50 px-2 py-0.5 rounded-full">
-                      RUSH ORDER
+                      EARLY DELIVERY
                     </span>
                   )}
                 </div>
@@ -306,7 +306,7 @@ const QuoteBuilder: React.FC = () => {
                   <div className="bg-dark-800 rounded-lg p-3 flex flex-col items-center">
                     <Clock size={14} className="text-blue-400 mb-1" />
                     <p className="text-cream-100 font-semibold">{result.estimated_days} days</p>
-                    <p className="text-dark-500 text-xs">Lead time</p>
+                    <p className="text-dark-500 text-xs">Expected delivery</p>
                   </div>
                 </div>
               </div>

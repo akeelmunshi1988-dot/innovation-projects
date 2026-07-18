@@ -197,7 +197,7 @@ const Orders: React.FC = () => {
                       <span className={statusClass[order.status]}>{statusLabel[order.status]}</span>
                       {quote?.rush_order && (
                         <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/50 px-2 py-0.5 rounded-full">
-                          RUSH
+                          EARLY
                         </span>
                       )}
                     </div>

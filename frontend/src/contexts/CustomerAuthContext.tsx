@@ -19,8 +19,8 @@ interface CustomerAuthContextValue {
 
 const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null);
 
-const CTOKEN_KEY = 'loomcraft_customer_token';
-const CUSER_KEY = 'loomcraft_customer_user';
+const CTOKEN_KEY = 'loomcraftrugs_customer_token';
+const CUSER_KEY = 'loomcraftrugs_customer_user';
 
 export function CustomerAuthProvider({ children }: { children: React.ReactNode }) {
   const [customerToken, setCustomerToken] = useState<string | null>(() => localStorage.getItem(CTOKEN_KEY));

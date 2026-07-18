@@ -42,8 +42,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY = 'loomcraft_token';
-const USER_KEY = 'loomcraft_user';
+const TOKEN_KEY = 'loomcraftrugs_token';
+const USER_KEY = 'loomcraftrugs_user';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));

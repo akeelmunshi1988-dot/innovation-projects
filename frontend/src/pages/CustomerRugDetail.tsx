@@ -134,7 +134,7 @@ export default function CustomerRugDetail() {
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
       });
-      navigate('/shop/checkout', {
+      navigate('/checkout', {
         state: {
           rug_id: rug.id, rug_name: rug.name,
           size_w: parseFloat(form.size_w), size_h: parseFloat(form.size_h),
@@ -179,7 +179,7 @@ export default function CustomerRugDetail() {
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
         notes: form.notes || null,
-      });
+      }, { headers: customerToken ? { Authorization: `Bearer ${customerToken}` } : {} });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
       setSubmitted(true);
     } catch (err: any) {
@@ -238,7 +238,7 @@ export default function CustomerRugDetail() {
         <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
           <Layers size={36} className="mx-auto text-stone-300" />
           <h2 className="font-serif text-2xl font-light text-stone-900">Rug not found</h2>
-          <Link to="/shop/catalog" className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
+          <Link to="/catalog" className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
             ← Back to Collection
           </Link>
         </div>
@@ -258,9 +258,9 @@ export default function CustomerRugDetail() {
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-stone-400">
-          <Link to="/shop" className="hover:text-stone-900 transition-colors">Home</Link>
+          <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>
           <ChevronRight size={11} />
-          <Link to="/shop/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
+          <Link to="/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
           <ChevronRight size={11} />
           <span className="text-stone-600">{rug.name}</span>
         </div>
@@ -289,7 +289,7 @@ export default function CustomerRugDetail() {
               </div>
             </div>
             <Link
-              to="/shop/my-quotes"
+              to="/my-quotes"
               className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border transition-colors flex-shrink-0 ${
                 activeQuote.status === 'sent'
                   ? 'bg-stone-900 border-stone-900 text-white hover:bg-stone-800'
@@ -333,7 +333,7 @@ export default function CustomerRugDetail() {
               <div className="flex flex-wrap gap-3 text-xs text-stone-500">
                 {rug.material && <span>{rug.material}</span>}
                 {rug.pile_height && <><span>·</span><span className="capitalize">{rug.pile_height} pile</span></>}
-                <span>·</span><span>{rug.lead_time_days} days lead time</span>
+                <span>·</span><span>{rug.lead_time_days} days delivery</span>
                 {!rug.available && <><span>·</span><span className="text-red-500">Currently unavailable</span></>}
               </div>
             </div>
@@ -348,7 +348,7 @@ export default function CustomerRugDetail() {
 
             {/* Visualizer CTA */}
             <Link
-              to="/shop/visualizer"
+              to={`/visualizer?rug_id=${rug.id}`}
               className="flex items-center justify-between border border-stone-200 hover:border-stone-400 p-5 transition-colors group"
             >
               <div className="flex items-center gap-4">
@@ -374,8 +374,8 @@ export default function CustomerRugDetail() {
                     <span className="font-medium text-stone-900">{quoteResult.final_price != null ? fmtC(quoteResult.final_price) : '—'}</span>
                   </p>
                   <p className="text-stone-500 text-sm">We'll contact you within 24 hours to confirm details.</p>
-                  <p className="text-stone-400 text-xs">Lead time: {quoteResult.lead_time_days} days</p>
-                  <Link to="/shop/catalog" className="inline-block text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
+                  <p className="text-stone-400 text-xs">Expected delivery: {quoteResult.lead_time_days} days</p>
+                  <Link to="/catalog" className="inline-block text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
                     Continue browsing
                   </Link>
                 </div>
@@ -450,7 +450,7 @@ export default function CustomerRugDetail() {
                             </div>
                           </div>
                           <div>
-                            <p className="text-stone-700 text-xs font-medium">Rush Order</p>
+                            <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
                             <p className="text-stone-400 text-xs">+25% fee</p>
                           </div>
                         </label>
@@ -492,7 +492,7 @@ export default function CustomerRugDetail() {
                             )}
                             {priceResult.rush_surcharge > 0 && (
                               <div className="flex justify-between text-xs">
-                                <span className="text-amber-600">Rush fee</span>
+                                <span className="text-amber-600">Early delivery fee</span>
                                 <span className="text-amber-600">+{fmtC(priceResult.rush_surcharge)}</span>
                               </div>
                             )}
@@ -508,9 +508,9 @@ export default function CustomerRugDetail() {
                               <span className="text-stone-900">Total (incl. GST)</span>
                               <span className="text-stone-900">{fmtC(priceResult.final_price)}</span>
                             </div>
-                            <p className="text-stone-400 text-xs">Lead time: ~{priceResult.estimated_days} days</p>
+                            <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
                             <button type="button"
-                              onClick={() => navigate('/shop/checkout', {
+                              onClick={() => navigate('/checkout', {
                                 state: {
                                   rug_id: rug.id, rug_name: rug.name,
                                   size_w: parseFloat(form.size_w), size_h: parseFloat(form.size_h),

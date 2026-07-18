@@ -220,7 +220,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
               <p className="text-dark-500 text-xs">Quote price = material cost × (1 + margin%)</p>
             </div>
             <div className="space-y-1">
-              <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Lead Time (days) *</label>
+              <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Expected Delivery (days) *</label>
               <input
                 value={form.lead_time_days}
                 onChange={(e) => set('lead_time_days', e.target.value)}

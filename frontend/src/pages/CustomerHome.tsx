@@ -46,7 +46,7 @@ export default function CustomerHome() {
   const featured = catalog.slice(0, 6);
 
   const openChat = (msg: string) => {
-    window.dispatchEvent(new CustomEvent('loomcraft:ask', { detail: { message: msg } }));
+    window.dispatchEvent(new CustomEvent('loomcraftrugs:ask', { detail: { message: msg } }));
   };
 
   const handleAskSubmit = (e: React.FormEvent) => {
@@ -75,13 +75,13 @@ export default function CustomerHome() {
             </p>
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link
-                to="/shop/catalog"
+                to="/catalog"
                 className="inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
               >
                 Explore Collection <ArrowRight size={14} />
               </Link>
               <Link
-                to="/shop/visualizer"
+                to="/visualizer"
                 className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
               >
                 Try Room Visualizer
@@ -93,7 +93,7 @@ export default function CustomerHome() {
               {[
                 { v: `${catalog.length || 8}+`, l: 'Designs' },
                 { v: '4',     l: 'Materials' },
-                { v: '7–60', l: 'Day Lead Time' },
+                { v: '7–60', l: 'Day Delivery' },
               ].map((s) => (
                 <div key={s.l}>
                   <p className="font-serif text-2xl text-stone-900 font-light">{s.v}</p>
@@ -108,7 +108,7 @@ export default function CustomerHome() {
             {featured.slice(0, 4).map((rug, i) => (
               <Link
                 key={rug.id}
-                to={`/shop/catalog/${rug.id}`}
+                to={`/catalog/${rug.id}`}
                 className={`group relative overflow-hidden bg-stone-100 ${i === 0 ? 'row-span-2' : ''}`}
                 style={{ aspectRatio: i === 0 ? '3/4' : '4/3' }}
               >
@@ -142,7 +142,7 @@ export default function CustomerHome() {
             <h2 className="font-serif text-4xl font-light text-stone-900">Featured Rugs</h2>
           </div>
           <Link
-            to="/shop/catalog"
+            to="/catalog"
             className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
           >
             View All
@@ -153,7 +153,7 @@ export default function CustomerHome() {
           {featured.map((rug) => (
             <Link
               key={rug.id}
-              to={`/shop/catalog/${rug.id}`}
+              to={`/catalog/${rug.id}`}
               className="group block"
             >
               {/* Image */}
@@ -204,7 +204,7 @@ export default function CustomerHome() {
             {MATERIALS.map((m) => (
               <Link
                 key={m.id}
-                to={`/shop/catalog?material=${m.id}`}
+                to={`/catalog?material=${m.id}`}
                 className="group bg-white p-8 space-y-3 hover:bg-stone-50 transition-colors"
               >
                 <p className="font-serif text-2xl font-light text-stone-900">{m.label}</p>
@@ -294,7 +294,7 @@ export default function CustomerHome() {
             </p>
           </div>
           <Link
-            to="/shop/visualizer"
+            to="/visualizer"
             className="flex-shrink-0 inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
           >
             Try Free <ArrowRight size={14} />

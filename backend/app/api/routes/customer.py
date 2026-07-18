@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+import math
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -59,6 +60,7 @@ async def replace_rug(
     rugImage:  Optional[UploadFile] = File(None),
     rug_id:    Optional[int]        = Form(None),
     corners:   str                  = Form(...),
+    shape:     str                  = Form("rect"),
 ):
     if rugImage is None and rug_id is None:
         raise HTTPException(status_code=400, detail="Provide either rugImage or rug_id.")
@@ -95,30 +97,64 @@ async def replace_rug(
         if rug is None:
             raise HTTPException(status_code=400, detail="Could not read rug image.")
 
+    # Auto-crop background padding so the rug pattern fills the full warp boundary.
+    # Sample the 4 corners to detect the background colour, then find the
+    # bounding box of content that differs from it.
+    def crop_to_content(img: np.ndarray) -> np.ndarray:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        corners = [gray[0, 0], gray[0, -1], gray[-1, 0], gray[-1, -1]]
+        bg = float(np.median(corners))
+        # Build a mask of pixels that differ from background by > threshold
+        diff = np.abs(gray - bg)
+        thresh = 18.0  # tolerance — keeps subtle textures, removes plain bg
+        content = (diff > thresh).astype(np.uint8) * 255
+        # Clean up noise
+        content = cv2.morphologyEx(content, cv2.MORPH_OPEN,
+                                   np.ones((5, 5), np.uint8))
+        coords = cv2.findNonZero(content)
+        if coords is None:
+            return img                        # can't detect content, return as-is
+        x, y, cw, ch = cv2.boundingRect(coords)
+        # Add 1 % padding so edges aren't clipped
+        pad_x = max(1, int(cw * 0.01))
+        pad_y = max(1, int(ch * 0.01))
+        x  = max(0, x  - pad_x);  y  = max(0, y  - pad_y)
+        cw = min(img.shape[1] - x, cw + 2 * pad_x)
+        ch = min(img.shape[0] - y, ch + 2 * pad_y)
+        cropped = img[y:y+ch, x:x+cw]
+        # Only use crop if it meaningfully reduces the image (> 3 % gain each axis)
+        if cw < img.shape[1] * 0.97 or ch < img.shape[0] * 0.97:
+            return cropped
+        return img
+
+    rug = crop_to_content(rug)
+
     # Resize rug to a standard rectangle
     rug_width, rug_height = 1200, 800
     rug = cv2.resize(rug, (rug_width, rug_height))
 
-    # Source rectangle corners
+    h, w = room.shape[:2]
+
     pts_src = np.array([
         [0,         0],
         [rug_width, 0],
         [rug_width, rug_height],
         [0,         rug_height],
     ], dtype=np.float32)
-
-    # Destination corners from the user's canvas clicks (image-space coords)
-    pts_dst = np.array(corner_points, dtype=np.float32)
-
-    # Perspective warp
+    pts_dst    = np.array(corner_points[:4], dtype=np.float32)
     matrix     = cv2.getPerspectiveTransform(pts_src, pts_dst)
-    h, w       = room.shape[:2]
     warped_rug = cv2.warpPerspective(rug, matrix, (w, h))
 
-    # Feathered mask (soft edges)
-    gray        = cv2.cvtColor(warped_rug, cv2.COLOR_BGR2GRAY)
-    _, mask     = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
-    mask        = cv2.GaussianBlur(mask, (31, 31), 15)
+    # Build flat mask in rug coordinate space then warp it
+    flat_mask = np.zeros((rug_height, rug_width), dtype=np.uint8)
+    if shape == "circle":
+        cx, cy = rug_width // 2, rug_height // 2
+        cv2.ellipse(flat_mask, (cx, cy), (cx - 10, cy - 10), 0, 0, 360, 255, -1)
+    else:
+        flat_mask[:] = 255
+
+    mask = cv2.warpPerspective(flat_mask, matrix, (w, h))
+    mask = cv2.GaussianBlur(mask, (31, 31), 15)
 
     mask_f     = mask.astype(float) / 255.0
     mask_inv_f = 1.0 - mask_f
@@ -134,9 +170,10 @@ async def replace_rug(
 
     final = room_f.astype(np.uint8)
 
-    # Realistic shadow just outside the rug quad
-    shadow = np.zeros_like(room)
-    cv2.fillConvexPoly(shadow, pts_dst.astype(int), (40, 40, 40))
+    # Shadow just outside the rug boundary
+    shadow     = np.zeros_like(room)
+    shadow_pts = np.array(corner_points, dtype=np.int32)
+    cv2.fillConvexPoly(shadow, shadow_pts, (40, 40, 40))
     shadow = cv2.GaussianBlur(shadow, (101, 101), 50)
     final  = cv2.addWeighted(final, 1.0, shadow, 0.22, 0)
 
@@ -450,6 +487,187 @@ class CustomerChatMessage(BaseModel):
 
 # ── Customer Checkout ─────────────────────────────────────────────────────────
 
+class OrderDetailsBase(BaseModel):
+    rug_id: int
+    size_w: float
+    size_h: float
+    qty: int = 1
+    rush_order: bool = False
+    notes: Optional[str] = None
+    name: str
+    email: str
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    shipping_address: str
+
+
+@router.post("/customer/checkout/create-payment-order")
+async def create_payment_order(body: OrderDetailsBase):
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=503, detail="Payment gateway not configured.")
+    import razorpay as _rzp
+    db = SessionLocal()
+    try:
+        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
+        if not rug:
+            raise HTTPException(status_code=404, detail="Rug not found")
+        tid = rug.tenant_id
+        material = db.query(Material).filter(Material.id == rug.material_id).first()
+        if not material or not material.is_available:
+            raise HTTPException(status_code=400, detail="Material is not available")
+        total_sqm = body.size_w * body.size_h * body.qty
+        if material.stock_meters < total_sqm:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock. Available: {material.stock_meters:.1f} sqm, Required: {total_sqm:.1f} sqm",
+            )
+        engine = QuoteEngine(db, tenant_id=tid)
+        calc = engine.calculate_quote(
+            rug_id=body.rug_id,
+            size_w=body.size_w,
+            size_h=body.size_h,
+            material_id=rug.material_id,
+            qty=body.qty,
+            rush_order=body.rush_order,
+        )
+        if "error" in calc:
+            raise HTTPException(status_code=400, detail=calc["error"])
+        if not calc.get("moq_met", True):
+            raise HTTPException(status_code=400, detail=calc.get("moq_message", "Minimum order quantity not met"))
+
+        final_price = calc["final_price"]
+        currency = calc.get("price_currency") or "INR"
+        amount_smallest = int(round(final_price * 100))  # paise for INR
+
+        client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        rzp_order = client.order.create({
+            "amount": amount_smallest,
+            "currency": currency,
+            "receipt": f"rcpt_{uuid.uuid4().hex[:16]}",
+            "payment_capture": 1,
+        })
+
+        lead_days = rug.lead_time_days or 21
+        if body.rush_order:
+            lead_days = max(7, lead_days // 2)
+
+        return {
+            "razorpay_order_id": rzp_order["id"],
+            "amount_paise": amount_smallest,
+            "currency": currency,
+            "key_id": settings.RAZORPAY_KEY_ID,
+            "final_price": final_price,
+            "pre_gst_price": calc.get("pre_gst_price"),
+            "gst_pct": calc.get("gst_pct"),
+            "gst_amount": calc.get("gst_amount"),
+            "price_currency": currency,
+            "rug_name": rug.name,
+            "estimated_days": lead_days,
+        }
+    finally:
+        db.close()
+
+
+class VerifyPaymentBody(OrderDetailsBase):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+
+
+@router.post("/customer/checkout/verify-payment")
+async def verify_payment(body: VerifyPaymentBody):
+    from datetime import datetime, timedelta
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=503, detail="Payment gateway not configured.")
+    import razorpay as _rzp
+    client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    try:
+        client.utility.verify_payment_signature({
+            "razorpay_order_id": body.razorpay_order_id,
+            "razorpay_payment_id": body.razorpay_payment_id,
+            "razorpay_signature": body.razorpay_signature,
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Payment verification failed. Please contact support.")
+
+    db = SessionLocal()
+    try:
+        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
+        if not rug:
+            raise HTTPException(status_code=404, detail="Rug not found")
+        tid = rug.tenant_id
+        tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+        material = db.query(Material).filter(Material.id == rug.material_id).first()
+        if not material or not material.is_available:
+            raise HTTPException(status_code=400, detail="Material unavailable")
+
+        customer = db.query(Customer).filter(
+            Customer.email == body.email, Customer.tenant_id == tid,
+        ).first()
+        if not customer:
+            customer = Customer(
+                tenant_id=tid, name=body.name, email=body.email,
+                phone=body.phone, company=body.company,
+            )
+            db.add(customer)
+            db.flush()
+
+        engine = QuoteEngine(db, tenant_id=tid)
+        calc = engine.calculate_quote(
+            rug_id=body.rug_id, size_w=body.size_w, size_h=body.size_h,
+            material_id=rug.material_id, qty=body.qty, rush_order=body.rush_order,
+        )
+        total_sqm = body.size_w * body.size_h * body.qty
+        if material.stock_meters < total_sqm:
+            raise HTTPException(status_code=400, detail="Stock changed since payment — please contact support.")
+
+        quote = Quote(
+            tenant_id=tid, customer_id=customer.id, rug_catalog_id=body.rug_id,
+            material_id=rug.material_id, custom_size_w=body.size_w, custom_size_h=body.size_h,
+            qty=body.qty, base_price=calc.get("subtotal"), final_price=calc.get("final_price"),
+            price_currency=calc.get("price_currency") or (tenant.base_currency if tenant else "INR"),
+            margin_pct=calc.get("profit_margin_pct"), gst_pct=calc.get("gst_pct"),
+            rush_order=body.rush_order, status="accepted", notes=body.notes,
+        )
+        db.add(quote)
+        db.flush()
+
+        lead_days = rug.lead_time_days or 21
+        if body.rush_order:
+            lead_days = max(7, lead_days // 2)
+        estimated_delivery = datetime.utcnow() + timedelta(days=lead_days)
+
+        order = Order(
+            tenant_id=tid, quote_id=quote.id, status="pending",
+            shipping_address=body.shipping_address,
+            estimated_delivery=estimated_delivery,
+        )
+        db.add(order)
+        db.flush()
+
+        material.stock_meters -= total_sqm
+        db.add(InventoryTransaction(
+            tenant_id=tid, material_id=material.id, qty_change=-total_sqm,
+            transaction_type="used",
+            notes=f"Order #{order.id} via Razorpay {body.razorpay_payment_id} — {rug.name} {body.size_w}×{body.size_h}m ×{body.qty}",
+        ))
+        db.commit()
+
+        return {
+            "order_id": order.id, "quote_id": quote.id, "rug_name": rug.name,
+            "size": f"{body.size_w}m × {body.size_h}m", "qty": body.qty,
+            "pre_gst_price": calc.get("pre_gst_price"),
+            "gst_pct": calc.get("gst_pct", 12.0), "gst_amount": calc.get("gst_amount"),
+            "final_price": quote.final_price, "price_currency": quote.price_currency,
+            "status": order.status,
+            "estimated_delivery": estimated_delivery.strftime("%Y-%m-%d"),
+            "lead_time_days": lead_days, "customer_name": customer.name,
+            "shipping_address": body.shipping_address,
+        }
+    finally:
+        db.close()
+
+
 class CheckoutBody(BaseModel):
     rug_id: int
     size_w: float
@@ -590,17 +808,58 @@ async def customer_checkout(body: CheckoutBody):
 # ── Customer My Orders ────────────────────────────────────────────────────────
 
 @router.get("/customer/orders")
-async def get_customer_orders(email: str):
+async def get_customer_orders(
+    email: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    status: Optional[str] = None,
+    sort_by: str = Query("date_desc"),
+    size_min: Optional[float] = None,
+    size_max: Optional[float] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    from datetime import datetime, timedelta
     db = SessionLocal()
     try:
         customer = db.query(Customer).filter(Customer.email == email).first()
         if not customer:
-            return []
-        orders = (
+            return {"total": 0, "page": page, "page_size": page_size, "pages": 0, "items": []}
+        base_q = (
             db.query(Order)
             .join(Quote, Order.quote_id == Quote.id)
             .filter(Quote.customer_id == customer.id)
-            .order_by(Order.created_at.desc())
+        )
+        if status and status != 'all':
+            base_q = base_q.filter(Order.status == status)
+        if size_min is not None:
+            base_q = base_q.filter(Quote.custom_size_w * Quote.custom_size_h >= size_min)
+        if size_max is not None:
+            base_q = base_q.filter(Quote.custom_size_w * Quote.custom_size_h <= size_max)
+        if date_from:
+            try:
+                base_q = base_q.filter(Order.created_at >= datetime.strptime(date_from, "%Y-%m-%d"))
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                base_q = base_q.filter(Order.created_at < datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1))
+            except ValueError:
+                pass
+        if sort_by == 'price_asc':
+            order = Quote.final_price.asc()
+        elif sort_by == 'price_desc':
+            order = Quote.final_price.desc()
+        elif sort_by == 'date_asc':
+            order = Order.created_at.asc()
+        else:
+            order = Order.created_at.desc()
+        total = base_q.count()
+        orders = (
+            base_q
+            .order_by(order)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
             .all()
         )
         result = []
@@ -621,7 +880,13 @@ async def get_customer_orders(email: str):
                 "estimated_delivery": o.estimated_delivery.strftime("%Y-%m-%d") if o.estimated_delivery else None,
                 "created_at": o.created_at.strftime("%Y-%m-%d") if o.created_at else None,
             })
-        return result
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "pages": math.ceil(total / page_size) if total > 0 else 0,
+            "items": result,
+        }
     finally:
         db.close()
 
@@ -649,7 +914,7 @@ async def customer_chat(body: CustomerChatRequest):
     finally:
         db.close()
 
-    system_prompt = f"""You are a friendly rug design consultant for LoomCraft AI, a custom rug manufacturing studio.
+    system_prompt = f"""You are a friendly rug design consultant for LoomCraftRugs AI, a custom rug manufacturing studio.
 Your role is to help customers choose the perfect rug for their space.
 
 Our current collection:
@@ -726,13 +991,51 @@ async def get_room_preview(rug_id: Optional[int] = None, opacity: float = 0.90):
 @router.get("/customer/quotes")
 def get_customer_quotes(
     rug_id: Optional[int] = None,
+    status: Optional[str] = None,
+    sort_by: str = Query("date_desc"),
+    size_min: Optional[float] = None,
+    size_max: Optional[float] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     current_customer: Customer = Depends(get_current_customer),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Quote).filter(Quote.customer_id == current_customer.id)
+    from datetime import datetime, timedelta
+    base_q = db.query(Quote).filter(Quote.customer_id == current_customer.id)
     if rug_id is not None:
-        q = q.filter(Quote.rug_catalog_id == rug_id)
-    quotes = q.order_by(Quote.created_at.desc()).all()
+        base_q = base_q.filter(Quote.rug_catalog_id == rug_id)
+    if status and status != 'all':
+        base_q = base_q.filter(Quote.status == status)
+    if size_min is not None:
+        base_q = base_q.filter(Quote.custom_size_w * Quote.custom_size_h >= size_min)
+    if size_max is not None:
+        base_q = base_q.filter(Quote.custom_size_w * Quote.custom_size_h <= size_max)
+    if date_from:
+        try:
+            base_q = base_q.filter(Quote.created_at >= datetime.strptime(date_from, "%Y-%m-%d"))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            base_q = base_q.filter(Quote.created_at < datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1))
+        except ValueError:
+            pass
+    total = base_q.count()
+    action_needed = db.query(Quote).filter(
+        Quote.customer_id == current_customer.id,
+        Quote.status == 'sent',
+    ).count()
+    if sort_by == 'price_asc':
+        order = Quote.final_price.asc()
+    elif sort_by == 'price_desc':
+        order = Quote.final_price.desc()
+    elif sort_by == 'date_asc':
+        order = Quote.created_at.asc()
+    else:
+        order = Quote.created_at.desc()
+    quotes = base_q.order_by(order).offset((page - 1) * page_size).limit(page_size).all()
     result = []
     for q in quotes:
         rug = q.rug_catalog
@@ -749,9 +1052,17 @@ def get_customer_quotes(
             "size_w": q.custom_size_w,
             "size_h": q.custom_size_h,
             "qty": q.qty,
+            "base_price": q.base_price,
             "final_price": q.final_price,
             "price_currency": q.price_currency or "INR",
             "gst_pct": q.gst_pct,
+            "gst_amount": round(
+                q.final_price - round(q.final_price / (1 + (q.gst_pct or 0) / 100), 2), 2
+            ) if q.final_price and q.gst_pct else None,
+            "pre_gst_price": round(
+                q.final_price / (1 + (q.gst_pct or 0) / 100), 2
+            ) if q.final_price else None,
+            "manual_discount_pct": q.manual_discount_pct,
             "rush_order": q.rush_order,
             "notes": q.notes,
             "vendor_notes": q.vendor_notes,
@@ -762,7 +1073,14 @@ def get_customer_quotes(
             "lead_time_days": rug.lead_time_days if rug else None,
             "review_request_count": int(q.review_request_count or 0),
         })
-    return result
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if total > 0 else 0,
+        "action_needed": action_needed,
+        "items": result,
+    }
 
 
 MAX_REVIEW_REQUESTS = 5
@@ -836,7 +1154,7 @@ def _notify_vendor_review_request(quote: Quote, tenant, customer: Customer, requ
         f"Status: {quote.status}\n"
         f"Review Request: #{request_num} of {MAX_REVIEW_REQUESTS}\n\n"
         f"Please log in to the admin panel to review and update the quote.\n\n"
-        f"— LoomCraft System"
+        f"— LoomCraftRugs System"
     )
 
     msg = MIMEMultipart()
@@ -923,6 +1241,46 @@ def reject_quote(
     return {"message": "Quote rejected.", "quote_id": quote.id}
 
 
+class NegotiateRequest(BaseModel):
+    proposed_price: Optional[float] = None
+    proposed_qty: Optional[int] = None
+    remove_rush: Optional[bool] = None
+    requested_lead_days: Optional[int] = None
+    message: str = ""
+
+@router.patch("/customer/quotes/{quote_id}/negotiate")
+def negotiate_quote(
+    quote_id: int,
+    body: NegotiateRequest,
+    current_customer: Customer = Depends(get_current_customer),
+    db: Session = Depends(get_db),
+):
+    quote = db.query(Quote).filter(
+        Quote.id == quote_id,
+        Quote.customer_id == current_customer.id,
+    ).first()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    if quote.status != "sent":
+        raise HTTPException(status_code=400, detail="Can only negotiate quotes awaiting your response")
+
+    parts = []
+    if body.proposed_price is not None:
+        parts.append(f"Counter-offer price: {quote.price_currency or 'INR'} {body.proposed_price:,.2f}")
+    if body.proposed_qty is not None and body.proposed_qty != quote.qty:
+        parts.append(f"Requested quantity: {body.proposed_qty} (was {quote.qty})")
+    if body.remove_rush:
+        parts.append("Remove early delivery fee — switch to standard delivery")
+    if body.requested_lead_days is not None:
+        parts.append(f"Requested lead time: {body.requested_lead_days} days")
+    if body.message.strip():
+        parts.append(body.message.strip())
+    quote.customer_response_notes = " · ".join(parts) if parts else "Customer requested review"
+    quote.status = "draft"   # back to vendor for review
+    db.commit()
+    return {"message": "Negotiation request sent to our team.", "quote_id": quote.id}
+
+
 # ── Customer Invoice Download (authenticated) ─────────────────────────────────
 
 @router.get("/customer/orders/{order_id}/invoice")
@@ -959,7 +1317,7 @@ def download_customer_invoice(
     pdf_bytes = generate_invoice_pdf(
         quote_id=quote.id,
         invoice_type="proforma",
-        supplier_name=tenant.name if tenant else "LoomCraft",
+        supplier_name=tenant.name if tenant else "LoomCraftRugs",
         supplier_address=tenant.address if tenant else "India",
         supplier_gstin=tenant.gstin if tenant else None,
         supplier_state_code=tenant.state_code if tenant else None,

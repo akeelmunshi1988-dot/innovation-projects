@@ -27,17 +27,17 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { path: '/assistant', label: 'AI Assistant', icon: <MessageSquare size={18} /> },
-  { path: '/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
-  { path: '/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },
-  { path: '/quotes', label: 'Quotes', icon: <FileText size={18} /> },
-  { path: '/orders', label: 'Orders', icon: <ShoppingBag size={18} /> },
-  { path: '/inventory', label: 'Inventory', icon: <Package size={18} /> },
-  { path: '/customers', label: 'Customers', icon: <Users size={18} /> },
-  { path: '/shop', label: 'Customer Shop', icon: <Store size={18} /> },
-  { path: '/billing', label: 'Billing', icon: <CreditCard size={18} /> },
-  { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
+  { path: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { path: '/admin/assistant', label: 'AI Assistant', icon: <MessageSquare size={18} /> },
+  { path: '/admin/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
+  { path: '/admin/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },
+  { path: '/admin/quotes', label: 'Quotes', icon: <FileText size={18} /> },
+  { path: '/admin/orders', label: 'Orders', icon: <ShoppingBag size={18} /> },
+  { path: '/admin/inventory', label: 'Inventory', icon: <Package size={18} /> },
+  { path: '/admin/customers', label: 'Customers', icon: <Users size={18} /> },
+  { path: '/', label: 'Customer Shop', icon: <Store size={18} /> },
+  { path: '/admin/billing', label: 'Billing', icon: <CreditCard size={18} /> },
+  { path: '/admin/settings', label: 'Settings', icon: <Settings size={18} /> },
 ];
 
 interface LayoutProps {
@@ -52,7 +52,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   return (
@@ -80,7 +80,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Scissors size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-cream-100 font-bold text-base leading-tight">LoomCraft AI</h1>
+            <h1 className="text-cream-100 font-bold text-base leading-tight">LoomCraftRugs AI</h1>
             <p className="text-dark-400 text-xs">Rug Manufacturing System</p>
           </div>
           <button
@@ -187,7 +187,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </button>
           <div className="flex-1">
             <h2 className="text-cream-200 font-semibold text-sm">
-              {navItems.find((n) => n.path === location.pathname)?.label ?? 'LoomCraft AI'}
+              {navItems.find((n) => n.path === location.pathname)?.label ?? 'LoomCraftRugs AI'}
             </h2>
           </div>
           <div className="flex items-center gap-3">

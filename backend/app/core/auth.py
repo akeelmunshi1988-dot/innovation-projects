@@ -42,7 +42,8 @@ def get_current_user(
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         user_id: Optional[str] = payload.get("sub")
-        if user_id is None:
+        token_type: Optional[str] = payload.get("type")
+        if user_id is None or token_type == "customer":
             raise credentials_error
     except JWTError:
         raise credentials_error

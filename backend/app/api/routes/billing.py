@@ -150,7 +150,7 @@ def create_subscription(
             "period": "monthly",
             "interval": 1,
             "item": {
-                "name": f"LoomCraft AI {plan_config['name']}",
+                "name": f"LoomCraftRugs AI {plan_config['name']}",
                 "amount": plan_config["price_paise"],
                 "currency": "INR",
                 "description": f"{plan_config['name']} Plan — {plan_config['tagline']}",
@@ -179,7 +179,7 @@ def create_subscription(
             "currency": "INR",
             "plan": body.plan,
             "plan_name": plan_config["name"],
-            "description": f"LoomCraft AI {plan_config['name']} — ₹{plan_config['price_inr']}/month",
+            "description": f"LoomCraftRugs AI {plan_config['name']} — ₹{plan_config['price_inr']}/month",
             "prefill": {
                 "name": current_user.full_name or current_user.email,
                 "email": current_user.email,

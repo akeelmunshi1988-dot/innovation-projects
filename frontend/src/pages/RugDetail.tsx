@@ -291,7 +291,7 @@ export default function RugDetail() {
           },
           {
             icon: <Clock size={16} />,
-            label: 'Lead Time',
+            label: 'Expected Delivery',
             value: `${rug.lead_time_days} days`,
           },
           {
@@ -534,8 +534,8 @@ export default function RugDetail() {
               >
                 <Zap size={15} className={calcRush ? 'text-gold-400' : 'text-dark-500'} />
                 <div className="text-left flex-1">
-                  <p className="font-medium">Rush Order</p>
-                  <p className="text-xs opacity-70">+25% surcharge · Priority queue</p>
+                  <p className="font-medium">Early Delivery</p>
+                  <p className="text-xs opacity-70">+25% surcharge · Faster than estimated</p>
                 </div>
                 {calcRush && <CheckCircle size={14} className="text-gold-400 flex-shrink-0" />}
               </button>
@@ -603,7 +603,7 @@ export default function RugDetail() {
                   )}
                   {calcResult.rush_surcharge > 0 && (
                     <div className="flex justify-between text-orange-400">
-                      <span>Rush surcharge</span>
+                      <span>Early delivery fee</span>
                       <span>+{fmt(calcResult.rush_surcharge, calcResult.price_currency)}</span>
                     </div>
                   )}
@@ -707,7 +707,7 @@ export default function RugDetail() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                    <Clock size={10} className="inline" /> Lead Time (days)
+                    <Clock size={10} className="inline" /> Expected Delivery (days)
                   </label>
                   <input
                     required

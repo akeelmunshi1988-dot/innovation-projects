@@ -33,7 +33,7 @@ export default function Login() {
           <div className="w-14 h-14 bg-gold-600 rounded-2xl flex items-center justify-center mx-auto">
             <Scissors size={26} className="text-white" />
           </div>
-          <h1 className="text-cream-100 font-bold text-2xl">LoomCraft AI</h1>
+          <h1 className="text-cream-100 font-bold text-2xl">LoomCraftRugs AI</h1>
           <p className="text-dark-400 text-sm">Sign in to your account</p>
         </div>
 
@@ -48,7 +48,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@loomcraft.demo"
+              placeholder="admin@loomcraftrugs.demo"
               className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-cream-100 placeholder-dark-500 focus:outline-none focus:border-gold-600 transition-colors text-sm"
             />
           </div>
@@ -84,13 +84,13 @@ export default function Login() {
           </button>
 
           <p className="text-center text-dark-500 text-xs pt-1">
-            Demo: admin@loomcraft.demo / demo1234
+            Demo: admin@loomcraftrugs.demo / demo1234
           </p>
         </form>
 
         <p className="text-center text-dark-500 text-xs">
           Looking for the customer shop?{' '}
-          <a href="/shop" className="text-gold-400 hover:underline">Open customer portal</a>
+          <a href="/" className="text-gold-400 hover:underline">Open customer portal</a>
         </p>
       </div>
     </div>

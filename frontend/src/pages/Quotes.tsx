@@ -37,10 +37,10 @@ function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) =
     size ? `📐 Size   : ${size}` : '',
     `📦 Qty    : ${q.qty || 1}`,
     `💰 Total  : ${price}`,
-    q.rush_order ? '⚡ Rush order' : '',
+    q.rush_order ? '⚡ Early delivery' : '',
     '',
     'This quote is valid for 15 days. Please confirm to proceed.',
-    '— LoomCraft Team',
+    '— LoomCraftRugs Team',
   ].filter(Boolean).join('\n');
   const base = phone ? `https://wa.me/${phone}` : 'https://wa.me/';
   return `${base}?text=${encodeURIComponent(msg)}`;
@@ -261,7 +261,7 @@ export default function Quotes() {
                 : 'bg-dark-900 border-dark-600 text-dark-400 hover:text-cream-300 hover:border-dark-500'
             }`}
           >
-            ⚡ Rush Only
+            ⚡ Early Delivery Only
           </button>
 
           {activeFilterCount > 0 && (
@@ -624,7 +624,7 @@ function QuoteRow({ q, fmt, isOpen, updating, onToggle, onChangeStatus, onWhatsA
               {q.customer?.name ?? 'Unknown customer'}
             </p>
             {q.rush_order && (
-              <span className="text-xs bg-orange-900/30 text-orange-400 border border-orange-700/30 rounded-full px-2 py-0.5">Rush</span>
+              <span className="text-xs bg-orange-900/30 text-orange-400 border border-orange-700/30 rounded-full px-2 py-0.5">Early</span>
             )}
           </div>
           <p className="text-dark-400 text-xs truncate mt-0.5">
@@ -663,7 +663,7 @@ function QuoteRow({ q, fmt, isOpen, updating, onToggle, onChangeStatus, onWhatsA
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Specs</p>
               {sqm && <p className="text-cream-200 font-medium">{q.custom_size_w} × {q.custom_size_h}m</p>}
-              <p className="text-dark-400 text-xs">Qty: {q.qty} · {q.rush_order ? 'Rush' : 'Standard'}</p>
+              <p className="text-dark-400 text-xs">Qty: {q.qty} · {q.rush_order ? 'Early Delivery' : 'Standard'}</p>
             </div>
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Pricing</p>
@@ -867,7 +867,7 @@ function PipelineView({ quotes, fmt, updating, onChangeStatus, onWhatsApp, onEma
                       <p className="text-dark-300 text-xs truncate">{q.rug_catalog?.name ?? `#${q.rug_catalog_id}`}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         {sqm && <span className="text-dark-500 text-[10px]">{q.custom_size_w}×{q.custom_size_h}m</span>}
-                        {q.rush_order && <span className="text-[10px] text-orange-400 font-semibold">Rush</span>}
+                        {q.rush_order && <span className="text-[10px] text-orange-400 font-semibold">Early</span>}
                       </div>
                     </div>
 

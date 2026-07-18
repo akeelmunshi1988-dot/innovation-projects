@@ -118,8 +118,8 @@ export default function CustomerChat() {
         setPendingAsk(msg);
       }
     };
-    window.addEventListener('loomcraft:ask', handler);
-    return () => window.removeEventListener('loomcraft:ask', handler);
+    window.addEventListener('loomcraftrugs:ask', handler);
+    return () => window.removeEventListener('loomcraftrugs:ask', handler);
   }, []);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -203,7 +203,7 @@ export default function CustomerChat() {
             {messages.length === 0 && !loading && (
               <div className="space-y-4">
                 <div className="bg-dark-800 rounded-xl rounded-bl-sm px-3 py-2.5 text-sm text-dark-200 space-y-2">
-                  <ChatMarkdown content={"Hi! I'm your **LoomCraft AI** rug consultant.\n\nI can help you:\n- Choose the right rug for your space\n- Understand materials and weave types\n- Figure out the best size"} />
+                  <ChatMarkdown content={"Hi! I'm your **LoomCraftRugs AI** rug consultant.\n\nI can help you:\n- Choose the right rug for your space\n- Understand materials and weave types\n- Figure out the best size"} />
                   <div className="flex items-start gap-2 bg-gold-600/10 border border-gold-500/30 rounded-lg px-2.5 py-2">
                     <HelpCircle size={14} className="text-gold-400 flex-shrink-0 mt-0.5" />
                     <p className="text-gold-300 text-sm leading-relaxed font-medium">What can I help you with today?</p>

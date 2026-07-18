@@ -6,7 +6,7 @@ from app.core.database import init_db
 from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices
 
 app = FastAPI(
-    title="LoomCraft AI - Rug Manufacture System",
+    title="LoomCraftRugs AI - Rug Manufacture System",
     description="Custom rug manufacturing management system with AI assistant",
     version="2.0.0",
 )
@@ -45,7 +45,7 @@ app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 
 @app.get("/")
 async def root():
-    return {"message": "LoomCraft AI API is running", "docs": "/docs"}
+    return {"message": "LoomCraftRugs AI API is running", "docs": "/docs"}
 
 
 @app.get("/health")

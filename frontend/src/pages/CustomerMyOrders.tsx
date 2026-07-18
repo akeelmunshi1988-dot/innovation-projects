@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn } from 'lucide-react';
+import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '../components/CustomerLayout';
 import { getMyOrders } from '../services/api';
 import type { CustomerOrder } from '../services/api';
-import { fmtExact, currencySymbol } from '../utils/currency';
+import { fmtExact } from '../utils/currency';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import axios from 'axios';
 
@@ -21,7 +21,6 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const currency = order.price_currency || 'INR';
-  const sym = currencySymbol(currency);
   const fmt = (n: number) => fmtExact(n, currency);
   const meta = STATUS_META[order.status] ?? { label: order.status, color: 'text-stone-500 border-stone-200 bg-stone-50', dot: 'bg-stone-300' };
 
@@ -90,7 +89,7 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Type</p>
               <p className={`text-sm ${order.rush_order ? 'text-amber-600' : 'text-stone-500'}`}>
-                {order.rush_order ? 'Rush Order' : 'Standard'}
+                {order.rush_order ? 'Early Delivery' : 'Standard'}
               </p>
             </div>
           </div>
@@ -131,34 +130,102 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
   );
 }
 
+const PAGE_SIZE = 10;
+
 export default function CustomerMyOrders() {
   const { customer, customerToken, isCustomerAuthenticated } = useCustomerAuth();
   const navigate = useNavigate();
 
-  const [authOrders, setAuthOrders] = useState<CustomerOrder[] | null>(null);
+  // Authenticated state
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [sizeMin, setSizeMin] = useState('');
+  const [sizeMax, setSizeMax] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Guest search state
   const [email, setEmail] = useState('');
-  const [guestOrders, setGuestOrders] = useState<CustomerOrder[] | null>(null);
+  const [guestOrders, setGuestOrders] = useState<CustomerOrder[]>([]);
+  const [guestTotal, setGuestTotal] = useState(0);
+  const [guestPage, setGuestPage] = useState(1);
+  const [guestLoadingMore, setGuestLoadingMore] = useState(false);
+  const [searchedEmail, setSearchedEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
+  interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
+
+  const fetchOrders = async (pageNum: number, opts: FetchOpts, append: boolean) => {
+    if (!customer) return;
+    append ? setLoadingMore(true) : setAuthLoading(true);
+    try {
+      const res = await getMyOrders(customer.email, pageNum, PAGE_SIZE, {
+        status: opts.status,
+        sort_by: opts.sortBy,
+        size_min: opts.sizeMin ? parseFloat(opts.sizeMin) : undefined,
+        size_max: opts.sizeMax ? parseFloat(opts.sizeMax) : undefined,
+        date_from: opts.dateFrom || undefined,
+        date_to: opts.dateTo || undefined,
+      });
+      setTotal(res.total);
+      setOrders(prev => append ? [...prev, ...res.items] : res.items);
+      setPage(pageNum);
+    } finally {
+      append ? setLoadingMore(false) : setAuthLoading(false);
+    }
+  };
+
+  const currentOpts = (): FetchOpts => ({ status: filter, sortBy, sizeMin, sizeMax, dateFrom, dateTo });
+
   useEffect(() => {
     if (!isCustomerAuthenticated || !customer) return;
-    setAuthLoading(true);
-    getMyOrders(customer.email)
-      .then(data => setAuthOrders(data))
-      .catch(() => setAuthOrders([]))
-      .finally(() => setAuthLoading(false));
+    fetchOrders(1, currentOpts(), false);
   }, [isCustomerAuthenticated, customer?.email]);
+
+  const handleFilterChange = (newFilter: string) => {
+    setFilter(newFilter);
+    setOrders([]);
+    fetchOrders(1, { ...currentOpts(), status: newFilter }, false);
+  };
+
+  const handleSortChange = (val: string) => {
+    setSortBy(val);
+    setOrders([]);
+    fetchOrders(1, { ...currentOpts(), sortBy: val }, false);
+  };
+
+  const handleApplyFilters = () => {
+    setOrders([]);
+    fetchOrders(1, currentOpts(), false);
+  };
+
+  const handleClearFilters = () => {
+    setSizeMin(''); setSizeMax(''); setDateFrom(''); setDateTo('');
+    setOrders([]);
+    fetchOrders(1, { ...currentOpts(), sizeMin: '', sizeMax: '', dateFrom: '', dateTo: '' }, false);
+  };
+
+  const hasActiveFilters = !!(sizeMin || sizeMax || dateFrom || dateTo);
+
+  const handleLoadMore = () => fetchOrders(page + 1, currentOpts(), true);
 
   const handleGuestSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setLoading(true); setError(null); setSearched(false);
+    setGuestOrders([]); setGuestTotal(0); setGuestPage(1);
     try {
-      const data = await getMyOrders(email.trim());
-      setGuestOrders(data);
+      const res = await getMyOrders(email.trim(), 1, PAGE_SIZE);
+      setGuestOrders(res.items);
+      setGuestTotal(res.total);
+      setSearchedEmail(email.trim());
       setSearched(true);
     } catch {
       setError('Failed to load orders. Please try again.');
@@ -166,6 +233,21 @@ export default function CustomerMyOrders() {
       setLoading(false);
     }
   };
+
+  const handleGuestLoadMore = async () => {
+    const nextPage = guestPage + 1;
+    setGuestLoadingMore(true);
+    try {
+      const res = await getMyOrders(searchedEmail, nextPage, PAGE_SIZE);
+      setGuestOrders(prev => [...prev, ...res.items]);
+      setGuestPage(nextPage);
+    } finally {
+      setGuestLoadingMore(false);
+    }
+  };
+
+  const hasMore = orders.length < total;
+  const guestHasMore = guestOrders.length < guestTotal;
 
   // ── Authenticated view ────────────────────────────────────────────────────────
   if (isCustomerAuthenticated && customer) {
@@ -177,15 +259,118 @@ export default function CustomerMyOrders() {
               <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Account</p>
               <h1 className="font-serif text-4xl font-light text-stone-900">My Orders</h1>
               <p className="text-stone-400 text-sm mt-1">
-                {customer.name} · {authOrders?.length ?? '…'} order{authOrders?.length !== 1 ? 's' : ''}
+                {customer.name} · {total} order{total !== 1 ? 's' : ''}
               </p>
             </div>
-            <button
-              onClick={() => navigate('/shop/my-quotes')}
-              className="text-xs text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5 uppercase tracking-wider"
-            >
-              View My Quotes
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => fetchOrders(1, currentOpts(), false)}
+                disabled={authLoading}
+                className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-900 transition-colors uppercase tracking-wider"
+              >
+                <RefreshCw size={12} className={authLoading ? 'animate-spin' : ''} /> Refresh
+              </button>
+              <button
+                onClick={() => navigate('/my-quotes')}
+                className="text-xs text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5 uppercase tracking-wider"
+              >
+                View My Quotes
+              </button>
+            </div>
+          </div>
+
+          {/* Status filter tabs */}
+          <div className="py-4 flex gap-2 flex-wrap border-b border-stone-100">
+            {[
+              { key: 'all',           label: 'All' },
+              { key: 'pending',       label: 'Placed' },
+              { key: 'confirmed',     label: 'Confirmed' },
+              { key: 'in_production', label: 'In Production' },
+              { key: 'shipped',       label: 'Shipped' },
+              { key: 'delivered',     label: 'Delivered' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => handleFilterChange(key)}
+                className={`text-xs px-3 py-1.5 border transition-colors ${
+                  filter === key
+                    ? 'bg-stone-900 text-white border-stone-900'
+                    : 'text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-900'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort & filter bar */}
+          <div className="py-3 border-b border-stone-100">
+            <div className="flex flex-wrap gap-2 items-end">
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Sort</p>
+                <select
+                  value={sortBy}
+                  onChange={e => handleSortChange(e.target.value)}
+                  className="border border-stone-200 text-stone-700 text-xs px-2.5 py-2 focus:outline-none focus:border-stone-400 bg-white"
+                >
+                  <option value="date_desc">Date — Newest First</option>
+                  <option value="date_asc">Date — Oldest First</option>
+                  <option value="price_asc">Price — Low to High</option>
+                  <option value="price_desc">Price — High to Low</option>
+                </select>
+              </div>
+
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Size (m²)</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" min="0" step="0.5"
+                    value={sizeMin} onChange={e => setSizeMin(e.target.value)}
+                    placeholder="Min"
+                    className="w-20 border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400 placeholder-stone-300"
+                  />
+                  <span className="text-stone-300 text-xs">–</span>
+                  <input
+                    type="number" min="0" step="0.5"
+                    value={sizeMax} onChange={e => setSizeMax(e.target.value)}
+                    placeholder="Max"
+                    className="w-20 border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400 placeholder-stone-300"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Date Range</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    className="border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400"
+                  />
+                  <span className="text-stone-300 text-xs">–</span>
+                  <input
+                    type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    className="border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pb-0.5">
+                <button
+                  onClick={handleApplyFilters}
+                  className="text-xs px-3 py-2 bg-stone-900 hover:bg-stone-800 text-white uppercase tracking-wider transition-colors"
+                >
+                  Apply
+                </button>
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-xs px-3 py-2 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 uppercase tracking-wider transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="py-8 space-y-3">
@@ -195,15 +380,28 @@ export default function CustomerMyOrders() {
               </div>
             )}
 
-            {!authLoading && authOrders !== null && (
-              authOrders.length === 0 ? (
-                <div className="text-center py-20 space-y-4">
-                  <Package size={32} className="text-stone-300 mx-auto" />
-                  <p className="text-stone-400 text-sm">No orders yet.</p>
-                </div>
-              ) : (
-                authOrders.map(o => <OrderCard key={o.order_id} order={o} customerToken={customerToken} />)
-              )
+            {!authLoading && orders.length === 0 && (
+              <div className="text-center py-20 space-y-4">
+                <Package size={32} className="text-stone-300 mx-auto" />
+                <p className="text-stone-400 text-sm">
+                  {filter === 'all' ? 'No orders yet.' : `No ${filter.replace('_', ' ')} orders.`}
+                </p>
+              </div>
+            )}
+
+            {orders.map(o => <OrderCard key={o.order_id} order={o} customerToken={customerToken} />)}
+
+            {hasMore && (
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="w-full py-3 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loadingMore
+                  ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+                  : null}
+                {loadingMore ? 'Loading…' : `Load More (${total - orders.length} remaining)`}
+              </button>
             )}
           </div>
         </div>
@@ -220,7 +418,7 @@ export default function CustomerMyOrders() {
           <h1 className="font-serif text-4xl font-light text-stone-900">My Orders</h1>
           <p className="text-stone-400 text-sm mt-1">
             Enter your email to track orders, or{' '}
-            <button onClick={() => navigate('/shop/login')} className="text-stone-900 underline underline-offset-2 hover:no-underline">
+            <button onClick={() => navigate('/login')} className="text-stone-900 underline underline-offset-2 hover:no-underline">
               sign in
             </button>{' '}
             for invoice downloads.
@@ -252,7 +450,7 @@ export default function CustomerMyOrders() {
           <div className="flex items-center gap-3 border border-stone-100 bg-stone-50 px-4 py-3">
             <LogIn size={15} className="text-stone-400 flex-shrink-0" />
             <p className="text-stone-500 text-sm">
-              <button onClick={() => navigate('/shop/login')} className="text-stone-900 underline underline-offset-2 hover:no-underline font-medium">
+              <button onClick={() => navigate('/login')} className="text-stone-900 underline underline-offset-2 hover:no-underline font-medium">
                 Sign in
               </button>{' '}
               to download invoices and manage your quotes.
@@ -265,20 +463,32 @@ export default function CustomerMyOrders() {
             </div>
           )}
 
-          {searched && guestOrders !== null && (
+          {searched && (
             guestOrders.length === 0 ? (
               <div className="text-center py-16 space-y-3">
                 <Package size={32} className="text-stone-300 mx-auto" />
                 <p className="text-stone-400 text-sm">
-                  No orders found for <span className="text-stone-700 font-medium">{email}</span>.
+                  No orders found for <span className="text-stone-700 font-medium">{searchedEmail}</span>.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-stone-400 text-sm">
-                  Found <span className="text-stone-900 font-medium">{guestOrders.length}</span> order{guestOrders.length !== 1 ? 's' : ''} for {email}
+                  Found <span className="text-stone-900 font-medium">{guestTotal}</span> order{guestTotal !== 1 ? 's' : ''} for {searchedEmail}
                 </p>
                 {guestOrders.map(o => <OrderCard key={o.order_id} order={o} customerToken={null} />)}
+                {guestHasMore && (
+                  <button
+                    onClick={handleGuestLoadMore}
+                    disabled={guestLoadingMore}
+                    className="w-full py-3 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs font-medium tracking-widest uppercase transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {guestLoadingMore
+                      ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+                      : null}
+                    {guestLoadingMore ? 'Loading…' : `Load More (${guestTotal - guestOrders.length} remaining)`}
+                  </button>
+                )}
               </div>
             )
           )}

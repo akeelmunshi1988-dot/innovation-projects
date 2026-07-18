@@ -319,7 +319,7 @@ export default function BusinessSettings() {
               </div>
 
               <div className="space-y-1.5">
-                <label className={subLabelCls}>Rush Order Surcharge</label>
+                <label className={subLabelCls}>Early Delivery Surcharge</label>
                 <div className="relative">
                   <input
                     type="number" min="0" max="200" step="0.5"
@@ -329,7 +329,7 @@ export default function BusinessSettings() {
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 text-sm">%</span>
                 </div>
-                <p className={hintCls}>Added on top of subtotal for rush orders.</p>
+                <p className={hintCls}>Added on top of subtotal for early delivery orders.</p>
               </div>
             </div>
 

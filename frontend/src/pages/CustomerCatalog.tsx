@@ -174,7 +174,7 @@ export default function CustomerCatalog() {
               {filtered.map((rug) => (
                 <Link
                   key={rug.id}
-                  to={`/shop/catalog/${rug.id}`}
+                  to={`/catalog/${rug.id}`}
                   className="group block"
                 >
                   {/* Image */}
@@ -208,7 +208,7 @@ export default function CustomerCatalog() {
                     <p className="text-stone-400 text-sm capitalize">
                       {[rug.material, rug.weave_type].filter(Boolean).join(' · ')}
                     </p>
-                    <p className="text-stone-400 text-xs">{rug.lead_time_days} days · {rug.sizes.length} sizes</p>
+                    <p className="text-stone-400 text-xs">{rug.lead_time_days} days delivery · {rug.sizes.length} sizes</p>
                   </div>
                 </Link>
               ))}

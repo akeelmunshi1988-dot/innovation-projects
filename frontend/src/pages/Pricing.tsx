@@ -40,14 +40,14 @@ export default function Pricing() {
             <div className="w-8 h-8 bg-gold-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Scissors size={16} className="text-white" />
             </div>
-            <span className="text-cream-100 font-bold text-base">LoomCraft AI</span>
+            <span className="text-cream-100 font-bold text-base">LoomCraftRugs AI</span>
           </Link>
           <div className="ml-auto flex items-center gap-4">
-            <Link to="/login" className="text-dark-400 hover:text-cream-200 text-sm transition-colors">
+            <Link to="/admin/login" className="text-dark-400 hover:text-cream-200 text-sm transition-colors">
               Sign In
             </Link>
             <Link
-              to="/login"
+              to="/admin/login"
               className="bg-gold-600 hover:bg-gold-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               Start Free
@@ -115,12 +115,12 @@ export default function Pricing() {
           <p className="text-dark-400">Start your free trial. No credit card required.</p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <Link
-              to="/login"
+              to="/admin/login"
               className="bg-gold-600 hover:bg-gold-500 text-white font-bold px-8 py-3 rounded-xl transition-colors"
             >
               Start Free Trial
             </Link>
-            <Link to="/login" className="text-dark-400 hover:text-cream-300 text-sm transition-colors">
+            <Link to="/admin/login" className="text-dark-400 hover:text-cream-300 text-sm transition-colors">
               Already have an account? Sign in
             </Link>
           </div>
@@ -130,7 +130,7 @@ export default function Pricing() {
       {/* Footer */}
       <footer className="border-t border-dark-700 py-8 text-center">
         <p className="text-dark-600 text-xs">
-          © 2025 LoomCraft AI · Powered by Claude AI ·{' '}
+          © 2025 LoomCraftRugs AI · Powered by Claude AI ·{' '}
           <Link to="/pricing" className="hover:text-dark-400 transition-colors">Pricing</Link>
         </p>
       </footer>

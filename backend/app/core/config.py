@@ -5,7 +5,7 @@ from typing import Optional
 class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
-    APP_NAME: str = "LoomCraft AI"
+    APP_NAME: str = "LoomCraftRugs AI"
     DEBUG: bool = False
 
     JWT_SECRET: str = "loomcraft-dev-secret-change-in-production"
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM_EMAIL: Optional[str] = None
-    SMTP_FROM_NAME: str = "LoomCraft AI"
+    SMTP_FROM_NAME: str = "LoomCraftRugs AI"
 
     class Config:
         env_file = ".env"

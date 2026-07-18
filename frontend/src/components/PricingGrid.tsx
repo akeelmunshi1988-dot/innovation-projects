@@ -211,7 +211,7 @@ export default function PricingGrid({
                   </div>
                 ) : showSignupLinks ? (
                   <Link
-                    to="/login"
+                    to="/admin/login"
                     className={`block w-full text-center py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                       isPopular
                         ? 'bg-gold-600 hover:bg-gold-500 text-white'

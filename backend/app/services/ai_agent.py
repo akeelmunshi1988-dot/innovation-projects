@@ -16,7 +16,7 @@ from app.models.models import (
 from app.services.quote_engine import QuoteEngine
 
 
-SYSTEM_PROMPT = """You are a knowledgeable rug manufacturing business assistant for LoomCraft AI.
+SYSTEM_PROMPT = """You are a knowledgeable rug manufacturing business assistant for LoomCraftRugs AI.
 
 You ONLY answer based on real data from our business systems. Never make up prices, timelines, or availability — always call the appropriate tool to retrieve accurate information before answering.
 
@@ -93,7 +93,7 @@ TOOLS = [
                 },
                 "rush_order": {
                     "type": "boolean",
-                    "description": "Whether this is a rush order (faster delivery, extra surcharge).",
+                    "description": "Whether this is an early delivery order (faster than estimated delivery, extra surcharge).",
                     "default": False,
                 },
             },
@@ -139,7 +139,7 @@ TOOLS = [
                 },
                 "rush_order": {
                     "type": "boolean",
-                    "description": "Whether the order is a rush order.",
+                    "description": "Whether the order is an early delivery order.",
                     "default": False,
                 },
             },
@@ -377,9 +377,9 @@ class AIAgent:
                 "answer": "For catalog rugs: minimum 2 pieces per style. For custom rugs: minimum 4 sqm. For bulk/wholesale orders (10+ pieces), discounts of 15% apply automatically.",
             },
             {
-                "topic": "rush orders",
-                "question": "Can you do rush orders?",
-                "answer": "Yes. Rush orders (delivery in under 7 days from production start) carry a 25% surcharge. Rush delivery is subject to production capacity — please contact us to confirm availability.",
+                "topic": "early delivery orders",
+                "question": "Can you do early delivery?",
+                "answer": "Yes. Early delivery orders (delivery in under 7 days from production start) carry a 25% surcharge. Rush delivery is subject to production capacity — please contact us to confirm availability.",
             },
             {
                 "topic": "quality",

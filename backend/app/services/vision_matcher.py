@@ -10,7 +10,7 @@ from app.models.models import RugCatalog, Material
 from app.services.quote_engine import QuoteEngine
 
 
-VISION_SYSTEM_PROMPT = """You are an expert rug design analyst for LoomCraft AI, a premium rug manufacturer.
+VISION_SYSTEM_PROMPT = """You are an expert rug design analyst for LoomCraftRugs AI, a premium rug manufacturer.
 
 When shown an inspiration image (a room photo, a rug photo, a mood board, or any visual reference), analyze it and extract rug design attributes. Then match those attributes to the provided catalog and return the top 3 best matches with a clear explanation.
 
@@ -84,7 +84,7 @@ def analyze_and_match(
 Customer requirements:
 - Desired size: {size_w}m × {size_h}m ({size_w * size_h:.1f} sqm)
 - Quantity: {qty} piece(s)
-- Rush order: {"Yes" if rush_order else "No"}
+- Early delivery: {"Yes" if rush_order else "No"}
 {f"- Maximum budget: ${budget_max:,.0f}" if budget_max else "- Budget: Not specified"}
 
 Our available catalog:
@@ -176,7 +176,7 @@ Please analyze the inspiration image and return the top 3 matching rugs from our
 
 
 # Simplified system prompt for room matching — floor region is pre-computed
-ROOM_MATCH_SYSTEM_PROMPT = """You are an expert rug design analyst for LoomCraft AI, a premium rug manufacturer.
+ROOM_MATCH_SYSTEM_PROMPT = """You are an expert rug design analyst for LoomCraftRugs AI, a premium rug manufacturer.
 
 You will be shown a photo of an interior room. Analyze the room's style, colors, and atmosphere, then match it to the provided rug catalog.
 
@@ -226,7 +226,7 @@ def analyze_and_match_room(
 Customer requirements:
 - Desired rug size: {size_w}m × {size_h}m ({size_w * size_h:.1f} sqm)
 - Quantity: {qty} piece(s)
-- Rush order: {"Yes" if rush_order else "No"}
+- Early delivery: {"Yes" if rush_order else "No"}
 {f"- Maximum budget: ${budget_max:,.0f}" if budget_max else "- Budget: Not specified"}
 
 Our available catalog:
