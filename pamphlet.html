@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoomCraft AI – Customer Portal Pamphlet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --dark-950: #1c1c1b;
+    --dark-900: #313130;
+    --dark-800: #3e3e3d;
+    --dark-700: #4c4c4b;
+    --dark-600: #5e5e5d;
+    --dark-500: #767675;
+    --dark-400: #929290;
+    --dark-300: #b4b4b0;
+    --dark-200: #d3d3d0;
+    --dark-100: #eaeae8;
+    --dark-50:  #f6f6f5;
+    --gold-600: #d97706;
+    --gold-500: #f59e0b;
+    --gold-400: #fbbf24;
+    --cream: #fdfbf7;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: white;
+    color: var(--dark-900);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── PAGE BREAKS ─────────────────────────── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  /* ══════════════════════════════════════════
+     PAGE 1 — COVER
+  ══════════════════════════════════════════ */
+  .cover {
+    background: var(--dark-950);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0;
+    min-height: 297mm;
+  }
+
+  .cover-top {
+    padding: 14mm 14mm 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cover-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28mm;
+  }
+
+  .cover-logo-box {
+    width: 42px;
+    height: 42px;
+    background: var(--gold-600);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .cover-logo-box svg { color: white; }
+
+  .cover-brand-text { line-height: 1.1; }
+  .cover-brand-name { font-size: 17px; font-weight: 700; color: var(--cream); letter-spacing: -0.3px; }
+  .cover-brand-sub  { font-size: 10px; color: var(--dark-400); margin-top: 1px; }
+
+  .cover-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+  .cover-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(217,119,6,0.12);
+    border: 1px solid rgba(217,119,6,0.25);
+    border-radius: 100px;
+    padding: 5px 12px;
+    color: var(--gold-400);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    width: fit-content;
+    margin-bottom: 16px;
+  }
+
+  .cover-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--cream);
+    line-height: 1.06;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+
+  .cover-title span { color: var(--gold-400); }
+
+  .cover-subtitle {
+    font-size: 13px;
+    color: var(--dark-400);
+    line-height: 1.6;
+    max-width: 130mm;
+    margin-bottom: 26px;
+  }
+
+  .cover-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .cover-pill {
+    background: var(--dark-800);
+    border: 1px solid var(--dark-700);
+    border-radius: 100px;
+    padding: 5px 11px;
+    font-size: 9.5px;
+    font-weight: 500;
+    color: var(--dark-300);
+  }
+
+  .cover-screens {
+    margin-top: 22mm;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 0 14mm;
+  }
+
+  .cover-screen {
+    background: var(--dark-900);
+    border: 1px solid var(--dark-700);
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cover-screen-bar {
+    background: var(--dark-800);
+    height: 16px;
+    border-bottom: 1px solid var(--dark-700);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 7px;
+    flex-shrink: 0;
+  }
+
+  .cover-screen-dot { width: 5px; height: 5px; border-radius: 50%; }
+
+  .cover-screen-body { flex: 1; padding: 7px; display: flex; flex-direction: column; gap: 4px; }
+
+  .cover-screen-row { background: var(--dark-800); border-radius: 3px; height: 8px; }
+  .cover-screen-row.short { width: 50%; }
+  .cover-screen-row.gold  { background: rgba(217,119,6,0.35); }
+  .cover-screen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; flex: 1; margin-top: 3px; }
+  .cover-screen-card { background: var(--dark-800); border-radius: 3px; }
+  .cover-screen-label { font-size: 7px; color: var(--dark-500); text-align: center; margin-top: auto; padding-top: 3px; font-weight: 500; }
+
+  .cover-bottom {
+    background: var(--dark-900);
+    border-top: 1px solid var(--dark-700);
+    padding: 6mm 14mm;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cover-bottom-left { font-size: 9px; color: var(--dark-500); }
+  .cover-bottom-left span { color: var(--gold-400); font-weight: 600; }
+  .cover-bottom-right { font-size: 9px; color: var(--dark-600); }
+
+  /* ══════════════════════════════════════════
+     PAGE 2 — HOME PAGE
+  ══════════════════════════════════════════ */
+  .inner-page {
+    background: var(--dark-50);
+    min-height: 297mm;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-header {
+    background: var(--dark-950);
+    padding: 10mm 14mm 8mm;
+  }
+
+  .page-header-inner { display: flex; align-items: center; justify-content: space-between; }
+
+  .page-num {
+    font-size: 9px;
+    color: var(--dark-500);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .page-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold-400);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .page-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--cream);
+    margin-top: 5px;
+    line-height: 1.1;
+  }
+
+  .page-desc {
+    font-size: 10.5px;
+    color: var(--dark-400);
+    margin-top: 5px;
+    line-height: 1.55;
+    max-width: 140mm;
+  }
+
+  .page-body { flex: 1; padding: 10mm 14mm; display: flex; flex-direction: column; gap: 7mm; }
+
+  /* ── Feature grid ── */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .feature-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+
+  .feature-card {
+    background: var(--dark-900);
+    border: 1px solid var(--dark-700);
+    border-radius: 10px;
+    padding: 5mm;
+  }
+
+  .feature-card-icon {
+    width: 34px; height: 34px;
+    background: rgba(217,119,6,0.12);
+    border: 1px solid rgba(217,119,6,0.2);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+
+  .feature-card-title { font-size: 11px; font-weight: 700; color: var(--cream); margin-bottom: 4px; }
+  .feature-card-desc  { font-size: 9.5px; color: var(--dark-400); line-height: 1.5; }
+
+  /* ── Mockup UI ── */
+  .ui-mockup {
+    background: var(--dark-900);
+    border: 1px solid var(--dark-700);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .ui-mockup-bar {
+    background: var(--dark-800);
+    border-bottom: 1px solid var(--dark-700);
+    height: 28px;
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 10px;
+    flex-shrink: 0;
+  }
+
+  .ui-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .ui-dot-red   { background: #ef4444; }
+  .ui-dot-yel   { background: #f59e0b; }
+  .ui-dot-grn   { background: #22c55e; }
+
+  .ui-url {
+    flex: 1;
+    background: var(--dark-700);
+    border-radius: 4px;
+    height: 14px;
+    margin: 0 8px;
+    display: flex; align-items: center; padding: 0 7px;
+    font-size: 7px; color: var(--dark-400);
+  }
+
+  .ui-body { padding: 8px; }
+
+  /* ── Hero mockup ── */
+  .hero-mock {
+    height: 38mm;
+    background: linear-gradient(135deg, var(--dark-950) 0%, #1a1a1a 100%);
+    border-radius: 6px;
+    display: flex; align-items: center;
+    padding: 10px 12px;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-mock::before {
+    content: '';
+    position: absolute;
+    top: -20px; left: -20px;
+    width: 80px; height: 80px;
+    background: radial-gradient(circle, rgba(217,119,6,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .hero-mock-text { flex: 1; }
+  .hero-mock-eyebrow { font-size: 6.5px; color: var(--gold-400); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 5px; text-transform: uppercase; }
+  .hero-mock-h1 { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--cream); line-height: 1.2; margin-bottom: 5px; }
+  .hero-mock-sub { font-size: 7px; color: var(--dark-400); line-height: 1.5; margin-bottom: 7px; }
+  .hero-mock-btn { background: var(--gold-600); border-radius: 6px; padding: 4px 9px; font-size: 7px; font-weight: 700; color: white; display: inline-block; }
+
+  .hero-mock-visual {
+    width: 38mm; height: 28mm; flex-shrink: 0;
+    background: var(--dark-800);
+    border: 1px solid var(--dark-700);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+
+  .hero-mock-visual::after {
+    content: '🏡';
+    font-size: 28px;
+    opacity: 0.4;
+  }
+
+  /* ── Rug card grid mock ── */
+  .rug-grid-mock { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+
+  .rug-card-mock {
+    background: var(--dark-800);
+    border: 1px solid var(--dark-700);
+    border-radius: 5px; overflow: hidden;
+  }
+
+  .rug-card-img {
+    height: 20mm; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--dark-700) 0%, var(--dark-900) 100%);
+    font-size: 20px; opacity: 0.6;
+  }
+
+  .rug-card-info { padding: 5px; }
+  .rug-card-name { font-size: 7px; font-weight: 600; color: var(--cream); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rug-card-price { font-size: 6.5px; color: var(--gold-400); font-weight: 600; }
+  .rug-card-tag { font-size: 5.5px; color: var(--dark-400); }
+
+  /* ── Two-col layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .two-col-wide { display: grid; grid-template-columns: 2fr 1fr; gap: 5mm; }
+
+  /* ── Info row ── */
+  .info-row { display: flex; align-items: flex-start; gap: 8px; }
+  .info-row-icon { width: 26px; height: 26px; background: rgba(217,119,6,0.12); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+  .info-row-title { font-size: 10px; font-weight: 700; color: var(--cream); margin-bottom: 2px; }
+  .info-row-desc  { font-size: 8.5px; color: var(--dark-400); line-height: 1.5; }
+
+  /* ── Steps ── */
+  .steps { display: flex; gap: 3mm; }
+  .step-item { flex: 1; text-align: center; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(217,119,6,0.15); border: 1px solid rgba(217,119,6,0.3); color: var(--gold-400); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
+  .step-title { font-size: 8.5px; font-weight: 600; color: var(--cream); margin-bottom: 2px; }
+  .step-desc  { font-size: 7.5px; color: var(--dark-400); line-height: 1.5; }
+
+  /* ── Divider ── */
+  .section-divider { border: none; border-top: 1px solid var(--dark-700); margin: 0; }
+
+  /* ── Section label ── */
+  .section-eyebrow { font-size: 8.5px; font-weight: 700; color: var(--gold-400); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .section-heading { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: var(--dark-900); margin-bottom: 3px; }
+  .section-sub { font-size: 9.5px; color: var(--dark-500); line-height: 1.5; }
+
+  /* ── Visualizer ── */
+  .viz-mock {
+    background: var(--dark-900);
+    border: 1px solid var(--dark-700);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .viz-upload {
+    border: 2px dashed var(--dark-600);
+    border-radius: 8px;
+    height: 26mm;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    background: var(--dark-800);
+    margin: 8px;
+  }
+
+  .viz-upload-icon { font-size: 22px; opacity: 0.5; }
+  .viz-upload-text { font-size: 8px; color: var(--dark-500); font-weight: 500; }
+
+  .viz-result {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+    padding: 8px; padding-top: 0;
+  }
+
+  .viz-img {
+    border-radius: 6px; height: 20mm;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+
+  .viz-before { background: var(--dark-800); border: 1px solid var(--dark-700); }
+  .viz-after  { background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.3); }
+
+  .viz-label { font-size: 7px; text-align: center; margin-bottom: 4px; font-weight: 600; }
+  .viz-label-before { color: var(--dark-400); }
+  .viz-label-after  { color: var(--gold-400); }
+
+  /* ── Quote form mock ── */
+  .quote-form-mock { background: var(--dark-900); border: 1px solid var(--dark-700); border-radius: 10px; overflow: hidden; }
+  .qf-header { background: var(--dark-800); padding: 7px 10px; border-bottom: 1px solid var(--dark-700); font-size: 9px; font-weight: 700; color: var(--cream); }
+  .qf-body { padding: 8px 10px; }
+  .qf-row { margin-bottom: 5px; }
+  .qf-label { font-size: 7px; color: var(--dark-400); font-weight: 500; margin-bottom: 2px; }
+  .qf-input { background: var(--dark-800); border: 1px solid var(--dark-700); border-radius: 5px; height: 20px; width: 100%; }
+  .qf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .qf-btn { background: var(--gold-600); border-radius: 6px; padding: 5px 10px; font-size: 8px; font-weight: 700; color: white; text-align: center; margin-top: 7px; }
+
+  /* ── Status badges ── */
+  .badge { display: inline-block; border-radius: 100px; padding: 2px 7px; font-size: 7.5px; font-weight: 600; }
+  .badge-pending  { background: rgba(234,179,8,0.15);  color: #ca8a04; border: 1px solid rgba(234,179,8,0.3); }
+  .badge-progress { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+  .badge-done     { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .badge-sent     { background: rgba(168,85,247,0.15); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
+
+  /* ── Order card mock ── */
+  .order-card {
+    background: var(--dark-900); border: 1px solid var(--dark-700); border-radius: 8px; overflow: hidden; margin-bottom: 5px;
+  }
+
+  .order-card-top { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; }
+  .order-card-left { display: flex; align-items: center; gap: 8px; }
+  .order-card-thumb { width: 32px; height: 32px; background: var(--dark-800); border-radius: 5px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; opacity: 0.6; }
+  .order-card-name  { font-size: 8.5px; font-weight: 600; color: var(--cream); }
+  .order-card-sub   { font-size: 7px; color: var(--dark-400); margin-top: 1px; }
+  .order-card-price { font-size: 9px; font-weight: 700; color: var(--gold-400); }
+
+  /* ── Page footer ── */
+  .page-footer {
+    background: var(--dark-900);
+    border-top: 1px solid var(--dark-700);
+    padding: 5mm 14mm;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: auto;
+  }
+
+  .page-footer-brand { font-size: 9px; font-weight: 700; color: var(--dark-300); }
+  .page-footer-url   { font-size: 9px; color: var(--dark-500); }
+
+  /* ══════════════════════════════════════════
+     BACK PAGE
+  ══════════════════════════════════════════ */
+  .back-page {
+    background: var(--dark-950);
+    min-height: 297mm;
+    display: flex;
+    flex-direction: column;
+    padding: 16mm 14mm;
+  }
+
+  .back-header { margin-bottom: 16mm; display: flex; align-items: center; justify-content: space-between; }
+
+  .back-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--cream); margin-bottom: 6px; }
+  .back-sub   { font-size: 12px; color: var(--dark-400); line-height: 1.6; max-width: 130mm; }
+
+  .back-features { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5mm; margin-bottom: 12mm; }
+
+  .back-feat { background: var(--dark-900); border: 1px solid var(--dark-700); border-radius: 10px; padding: 5mm; }
+  .back-feat-icon { font-size: 22px; margin-bottom: 6px; }
+  .back-feat-title { font-size: 11px; font-weight: 700; color: var(--cream); margin-bottom: 3px; }
+  .back-feat-desc  { font-size: 8.5px; color: var(--dark-400); line-height: 1.5; }
+
+  .back-divider { border: none; border-top: 1px solid var(--dark-700); margin: 0 0 10mm; }
+
+  .back-footer { display: flex; align-items: flex-end; justify-content: space-between; flex: 1; }
+  .back-contact { }
+  .back-contact-title { font-size: 10px; color: var(--dark-400); font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .back-contact-line  { font-size: 11px; color: var(--cream); font-weight: 500; margin-bottom: 3px; }
+  .back-contact-line.small { font-size: 9px; color: var(--dark-400); font-weight: 400; }
+
+  .back-qr {
+    width: 30mm; height: 30mm;
+    background: var(--dark-800);
+    border: 1px solid var(--dark-700);
+    border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  }
+
+  .back-qr-label { font-size: 7px; color: var(--dark-500); font-weight: 500; }
+
+  .back-powered {
+    margin-top: 10mm;
+    background: rgba(217,119,6,0.08);
+    border: 1px solid rgba(217,119,6,0.2);
+    border-radius: 8px;
+    padding: 4mm 5mm;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .back-powered-icon { font-size: 20px; }
+  .back-powered-text { font-size: 9.5px; color: var(--dark-300); line-height: 1.5; }
+  .back-powered-text strong { color: var(--gold-400); }
+
+  @media print {
+    body { margin: 0; }
+    .page { margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 1 — COVER
+══════════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-top">
+    <!-- Brand -->
+    <div class="cover-brand">
+      <div class="cover-logo-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3 L18 21 M18 3 L6 21"/>
+        </svg>
+      </div>
+      <div class="cover-brand-text">
+        <div class="cover-brand-name">LoomCraft AI</div>
+        <div class="cover-brand-sub">Premium Custom Rugs · Bhadohi, India</div>
+      </div>
+    </div>
+
+    <!-- Hero text -->
+    <div class="cover-hero">
+      <div class="cover-eyebrow">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.5 4.5H18l-3.75 2.75 1.5 4.5L12 11.25 8.25 13.75l1.5-4.5L6 6.5h4.5z"/></svg>
+        AI-Powered Custom Rug Studio
+      </div>
+      <div class="cover-title">
+        Handcrafted Rugs,<br><span>Designed with AI</span>
+      </div>
+      <div class="cover-subtitle">
+        Browse hundreds of designs, visualise any rug in your room before ordering,
+        and get an instant price quote — all from your browser. Manufactured in
+        Bhadohi, shipped worldwide.
+      </div>
+      <div class="cover-pills">
+        <div class="cover-pill">🛒 Online Catalog</div>
+        <div class="cover-pill">🤖 AI Room Visualizer</div>
+        <div class="cover-pill">💬 AI Consultant</div>
+        <div class="cover-pill">📋 Instant Quotes</div>
+        <div class="cover-pill">📦 Order Tracking</div>
+        <div class="cover-pill">🔒 Secure Portal</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen previews -->
+  <div class="cover-screens">
+    <!-- Home -->
+    <div class="cover-screen">
+      <div class="cover-screen-bar">
+        <div class="cover-screen-dot" style="background:#ef4444"></div>
+        <div class="cover-screen-dot" style="background:#f59e0b"></div>
+        <div class="cover-screen-dot" style="background:#22c55e"></div>
+      </div>
+      <div class="cover-screen-body">
+        <div class="cover-screen-row gold short"></div>
+        <div class="cover-screen-row" style="width:75%"></div>
+        <div class="cover-screen-row short"></div>
+        <div class="cover-screen-grid">
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+        </div>
+        <div class="cover-screen-label">Home</div>
+      </div>
+    </div>
+    <!-- Catalog -->
+    <div class="cover-screen">
+      <div class="cover-screen-bar">
+        <div class="cover-screen-dot" style="background:#ef4444"></div>
+        <div class="cover-screen-dot" style="background:#f59e0b"></div>
+        <div class="cover-screen-dot" style="background:#22c55e"></div>
+      </div>
+      <div class="cover-screen-body">
+        <div class="cover-screen-row short"></div>
+        <div class="cover-screen-row gold" style="width:40%"></div>
+        <div class="cover-screen-grid">
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+          <div class="cover-screen-card"></div>
+        </div>
+        <div class="cover-screen-label">Catalog</div>
+      </div>
+    </div>
+    <!-- Visualizer -->
+    <div class="cover-screen">
+      <div class="cover-screen-bar">
+        <div class="cover-screen-dot" style="background:#ef4444"></div>
+        <div class="cover-screen-dot" style="background:#f59e0b"></div>
+        <div class="cover-screen-dot" style="background:#22c55e"></div>
+      </div>
+      <div class="cover-screen-body">
+        <div class="cover-screen-row short"></div>
+        <div class="cover-screen-grid" style="grid-template-columns:1fr 1fr;flex:1">
+          <div class="cover-screen-card" style="border:1px solid #4c4c4b;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0.5">🏠</div>
+          <div class="cover-screen-card" style="border:1px solid rgba(217,119,6,0.4);background:rgba(217,119,6,0.08);display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0.7">✨</div>
+        </div>
+        <div class="cover-screen-label">Visualizer</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 8mm"></div>
+
+  <!-- Bottom bar -->
+  <div class="cover-bottom">
+    <div class="cover-bottom-left">Powered by <span>Claude AI</span> · Secured by Razorpay · Made in India 🇮🇳</div>
+    <div class="cover-bottom-right">loomcraft.ai</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 2 — HOME PAGE
+══════════════════════════════════════════════ -->
+<div class="page inner-page">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="page-section-label">Home Page</div>
+      <div class="page-num">01 / 06</div>
+    </div>
+    <div class="page-title">The Welcome Experience</div>
+    <div class="page-desc">The landing page introduces customers to LoomCraft AI — showcasing featured rugs, the room visualizer, material options, and the AI chat consultant, all designed to guide customers from discovery to quote request.</div>
+  </div>
+
+  <div class="page-body">
+    <!-- Hero mockup -->
+    <div>
+      <div class="section-eyebrow">Hero Section</div>
+      <div class="ui-mockup">
+        <div class="ui-mockup-bar">
+          <div class="ui-dot ui-dot-red"></div>
+          <div class="ui-dot ui-dot-yel"></div>
+          <div class="ui-dot ui-dot-grn"></div>
+          <div class="ui-url">loomcraft.ai/shop</div>
+        </div>
+        <div class="ui-body">
+          <div class="hero-mock">
+            <div class="hero-mock-text">
+              <div class="hero-mock-eyebrow">✦ AI-Powered Custom Rug Studio</div>
+              <div class="hero-mock-h1">Handcrafted Rugs,<br>Designed with AI</div>
+              <div class="hero-mock-sub">Custom dimensions · Any material · Shipped worldwide</div>
+              <div class="hero-mock-btn">Browse Collection →</div>
+            </div>
+            <div class="hero-mock-visual"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div>
+      <div class="section-eyebrow">Key Features</div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card-icon">🧶</div>
+          <div class="feature-card-title">Featured Collection</div>
+          <div class="feature-card-desc">Curated selection of wool, silk, cotton and synthetic rugs. Every design available in custom dimensions. Filter by material, pile height, and size.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🤖</div>
+          <div class="feature-card-title">AI Chat Consultant</div>
+          <div class="feature-card-desc">Floating AI widget (powered by Claude) answers questions about materials, care, sizing, and pricing 24/7 in natural language.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🏠</div>
+          <div class="feature-card-title">Room Visualizer CTA</div>
+          <div class="feature-card-desc">Prominent call-to-action to try the AI room visualizer. Customers upload their room photo and see any rug placed in their space.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">📐</div>
+          <div class="feature-card-title">Material Explorer</div>
+          <div class="feature-card-desc">Browse rugs by material category — Wool, Silk, Cotton, Synthetic — each with a style guide and characteristic description.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div>
+      <div class="section-eyebrow">How It Works</div>
+      <div class="ui-mockup" style="padding: 10px 12px 12px;">
+        <div class="steps">
+          <div class="step-item">
+            <div class="step-num">01</div>
+            <div class="step-title">Browse Catalog</div>
+            <div class="step-desc">Explore designs, filter by material and pile height</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">02</div>
+            <div class="step-title">Visualise</div>
+            <div class="step-desc">Place any rug into your room using AI</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">03</div>
+            <div class="step-title">Get a Quote</div>
+            <div class="step-desc">Enter dimensions and get an instant price</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">04</div>
+            <div class="step-title">Confirm &amp; Track</div>
+            <div class="step-desc">Checkout and track your order in real time</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="page-footer-brand">LoomCraft AI</div>
+    <div class="page-footer-url">loomcraft.ai/shop</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 3 — CATALOG & PRODUCT DETAIL
+══════════════════════════════════════════════ -->
+<div class="page inner-page">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="page-section-label">Catalog &amp; Product Detail</div>
+      <div class="page-num">02 / 06</div>
+    </div>
+    <div class="page-title">Browse &amp; Discover</div>
+    <div class="page-desc">The catalog lets customers filter, search, and compare rugs. Clicking a rug opens a full detail page with specifications, an instant price calculator, and a quote request form.</div>
+  </div>
+
+  <div class="page-body">
+    <div class="two-col-wide">
+      <!-- Catalog mockup -->
+      <div>
+        <div class="section-eyebrow">Catalog Page · /shop/catalog</div>
+        <div class="ui-mockup">
+          <div class="ui-mockup-bar">
+            <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+            <div class="ui-url">loomcraft.ai/shop/catalog</div>
+          </div>
+          <div class="ui-body">
+            <!-- Search bar -->
+            <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;height:22px;margin-bottom:6px;display:flex;align-items:center;padding:0 8px;gap:5px;">
+              <span style="font-size:8px;color:var(--dark-500)">🔍</span>
+              <span style="font-size:7px;color:var(--dark-600)">Search by name or description…</span>
+            </div>
+            <!-- Filter chips -->
+            <div style="display:flex;gap:3px;margin-bottom:7px;flex-wrap:wrap;">
+              <div style="background:var(--gold-600);color:white;border-radius:100px;padding:2px 7px;font-size:6.5px;font-weight:600">All Materials</div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:100px;padding:2px 7px;font-size:6.5px;color:var(--dark-400)">Wool</div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:100px;padding:2px 7px;font-size:6.5px;color:var(--dark-400)">Silk</div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:100px;padding:2px 7px;font-size:6.5px;color:var(--dark-400)">Cotton</div>
+            </div>
+            <!-- Rug grid -->
+            <div class="rug-grid-mock">
+              <div class="rug-card-mock"><div class="rug-card-img">🟫</div><div class="rug-card-info"><div class="rug-card-name">Persian Classic</div><div class="rug-card-price">₹2,400/sqm</div><div class="rug-card-tag">Wool · Low pile</div></div></div>
+              <div class="rug-card-mock"><div class="rug-card-img">🟣</div><div class="rug-card-info"><div class="rug-card-name">Silk Elegance</div><div class="rug-card-price">₹5,800/sqm</div><div class="rug-card-tag">Silk · Fine</div></div></div>
+              <div class="rug-card-mock"><div class="rug-card-img">🔵</div><div class="rug-card-info"><div class="rug-card-name">Modern Coastal</div><div class="rug-card-price">₹1,800/sqm</div><div class="rug-card-tag">Cotton · Flat</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar features -->
+      <div style="display:flex;flex-direction:column;gap:4mm;">
+        <div class="section-eyebrow">Catalog Features</div>
+        <div class="info-row">
+          <div class="info-row-icon">🔍</div>
+          <div><div class="info-row-title">Smart Search</div><div class="info-row-desc">Full-text search across rug names and descriptions</div></div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">🏷️</div>
+          <div><div class="info-row-title">Material Filters</div><div class="info-row-desc">Filter by material type and pile height simultaneously</div></div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">📐</div>
+          <div><div class="info-row-title">Custom Sizing</div><div class="info-row-desc">Every rug available in any dimension you need</div></div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">⚡</div>
+          <div><div class="info-row-title">Live Pricing</div><div class="info-row-desc">Instant price calculation with margin, GST &amp; surcharges</div></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- Product detail -->
+    <div>
+      <div class="section-eyebrow">Product Detail Page · /shop/catalog/:id</div>
+      <div class="two-col">
+        <!-- Left: image + specs -->
+        <div class="ui-mockup">
+          <div class="ui-mockup-bar">
+            <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+          </div>
+          <div class="ui-body">
+            <!-- Image hero with overlay -->
+            <div style="height:28mm;background:linear-gradient(135deg,var(--dark-800),var(--dark-950));border-radius:7px;position:relative;overflow:hidden;display:flex;align-items:flex-end;margin-bottom:6px;">
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:32px;opacity:0.35">🟫</div>
+              <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(28,28,27,0.85),transparent)"></div>
+              <div style="position:relative;padding:8px;width:100%;display:flex;justify-content:space-between;align-items:flex-end;">
+                <div>
+                  <div style="font-family:'Playfair Display',serif;font-size:12px;font-weight:700;color:var(--cream);">Persian Classic</div>
+                  <div style="font-size:7px;color:var(--dark-300);">Hand-knotted · Low pile</div>
+                </div>
+                <div style="background:rgba(49,49,48,0.85);border-radius:6px;padding:4px 7px;text-align:right;">
+                  <div style="font-size:10px;font-weight:700;color:var(--gold-400);">₹2,400</div>
+                  <div style="font-size:6px;color:var(--dark-400)">/sqm</div>
+                </div>
+              </div>
+            </div>
+            <!-- Specs tags -->
+            <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:5px;">
+              <div style="background:rgba(217,119,6,0.15);color:var(--gold-400);border:1px solid rgba(217,119,6,0.3);border-radius:100px;padding:2px 7px;font-size:6.5px;font-weight:600">Wool · High-pile</div>
+              <div style="background:var(--dark-800);color:var(--dark-400);border-radius:100px;padding:2px 7px;font-size:6.5px;">⏱ 30 days lead</div>
+            </div>
+            <!-- Description card -->
+            <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;padding:6px;margin-bottom:5px;">
+              <div style="font-size:7.5px;font-weight:600;color:var(--cream);margin-bottom:3px;">About this Rug</div>
+              <div style="font-size:6.5px;color:var(--dark-400);line-height:1.5;">Traditional Persian design with hand-knotted wool pile. Durable and soft for living spaces.</div>
+            </div>
+            <!-- Sizes -->
+            <div style="display:flex;gap:3px;flex-wrap:wrap;">
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:4px;padding:2px 5px;font-size:6.5px;color:var(--dark-300)">2×3m</div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:4px;padding:2px 5px;font-size:6.5px;color:var(--dark-300)">3×4m</div>
+              <div style="background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.4);border-radius:4px;padding:2px 5px;font-size:6.5px;color:var(--gold-400)">4×6m</div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:4px;padding:2px 5px;font-size:6.5px;color:var(--dark-300)">Custom</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: quote form -->
+        <div class="quote-form-mock">
+          <div class="qf-header">📋 Request a Quote</div>
+          <div class="qf-body">
+            <div class="qf-row">
+              <div class="qf-label">Size (Width × Height in metres)</div>
+              <div class="qf-grid-2">
+                <div class="qf-input"></div>
+                <div class="qf-input"></div>
+              </div>
+            </div>
+            <div class="qf-row">
+              <div class="qf-label">Quantity</div>
+              <div class="qf-input" style="width:50%"></div>
+            </div>
+            <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;padding:6px;margin-top:6px;">
+              <div style="font-size:7px;color:var(--dark-400);margin-bottom:4px;">Estimated Price Breakdown</div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="font-size:7px;color:var(--dark-400)">Subtotal</span><span style="font-size:7px;color:var(--cream)">₹57,600</span></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="font-size:7px;color:var(--dark-400)">GST (12%)</span><span style="font-size:7px;color:#60a5fa">+₹6,912</span></div>
+              <div style="display:flex;justify-content:space-between;border-top:1px solid var(--dark-700);padding-top:3px;margin-top:3px;"><span style="font-size:8px;font-weight:700;color:var(--cream)">Total</span><span style="font-size:8px;font-weight:700;color:var(--gold-400)">₹64,512</span></div>
+            </div>
+            <div class="qf-row" style="margin-top:6px;">
+              <div class="qf-label">Special Notes</div>
+              <div class="qf-input" style="height:28px"></div>
+            </div>
+            <div class="qf-btn">Submit Quote Request →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="page-footer-brand">LoomCraft AI</div>
+    <div class="page-footer-url">loomcraft.ai/shop/catalog</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 4 — ROOM VISUALIZER
+══════════════════════════════════════════════ -->
+<div class="page inner-page">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="page-section-label">AI Room Visualizer</div>
+      <div class="page-num">03 / 06</div>
+    </div>
+    <div class="page-title">See It Before You Buy</div>
+    <div class="page-desc">Upload a photo of your room, choose any rug from the catalog, click the 4 floor corners, and our AI composites the rug into your room in seconds. Download the result to share with family or your interior designer.</div>
+  </div>
+
+  <div class="page-body">
+    <!-- Visualizer mockup -->
+    <div>
+      <div class="section-eyebrow">Visualizer · /shop/visualizer</div>
+      <div class="ui-mockup">
+        <div class="ui-mockup-bar">
+          <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+          <div class="ui-url">loomcraft.ai/shop/visualizer</div>
+        </div>
+        <div class="ui-body">
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;">
+            <!-- Step panel -->
+            <div>
+              <div style="font-size:8px;font-weight:700;color:var(--dark-900);margin-bottom:6px;">Room Visualizer</div>
+              <!-- Step 1 -->
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;padding:6px;margin-bottom:4px;">
+                <div style="font-size:7px;color:var(--dark-400);margin-bottom:3px;font-weight:600;">① Upload Room Photo</div>
+                <div style="border:1.5px dashed var(--dark-600);border-radius:4px;height:18mm;display:flex;align-items:center;justify-content:center;background:var(--dark-900);">
+                  <div style="text-align:center;">
+                    <div style="font-size:16px;opacity:0.4;margin-bottom:2px">📷</div>
+                    <div style="font-size:5.5px;color:var(--dark-600)">Click to upload</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Step 2 -->
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;padding:6px;margin-bottom:4px;">
+                <div style="font-size:7px;color:var(--dark-400);margin-bottom:3px;font-weight:600;">② Choose a Rug</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+                  <div style="background:var(--dark-900);border:1px solid rgba(217,119,6,0.4);border-radius:4px;height:12mm;display:flex;align-items:center;justify-content:center;font-size:10px;opacity:0.7">🟫</div>
+                  <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:4px;height:12mm;display:flex;align-items:center;justify-content:center;font-size:10px;opacity:0.4">🟣</div>
+                </div>
+              </div>
+              <!-- Step 3 -->
+              <div style="background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.25);border-radius:6px;padding:6px;">
+                <div style="font-size:7px;color:var(--gold-400);margin-bottom:2px;font-weight:600;">③ Click 4 Floor Corners</div>
+                <div style="font-size:6px;color:var(--dark-500);line-height:1.4">Top-left → top-right → bottom-right → bottom-left, then generate</div>
+              </div>
+            </div>
+
+            <!-- Result area -->
+            <div>
+              <div style="font-size:7.5px;font-weight:700;color:var(--dark-900);margin-bottom:5px;">Result Preview</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                <div>
+                  <div class="viz-label viz-label-before">Before</div>
+                  <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;height:28mm;display:flex;align-items:center;justify-content:center;font-size:24px;opacity:0.5">🏠</div>
+                </div>
+                <div>
+                  <div class="viz-label viz-label-after">After — with rug ✨</div>
+                  <div style="background:rgba(217,119,6,0.06);border:1.5px solid rgba(217,119,6,0.35);border-radius:6px;height:28mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+                    <div style="font-size:22px;opacity:0.7">🏡</div>
+                    <div style="font-size:6px;color:var(--gold-400);font-weight:600">AI Composed</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Action buttons -->
+              <div style="display:flex;gap:4px;margin-top:5px;">
+                <div style="flex:1;background:var(--dark-800);border:1px solid var(--dark-600);border-radius:5px;padding:4px 0;text-align:center;font-size:7px;color:var(--dark-300)">↺ Try Again</div>
+                <div style="flex:1;background:var(--gold-600);border-radius:5px;padding:4px 0;text-align:center;font-size:7px;font-weight:700;color:white">⬇ Download</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-card-icon">📐</div>
+        <div class="feature-card-title">Perspective-Correct Placement</div>
+        <div class="feature-card-desc">The AI warps and blends the rug to match your room's perspective using the 4 floor corner markers you provide.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">🛒</div>
+        <div class="feature-card-title">Direct to Quote</div>
+        <div class="feature-card-desc">After seeing the visualized result, get an instant price quote for the selected rug without leaving the page.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">⬇</div>
+        <div class="feature-card-title">Downloadable Result</div>
+        <div class="feature-card-desc">Save the composed image to share with family, friends, or your interior designer before placing an order.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">🔁</div>
+        <div class="feature-card-title">Try Multiple Rugs</div>
+        <div class="feature-card-desc">Switch between rugs from the catalog to compare different designs in your own space before deciding.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="page-footer-brand">LoomCraft AI</div>
+    <div class="page-footer-url">loomcraft.ai/shop/visualizer</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 5 — CHECKOUT & ORDER CONFIRMATION
+══════════════════════════════════════════════ -->
+<div class="page inner-page">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="page-section-label">Checkout &amp; Confirmation</div>
+      <div class="page-num">04 / 06</div>
+    </div>
+    <div class="page-title">Seamless Order Placement</div>
+    <div class="page-desc">Once a quote is accepted, customers proceed to checkout — entering delivery details alongside a live order summary. A confirmation page with order tracking follows immediately.</div>
+  </div>
+
+  <div class="page-body">
+    <div class="two-col">
+      <!-- Checkout mockup -->
+      <div>
+        <div class="section-eyebrow">Checkout · /shop/checkout</div>
+        <div class="ui-mockup">
+          <div class="ui-mockup-bar">
+            <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+            <div class="ui-url">loomcraft.ai/shop/checkout</div>
+          </div>
+          <div class="ui-body" style="display:grid;grid-template-columns:1fr 1.4fr;gap:6px;">
+            <!-- Order summary -->
+            <div>
+              <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:7px;overflow:hidden;">
+                <div style="background:var(--dark-800);padding:5px 7px;border-bottom:1px solid var(--dark-700);font-size:7.5px;font-weight:700;color:var(--cream);">Order Summary</div>
+                <div style="padding:7px;font-size:7px;">
+                  <div style="font-weight:600;color:var(--cream);margin-bottom:3px;">Persian Classic</div>
+                  <div style="color:var(--dark-400);margin-bottom:6px;">4m × 3m · 12 m²</div>
+                  <div style="display:flex;justify-content:space-between;color:var(--dark-400);margin-bottom:2px;"><span>Qty</span><span style="color:var(--cream)">2 pcs</span></div>
+                  <div style="display:flex;justify-content:space-between;color:var(--dark-400);margin-bottom:2px;"><span>Pre-tax</span><span style="color:var(--cream)">₹1,15,200</span></div>
+                  <div style="display:flex;justify-content:space-between;color:#60a5fa;margin-bottom:6px;"><span>GST 12%</span><span>+₹13,824</span></div>
+                  <div style="border-top:1px solid var(--dark-700);padding-top:5px;display:flex;justify-content:space-between;">
+                    <span style="font-weight:700;color:var(--cream);">Total</span>
+                    <span style="font-weight:700;color:var(--gold-400);font-size:10px;">₹1,29,024</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Form -->
+            <div>
+              <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:7px;overflow:hidden;">
+                <div style="background:var(--dark-800);padding:5px 7px;border-bottom:1px solid var(--dark-700);font-size:7.5px;font-weight:700;color:var(--cream);">👤 Contact Details</div>
+                <div style="padding:7px;display:flex;flex-direction:column;gap:4px;">
+                  <!-- If logged in identity pill -->
+                  <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:6px;padding:5px 7px;display:flex;align-items:center;gap:5px;">
+                    <div style="font-size:8px;color:var(--gold-400);">✓</div>
+                    <div>
+                      <div style="font-size:7px;font-weight:600;color:var(--cream);">Rahul Sharma</div>
+                      <div style="font-size:6px;color:var(--dark-400);">rahul@example.com</div>
+                    </div>
+                  </div>
+                  <div style="height:18px;background:var(--dark-800);border:1px solid var(--dark-700);border-radius:4px;"></div>
+                </div>
+                <div style="background:var(--dark-800);padding:5px 7px;border-top:1px solid var(--dark-700);border-bottom:1px solid var(--dark-700);font-size:7.5px;font-weight:700;color:var(--cream);">📍 Delivery Address</div>
+                <div style="padding:7px;display:flex;flex-direction:column;gap:3px;">
+                  <div style="height:16px;background:var(--dark-800);border:1px solid var(--dark-700);border-radius:4px;"></div>
+                  <div style="height:28px;background:var(--dark-800);border:1px solid var(--dark-700);border-radius:4px;"></div>
+                  <div style="background:var(--gold-600);border-radius:5px;padding:5px;text-align:center;font-size:7.5px;font-weight:700;color:white;margin-top:3px;">
+                    Confirm Order · ₹1,29,024
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmation mockup -->
+      <div>
+        <div class="section-eyebrow">Order Confirmation · /shop/order/:id</div>
+        <div class="ui-mockup">
+          <div class="ui-mockup-bar">
+            <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+            <div class="ui-url">loomcraft.ai/shop/order/4829</div>
+          </div>
+          <div class="ui-body">
+            <!-- Success banner -->
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px;text-align:center;margin-bottom:6px;">
+              <div style="font-size:22px;margin-bottom:4px;">✅</div>
+              <div style="font-size:11px;font-weight:700;color:var(--dark-900);margin-bottom:2px;">Order Placed!</div>
+              <div style="font-size:7.5px;color:var(--dark-600);line-height:1.5;">Order #4829 received. Our team will call/WhatsApp you to confirm production details.</div>
+            </div>
+
+            <!-- Order details card -->
+            <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:7px;overflow:hidden;margin-bottom:6px;">
+              <div style="background:var(--dark-800);padding:5px 8px;border-bottom:1px solid var(--dark-700);display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:7.5px;font-weight:700;color:var(--cream);">Order Details</span>
+                <span style="background:rgba(234,179,8,0.15);color:#ca8a04;border:1px solid rgba(234,179,8,0.3);border-radius:100px;padding:1px 6px;font-size:6.5px;font-weight:600">Pending</span>
+              </div>
+              <div style="padding:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+                <div><div style="font-size:6px;color:var(--dark-500);text-transform:uppercase;margin-bottom:2px;">Rug</div><div style="font-size:7.5px;color:var(--cream);font-weight:500">Persian Classic</div></div>
+                <div><div style="font-size:6px;color:var(--dark-500);text-transform:uppercase;margin-bottom:2px;">Size</div><div style="font-size:7.5px;color:var(--cream);font-weight:500">4m × 3m</div></div>
+                <div><div style="font-size:6px;color:var(--dark-500);text-transform:uppercase;margin-bottom:2px;">Total</div><div style="font-size:7.5px;color:var(--gold-400);font-weight:700">₹1,29,024</div></div>
+              </div>
+            </div>
+
+            <!-- Progress timeline -->
+            <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:7px;overflow:hidden;">
+              <div style="background:var(--dark-800);padding:5px 8px;border-bottom:1px solid var(--dark-700);font-size:7.5px;font-weight:700;color:var(--cream);">Order Progress</div>
+              <div style="padding:8px;display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;align-items:center;gap:6px;"><div style="width:16px;height:16px;border-radius:50%;background:var(--gold-600);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:white;">✓</div><div style="font-size:7.5px;font-weight:600;color:var(--cream);">Order Placed</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><div style="width:16px;height:16px;border-radius:50%;background:var(--dark-700);flex-shrink:0;"></div><div style="font-size:7.5px;color:var(--dark-500);">In Production</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><div style="width:16px;height:16px;border-radius:50%;background:var(--dark-700);flex-shrink:0;"></div><div style="font-size:7.5px;color:var(--dark-500);">Quality Check</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><div style="width:16px;height:16px;border-radius:50%;background:var(--dark-700);flex-shrink:0;"></div><div style="font-size:7.5px;color:var(--dark-500);">Shipped</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><div style="width:16px;height:16px;border-radius:50%;background:var(--dark-700);flex-shrink:0;"></div><div style="font-size:7.5px;color:var(--dark-500);">Delivered</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key checkout features -->
+    <div class="feature-grid-3">
+      <div class="feature-card">
+        <div class="feature-card-icon">🔐</div>
+        <div class="feature-card-title">Auth Pre-fill</div>
+        <div class="feature-card-desc">Logged-in customers see their name &amp; email pre-filled. Only delivery address is needed.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">📊</div>
+        <div class="feature-card-title">Price Transparency</div>
+        <div class="feature-card-desc">Full breakdown: subtotal, rush surcharge, GST, and final amount shown before confirming.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">📍</div>
+        <div class="feature-card-title">Live Order Status</div>
+        <div class="feature-card-desc">5-stage progress tracker: Placed → Production → QC → Shipped → Delivered.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="page-footer-brand">LoomCraft AI</div>
+    <div class="page-footer-url">loomcraft.ai/shop/checkout</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 6 — MY ORDERS & MY QUOTES
+══════════════════════════════════════════════ -->
+<div class="page inner-page">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="page-section-label">Customer Dashboard</div>
+      <div class="page-num">05 / 06</div>
+    </div>
+    <div class="page-title">My Orders &amp; My Quotes</div>
+    <div class="page-desc">Registered customers get a personal dashboard to track all orders in real time, view and respond to vendor quotes, and download invoices — accessible from any device after logging in.</div>
+  </div>
+
+  <div class="page-body">
+    <div class="two-col">
+      <!-- My Orders -->
+      <div>
+        <div class="section-eyebrow">My Orders · /shop/my-orders</div>
+        <div class="ui-mockup">
+          <div class="ui-mockup-bar">
+            <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+            <div class="ui-url">loomcraft.ai/shop/my-orders</div>
+          </div>
+          <div class="ui-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--dark-900);margin-bottom:1px;">My Orders</div>
+                <div style="font-size:7px;color:var(--dark-500);">Rahul Sharma · 3 orders</div>
+              </div>
+              <div style="font-size:7.5px;color:var(--gold-600);font-weight:600;cursor:pointer;">View My Quotes →</div>
+            </div>
+
+            <!-- Order cards -->
+            <div class="order-card">
+              <div class="order-card-top">
+                <div class="order-card-left">
+                  <div class="order-card-thumb">🟫</div>
+                  <div>
+                    <div class="order-card-name">Persian Classic · 4×3m</div>
+                    <div class="order-card-sub">Order #4829 · 2 pcs · 30 days</div>
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="order-card-price">₹1,29,024</div>
+                  <div style="margin-top:2px;"><span class="badge badge-progress">In Production</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="order-card">
+              <div class="order-card-top">
+                <div class="order-card-left">
+                  <div class="order-card-thumb">🟣</div>
+                  <div>
+                    <div class="order-card-name">Silk Elegance · 2×2m</div>
+                    <div class="order-card-sub">Order #4801 · 1 pc · 45 days</div>
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="order-card-price">₹23,200</div>
+                  <div style="margin-top:2px;"><span class="badge badge-done">Delivered</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="order-card">
+              <div class="order-card-top">
+                <div class="order-card-left">
+                  <div class="order-card-thumb">🔵</div>
+                  <div>
+                    <div class="order-card-name">Modern Coastal · 3×4m</div>
+                    <div class="order-card-sub">Order #4856 · 1 pc · 25 days</div>
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="order-card-price">₹21,600</div>
+                  <div style="margin-top:2px;"><span class="badge badge-pending">Pending</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Guest lookup -->
+            <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:7px;padding:7px;margin-top:5px;display:flex;align-items:center;gap:6px;">
+              <div style="font-size:11px">🔍</div>
+              <div style="font-size:7px;color:var(--dark-400);">Not logged in? Enter your email to track orders as a guest.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Quotes -->
+      <div>
+        <div class="section-eyebrow">My Quotes · /shop/my-quotes</div>
+        <div class="ui-mockup">
+          <div class="ui-mockup-bar">
+            <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+            <div class="ui-url">loomcraft.ai/shop/my-quotes</div>
+          </div>
+          <div class="ui-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--dark-900);margin-bottom:1px;">My Quotes</div>
+                <div style="font-size:7px;color:var(--dark-500);">Rahul Sharma · 3 quotes · <span style="color:#7c3aed;font-weight:600">1 needs response</span></div>
+              </div>
+            </div>
+            <!-- Filter tabs -->
+            <div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap;">
+              <div style="background:rgba(217,119,6,0.15);color:var(--gold-600);border:1px solid rgba(217,119,6,0.35);border-radius:100px;padding:2px 7px;font-size:6.5px;font-weight:600">All</div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:100px;padding:2px 7px;font-size:6.5px;color:var(--dark-400)">Needs Response <span style="background:#7c3aed;color:white;padding:0 3px;border-radius:100px;font-size:5.5px;margin-left:2px">1</span></div>
+              <div style="background:var(--dark-800);border:1px solid var(--dark-700);border-radius:100px;padding:2px 7px;font-size:6.5px;color:var(--dark-400)">Accepted</div>
+            </div>
+
+            <!-- Quote cards -->
+            <div class="order-card">
+              <div class="order-card-top">
+                <div class="order-card-left">
+                  <div class="order-card-thumb">🟫</div>
+                  <div>
+                    <div class="order-card-name">Persian Classic · 4×3m × 2 pcs</div>
+                    <div class="order-card-sub">Quote #Q-12 · Rush order</div>
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="order-card-price">₹1,29,024</div>
+                  <div style="margin-top:2px;"><span class="badge badge-sent">Needs Response</span></div>
+                </div>
+              </div>
+              <!-- Vendor message -->
+              <div style="padding:6px 10px;border-top:1px solid var(--dark-700);background:rgba(59,130,246,0.05);">
+                <div style="font-size:6px;color:#60a5fa;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Message from LoomCraft</div>
+                <div style="font-size:7px;color:var(--dark-300);">Rush production possible. Delivery in 15 days. Please confirm.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:5px;">
+                  <div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:5px;padding:3px;text-align:center;font-size:7px;font-weight:600;color:#22c55e;">✓ Accept</div>
+                  <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:5px;padding:3px;text-align:center;font-size:7px;font-weight:600;color:#ef4444;">✗ Decline</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="order-card">
+              <div class="order-card-top">
+                <div class="order-card-left">
+                  <div class="order-card-thumb">🟣</div>
+                  <div>
+                    <div class="order-card-name">Silk Elegance · 2×2m × 1 pc</div>
+                    <div class="order-card-sub">Quote #Q-09</div>
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="order-card-price">₹23,200</div>
+                  <div style="margin-top:2px;"><span class="badge badge-done">Accepted</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-grid-3">
+      <div class="feature-card">
+        <div class="feature-card-icon">📬</div>
+        <div class="feature-card-title">Quote Negotiation</div>
+        <div class="feature-card-desc">The vendor can send a custom message with each quote. Customers can Accept or Decline directly from the portal.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">🔔</div>
+        <div class="feature-card-title">Action Alerts</div>
+        <div class="feature-card-desc">A badge count highlights quotes that need a customer response so nothing gets missed.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon">📥</div>
+        <div class="feature-card-title">Invoice Download</div>
+        <div class="feature-card-desc">Logged-in customers can download invoices for completed orders directly from the My Orders page.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="page-footer-brand">LoomCraft AI</div>
+    <div class="page-footer-url">loomcraft.ai/shop/my-orders</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 7 — LOGIN & BACK COVER
+══════════════════════════════════════════════ -->
+<div class="page back-page">
+  <div class="back-header">
+    <div>
+      <div style="font-size:9px;color:var(--dark-500);font-weight:500;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">06 / 06 · Login &amp; Summary</div>
+      <div class="back-title">Your Rugs,<br>Your Account</div>
+      <div class="back-sub">Create a free account to access your complete order history, respond to quotes, download invoices, and skip contact forms on future orders. Or track orders as a guest with just your email.</div>
+    </div>
+
+    <!-- Login mockup -->
+    <div style="width:70mm;flex-shrink:0;">
+      <div class="ui-mockup" style="width:70mm;">
+        <div class="ui-mockup-bar">
+          <div class="ui-dot ui-dot-red"></div><div class="ui-dot ui-dot-yel"></div><div class="ui-dot ui-dot-grn"></div>
+          <div class="ui-url">loomcraft.ai/shop/login</div>
+        </div>
+        <div class="ui-body">
+          <div style="text-align:center;margin-bottom:8px;">
+            <div style="width:32px;height:32px;background:rgba(217,119,6,0.12);border:1px solid rgba(217,119,6,0.25);border-radius:8px;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:14px;">✨</div>
+            <div style="font-size:10px;font-weight:700;color:var(--dark-900);">Sign in to your account</div>
+            <div style="font-size:7px;color:var(--dark-500);margin-top:2px;">View quotes, track orders &amp; download invoices</div>
+          </div>
+          <div style="background:var(--dark-900);border:1px solid var(--dark-700);border-radius:8px;padding:8px;">
+            <!-- Tab toggle -->
+            <div style="background:var(--dark-800);border-radius:6px;padding:2px;display:flex;margin-bottom:6px;">
+              <div style="flex:1;background:var(--gold-600);border-radius:4px;padding:3px;text-align:center;font-size:7.5px;font-weight:700;color:white;">Sign In</div>
+              <div style="flex:1;padding:3px;text-align:center;font-size:7.5px;color:var(--dark-400);">Register</div>
+            </div>
+            <!-- Fields -->
+            <div style="margin-bottom:4px;"><div style="font-size:6.5px;color:var(--dark-300);margin-bottom:2px;">Email</div><div style="height:18px;background:var(--dark-800);border:1px solid var(--dark-700);border-radius:5px;"></div></div>
+            <div style="margin-bottom:6px;"><div style="font-size:6.5px;color:var(--dark-300);margin-bottom:2px;">Password</div><div style="height:18px;background:var(--dark-800);border:1px solid var(--dark-700);border-radius:5px;"></div></div>
+            <div style="background:var(--gold-600);border-radius:6px;padding:5px;text-align:center;font-size:8px;font-weight:700;color:white;">Sign In →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All features summary -->
+  <div class="back-features">
+    <div class="back-feat">
+      <div class="back-feat-icon">🏠</div>
+      <div class="back-feat-title">Home &amp; Discovery</div>
+      <div class="back-feat-desc">Landing page with featured rugs, material guide, how-it-works, and AI chat widget available on every page.</div>
+    </div>
+    <div class="back-feat">
+      <div class="back-feat-icon">🛍️</div>
+      <div class="back-feat-title">Catalog &amp; Detail</div>
+      <div class="back-feat-desc">Searchable, filterable rug catalog. Product pages with specs, standard sizes, live price calculator, and quote form.</div>
+    </div>
+    <div class="back-feat">
+      <div class="back-feat-icon">🤖</div>
+      <div class="back-feat-title">AI Room Visualizer</div>
+      <div class="back-feat-desc">Upload a room photo, choose a rug, mark 4 floor corners, and generate a perspective-correct composite in seconds.</div>
+    </div>
+    <div class="back-feat">
+      <div class="back-feat-icon">🧾</div>
+      <div class="back-feat-title">Instant Quotes</div>
+      <div class="back-feat-desc">Real-time pricing with material cost, margin, large-format surcharge, rush fee, GST — all calculated transparently.</div>
+    </div>
+    <div class="back-feat">
+      <div class="back-feat-icon">📦</div>
+      <div class="back-feat-title">Order Tracking</div>
+      <div class="back-feat-desc">5-stage live order progress: Placed → Production → Quality Check → Shipped → Delivered. Guest tracking by email too.</div>
+    </div>
+    <div class="back-feat">
+      <div class="back-feat-icon">💬</div>
+      <div class="back-feat-title">Quote Negotiation</div>
+      <div class="back-feat-desc">Vendor sends custom messages per quote. Customer accepts or declines from My Quotes with optional response notes.</div>
+    </div>
+  </div>
+
+  <hr class="back-divider">
+
+  <div class="back-powered">
+    <div class="back-powered-icon">⚡</div>
+    <div class="back-powered-text">
+      Powered by <strong>Claude AI (Anthropic)</strong> for the room visualizer and AI chat consultant ·
+      Secured by <strong>Razorpay</strong> payment infrastructure ·
+      Manufactured in <strong>Bhadohi, Uttar Pradesh</strong> — India's rug capital since 1780.
+    </div>
+  </div>
+
+  <div style="flex:1"></div>
+
+  <div class="back-footer" style="margin-top:10mm;">
+    <div class="back-contact">
+      <div class="back-contact-title">Get In Touch</div>
+      <div class="back-contact-line">LoomCraft AI · Custom Rug Manufacturer</div>
+      <div class="back-contact-line small">Bhadohi, Uttar Pradesh – 221401, India</div>
+      <div class="back-contact-line small" style="margin-top:4px">hello@loomcraft.ai</div>
+      <div class="back-contact-line small">+91 98765 43210</div>
+      <div class="back-contact-line small" style="margin-top:4px;color:var(--gold-400)">loomcraft.ai/shop</div>
+    </div>
+
+    <div>
+      <div class="back-qr">
+        <div style="font-size:28px;opacity:0.25">⬛</div>
+        <div class="back-qr-label">Scan to visit</div>
+        <div class="back-qr-label">loomcraft.ai/shop</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:8mm;font-size:8px;color:var(--dark-700);text-align:center;">
+    © 2025 LoomCraft AI · Made with care in India · Powered by Claude AI
+  </div>
+</div>
+
+</body>
+</html>

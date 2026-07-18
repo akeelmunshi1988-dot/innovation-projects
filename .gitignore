@@ -1,0 +1,33 @@
+# Zip files
+*.zip
+
+# Python cache & compiled
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+backend/venv/
+
+# Secrets
+.env
+backend/.env
+
+# Database
+*.db
+
+# Backend generated output
+backend/outputs/
+backend/uploads/
+
+# Node
+node_modules/
+dist/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.claude/
