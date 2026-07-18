@@ -23,7 +23,10 @@ backend/uploads/
 
 # Node
 node_modules/
+**/node_modules/
+frontend/node_modules/
 dist/
+frontend/dist/
 
 # macOS
 .DS_Store
