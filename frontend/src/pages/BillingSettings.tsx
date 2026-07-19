@@ -15,11 +15,6 @@ import {
 import PricingGrid from '../components/PricingGrid';
 import { useAuth } from '../contexts/AuthContext';
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
 
 interface BillingStatus {
   plan: string;

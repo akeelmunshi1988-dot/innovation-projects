@@ -8,18 +8,6 @@ import CustomerLayout from '../components/CustomerLayout';
 import { createPaymentOrder, verifyPayment } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
 
-declare global {
-  interface Window {
-    Razorpay: new (options: {
-      key: string; amount: number; currency: string; name: string;
-      description?: string; order_id: string;
-      handler: (r: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
-      prefill?: { name?: string; email?: string; contact?: string };
-      theme?: { color?: string };
-      modal?: { ondismiss?: () => void };
-    }) => { open(): void };
-  }
-}
 import { fmtExact, currencySymbol } from '../utils/currency';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 
