@@ -1180,7 +1180,12 @@ def get_customer_quotes(
     db: Session = Depends(get_db),
 ):
     from datetime import datetime, timedelta
-    base_q = db.query(Quote).filter(Quote.customer_id == current_customer.id)
+    # Include quotes from all customer records with the same email
+    # (handles duplicate records created by tenant-scoped vs auth-scoped customer creation)
+    same_email_ids = [
+        c.id for c in db.query(Customer).filter(Customer.email == current_customer.email).all()
+    ]
+    base_q = db.query(Quote).filter(Quote.customer_id.in_(same_email_ids))
     if rug_id is not None:
         base_q = base_q.filter(Quote.rug_catalog_id == rug_id)
     if status and status != 'all':
@@ -1201,7 +1206,7 @@ def get_customer_quotes(
             pass
     total = base_q.count()
     action_needed = db.query(Quote).filter(
-        Quote.customer_id == current_customer.id,
+        Quote.customer_id.in_(same_email_ids),
         Quote.status == 'sent',
     ).count()
     if sort_by == 'price_asc':
@@ -1270,7 +1275,7 @@ def request_review(
 ):
     quote = db.query(Quote).filter(
         Quote.id == quote_id,
-        Quote.customer_id == current_customer.id,
+        Quote.customer_id.in_([c.id for c in db.query(Customer).filter(Customer.email == current_customer.email).all()]),
     ).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -1360,7 +1365,7 @@ def accept_quote(
     from datetime import datetime, timedelta
     quote = db.query(Quote).filter(
         Quote.id == quote_id,
-        Quote.customer_id == current_customer.id,
+        Quote.customer_id.in_([c.id for c in db.query(Customer).filter(Customer.email == current_customer.email).all()]),
     ).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -1404,7 +1409,7 @@ def reject_quote(
 ):
     quote = db.query(Quote).filter(
         Quote.id == quote_id,
-        Quote.customer_id == current_customer.id,
+        Quote.customer_id.in_([c.id for c in db.query(Customer).filter(Customer.email == current_customer.email).all()]),
     ).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -1434,7 +1439,7 @@ def negotiate_quote(
 ):
     quote = db.query(Quote).filter(
         Quote.id == quote_id,
-        Quote.customer_id == current_customer.id,
+        Quote.customer_id.in_([c.id for c in db.query(Customer).filter(Customer.email == current_customer.email).all()]),
     ).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
