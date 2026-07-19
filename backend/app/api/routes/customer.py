@@ -1,5 +1,5 @@
 import math
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query, Request
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -397,7 +397,7 @@ class QuoteRequestBody(BaseModel):
 
 
 @router.post("/customer/request-quote")
-async def request_quote(body: QuoteRequestBody):
+async def request_quote(body: QuoteRequestBody, request: Request):
     db = SessionLocal()
     try:
         rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
@@ -407,11 +407,27 @@ async def request_quote(body: QuoteRequestBody):
         tid = rug.tenant_id
         tenant = db.query(Tenant).filter(Tenant.id == tid).first()
 
-        # Find or create customer scoped to this tenant
-        customer = db.query(Customer).filter(
-            Customer.email == body.email,
-            Customer.tenant_id == tid,
-        ).first()
+        # Prefer authenticated customer so quotes appear in My Quotes
+        customer = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            try:
+                from jose import jwt as _jwt, JWTError
+                token = auth_header.split(" ")[1]
+                payload = _jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+                if payload.get("type") == "customer":
+                    customer = db.query(Customer).filter(
+                        Customer.id == int(payload["sub"])
+                    ).first()
+            except Exception:
+                pass
+
+        # Fall back to email lookup / create for unauthenticated requests
+        if not customer:
+            customer = db.query(Customer).filter(
+                Customer.email == body.email,
+                Customer.tenant_id == tid,
+            ).first()
         if not customer:
             customer = Customer(
                 tenant_id=tid,
