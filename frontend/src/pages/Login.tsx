@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Scissors, Mail, Lock, AlertTriangle, LogOut } from 'lucide-react';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Scissors, Mail, Lock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -9,13 +9,14 @@ export default function Login() {
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || '/';
 
-  const customerSession = localStorage.getItem('loomcraftrugs_customer_token');
-  const customerUser = localStorage.getItem('loomcraftrugs_customer_user');
-  const customerName = customerUser ? JSON.parse(customerUser)?.name : null;
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect to home if customer session is active — no admin access
+  if (localStorage.getItem('loomcraftrugs_customer_token')) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -27,39 +28,6 @@ export default function Login() {
       setError(err.response?.data?.detail || 'Incorrect email or password');
     }
   };
-
-  // Block admin login if customer session is active
-  if (customerSession) {
-    return (
-      <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-dark-900 border border-dark-700 rounded-2xl p-8 space-y-5 text-center">
-          <div className="w-14 h-14 bg-amber-600/20 border border-amber-600/30 rounded-2xl flex items-center justify-center mx-auto">
-            <LogOut size={24} className="text-amber-400" />
-          </div>
-          <h2 className="text-cream-100 font-bold text-xl">Active Customer Session</h2>
-          <p className="text-dark-400 text-sm">
-            You're logged in as a customer{customerName ? ` (${customerName})` : ''}. Sign out of the shop first before accessing the admin panel.
-          </p>
-          <Link
-            to="/"
-            className="block w-full bg-gold-600 hover:bg-gold-500 text-white font-medium py-3 rounded-xl transition-colors text-sm"
-          >
-            Go to Shop
-          </Link>
-          <button
-            onClick={() => {
-              localStorage.removeItem('loomcraftrugs_customer_token');
-              localStorage.removeItem('loomcraftrugs_customer_user');
-              window.location.reload();
-            }}
-            className="block w-full text-dark-400 hover:text-cream-300 text-sm transition-colors"
-          >
-            Sign out of shop and continue to admin
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
