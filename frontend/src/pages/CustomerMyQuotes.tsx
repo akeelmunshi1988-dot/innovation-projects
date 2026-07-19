@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  FileText, CheckCircle, XCircle, Package,
+  FileText, XCircle, Package,
   AlertTriangle, ChevronDown, ChevronUp, LogIn, RefreshCw, Bell, MessageSquare,
 } from 'lucide-react';
 import axios from 'axios';
@@ -303,7 +303,7 @@ function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () =
             </div>
           )}
 
-          {/* Accept / Negotiate / Decline / Place Order */}
+          {/* Place Order / Negotiate / Decline */}
           {quote.status === 'sent' && !responding && (
             <div className="space-y-2 pt-1">
               {quote.rug_id && quote.size_w && quote.size_h && quote.final_price != null && (
@@ -322,10 +322,7 @@ function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () =
                   <Package size={13} /> Place Order
                 </button>
               )}
-              <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => setResponding('accept')}
-                  className="border border-green-300 hover:border-green-500 text-green-700 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors flex items-center justify-center gap-1.5"
-                ><CheckCircle size={13} /> Accept</button>
+              <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => setResponding('negotiate')}
                   className="border border-amber-300 hover:border-amber-500 text-amber-700 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors flex items-center justify-center gap-1.5"
                 ><MessageSquare size={13} /> Negotiate</button>
@@ -411,13 +408,11 @@ function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () =
                 </>
               ) : (
                 <>
-                  <p className="text-stone-700 text-sm font-medium">
-                    {responding === 'accept' ? 'Add instructions (optional)' : 'Reason for declining (optional)'}
-                  </p>
+                  <p className="text-stone-700 text-sm font-medium">Reason for declining (optional)</p>
                   <textarea
                     value={responseNotes}
                     onChange={e => setResponseNotes(e.target.value)}
-                    placeholder={responding === 'accept' ? 'Any additional instructions…' : 'Let us know why you are declining…'}
+                    placeholder="Let us know why you are declining…"
                     rows={3}
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors resize-none"
                   />
@@ -433,14 +428,12 @@ function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () =
                   onClick={() => responding === 'negotiate' ? handleNegotiate() : handleRespond(responding)}
                   disabled={actionLoading || (responding === 'negotiate' && !proposedPrice && !responseNotes.trim() && !removeRush && !requestedLeadDays && proposedQty === String(quote.qty))}
                   className={`flex-1 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
-                    responding === 'accept' ? 'bg-stone-900 hover:bg-stone-800 text-white' :
                     responding === 'negotiate' ? 'bg-amber-600 hover:bg-amber-500 text-white' :
                     'border border-red-300 text-red-600 hover:bg-red-50'
                   }`}
                 >
                   {actionLoading
                     ? <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
-                    : responding === 'accept' ? <><CheckCircle size={13} /> Confirm Accept</>
                     : responding === 'negotiate' ? <><MessageSquare size={13} /> Send Counter-Offer</>
                     : <><XCircle size={13} /> Confirm Decline</>}
                 </button>
