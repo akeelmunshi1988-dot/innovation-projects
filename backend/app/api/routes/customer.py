@@ -2,6 +2,7 @@ import math
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query, Request
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
+from sqlalchemy import update as sa_update
 from typing import Optional, List
 from pydantic import Field, EmailStr
 import io
@@ -656,8 +657,16 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             material_id=rug.material_id, qty=body.qty, rush_order=body.rush_order,
         )
         total_sqm = body.size_w * body.size_h * body.qty
-        if material.stock_meters < total_sqm:
-            raise HTTPException(status_code=400, detail="Stock changed since payment — please contact support.")
+
+        # Atomic check-and-deduct — prevents oversell under concurrent orders
+        deducted = db.execute(
+            sa_update(Material)
+            .where(Material.id == rug.material_id, Material.stock_meters >= total_sqm)
+            .values(stock_meters=Material.stock_meters - total_sqm)
+        )
+        db.flush()
+        if deducted.rowcount == 0:
+            raise HTTPException(status_code=400, detail="Insufficient stock — another order may have just reserved this material.")
 
         quote = Quote(
             tenant_id=tid, customer_id=customer.id, rug_catalog_id=body.rug_id,
@@ -683,7 +692,6 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
         db.add(order)
         db.flush()
 
-        material.stock_meters -= total_sqm
         db.add(InventoryTransaction(
             tenant_id=tid, material_id=material.id, qty_change=-total_sqm,
             transaction_type="used",
@@ -764,11 +772,16 @@ async def customer_checkout(body: CheckoutBody, request: Request):
         )
 
         total_sqm = body.size_w * body.size_h * body.qty
-        if material.stock_meters < total_sqm:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock. Available: {material.stock_meters:.1f} sqm, Required: {total_sqm:.1f} sqm",
-            )
+
+        # Atomic check-and-deduct — prevents oversell under concurrent orders
+        deducted = db.execute(
+            sa_update(Material)
+            .where(Material.id == rug.material_id, Material.stock_meters >= total_sqm)
+            .values(stock_meters=Material.stock_meters - total_sqm)
+        )
+        db.flush()
+        if deducted.rowcount == 0:
+            raise HTTPException(status_code=400, detail="Insufficient stock — another order may have just reserved this material.")
 
         # Create accepted quote — snapshot margin and GST at time of order
         quote = Quote(
@@ -806,9 +819,6 @@ async def customer_checkout(body: CheckoutBody, request: Request):
         )
         db.add(order)
         db.flush()
-
-        # Deduct inventory
-        material.stock_meters = material.stock_meters - total_sqm
         tx = InventoryTransaction(
             tenant_id=tid,
             material_id=material.id,
