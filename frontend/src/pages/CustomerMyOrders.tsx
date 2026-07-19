@@ -78,6 +78,11 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Quantity</p>
               <p className="text-stone-900 text-sm">{order.qty} pc{order.qty !== 1 ? 's' : ''}</p>
+              {order.size_w && order.size_h && (
+                <p className="text-stone-400 text-xs mt-0.5">
+                  {(order.size_w * order.size_h * order.qty).toFixed(2)} m² total
+                </p>
+              )}
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Est. Delivery</p>
@@ -93,6 +98,53 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
               </p>
             </div>
           </div>
+
+          {/* Price breakdown */}
+          {order.final_price != null && (
+            <div className="border border-stone-100 bg-stone-50 px-4 py-3 space-y-1.5">
+              <p className="text-stone-400 text-xs uppercase tracking-widest mb-2">Price Breakdown</p>
+
+              {order.base_price != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-stone-400">Subtotal</span>
+                  <span className="text-stone-700">{fmt(order.base_price)}</span>
+                </div>
+              )}
+
+              {order.manual_discount_pct != null && order.manual_discount_pct > 0 && order.base_price != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-green-600">Discount ({order.manual_discount_pct}%)</span>
+                  <span className="text-green-600">−{fmt(Math.round(order.base_price * order.manual_discount_pct) / 100)}</span>
+                </div>
+              )}
+
+              {order.rush_order && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-amber-600">Early delivery surcharge</span>
+                  <span className="text-amber-600">included</span>
+                </div>
+              )}
+
+              {order.pre_gst_price != null && (
+                <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                  <span className="text-stone-400">Pre-tax</span>
+                  <span className="text-stone-700">{fmt(order.pre_gst_price)}</span>
+                </div>
+              )}
+
+              {order.gst_pct != null && order.gst_amount != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-stone-400">GST ({order.gst_pct.toFixed(0)}%)</span>
+                  <span className="text-stone-700">+{fmt(order.gst_amount)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
+                <span className="text-stone-900">Total (incl. GST)</span>
+                <span className="text-stone-900">{fmt(order.final_price)}</span>
+              </div>
+            </div>
+          )}
 
           {order.shipping_address && (
             <div className="bg-stone-50 border border-stone-100 px-4 py-3">

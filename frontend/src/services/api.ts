@@ -464,10 +464,17 @@ export interface CustomerOrder {
   status: string;
   rug_name: string;
   size: string;
+  size_w: number | null;
+  size_h: number | null;
   qty: number;
+  base_price: number | null;
   final_price: number | null;
+  pre_gst_price: number | null;
+  gst_pct: number | null;
+  gst_amount: number | null;
   price_currency: string;
   rush_order: boolean;
+  manual_discount_pct: number | null;
   shipping_address: string | null;
   estimated_delivery: string | null;
   created_at: string | null;

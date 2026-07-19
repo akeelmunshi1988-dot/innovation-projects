@@ -914,16 +914,30 @@ async def get_customer_orders(
         for o in orders:
             q = o.quote
             rug = q.rug_catalog if q else None
+            fp = q.final_price if q else None
+            gst = q.gst_pct if q else None
+            pre_gst = round(fp / (1 + gst / 100), 2) if fp and gst else None
+            gst_amount = round(fp - pre_gst, 2) if fp and pre_gst else None
+            size_w = q.custom_size_w if q else None
+            size_h = q.custom_size_h if q else None
+            qty = q.qty if q else 1
             result.append({
                 "order_id": o.id,
                 "quote_id": q.id if q else None,
                 "status": o.status,
                 "rug_name": rug.name if rug else "Custom Order",
-                "size": f"{q.custom_size_w:g}m × {q.custom_size_h:g}m" if q and q.custom_size_w and q.custom_size_h else "—",
-                "qty": q.qty if q else 1,
-                "final_price": q.final_price if q else None,
+                "size": f"{size_w:g}m × {size_h:g}m" if size_w and size_h else "—",
+                "size_w": size_w,
+                "size_h": size_h,
+                "qty": qty,
+                "base_price": q.base_price if q else None,
+                "final_price": fp,
+                "pre_gst_price": pre_gst,
+                "gst_pct": gst,
+                "gst_amount": gst_amount,
                 "price_currency": q.price_currency if q else "INR",
                 "rush_order": q.rush_order if q else False,
+                "manual_discount_pct": q.manual_discount_pct if q else None,
                 "shipping_address": o.shipping_address,
                 "estimated_delivery": o.estimated_delivery.strftime("%Y-%m-%d") if o.estimated_delivery else None,
                 "created_at": o.created_at.strftime("%Y-%m-%d") if o.created_at else None,
