@@ -601,7 +601,7 @@ class VerifyPaymentBody(OrderDetailsBase):
 
 
 @router.post("/customer/checkout/verify-payment")
-async def verify_payment(body: VerifyPaymentBody):
+async def verify_payment(body: VerifyPaymentBody, request: Request):
     from datetime import datetime, timedelta
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise HTTPException(status_code=503, detail="Payment gateway not configured.")
@@ -627,9 +627,21 @@ async def verify_payment(body: VerifyPaymentBody):
         if not material or not material.is_available:
             raise HTTPException(status_code=400, detail="Material unavailable")
 
-        customer = db.query(Customer).filter(
-            Customer.email == body.email, Customer.tenant_id == tid,
-        ).first()
+        # Prefer authenticated customer so orders appear in My Orders
+        customer = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            try:
+                from jose import jwt as _jwt
+                payload = _jwt.decode(auth_header.split(" ")[1], settings.JWT_SECRET, algorithms=["HS256"])
+                if payload.get("type") == "customer":
+                    customer = db.query(Customer).filter(Customer.id == int(payload["sub"])).first()
+            except Exception:
+                pass
+        if not customer:
+            customer = db.query(Customer).filter(
+                Customer.email == body.email, Customer.tenant_id == tid,
+            ).first()
         if not customer:
             customer = Customer(
                 tenant_id=tid, name=body.name, email=body.email,
@@ -699,7 +711,7 @@ class CheckoutBody(OrderDetailsBase):
 
 
 @router.post("/customer/checkout")
-async def customer_checkout(body: CheckoutBody):
+async def customer_checkout(body: CheckoutBody, request: Request):
     from datetime import datetime, timedelta
     db = SessionLocal()
     try:
@@ -714,11 +726,21 @@ async def customer_checkout(body: CheckoutBody):
         if not material or not material.is_available:
             raise HTTPException(status_code=400, detail="Material is not available")
 
-        # Find or create customer
-        customer = db.query(Customer).filter(
-            Customer.email == body.email,
-            Customer.tenant_id == tid,
-        ).first()
+        # Prefer authenticated customer so orders appear in My Orders
+        customer = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            try:
+                from jose import jwt as _jwt
+                payload = _jwt.decode(auth_header.split(" ")[1], settings.JWT_SECRET, algorithms=["HS256"])
+                if payload.get("type") == "customer":
+                    customer = db.query(Customer).filter(Customer.id == int(payload["sub"])).first()
+            except Exception:
+                pass
+        if not customer:
+            customer = db.query(Customer).filter(
+                Customer.email == body.email, Customer.tenant_id == tid,
+            ).first()
         if not customer:
             customer = Customer(
                 tenant_id=tid,
@@ -835,13 +857,16 @@ async def get_customer_orders(
     from datetime import datetime, timedelta
     db = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.email == email).first()
-        if not customer:
+        # Get all customer IDs with this email (handles duplicate records)
+        same_email_ids = [
+            c.id for c in db.query(Customer).filter(Customer.email == email).all()
+        ]
+        if not same_email_ids:
             return {"total": 0, "page": page, "page_size": page_size, "pages": 0, "items": []}
         base_q = (
             db.query(Order)
             .join(Quote, Order.quote_id == Quote.id)
-            .filter(Quote.customer_id == customer.id)
+            .filter(Quote.customer_id.in_(same_email_ids))
         )
         if status and status != 'all':
             base_q = base_q.filter(Order.status == status)
