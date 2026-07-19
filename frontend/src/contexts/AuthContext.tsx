@@ -58,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data } = await axios.post('/api/auth/login', { email, password });
       const { access_token, ...userInfo } = data;
+      // Clear any active customer session — one session at a time
+      localStorage.removeItem('loomcraftrugs_customer_token');
+      localStorage.removeItem('loomcraftrugs_customer_user');
       localStorage.setItem(TOKEN_KEY, access_token);
       localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
       setToken(access_token);

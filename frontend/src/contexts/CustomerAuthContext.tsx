@@ -31,6 +31,9 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
   const [isLoadingCustomer, setIsLoadingCustomer] = useState(false);
 
   const _persist = (token: string, user: CustomerUser) => {
+    // Clear any active admin session — one session at a time
+    localStorage.removeItem('loomcraftrugs_token');
+    localStorage.removeItem('loomcraftrugs_user');
     localStorage.setItem(CTOKEN_KEY, token);
     localStorage.setItem(CUSER_KEY, JSON.stringify(user));
     setCustomerToken(token);
