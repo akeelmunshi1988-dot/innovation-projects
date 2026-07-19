@@ -1,11 +1,36 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Sparkles, AlertTriangle, ChevronDown, HelpCircle } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, AlertTriangle, ChevronDown, HelpCircle, ShoppingBag, FileText, Maximize2, Minimize2 } from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
+
+interface ChatAction {
+  type: 'checkout' | 'quote';
+  rug_id: number;
+  rug_name: string;
+  size_w: number;
+  size_h: number;
+  qty: number;
+  rush_order: boolean;
+  notes?: string;
+  estimated_price?: number;
+  pre_gst_price?: number;
+  gst_pct?: number;
+  gst_amount?: number;
+  price_currency?: string;
+  estimated_days?: number;
+}
+
+interface MessageOption {
+  label: string;
+  value: string;
+}
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  action?: ChatAction;
+  options?: MessageOption[];
 }
 
 const SUGGESTED = [
@@ -87,7 +112,9 @@ function ChatMarkdown({ content }: { content: string }) {
 }
 
 export default function CustomerChat() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -106,7 +133,11 @@ export default function CustomerChat() {
     if (open) {
       setUnread(0);
       setTimeout(() => inputRef.current?.focus(), 100);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
+    return () => { document.body.style.overflow = ''; };
   }, [open]);
 
   // Listen for external trigger from the home page AI section
@@ -137,7 +168,7 @@ export default function CustomerChat() {
         session_id: sessionId,
       });
       setSessionId(data.session_id);
-      setMessages([...next, { role: 'assistant', content: data.response }]);
+      setMessages([...next, { role: 'assistant', content: data.response, action: data.action, options: data.options }]);
       if (!open) setUnread((n) => n + 1);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Something went wrong. Please try again.');
@@ -177,9 +208,21 @@ export default function CustomerChat() {
         )}
       </button>
 
+      {/* Backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/60 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-24px)] h-[540px] max-h-[calc(100vh-120px)] bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className={`fixed bottom-24 right-6 z-50 bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+          expanded
+            ? 'w-[720px] max-w-[calc(100vw-24px)] h-[calc(100vh-120px)]'
+            : 'w-[380px] max-w-[calc(100vw-24px)] h-[540px] max-h-[calc(100vh-120px)]'
+        }`}>
 
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-dark-700 bg-dark-900 flex-shrink-0">
@@ -190,6 +233,13 @@ export default function CustomerChat() {
               <p className="text-cream-100 font-semibold text-sm">Rug Consultant</p>
               <p className="text-dark-400 text-xs">Powered by Claude AI · Always available</p>
             </div>
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="text-dark-500 hover:text-cream-300 transition-colors p-1"
+              title={expanded ? 'Collapse' : 'Expand'}
+            >
+              {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </button>
             <button
               onClick={() => setOpen(false)}
               className="text-dark-500 hover:text-cream-300 transition-colors p-1"
@@ -243,6 +293,71 @@ export default function CustomerChat() {
                             <div className="flex items-start gap-2 bg-gold-600/10 border border-gold-500/30 rounded-lg px-2.5 py-2 mt-1">
                               <HelpCircle size={14} className="text-gold-400 flex-shrink-0 mt-0.5" />
                               <p className="text-gold-300 text-sm leading-relaxed font-medium">{question}</p>
+                            </div>
+                          )}
+                          {msg.options && msg.options.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {msg.options.map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => sendMessage(opt.value)}
+                                  disabled={loading}
+                                  className="text-xs border border-gold-600/40 hover:border-gold-500 text-gold-300 hover:text-gold-100 bg-dark-700 hover:bg-dark-600 px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {msg.action && (
+                            <div className="pt-1">
+                              {msg.action.type === 'checkout' ? (
+                                <button
+                                  onClick={() => {
+                                    setOpen(false);
+                                    navigate('/checkout', {
+                                      state: {
+                                        rug_id: msg.action!.rug_id,
+                                        rug_name: msg.action!.rug_name,
+                                        size_w: msg.action!.size_w,
+                                        size_h: msg.action!.size_h,
+                                        qty: msg.action!.qty,
+                                        rush_order: msg.action!.rush_order,
+                                        notes: msg.action!.notes,
+                                        estimated_price: msg.action!.estimated_price,
+                                        pre_gst_price: msg.action!.pre_gst_price,
+                                        gst_pct: msg.action!.gst_pct,
+                                        gst_amount: msg.action!.gst_amount,
+                                        price_currency: msg.action!.price_currency ?? 'INR',
+                                        estimated_days: msg.action!.estimated_days ?? 21,
+                                      },
+                                    });
+                                  }}
+                                  className="w-full flex items-center justify-between gap-2 bg-gold-600 hover:bg-gold-500 text-white text-xs font-medium px-3 py-2.5 rounded-lg transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <ShoppingBag size={13} />
+                                    <span>Proceed to Checkout</span>
+                                  </div>
+                                  {msg.action.estimated_price != null && (
+                                    <span className="font-semibold">
+                                      {msg.action.price_currency === 'INR' ? '₹' : msg.action.price_currency}
+                                      {msg.action.estimated_price.toLocaleString('en-IN')}
+                                    </span>
+                                  )}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setOpen(false);
+                                    navigate(`/catalog/${msg.action!.rug_id}`);
+                                  }}
+                                  className="w-full flex items-center gap-2 bg-dark-700 hover:bg-dark-600 border border-gold-600/30 hover:border-gold-500/60 text-gold-300 text-xs font-medium px-3 py-2.5 rounded-lg transition-colors"
+                                >
+                                  <FileText size={13} />
+                                  View Rug &amp; Request Quote →
+                                </button>
+                              )}
                             </div>
                           )}
                         </>

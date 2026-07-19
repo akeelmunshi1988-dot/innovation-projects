@@ -1,16 +1,17 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List, Any
 from datetime import datetime
+import re
 
 
 # ── Material ──────────────────────────────────────────────────────────────────
 
 class MaterialBase(BaseModel):
-    name: str
-    type: str
-    color: str
-    stock_meters: float = 0.0
-    cost_per_sqm: float
+    name: str = Field(..., min_length=1, max_length=200)
+    type: str = Field(..., min_length=1)
+    color: str = Field(..., min_length=1)
+    stock_meters: float = Field(0.0, ge=0)
+    cost_per_sqm: float = Field(..., ge=0)
     cost_currency: Optional[str] = None
     is_available: bool = True
 
@@ -249,12 +250,12 @@ class Quote(QuoteBase):
 
 class QuoteCalculateRequest(BaseModel):
     rug_id: int
-    size_w: float
-    size_h: float
+    size_w: float = Field(..., gt=0, le=50, description="Width in metres (0–50m)")
+    size_h: float = Field(..., gt=0, le=50, description="Height in metres (0–50m)")
     material_id: int
-    qty: int = 1
+    qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
-    manual_discount_pct: Optional[float] = None
+    manual_discount_pct: Optional[float] = Field(None, ge=0, le=100)
 
 
 class QuoteCalculateResponse(BaseModel):
@@ -358,34 +359,52 @@ class TenantPublic(BaseModel):
 
 
 class TenantUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    currency: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    currency: Optional[str] = Field(None, min_length=3, max_length=3)
     exchange_rates: Optional[dict] = None
-    gstin: Optional[str] = None
+    gstin: Optional[str] = Field(None, max_length=15)
     state_code: Optional[str] = None
     address: Optional[str] = None
     lut_number: Optional[str] = None
-    default_profit_margin_pct: Optional[float] = None
-    rush_surcharge_pct: Optional[float] = None
-    large_format_threshold_sqm: Optional[float] = None
-    large_format_surcharge_pct: Optional[float] = None
+    default_profit_margin_pct: Optional[float] = Field(None, ge=0, le=500)
+    rush_surcharge_pct: Optional[float] = Field(None, ge=0, le=200)
+    large_format_threshold_sqm: Optional[float] = Field(None, ge=1, le=500)
+    large_format_surcharge_pct: Optional[float] = Field(None, ge=0, le=100)
+
+    @field_validator('gstin')
+    @classmethod
+    def validate_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v and v.strip():
+            v = v.strip().upper()
+            if not re.match(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z][Z][0-9A-Z]$', v):
+                raise ValueError('Invalid GSTIN format (expected 15-char format e.g. 27AABCU9603R1ZX)')
+        return v or None
+
+    @field_validator('exchange_rates')
+    @classmethod
+    def validate_exchange_rates(cls, v: Optional[dict]) -> Optional[dict]:
+        if v:
+            for currency, rate in v.items():
+                if not isinstance(rate, (int, float)) or rate <= 0:
+                    raise ValueError(f'Exchange rate for {currency} must be a positive number')
+        return v
 
 
 # ── Auth (Staff) ──────────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
-    company_name: str
-    slug: str
-    full_name: str
-    email: str
-    password: str
-    currency: str = "USD"
+    company_name: str = Field(..., min_length=1, max_length=200)
+    slug: str = Field(..., min_length=2, max_length=50, pattern=r'^[a-z0-9-]+$')
+    full_name: str = Field(..., min_length=1, max_length=200)
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
+    currency: str = Field("USD", min_length=3, max_length=3)
     gstin: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(..., min_length=1)
 
 
 class TokenResponse(BaseModel):
@@ -409,16 +428,16 @@ class MeResponse(BaseModel):
 # ── Auth (Customer) ───────────────────────────────────────────────────────────
 
 class CustomerRegisterRequest(BaseModel):
-    name: str
-    email: str
-    password: str
-    phone: Optional[str] = None
-    company: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=200)
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
+    phone: Optional[str] = Field(None, max_length=20)
+    company: Optional[str] = Field(None, max_length=200)
 
 
 class CustomerLoginRequest(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(..., min_length=1)
 
 
 class CustomerTokenResponse(BaseModel):

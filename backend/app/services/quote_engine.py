@@ -112,8 +112,14 @@ class QuoteEngine:
         size_surcharge = 0.0
         pricing_rules_applied = []
 
-        # Rush surcharge from tenant settings
-        if rush_order:
+        # Determine if rush actually saves delivery time
+        standard_days = self._estimate_days(rug.weave_type or "standard", size_sqm, qty, rush_order=False)
+        rush_candidate_days = self._estimate_days(rug.weave_type or "standard", size_sqm, qty, rush_order=True)
+        rush_saves_time = rush_candidate_days < standard_days  # False when floor kicks in (e.g. 7-day rugs)
+        rush_effective = rush_order and rush_saves_time
+
+        # Rush surcharge only when it genuinely reduces delivery time
+        if rush_effective:
             rush_surcharge = round(subtotal * (tenant_rush_pct / 100), 2)
             pricing_rules_applied.append({
                 "rule": f"Rush surcharge ({tenant_rush_pct:.0f}%)",
@@ -169,8 +175,8 @@ class QuoteEngine:
         final_price = round(pre_gst_price + gst_amount, 2)
         price_per_piece = round(final_price / qty, 2) if qty > 0 else 0.0
 
-        # Production timeline
-        estimated_days = self._estimate_days(rug.weave_type or "standard", size_sqm, qty, rush_order)
+        # Production timeline — use rush days only when rush is effective
+        estimated_days = rush_candidate_days if rush_effective else standard_days
 
         breakdown = [
             {
@@ -210,6 +216,9 @@ class QuoteEngine:
             "material_available": material_available,
             "material_message": material_message,
             "estimated_days": estimated_days,
+            "standard_days": standard_days,
+            "rush_days": rush_candidate_days,
+            "rush_available": rush_saves_time,
             "breakdown": breakdown,
         }
 

@@ -37,11 +37,17 @@ const HOW = [
 
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
+  const [sort, setSort] = useState<'newest' | 'popular'>('newest');
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
 
   useEffect(() => {
-    axios.get('/api/customer/catalog').then(({ data }) => setCatalog(data)).catch(() => {});
-  }, []);
+    setCatalogLoading(true);
+    axios.get('/api/customer/catalog', { params: { sort } })
+      .then(({ data }) => setCatalog(data))
+      .catch(() => {})
+      .finally(() => setCatalogLoading(false));
+  }, [sort]);
 
   const featured = catalog.slice(0, 6);
 
@@ -136,20 +142,37 @@ export default function CustomerHome() {
 
       {/* ── FEATURED COLLECTION ───────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
-        <div className="flex items-end justify-between mb-12">
+        <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
           <div>
             <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Our Collection</p>
             <h2 className="font-serif text-4xl font-light text-stone-900">Featured Rugs</h2>
           </div>
-          <Link
-            to="/catalog"
-            className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
-          >
-            View All
-          </Link>
+          <div className="flex items-center gap-4">
+            <div className="flex border border-stone-200">
+              {(['newest', 'popular'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSort(s)}
+                  className={`text-xs px-4 py-2 font-medium uppercase tracking-wider transition-colors ${
+                    sort === s
+                      ? 'bg-stone-900 text-white'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                  }`}
+                >
+                  {s === 'newest' ? 'Newest' : 'Popular'}
+                </button>
+              ))}
+            </div>
+            <Link
+              to="/catalog"
+              className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
+            >
+              View All
+            </Link>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10 transition-opacity duration-200 ${catalogLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
           {featured.map((rug) => (
             <Link
               key={rug.id}

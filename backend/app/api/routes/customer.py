@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Q
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from pydantic import Field, EmailStr
 import io
 import cv2
 import numpy as np
@@ -197,10 +198,21 @@ MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 @router.get("/customer/catalog")
-async def get_public_catalog():
+async def get_public_catalog(sort: str = Query("newest")):
+    from sqlalchemy import func as sqlfunc
     db = SessionLocal()
     try:
-        rugs = db.query(RugCatalog).join(Material).all()
+        q = db.query(RugCatalog).join(Material)
+        if sort == "popular":
+            from app.models.models import Quote as QuoteModel
+            q = (
+                q.outerjoin(QuoteModel, QuoteModel.rug_catalog_id == RugCatalog.id)
+                .group_by(RugCatalog.id)
+                .order_by(sqlfunc.count(QuoteModel.id).desc())
+            )
+        else:
+            q = q.order_by(RugCatalog.id.desc())
+        rugs = q.all()
         return [
             {
                 "id": r.id,
@@ -251,9 +263,9 @@ async def get_public_rug(rug_id: int):
 
 
 class EstimateRequest(BaseModel):
-    size_w: float
-    size_h: float
-    qty: int = 1
+    size_w: float = Field(..., gt=0, le=50)
+    size_h: float = Field(..., gt=0, le=50)
+    qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
 
 
@@ -372,16 +384,16 @@ async def inspire_from_room(body: RoomInspireRequest):
 
 
 class QuoteRequestBody(BaseModel):
-    name: str
-    email: str
-    phone: Optional[str] = None
-    company: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=200)
+    email: EmailStr
+    phone: Optional[str] = Field(None, max_length=20)
+    company: Optional[str] = Field(None, max_length=200)
     rug_id: int
-    size_w: float
-    size_h: float
-    qty: int = 1
+    size_w: float = Field(..., gt=0, le=50)
+    size_h: float = Field(..., gt=0, le=50)
+    qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)
 
 
 @router.post("/customer/request-quote")
@@ -489,16 +501,16 @@ class CustomerChatMessage(BaseModel):
 
 class OrderDetailsBase(BaseModel):
     rug_id: int
-    size_w: float
-    size_h: float
-    qty: int = 1
+    size_w: float = Field(..., gt=0, le=50)
+    size_h: float = Field(..., gt=0, le=50)
+    qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
-    notes: Optional[str] = None
-    name: str
-    email: str
-    phone: Optional[str] = None
-    company: Optional[str] = None
-    shipping_address: str
+    notes: Optional[str] = Field(None, max_length=2000)
+    name: str = Field(..., min_length=1, max_length=200)
+    email: EmailStr
+    phone: Optional[str] = Field(None, max_length=20)
+    company: Optional[str] = Field(None, max_length=200)
+    shipping_address: str = Field(..., min_length=5, max_length=1000)
 
 
 @router.post("/customer/checkout/create-payment-order")
@@ -532,8 +544,6 @@ async def create_payment_order(body: OrderDetailsBase):
         )
         if "error" in calc:
             raise HTTPException(status_code=400, detail=calc["error"])
-        if not calc.get("moq_met", True):
-            raise HTTPException(status_code=400, detail=calc.get("moq_message", "Minimum order quantity not met"))
 
         final_price = calc["final_price"]
         currency = calc.get("price_currency") or "INR"
@@ -668,18 +678,8 @@ async def verify_payment(body: VerifyPaymentBody):
         db.close()
 
 
-class CheckoutBody(BaseModel):
-    rug_id: int
-    size_w: float
-    size_h: float
-    qty: int = 1
-    rush_order: bool = False
-    notes: Optional[str] = None
-    name: str
-    email: str
-    phone: Optional[str] = None
-    company: Optional[str] = None
-    shipping_address: str
+class CheckoutBody(OrderDetailsBase):
+    pass  # inherits all validated fields from OrderDetailsBase
 
 
 @router.post("/customer/checkout")
@@ -724,9 +724,6 @@ async def customer_checkout(body: CheckoutBody):
             qty=body.qty,
             rush_order=body.rush_order,
         )
-
-        if not calc.get("moq_met", True):
-            raise HTTPException(status_code=400, detail=calc.get("moq_message", "Minimum order quantity not met"))
 
         total_sqm = body.size_w * body.size_h * body.qty
         if material.stock_meters < total_sqm:
@@ -905,9 +902,9 @@ async def customer_chat(body: CustomerChatRequest):
     try:
         rugs = db.query(RugCatalog).join(Material).all()
         catalog_lines = [
-            f"• {r.name}: material={r.material.name}, weave={r.weave_type}, "
-            f"pile={r.pile_height}, lead time={r.lead_time_days} days, "
-            f"sizes available={', '.join(r.sizes)}. {r.description or ''}"
+            f"• ID {r.id} — {r.name}: material={r.material.name}, weave={r.weave_type or 'n/a'}, "
+            f"pile={r.pile_height or 'n/a'}, base_price={r.base_price}/sqm, "
+            f"lead_time={r.lead_time_days}d, sizes={', '.join(r.sizes) or 'custom'}. {r.description or ''}"
             for r in rugs
         ]
         catalog_text = "\n".join(catalog_lines)
@@ -915,36 +912,200 @@ async def customer_chat(body: CustomerChatRequest):
         db.close()
 
     system_prompt = f"""You are a friendly rug design consultant for LoomCraftRugs AI, a custom rug manufacturing studio.
-Your role is to help customers choose the perfect rug for their space.
+Your role is to help customers choose the perfect rug and place their order seamlessly.
 
-Our current collection:
+Our current collection (use exact IDs when calling tools):
 {catalog_text}
 
 Guidelines:
 - Help customers choose rugs based on room type, style, traffic level, and budget
 - Explain materials: wool (durable, warm, natural) · silk (luxurious, delicate, lustrous) · cotton (casual, easy-care) · synthetic (budget, indoor/outdoor, stain-resistant)
-- Weave types: hand-knotted (most durable, heirloom quality) · hand-tufted (soft, good value) · flatweave (thin, reversible, easy-clean) · machine-woven (affordable, fast)
-- Pile height: high pile = cozy/bedroom; low pile = easy-clean/high-traffic; flat = minimalist/dining
-- Sizing guides: living room — front legs of sofa on rug, or all legs on; dining — rug extends 60 cm beyond table on all sides; bedroom — extends 45–60 cm beyond bed sides
-- Lead times vary: machine-woven 7 days, hand-tufted 21–30 days, hand-knotted 35–60 days
-- When asked for a specific price, encourage the customer to use the "Find Your Perfect Rug" AI room-matching tool on this page or click "Request Formal Quote" on any matched rug — this gives them an accurate price for their exact size
-- Keep answers concise (2–4 sentences). End with one helpful follow-up question to understand their needs better
-- Do NOT reveal internal material costs or supplier names"""
+- Sizing guides: living room — all legs on rug; dining — 60 cm beyond table; bedroom — 45–60 cm beyond bed
+- Lead times: machine-woven 7d · hand-tufted 21–30d · hand-knotted 35–60d
+- When a customer has chosen a rug AND specified size/qty, use go_to_checkout to send them directly to pay
+- When a customer wants a price estimate or is not ready to pay, use request_quote
+- Always confirm size (width × height in metres) and quantity before calling go_to_checkout or request_quote
+- Keep conversational replies concise (2–4 sentences)
+- Do NOT reveal internal costs or supplier names
+
+IMPORTANT — use provide_options whenever the customer has clear discrete choices. This applies to BOTH the checkout flow AND the quote request flow:
+
+Rug selection (both flows):
+- After recommending rugs: show each rug name as a button
+
+Size selection (both flows):
+- Show standard sizes from our catalog for that rug + "Custom size"
+
+Quantity (both flows):
+- Show "1 piece", "2 pieces", "4 pieces", "Other quantity"
+
+Delivery type (both flows):
+- Show "Standard delivery" and "Early delivery (+25% fee)"
+
+Intent / next step — always confirm before taking action:
+- If customer seems ready to order: "Proceed to checkout", "Request a quote first", "Browse more rugs"
+- If customer wants a quote: "Yes, request a quote", "Actually place the order", "Change something"
+- After explaining a rug: "Order this rug", "Request a quote", "See other options"
+
+Rules:
+- Max 4 options per message
+- Always include an escape option like "Something else" or "Start over" when relevant
+- Call provide_options in the same turn as your text reply, for EVERY question or confirmation step
+- Do not call go_to_checkout or request_quote without first confirming intent via provide_options"""
+
+    tools = [
+        {
+            "name": "go_to_checkout",
+            "description": "Send the customer to the checkout page to pay immediately. Use this when the customer has confirmed a specific rug, size (width × height in metres), and quantity and is ready to place an order.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "rug_id":    {"type": "integer", "description": "Catalog ID of the chosen rug"},
+                    "rug_name":  {"type": "string",  "description": "Name of the rug"},
+                    "size_w":    {"type": "number",  "description": "Width in metres"},
+                    "size_h":    {"type": "number",  "description": "Height/length in metres"},
+                    "qty":       {"type": "integer", "description": "Number of pieces", "default": 1},
+                    "rush_order":{"type": "boolean", "description": "True if customer needs early/priority delivery"},
+                    "notes":     {"type": "string",  "description": "Special requirements mentioned by customer"},
+                },
+                "required": ["rug_id", "rug_name", "size_w", "size_h"],
+            },
+        },
+        {
+            "name": "request_quote",
+            "description": "Send the customer to the rug detail page to request a formal quote. Use this when the customer wants a price estimate, is not ready to pay yet, or wants the vendor to review their requirements.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "rug_id":    {"type": "integer", "description": "Catalog ID of the chosen rug"},
+                    "rug_name":  {"type": "string",  "description": "Name of the rug"},
+                    "size_w":    {"type": "number",  "description": "Width in metres"},
+                    "size_h":    {"type": "number",  "description": "Height/length in metres"},
+                    "qty":       {"type": "integer", "description": "Number of pieces", "default": 1},
+                    "rush_order":{"type": "boolean", "description": "True if early delivery is needed"},
+                    "notes":     {"type": "string",  "description": "Special requirements"},
+                },
+                "required": ["rug_id", "rug_name", "size_w", "size_h"],
+            },
+        },
+        {
+            "name": "provide_options",
+            "description": "Show the customer clickable quick-reply buttons so they don't have to type. Use whenever asking a question with clear discrete choices: rug selection, size, quantity, delivery type, or order confirmation. Max 4 options.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "options": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {"type": "string", "description": "Short button label shown to customer (2–5 words)"},
+                                "value": {"type": "string", "description": "Exact message text sent when the customer clicks this button"},
+                            },
+                            "required": ["label", "value"],
+                        },
+                    },
+                },
+                "required": ["options"],
+            },
+        },
+    ]
 
     client = _anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
+    session_id = body.session_id or str(uuid.uuid4())
 
     try:
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=512,
+            max_tokens=768,
             system=system_prompt,
+            tools=tools,
             messages=messages,
         )
-        return {
-            "response": response.content[0].text,
-            "session_id": body.session_id or str(uuid.uuid4()),
-        }
+
+        # Extract text blocks (may coexist with tool_use)
+        text_blocks = [b for b in response.content if b.type == "text"]
+        tool_blocks = [b for b in response.content if b.type == "tool_use"]
+        reply_text = text_blocks[0].text if text_blocks else ""
+
+        if tool_blocks:
+            # provide_options may coexist with go_to_checkout / request_quote —
+            # process action tools first, then options
+            options_block = next((t for t in tool_blocks if t.name == "provide_options"), None)
+            action_block  = next((t for t in tool_blocks if t.name in ("go_to_checkout", "request_quote")), None)
+
+            # Return options-only turn (AI is asking a question with choices)
+            if options_block and not action_block:
+                raw_options = options_block.input.get("options", [])
+                return {
+                    "response": reply_text,
+                    "options": raw_options,
+                    "session_id": session_id,
+                }
+
+            # For action tools, also carry along any options if present
+            tool = action_block
+            inp = tool.input
+            rug_id  = inp.get("rug_id")
+            size_w  = float(inp.get("size_w", 0))
+            size_h  = float(inp.get("size_h", 0))
+            qty     = int(inp.get("qty", 1))
+            rush    = bool(inp.get("rush_order", False))
+
+            action: dict = {
+                "type": "checkout" if tool.name == "go_to_checkout" else "quote",
+                "rug_id":    rug_id,
+                "rug_name":  inp.get("rug_name", ""),
+                "size_w":    size_w,
+                "size_h":    size_h,
+                "qty":       qty,
+                "rush_order": rush,
+                "notes":     inp.get("notes"),
+            }
+
+            # For checkout: calculate real price so checkout page has accurate numbers
+            if tool.name == "go_to_checkout" and rug_id and size_w and size_h:
+                db2 = SessionLocal()
+                try:
+                    rug_rec = db2.query(RugCatalog).filter(RugCatalog.id == rug_id).first()
+                    if rug_rec:
+                        engine = QuoteEngine(db2, tenant_id=rug_rec.tenant_id)
+                        calc = engine.calculate_quote(
+                            rug_id=rug_id, size_w=size_w, size_h=size_h,
+                            material_id=rug_rec.material_id, qty=qty, rush_order=rush,
+                        )
+                        lead_days = rug_rec.lead_time_days or 21
+                        if rush:
+                            lead_days = max(7, lead_days // 2)
+                        action.update({
+                            "estimated_price":  calc.get("final_price"),
+                            "pre_gst_price":    calc.get("pre_gst_price"),
+                            "gst_pct":          calc.get("gst_pct"),
+                            "gst_amount":       calc.get("gst_amount"),
+                            "price_currency":   calc.get("price_currency", "INR"),
+                            "estimated_days":   lead_days,
+                        })
+                finally:
+                    db2.close()
+
+            if not reply_text:
+                if tool.name == "go_to_checkout":
+                    reply_text = f"I've set up checkout for the **{inp.get('rug_name')}** ({size_w}m × {size_h}m, qty {qty}). Click below to review and pay."
+                else:
+                    reply_text = f"I'll take you to request a quote for the **{inp.get('rug_name')}** ({size_w}m × {size_h}m)."
+
+            extra_options = options_block.input.get("options", []) if options_block else []
+            return {
+                "response": reply_text,
+                "session_id": session_id,
+                "action": action,
+                **({"options": extra_options} if extra_options else {}),
+            }
+
+        return {"response": reply_text, "session_id": session_id}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")
 
@@ -1242,11 +1403,11 @@ def reject_quote(
 
 
 class NegotiateRequest(BaseModel):
-    proposed_price: Optional[float] = None
-    proposed_qty: Optional[int] = None
+    proposed_price: Optional[float] = Field(None, gt=0)
+    proposed_qty: Optional[int] = Field(None, ge=1, le=10000)
     remove_rush: Optional[bool] = None
-    requested_lead_days: Optional[int] = None
-    message: str = ""
+    requested_lead_days: Optional[int] = Field(None, ge=1, le=365)
+    message: str = Field("", max_length=2000)
 
 @router.patch("/customer/quotes/{quote_id}/negotiate")
 def negotiate_quote(

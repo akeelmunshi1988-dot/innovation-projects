@@ -42,6 +42,9 @@ interface PriceResult {
   moq_message: string;
   material_available: boolean;
   estimated_days: number;
+  standard_days: number;
+  rush_days: number;
+  rush_available: boolean;
   price_currency?: string;
 }
 
@@ -117,6 +120,10 @@ export default function CustomerRugDetail() {
         rush_order: form.rush_order,
       });
       setPriceResult(data);
+      // Auto-clear rush if the estimate shows it saves no time
+      if (!data.rush_available && form.rush_order) {
+        setForm(f => ({ ...f, rush_order: false }));
+      }
     } catch (err: any) {
       console.error('Price estimate failed:', err.response?.data?.detail || err.message);
     } finally {
@@ -442,18 +449,41 @@ export default function CustomerRugDetail() {
                         />
                       </div>
                       <div className="flex items-end pb-0.5">
-                        <label className="flex items-center gap-2 cursor-pointer w-full">
-                          <div className="relative flex-shrink-0">
-                            <input type="checkbox" name="rush_order" checked={form.rush_order} onChange={handleFormChange} className="sr-only" />
-                            <div className={`w-9 h-5 rounded-full transition-colors ${form.rush_order ? 'bg-stone-900' : 'bg-stone-200'}`}>
-                              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.rush_order ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        {priceResult && !priceResult.rush_available ? (
+                          <div className="w-full">
+                            <div className="flex items-center gap-2 opacity-40 cursor-not-allowed">
+                              <div className="relative flex-shrink-0">
+                                <div className="w-9 h-5 rounded-full bg-stone-200">
+                                  <div className="absolute top-0.5 translate-x-0.5 w-4 h-4 rounded-full bg-white shadow" />
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
+                                <p className="text-stone-400 text-xs">+25% fee</p>
+                              </div>
                             </div>
+                            <p className="text-amber-600 text-xs mt-1 leading-snug">
+                              Already at minimum production time ({priceResult.standard_days}d) — no rush benefit
+                            </p>
                           </div>
-                          <div>
-                            <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
-                            <p className="text-stone-400 text-xs">+25% fee</p>
-                          </div>
-                        </label>
+                        ) : (
+                          <label className="flex items-center gap-2 cursor-pointer w-full">
+                            <div className="relative flex-shrink-0">
+                              <input type="checkbox" name="rush_order" checked={form.rush_order} onChange={handleFormChange} className="sr-only" />
+                              <div className={`w-9 h-5 rounded-full transition-colors ${form.rush_order ? 'bg-stone-900' : 'bg-stone-200'}`}>
+                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.rush_order ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
+                              <p className="text-stone-400 text-xs">
+                                {priceResult
+                                  ? `${priceResult.standard_days}d → ${priceResult.rush_days}d · +25% fee`
+                                  : '+25% fee'}
+                              </p>
+                            </div>
+                          </label>
+                        )}
                       </div>
                     </div>
 
