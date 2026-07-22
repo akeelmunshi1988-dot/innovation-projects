@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Calculator, AlertTriangle, CheckCircle, Clock, DollarSign, Package } from 'lucide-react';
-import { getCatalog, getInventory, calculateQuote } from '../services/api';
-import type { RugCatalog, Material, QuoteCalculateResponse } from '../types';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Calculator, AlertTriangle, CheckCircle, Clock, DollarSign, Package, Send, UserPlus } from 'lucide-react';
+import { getCatalog, getInventory, calculateQuote, getCustomers, createCustomer, createQuote, sendQuoteToCustomer } from '../services/api';
+import type { RugCatalog, Material, QuoteCalculateResponse, Customer } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
 
 const QuoteBuilder: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tenant = user!.tenant;
   const fmt = (n: number, currency?: string | null) => fmtTenant(n, tenant, currency);
 
   const [rugs, setRugs] = useState<RugCatalog[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const [rugId, setRugId] = useState<number | ''>('');
@@ -27,12 +29,25 @@ const QuoteBuilder: React.FC = () => {
   const [calculating, setCalculating] = useState(false);
   const [calcError, setCalcError] = useState<string | null>(null);
 
+  // Customer + send state — only relevant once a quote has been calculated
+  const [customerId, setCustomerId] = useState<number | ''>('');
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [expectedDeliveryDays, setExpectedDeliveryDays] = useState<string>('');
+  const [vendorNotes, setVendorNotes] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+
   useEffect(() => {
     const load = async () => {
       try {
-        const [catalogData, inventoryData] = await Promise.all([getCatalog(), getInventory()]);
+        const [catalogData, inventoryData, customerData] = await Promise.all([getCatalog(), getInventory(), getCustomers()]);
         setRugs(catalogData);
         setMaterials(inventoryData.filter((m) => m.is_available));
+        setCustomers(customerData);
         const paramRugId = searchParams.get('rug_id');
         if (paramRugId) {
           const id = Number(paramRugId);
@@ -76,6 +91,8 @@ const QuoteBuilder: React.FC = () => {
     setCalculating(true);
     setCalcError(null);
     setResult(null);
+    setSendError(null);
+    setSendSuccess(null);
 
     try {
       const data = await calculateQuote({
@@ -87,11 +104,71 @@ const QuoteBuilder: React.FC = () => {
         rush_order: rushOrder,
       });
       setResult(data);
+      setExpectedDeliveryDays(String(data.estimated_days));
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setCalcError(e?.response?.data?.detail ?? 'Failed to calculate quote. Please check your inputs.');
     } finally {
       setCalculating(false);
+    }
+  };
+
+  const handleSaveAndSend = async () => {
+    if (!result) return;
+    setSending(true);
+    setSendError(null);
+    setSendSuccess(null);
+
+    try {
+      let finalCustomerId = customerId;
+
+      if (showNewCustomer) {
+        if (!newCustomerName.trim() || !newCustomerEmail.trim()) {
+          setSendError('Please enter a name and email for the new customer.');
+          setSending(false);
+          return;
+        }
+        const created = await createCustomer({
+          name: newCustomerName.trim(),
+          email: newCustomerEmail.trim(),
+          phone: newCustomerPhone.trim() || undefined,
+        });
+        setCustomers((prev) => [...prev, created]);
+        finalCustomerId = created.id;
+        setCustomerId(created.id);
+        setShowNewCustomer(false);
+      }
+
+      if (finalCustomerId === '') {
+        setSendError('Please select or add a customer.');
+        setSending(false);
+        return;
+      }
+
+      const quote = await createQuote({
+        customer_id: Number(finalCustomerId),
+        rug_catalog_id: Number(rugId),
+        material_id: Number(materialId),
+        custom_size_w: parseFloat(sizeW),
+        custom_size_h: parseFloat(sizeH),
+        qty: parseInt(qty) || 1,
+        base_price: result.subtotal,
+        final_price: result.final_price,
+        margin_pct: result.profit_margin_pct,
+        gst_pct: result.gst_pct,
+        rush_order: rushOrder,
+        expected_delivery_days: parseInt(expectedDeliveryDays) || result.estimated_days,
+        status: 'draft',
+      });
+
+      const customerName = customers.find((c) => c.id === finalCustomerId)?.name ?? 'the customer';
+      await sendQuoteToCustomer(quote.id, vendorNotes || undefined);
+      setSendSuccess(`Quote #${quote.id} sent to ${customerName}.`);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setSendError(e?.response?.data?.detail ?? 'Failed to send quote. Please try again.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -305,10 +382,140 @@ const QuoteBuilder: React.FC = () => {
                   </div>
                   <div className="bg-dark-800 rounded-lg p-3 flex flex-col items-center">
                     <Clock size={14} className="text-blue-400 mb-1" />
-                    <p className="text-cream-100 font-semibold">{result.estimated_days} days</p>
-                    <p className="text-dark-500 text-xs">Expected delivery</p>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="1"
+                        value={expectedDeliveryDays}
+                        onChange={(e) => setExpectedDeliveryDays(e.target.value)}
+                        className="w-14 bg-dark-900 border border-dark-600 rounded text-center text-cream-100 font-semibold text-sm py-0.5 focus:outline-none focus:border-gold-500"
+                      />
+                      <span className="text-cream-100 font-semibold text-sm">days</span>
+                    </div>
+                    <p className="text-dark-500 text-xs mt-1">Expected delivery (editable)</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Customer + Send */}
+              <div className="card space-y-4">
+                <h3 className="text-cream-100 font-semibold">Customer &amp; Send</h3>
+
+                {!showNewCustomer ? (
+                  <div className="space-y-2">
+                    <label className="block text-cream-300 text-xs font-medium uppercase tracking-wider">
+                      Select Customer
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={customerId}
+                        onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="input-field w-full text-sm"
+                      >
+                        <option value="">Choose a customer...</option>
+                        {customers.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.company ? `— ${c.company}` : `— ${c.email}`}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCustomer(true)}
+                        className="flex-shrink-0 flex items-center gap-1.5 text-xs text-gold-400 hover:text-gold-300 border border-dark-600 rounded-lg px-3 py-2 transition-colors"
+                      >
+                        <UserPlus size={14} /> New
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 bg-dark-800 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-cream-200 text-sm font-medium">New Customer</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCustomer(false)}
+                        className="text-dark-400 hover:text-cream-300 text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <input
+                      value={newCustomerName}
+                      onChange={(e) => setNewCustomerName(e.target.value)}
+                      placeholder="Name *"
+                      className="input-field w-full text-sm"
+                    />
+                    <input
+                      value={newCustomerEmail}
+                      onChange={(e) => setNewCustomerEmail(e.target.value)}
+                      placeholder="Email *"
+                      type="email"
+                      className="input-field w-full text-sm"
+                    />
+                    <input
+                      value={newCustomerPhone}
+                      onChange={(e) => setNewCustomerPhone(e.target.value)}
+                      placeholder="Phone (optional)"
+                      className="input-field w-full text-sm"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-cream-300 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                    Note to Customer (optional)
+                  </label>
+                  <textarea
+                    value={vendorNotes}
+                    onChange={(e) => setVendorNotes(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Thanks for your interest — happy to adjust size or material."
+                    className="input-field w-full text-sm resize-none"
+                  />
+                </div>
+
+                {sendError && (
+                  <div className="flex items-start gap-2 bg-red-900/10 border border-red-700/30 rounded-lg p-3">
+                    <AlertTriangle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-300 text-xs">{sendError}</p>
+                  </div>
+                )}
+
+                {sendSuccess ? (
+                  <div className="flex items-center justify-between gap-3 bg-green-900/10 border border-green-700/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={15} className="text-green-400 flex-shrink-0" />
+                      <p className="text-green-300 text-xs">{sendSuccess}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin/quotes')}
+                      className="text-xs text-gold-400 hover:text-gold-300 whitespace-nowrap"
+                    >
+                      View in Quotes →
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSaveAndSend}
+                    disabled={sending || (customerId === '' && !showNewCustomer)}
+                    className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50"
+                  >
+                    {sending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        Save &amp; Send Quote
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Price breakdown */}

@@ -10,6 +10,7 @@ import type {
   QuoteCalculateResponse,
   ChatMessage,
   DashboardStats,
+  EmailTemplate,
 } from '../types';
 
 const api = axios.create({
@@ -239,6 +240,21 @@ export const updateCustomer = async (id: number, customer: Partial<Customer>): P
   return data;
 };
 
+// ── Email Templates ──────────────────────────────────────────────────────────
+
+export const getEmailTemplates = async (): Promise<EmailTemplate[]> => {
+  const { data } = await api.get<EmailTemplate[]>('/email-templates');
+  return data;
+};
+
+export const updateEmailTemplate = async (
+  key: string,
+  template: Partial<Pick<EmailTemplate, 'subject' | 'body_html' | 'body_text' | 'is_active'>>,
+): Promise<EmailTemplate> => {
+  const { data } = await api.put<EmailTemplate>(`/email-templates/${key}`, template);
+  return data;
+};
+
 // ── Chat ──────────────────────────────────────────────────────────────────────
 
 export const sendChat = async (
@@ -326,6 +342,15 @@ export const inspireMatch = async (
 
 export const getPublicCatalog = async () => {
   const { data } = await axios.get('/api/customer/catalog');
+  return data;
+};
+
+export const getPublicSettings = async (): Promise<{
+  ai_assistant_enabled: boolean;
+  business_name: string | null;
+  logo_url: string | null;
+}> => {
+  const { data } = await axios.get('/api/customer/settings');
   return data;
 };
 
@@ -463,21 +488,60 @@ export interface CustomerOrder {
   quote_id: number | null;
   status: string;
   rug_name: string;
+  material_name: string | null;
+  weave_type: string | null;
+  rug_shape: string;
   size: string;
   size_w: number | null;
   size_h: number | null;
+  size_sqm: number | null;
+  total_sqm: number | null;
   qty: number;
   base_price: number | null;
+  base_price_per_sqm: number | null;
+  price_per_piece: number | null;
   final_price: number | null;
   pre_gst_price: number | null;
   gst_pct: number | null;
   gst_amount: number | null;
+  margin_pct: number | null;
   price_currency: string;
   rush_order: boolean;
   manual_discount_pct: number | null;
   shipping_address: string | null;
   estimated_delivery: string | null;
   created_at: string | null;
+}
+
+export interface OrderBreakdownLine {
+  label?: string;
+  rule?: string;
+  description?: string;
+  amount: number;
+}
+
+export interface OrderBreakdown {
+  rug_name: string;
+  material_name: string | null;
+  weave_type: string | null;
+  size_sqm: number;
+  total_sqm: number;
+  base_price_per_sqm: number;
+  material_cost_per_sqm: number;
+  profit_margin_pct: number;
+  subtotal: number;
+  bulk_discount: number;
+  manual_discount: number;
+  rush_surcharge: number;
+  size_surcharge: number;
+  pre_gst_price: number;
+  gst_pct: number;
+  gst_amount: number;
+  final_price: number;
+  price_per_piece: number;
+  price_currency: string;
+  stored_final_price: number | null;
+  breakdown: OrderBreakdownLine[];
 }
 
 export interface PaginatedResponse<T> {
@@ -514,6 +578,17 @@ export const getMyOrders = async (
   const { data } = await axios.get<PaginatedResponse<CustomerOrder>>(
     '/api/customer/orders',
     { params },
+  );
+  return data;
+};
+
+export const getCustomerOrderBreakdown = async (
+  orderId: number,
+  email: string,
+): Promise<OrderBreakdown> => {
+  const { data } = await axios.get<OrderBreakdown>(
+    `/api/customer/orders/${orderId}/breakdown`,
+    { params: { email } },
   );
   return data;
 };

@@ -48,6 +48,8 @@ interface PriceResult {
   price_currency?: string;
 }
 
+type RugShape = 'rect' | 'circle' | 'oval';
+
 interface QuoteForm {
   name: string;
   email: string;
@@ -57,6 +59,7 @@ interface QuoteForm {
   qty: string;
   rush_order: boolean;
   notes: string;
+  shape: RugShape;
 }
 
 
@@ -77,6 +80,7 @@ export default function CustomerRugDetail() {
     name: '', email: '', phone: '',
     size_w: '', size_h: '', qty: '1',
     rush_order: false, notes: '',
+    shape: 'rect',
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -109,15 +113,18 @@ export default function CustomerRugDetail() {
     }).catch(() => {});
   }, [id, isCustomerAuthenticated, customerToken]);
 
+  const effectiveSizeH = form.shape === 'circle' ? form.size_w : form.size_h;
+
   const calcPrice = async () => {
-    if (!rug || !form.size_w || !form.size_h) return;
+    if (!rug || !form.size_w || (form.shape !== 'circle' && !form.size_h)) return;
     setCalcLoading(true);
     try {
       const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
         size_w: parseFloat(form.size_w),
-        size_h: parseFloat(form.size_h),
+        size_h: parseFloat(effectiveSizeH),
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
+        shape: form.shape,
       });
       setPriceResult(data);
       // Auto-clear rush if the estimate shows it saves no time
@@ -137,15 +144,17 @@ export default function CustomerRugDetail() {
     try {
       const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
         size_w: parseFloat(form.size_w),
-        size_h: parseFloat(form.size_h),
+        size_h: parseFloat(effectiveSizeH),
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
+        shape: form.shape,
       });
       navigate('/checkout', {
         state: {
           rug_id: rug.id, rug_name: rug.name,
-          size_w: parseFloat(form.size_w), size_h: parseFloat(form.size_h),
+          size_w: parseFloat(form.size_w), size_h: parseFloat(effectiveSizeH),
           qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
+          shape: form.shape,
           notes: form.notes || undefined,
           estimated_price: data.final_price,
           pre_gst_price: data.pre_gst_price,
@@ -182,9 +191,10 @@ export default function CustomerRugDetail() {
         phone: form.phone || null,
         rug_id: rug.id,
         size_w: parseFloat(form.size_w),
-        size_h: parseFloat(form.size_h),
+        size_h: parseFloat(effectiveSizeH),
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
+        shape: form.shape,
         notes: form.notes || null,
       }, { headers: customerToken ? { Authorization: `Bearer ${customerToken}` } : {} });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
@@ -211,17 +221,20 @@ export default function CustomerRugDetail() {
     setAuthError('');
     setAuthLoading(true);
     try {
-      let user;
+      let name = authForm.name;
+      let email = authForm.email;
       if (authMode === 'login') {
-        user = await customerLogin(authForm.email, authForm.password);
+        const user = await customerLogin(authForm.email, authForm.password);
+        name = user.name;
+        email = user.email;
       } else {
-        user = await customerRegister(
+        await customerRegister(
           authForm.name, authForm.email, authForm.password,
           authForm.phone || undefined, authForm.company || undefined,
         );
       }
       setAuthModal(false);
-      await doSubmitQuote(user.name, user.email);
+      await doSubmitQuote(name, email);
     } catch (err: any) {
       setAuthError(err.response?.data?.detail || 'Authentication failed. Please try again.');
     } finally {
@@ -257,7 +270,7 @@ export default function CustomerRugDetail() {
   const sym = currencySymbol(currency);
   const fmtC = (n: number) => fmtExact(n, currency);
 
-  const hasSize = parseFloat(form.size_w) > 0 && parseFloat(form.size_h) > 0;
+  const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
 
   return (
     <CustomerLayout>
@@ -423,23 +436,74 @@ export default function CustomerRugDetail() {
                       </div>
                     )}
 
-                    {/* Size inputs */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Width (m) *</label>
-                        <input type="number" name="size_w" value={form.size_w} onChange={handleFormChange}
-                          placeholder="2.4" step="0.01" min="0.5" required
-                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Height (m) *</label>
-                        <input type="number" name="size_h" value={form.size_h} onChange={handleFormChange}
-                          placeholder="1.8" step="0.01" min="0.5" required
-                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
-                        />
+                    {/* Shape selector */}
+                    <div className="space-y-1.5">
+                      <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Shape</p>
+                      <div className="flex gap-2">
+                        {(['rect', 'circle', 'oval'] as const).map(s => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setForm(f => ({
+                              ...f,
+                              shape: s,
+                              size_h: s === 'circle' ? f.size_w : f.size_h,
+                            }))}
+                            className={`px-3 py-1.5 border text-xs transition-colors ${
+                              form.shape === s
+                                ? 'bg-stone-900 border-stone-900 text-white'
+                                : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
+                            }`}
+                          >
+                            {s === 'rect' ? 'Rectangle' : s === 'circle' ? 'Circle' : 'Oval'}
+                          </button>
+                        ))}
                       </div>
                     </div>
+
+                    {/* Size inputs */}
+                    {form.shape === 'circle' ? (
+                      <div className="max-w-[160px]">
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Diameter (m) *</label>
+                        <input
+                          type="number" name="size_w" value={form.size_w}
+                          onChange={e => setForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
+                          placeholder="3.0" step="0.01" min="0.5" required
+                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                        />
+                        {form.size_w && parseFloat(form.size_w) > 0 && (
+                          <p className="text-stone-400 text-xs mt-1">
+                            Area ≈ {(Math.PI * (parseFloat(form.size_w) / 2) ** 2).toFixed(2)} m²
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
+                            {form.shape === 'oval' ? 'Width / Axis A (m)' : 'Width (m)'} *
+                          </label>
+                          <input type="number" name="size_w" value={form.size_w} onChange={handleFormChange}
+                            placeholder="2.4" step="0.01" min="0.5" required
+                            className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
+                            {form.shape === 'oval' ? 'Height / Axis B (m)' : 'Height (m)'} *
+                          </label>
+                          <input type="number" name="size_h" value={form.size_h} onChange={handleFormChange}
+                            placeholder="1.8" step="0.01" min="0.5" required
+                            className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
+                          />
+                        </div>
+                        {form.shape === 'oval' && form.size_w && form.size_h && parseFloat(form.size_w) > 0 && parseFloat(form.size_h) > 0 && (
+                          <p className="col-span-2 text-stone-400 text-xs -mt-1">
+                            Area ≈ {(Math.PI * (parseFloat(form.size_w) / 2) * (parseFloat(form.size_h) / 2)).toFixed(2)} m²
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>

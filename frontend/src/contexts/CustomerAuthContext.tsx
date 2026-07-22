@@ -12,7 +12,8 @@ interface CustomerAuthContextValue {
   customerToken: string | null;
   isLoadingCustomer: boolean;
   customerLogin: (email: string, password: string) => Promise<CustomerUser>;
-  customerRegister: (name: string, email: string, password: string, phone?: string, company?: string) => Promise<CustomerUser>;
+  customerRegister: (name: string, email: string, password: string, phone?: string, company?: string) => Promise<{ message: string; email: string }>;
+  verifyCustomerEmail: (token: string) => Promise<CustomerUser>;
   customerLogout: () => void;
   isCustomerAuthenticated: boolean;
 }
@@ -52,10 +53,20 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const customerRegister = useCallback(async (name: string, email: string, password: string, phone?: string, company?: string): Promise<CustomerUser> => {
+  const customerRegister = useCallback(async (name: string, email: string, password: string, phone?: string, company?: string): Promise<{ message: string; email: string }> => {
     setIsLoadingCustomer(true);
     try {
       const { data } = await axios.post('/api/auth/customer/register', { name, email, password, phone, company });
+      return { message: data.message, email: data.email };
+    } finally {
+      setIsLoadingCustomer(false);
+    }
+  }, []);
+
+  const verifyCustomerEmail = useCallback(async (token: string): Promise<CustomerUser> => {
+    setIsLoadingCustomer(true);
+    try {
+      const { data } = await axios.post('/api/auth/customer/verify-email', { token });
       const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email };
       _persist(data.access_token, user);
       return user;
@@ -84,6 +95,7 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
       isLoadingCustomer,
       customerLogin,
       customerRegister,
+      verifyCustomerEmail,
       customerLogout,
       isCustomerAuthenticated: !!customerToken && !!customer,
     }}>

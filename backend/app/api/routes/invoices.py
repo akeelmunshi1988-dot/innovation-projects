@@ -1,7 +1,3 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from email.mime.text import MIMEText
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,6 +9,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.models import StaffUser, Quote, Tenant, Customer
 from app.services.invoice_generator import generate_invoice_pdf
+from app.services import email_service
 
 router = APIRouter()
 
@@ -108,12 +105,6 @@ def send_quote_email(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    if not all([settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
-        raise HTTPException(
-            status_code=503,
-            detail="Email not configured. Add SMTP_HOST, SMTP_USERNAME, and SMTP_PASSWORD to your .env file."
-        )
-
     pdf_bytes, quote, customer, tenant, effective_type, final_price_display = _build_pdf(
         quote_id, invoice_type, db, current_user.tenant_id
     )
@@ -128,44 +119,30 @@ def send_quote_email(
     size_str = f"{quote.custom_size_w}×{quote.custom_size_h}m" if quote.custom_size_w else "custom size"
     price_str = f"{currency_sym}{final_price_display:,.2f}" if quote.final_price else "TBD"
     type_label = {"proforma": "Proforma Invoice", "tax": "Tax Invoice", "export": "Export Invoice"}.get(effective_type, "Invoice")
+    disclaimer = (
+        "This is a proforma invoice. The final tax invoice will be issued upon order confirmation."
+        if effective_type == "proforma" else "Please make payment as per the invoice terms."
+    )
 
-    subject = f"{type_label} – {rug_name} – {tenant.name}"
-    body = f"""Dear {customer.name if customer else 'Customer'},
-
-Please find attached your {type_label} from {tenant.name}.
-
-Order Details:
-  Rug      : {rug_name}
-  Size     : {size_str}
-  Quantity : {quote.qty or 1}
-  Amount   : {price_str}
-
-{"This is a proforma invoice. The final tax invoice will be issued upon order confirmation." if effective_type == "proforma" else "Please make payment as per the invoice terms."}
-
-For any queries, please reply to this email.
-
-Best regards,
-{tenant.name}
-"""
-
-    msg = MIMEMultipart()
-    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME}>"
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
+    subject, body_text, body_html = email_service.render_template(
+        db, current_user.tenant_id, "invoice_email",
+        {
+            "customer_name": customer.name if customer else "Customer",
+            "tenant_name": tenant.name,
+            "invoice_type_label": type_label,
+            "rug_name": rug_name,
+            "size": size_str,
+            "qty": quote.qty or 1,
+            "price": price_str,
+            "disclaimer": disclaimer,
+        },
+    )
 
     filename = f"invoice-Q{quote_id:04d}-{effective_type}.pdf"
-    attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
-    attachment.add_header("Content-Disposition", "attachment", filename=filename)
-    msg.attach(attachment)
-
-    try:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-            smtp.send_message(msg)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to send email: {str(e)}")
+    email_service.send_email(
+        to_email, subject, body_text, body_html,
+        attachment=(pdf_bytes, filename),
+        raise_on_failure=True,
+    )
 
     return {"message": f"Email sent to {to_email}", "recipient": to_email}
