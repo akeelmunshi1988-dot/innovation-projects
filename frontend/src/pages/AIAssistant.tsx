@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Send, Sparkles, AlertCircle } from 'lucide-react';
 import ChatMessage from '../components/ChatMessage';
 import { sendChat } from '../services/api';
 import type { ChatMessage as ChatMessageType } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const SUGGESTED_QUESTIONS = [
   "What's the price for a 4x6m wool rug?",
@@ -16,6 +18,7 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 const AIAssistant: React.FC = () => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +74,10 @@ const AIAssistant: React.FC = () => {
       sendMessage(input);
     }
   };
+
+  if (user && user.tenant.ai_assistant_vendor_enabled === false) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <div className="flex flex-col h-full">

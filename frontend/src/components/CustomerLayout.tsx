@@ -4,6 +4,8 @@ import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard 
 import CustomerChat from './CustomerChat';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getPublicSettings } from '../services/api';
+import { applyBranding } from '../utils/branding';
 
 const NAV = [
   { path: '/', label: 'Home' },
@@ -28,7 +30,19 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [chatEnabled, setChatEnabled] = useState(true);
+  const [businessName, setBusinessName] = useState('LoomCraftRugs');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getPublicSettings()
+      .then((data) => {
+        setChatEnabled(data.ai_assistant_enabled);
+        if (data.business_name) setBusinessName(data.business_name);
+        applyBranding(data.business_name, data.logo_url);
+      })
+      .catch(() => setChatEnabled(true));
+  }, []);
 
   // Admin browsing the shop — treat as logged in using admin session
   const isAdminBrowsing = isAdminAuthenticated && !isCustomerAuthenticated;
@@ -79,7 +93,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Brand */}
           <Link to="/" className="flex-shrink-0">
-            <span className="font-serif text-xl font-medium tracking-wide text-stone-900">LoomCraftRugs</span>
+            <span className="font-serif text-xl font-medium tracking-wide text-stone-900">{businessName}</span>
           </Link>
 
           {/* Desktop nav — centered */}
@@ -254,7 +268,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       <footer className="bg-stone-50 border-t border-stone-200 mt-24">
         <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 gap-10">
           <div className="md:col-span-2 space-y-4">
-            <span className="font-serif text-xl font-medium tracking-wide text-stone-900">LoomCraftRugs</span>
+            <span className="font-serif text-xl font-medium tracking-wide text-stone-900">{businessName}</span>
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
               Handcrafted custom rugs made to order from India's finest workshops. Every rug is unique, every size custom.
             </p>
@@ -300,11 +314,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </div>
 
         <div className="border-t border-stone-200 py-5 text-center">
-          <p className="text-stone-400 text-xs tracking-wide">© {new Date().getFullYear()} LoomCraftRugs AI · UPI · Cards · Net Banking</p>
+          <p className="text-stone-400 text-xs tracking-wide">© {new Date().getFullYear()} {businessName} · UPI · Cards · Net Banking</p>
         </div>
       </footer>
 
-      <CustomerChat />
+      {chatEnabled && <CustomerChat />}
     </div>
   );
 }

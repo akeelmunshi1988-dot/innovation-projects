@@ -195,6 +195,7 @@ class QuoteBase(BaseModel):
     margin_pct: Optional[float] = None
     gst_pct: Optional[float] = None
     manual_discount_pct: Optional[float] = None
+    expected_delivery_days: Optional[int] = None
     status: str = "draft"
     notes: Optional[str] = None
     vendor_notes: Optional[str] = None
@@ -216,6 +217,7 @@ class QuoteUpdate(BaseModel):
     final_price: Optional[float] = None
     rush_order: Optional[bool] = None
     manual_discount_pct: Optional[float] = None
+    expected_delivery_days: Optional[int] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     vendor_notes: Optional[str] = None
@@ -353,6 +355,8 @@ class TenantPublic(BaseModel):
     rush_surcharge_pct: float = 25.0
     large_format_threshold_sqm: float = 20.0
     large_format_surcharge_pct: float = 5.0
+    ai_assistant_customer_enabled: bool = True
+    ai_assistant_vendor_enabled: bool = True
 
     class Config:
         from_attributes = True
@@ -370,6 +374,8 @@ class TenantUpdateRequest(BaseModel):
     rush_surcharge_pct: Optional[float] = Field(None, ge=0, le=200)
     large_format_threshold_sqm: Optional[float] = Field(None, ge=1, le=500)
     large_format_surcharge_pct: Optional[float] = Field(None, ge=0, le=100)
+    ai_assistant_customer_enabled: Optional[bool] = None
+    ai_assistant_vendor_enabled: Optional[bool] = None
 
     @field_validator('gstin')
     @classmethod
@@ -446,6 +452,38 @@ class CustomerTokenResponse(BaseModel):
     customer_id: int
     name: str
     email: str
+
+
+class CustomerRegisterResponse(BaseModel):
+    message: str
+    email: str
+
+
+class CustomerVerifyEmailRequest(BaseModel):
+    token: str
+
+
+# ── Email Templates ────────────────────────────────────────────────────────────
+
+class EmailTemplate(BaseModel):
+    id: int
+    key: str
+    name: str
+    subject: str
+    body_html: str
+    body_text: str
+    is_active: bool
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class EmailTemplateUpdate(BaseModel):
+    subject: Optional[str] = None
+    body_html: Optional[str] = None
+    body_text: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 # ── Chat ──────────────────────────────────────────────────────────────────────

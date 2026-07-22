@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw } from 'lucide-react';
+import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '../components/CustomerLayout';
-import { getMyOrders } from '../services/api';
-import type { CustomerOrder } from '../services/api';
+import { getMyOrders, getCustomerOrderBreakdown } from '../services/api';
+import type { CustomerOrder, OrderBreakdown } from '../services/api';
 import { fmtExact } from '../utils/currency';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import axios from 'axios';
@@ -17,12 +17,32 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   cancelled:     { label: 'Cancelled',      color: 'text-red-600 border-red-200 bg-red-50',          dot: 'bg-red-400' },
 };
 
-function OrderCard({ order, customerToken }: { order: CustomerOrder; customerToken: string | null }) {
+function OrderCard({ order, email, customerToken }: { order: CustomerOrder; email: string; customerToken: string | null }) {
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [breakdownError, setBreakdownError] = useState(false);
   const currency = order.price_currency || 'INR';
   const fmt = (n: number) => fmtExact(n, currency);
   const meta = STATUS_META[order.status] ?? { label: order.status, color: 'text-stone-500 border-stone-200 bg-stone-50', dot: 'bg-stone-300' };
+
+  const handleExpand = async () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !breakdown && !breakdownLoading) {
+      setBreakdownLoading(true);
+      setBreakdownError(false);
+      try {
+        const bd = await getCustomerOrderBreakdown(order.order_id, email);
+        setBreakdown(bd);
+      } catch {
+        setBreakdownError(true);
+      } finally {
+        setBreakdownLoading(false);
+      }
+    }
+  };
 
   const downloadInvoice = async () => {
     if (!customerToken) return;
@@ -45,10 +65,12 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
     }
   };
 
+  const bd = breakdown;
+
   return (
     <div className="border border-stone-200">
       <button
-        onClick={() => setExpanded(x => !x)}
+        onClick={handleExpand}
         className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-stone-50 transition-colors"
       >
         <Package size={16} className="text-stone-400 flex-shrink-0" />
@@ -70,14 +92,24 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
 
       {expanded && (
         <div className="border-t border-stone-100 px-5 py-5 space-y-4 bg-white">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+          {/* Specs grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4">
             <div>
-              <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Size</p>
+              <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
+                {order.rug_shape === 'circle' ? 'Diameter' : 'Size'} (per piece)
+              </p>
               <p className="text-stone-900 text-sm">{order.size}</p>
+              {order.size_sqm != null && (
+                <p className="text-stone-400 text-xs mt-0.5">{order.size_sqm.toFixed(2)} m²</p>
+              )}
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Quantity</p>
               <p className="text-stone-900 text-sm">{order.qty} pc{order.qty !== 1 ? 's' : ''}</p>
+              {order.total_sqm != null && (
+                <p className="text-stone-400 text-xs mt-0.5">{order.total_sqm.toFixed(2)} m² total</p>
+              )}
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Est. Delivery</p>
@@ -92,6 +124,144 @@ function OrderCard({ order, customerToken }: { order: CustomerOrder; customerTok
                 {order.rush_order ? 'Early Delivery' : 'Standard'}
               </p>
             </div>
+            {order.material_name && (
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Material</p>
+                <p className="text-stone-900 text-sm">{order.material_name}</p>
+              </div>
+            )}
+            {order.weave_type && (
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Weave</p>
+                <p className="text-stone-900 text-sm capitalize">{order.weave_type}</p>
+              </div>
+            )}
+            {order.price_per_piece != null && order.qty > 1 && (
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Price / Piece</p>
+                <p className="text-stone-900 text-sm">{fmt(order.price_per_piece)}</p>
+              </div>
+            )}
+            {order.base_price_per_sqm != null && (
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Rate / m²</p>
+                <p className="text-stone-900 text-sm">{fmt(order.base_price_per_sqm)}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed price breakdown — lazy loaded from QuoteEngine */}
+          <div className="border border-stone-100 bg-stone-50 px-4 py-3 space-y-1.5">
+            <p className="text-stone-400 text-xs uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <Layers size={11} /> Price Calculation
+            </p>
+
+            {breakdownLoading && (
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-stone-400 text-xs">Loading breakdown…</span>
+              </div>
+            )}
+
+            {breakdownError && (
+              <p className="text-stone-400 text-xs py-1">Could not load detailed breakdown.</p>
+            )}
+
+            {bd && !breakdownLoading && (
+              <>
+                {/* Unit cost row */}
+                <div className="flex justify-between text-xs pb-1.5 border-b border-stone-200 mb-1">
+                  <span className="text-stone-500">
+                    Selling rate: {fmt(bd.base_price_per_sqm)}/m² × {bd.total_sqm.toFixed(2)} m²
+                  </span>
+                  <span className="text-stone-700">{fmt(bd.subtotal)}</span>
+                </div>
+
+                {/* Line items from engine */}
+                {bd.breakdown.slice(1).map((line, i) => {
+                  const label = line.rule ?? line.label ?? '';
+                  const isNegative = line.amount < 0;
+                  const isRush = label.toLowerCase().includes('rush');
+                  const isDiscount = isNegative || label.toLowerCase().includes('discount');
+                  const colorClass = isDiscount
+                    ? 'text-green-600'
+                    : isRush
+                    ? 'text-amber-600'
+                    : label.toLowerCase().includes('gst')
+                    ? 'text-stone-400'
+                    : 'text-stone-500';
+                  return (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span className={colorClass}>{label}</span>
+                      <span className={colorClass}>
+                        {isNegative ? `−${fmt(Math.abs(line.amount))}` : `+${fmt(line.amount)}`}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {/* Pre-tax subtotal */}
+                <div className="flex justify-between text-xs pt-1.5 border-t border-stone-200">
+                  <span className="text-stone-400">Pre-tax total</span>
+                  <span className="text-stone-700">{fmt(bd.pre_gst_price)}</span>
+                </div>
+
+                {/* GST */}
+                <div className="flex justify-between text-xs">
+                  <span className="text-stone-400">GST ({bd.gst_pct.toFixed(0)}%)</span>
+                  <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
+                </div>
+
+                {/* Margin note */}
+                <p className="text-stone-300 text-xs pt-1">
+                  Margin: {bd.profit_margin_pct.toFixed(0)}% · Material cost: {fmt(bd.material_cost_per_sqm)}/m²
+                </p>
+              </>
+            )}
+
+            {/* Fallback when breakdown not yet loaded — show stored fields */}
+            {!bd && !breakdownLoading && !breakdownError && order.final_price != null && (
+              <>
+                {order.base_price != null && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-400">Subtotal</span>
+                    <span className="text-stone-700">{fmt(order.base_price)}</span>
+                  </div>
+                )}
+                {order.manual_discount_pct != null && order.manual_discount_pct > 0 && order.base_price != null && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-green-600">Discount ({order.manual_discount_pct}%)</span>
+                    <span className="text-green-600">−{fmt(Math.round(order.base_price * order.manual_discount_pct) / 100)}</span>
+                  </div>
+                )}
+                {order.rush_order && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-amber-600">Early delivery surcharge</span>
+                    <span className="text-amber-600">included</span>
+                  </div>
+                )}
+                {order.pre_gst_price != null && (
+                  <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                    <span className="text-stone-400">Pre-tax</span>
+                    <span className="text-stone-700">{fmt(order.pre_gst_price)}</span>
+                  </div>
+                )}
+                {order.gst_pct != null && order.gst_amount != null && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-400">GST ({order.gst_pct.toFixed(0)}%)</span>
+                    <span className="text-stone-700">+{fmt(order.gst_amount)}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Total line — always shown */}
+            {order.final_price != null && (
+              <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
+                <span className="text-stone-900">Total (incl. GST)</span>
+                <span className="text-stone-900">{fmt(order.final_price)}</span>
+              </div>
+            )}
           </div>
 
           {order.shipping_address && (
@@ -389,7 +559,7 @@ export default function CustomerMyOrders() {
               </div>
             )}
 
-            {orders.map(o => <OrderCard key={o.order_id} order={o} customerToken={customerToken} />)}
+            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} />)}
 
             {hasMore && (
               <button
@@ -476,7 +646,7 @@ export default function CustomerMyOrders() {
                 <p className="text-stone-400 text-sm">
                   Found <span className="text-stone-900 font-medium">{guestTotal}</span> order{guestTotal !== 1 ? 's' : ''} for {searchedEmail}
                 </p>
-                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} customerToken={null} />)}
+                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} />)}
                 {guestHasMore && (
                   <button
                     onClick={handleGuestLoadMore}

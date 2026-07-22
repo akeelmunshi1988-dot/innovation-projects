@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
-import { RefreshCw, Download, Zap, Maximize2, X, Search, CheckCircle2, Send, CheckCircle, AlertTriangle, ShoppingBag } from "lucide-react";
+import { RefreshCw, Download, Zap, Maximize2, X, Search, CheckCircle2, Send, CheckCircle, AlertTriangle, ShoppingBag, Calculator } from "lucide-react";
 import CustomerLayout from "../components/CustomerLayout";
 import { fmtExact, currencySymbol } from "../utils/currency";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
@@ -26,6 +26,8 @@ interface CatalogRug {
   lead_time_days: number;
 }
 
+type QuoteShape = 'rect' | 'circle' | 'oval';
+
 interface QuoteForm {
   name: string;
   email: string;
@@ -35,6 +37,7 @@ interface QuoteForm {
   qty: string;
   rush_order: boolean;
   notes: string;
+  shape: QuoteShape;
 }
 
 const STEPS = ["Room photo", "Choose a rug", "Place & Generate"];
@@ -86,12 +89,21 @@ export default function CustomerPortal() {
 
   const [quoteForm, setQuoteForm] = useState<QuoteForm>({
     name: "", email: "", phone: "", size_w: "", size_h: "",
-    qty: "1", rush_order: false, notes: "",
+    qty: "1", rush_order: false, notes: "", shape: "rect",
   });
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
   const [quoteSubmitted, setQuoteSubmitted]   = useState(false);
   const [quoteError, setQuoteError]           = useState<string>("");
   const [quoteResult, setQuoteResult]         = useState<{ quote_id: number; final_price: number; lead_time_days: number } | null>(null);
+
+  interface EstimateResult {
+    final_price: number; pre_gst_price: number; gst_pct: number; gst_amount: number;
+    subtotal: number; bulk_discount: number; rush_surcharge: number; size_surcharge: number;
+    price_per_piece: number; size_sqm: number; total_sqm: number; price_currency: string;
+    estimated_days: number; rush_available: boolean;
+  }
+  const [estimate, setEstimate]         = useState<EstimateResult | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
 
   const loadDefaultRoom = () => {
     fetch(DEFAULT_ROOM_SRC).then((r) => r.blob()).then((blob) => {
@@ -428,22 +440,23 @@ export default function CustomerPortal() {
     setRoomFile(null); setRoomPreview(DEFAULT_ROOM_SRC);
     setSelectedRug(null); setPoints([]); setResultImage(""); setError("");
     setQuoteSubmitted(false); setQuoteResult(null); setQuoteError("");
-    setQuoteForm({ name: "", email: "", phone: "", size_w: "", size_h: "", qty: "1", rush_order: false, notes: "" });
+    setQuoteForm({ name: "", email: "", phone: "", size_w: "", size_h: "", qty: "1", rush_order: false, notes: "", shape: "rect" });
+    setEstimate(null);
     loadDefaultRoom();
   };
 
   const handlePlaceOrder = async () => {
     if (!selectedRug) return;
     const w = parseFloat(quoteForm.size_w);
-    const h = parseFloat(quoteForm.size_h);
+    const h = quoteForm.shape === 'circle' ? w : parseFloat(quoteForm.size_h);
     const qty = parseInt(quoteForm.qty) || 1;
-    if (!w || !h) {
+    if (!w || (!h && quoteForm.shape !== 'circle')) {
       navigate(`/catalog/${selectedRug.id}`);
       return;
     }
     try {
       const { data } = await axios.post(`/api/customer/catalog/${selectedRug.id}/estimate`, {
-        size_w: w, size_h: h, qty, rush_order: quoteForm.rush_order,
+        size_w: w, size_h: h, qty, rush_order: quoteForm.rush_order, shape: quoteForm.shape,
       });
       navigate('/checkout', {
         state: {
@@ -451,6 +464,7 @@ export default function CustomerPortal() {
           rug_name: selectedRug.name,
           size_w: w, size_h: h, qty,
           rush_order: quoteForm.rush_order,
+          shape: quoteForm.shape,
           notes: quoteForm.notes || undefined,
           estimated_price: data.final_price,
           pre_gst_price: data.pre_gst_price,
@@ -478,15 +492,18 @@ export default function CustomerPortal() {
     if (!selectedRug) return;
     setQuoteSubmitting(true); setQuoteError("");
     try {
+      const sw = parseFloat(quoteForm.size_w);
+      const sh = quoteForm.shape === 'circle' ? sw : parseFloat(quoteForm.size_h);
       const { data } = await axios.post("/api/customer/request-quote", {
         name:       isCustomerAuthenticated && customer ? customer.name : quoteForm.name,
         email:      isCustomerAuthenticated && customer ? customer.email : quoteForm.email,
         phone:      quoteForm.phone || null,
         rug_id:     selectedRug.id,
-        size_w:     parseFloat(quoteForm.size_w),
-        size_h:     parseFloat(quoteForm.size_h),
+        size_w:     sw,
+        size_h:     sh,
         qty:        parseInt(quoteForm.qty) || 1,
         rush_order: quoteForm.rush_order,
+        shape:      quoteForm.shape,
         notes:      quoteForm.notes || null,
       });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
@@ -495,6 +512,25 @@ export default function CustomerPortal() {
       setQuoteError(err.response?.data?.detail || "Failed to submit. Please try again.");
     } finally {
       setQuoteSubmitting(false);
+    }
+  };
+
+  const handleEstimate = async () => {
+    if (!selectedRug) return;
+    const sw = parseFloat(quoteForm.size_w);
+    const sh = quoteForm.shape === 'circle' ? sw : parseFloat(quoteForm.size_h);
+    if (!sw || (!sh && quoteForm.shape !== 'circle')) return;
+    setEstimateLoading(true);
+    try {
+      const { data } = await axios.post(`/api/customer/catalog/${selectedRug.id}/estimate`, {
+        size_w: sw, size_h: sh, qty: parseInt(quoteForm.qty) || 1,
+        rush_order: quoteForm.rush_order, shape: quoteForm.shape,
+      });
+      setEstimate(data);
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setEstimateLoading(false);
     }
   };
 
@@ -974,20 +1010,70 @@ export default function CustomerPortal() {
                           </div>
                         )}
 
+                        {/* Shape selector */}
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-widest text-stone-400">Shape</p>
+                          <div className="flex gap-2">
+                            {(['rect', 'circle', 'oval'] as const).map(s => (
+                              <button key={s} type="button"
+                                onClick={() => setQuoteForm(f => ({
+                                  ...f,
+                                  shape: s,
+                                  size_h: s === 'circle' ? f.size_w : f.size_h,
+                                }))}
+                                className={`px-3 py-1.5 border text-xs transition-colors ${
+                                  quoteForm.shape === s
+                                    ? 'bg-stone-900 border-stone-900 text-white'
+                                    : 'border-stone-200 text-stone-500 hover:border-stone-400 hover:text-stone-900'
+                                }`}
+                              >
+                                {s === 'rect' ? 'Rectangle' : s === 'circle' ? 'Circle' : 'Oval'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         {/* Custom size */}
                         <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-widest text-stone-400">Custom Size (ft)</p>
-                          <div className="flex gap-2 items-center">
-                            <input name="size_w" value={quoteForm.size_w} onChange={handleQuoteChange}
-                              placeholder="Width" type="number" min="0.5" step="0.1" required
-                              className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
-                            />
-                            <span className="text-stone-300 text-sm">×</span>
-                            <input name="size_h" value={quoteForm.size_h} onChange={handleQuoteChange}
-                              placeholder="Height" type="number" min="0.5" step="0.1" required
-                              className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
-                            />
-                          </div>
+                          {quoteForm.shape === 'circle' ? (
+                            <>
+                              <p className="text-xs uppercase tracking-widest text-stone-400">Diameter (m)</p>
+                              <input
+                                name="size_w" value={quoteForm.size_w}
+                                onChange={e => setQuoteForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
+                                placeholder="e.g. 3.0" type="number" min="0.5" step="0.01" required
+                                className="w-40 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
+                              />
+                              {quoteForm.size_w && parseFloat(quoteForm.size_w) > 0 && (
+                                <p className="text-stone-400 text-xs">
+                                  Area ≈ {(Math.PI * (parseFloat(quoteForm.size_w) / 2) ** 2).toFixed(2)} m²
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs uppercase tracking-widest text-stone-400">
+                                {quoteForm.shape === 'oval' ? 'Axes (m)' : 'Size (m)'}
+                              </p>
+                              <div className="flex gap-2 items-center">
+                                <input name="size_w" value={quoteForm.size_w} onChange={handleQuoteChange}
+                                  placeholder={quoteForm.shape === 'oval' ? 'Axis A' : 'Width'} type="number" min="0.5" step="0.01" required
+                                  className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
+                                />
+                                <span className="text-stone-300 text-sm">×</span>
+                                <input name="size_h" value={quoteForm.size_h} onChange={handleQuoteChange}
+                                  placeholder={quoteForm.shape === 'oval' ? 'Axis B' : 'Height'} type="number" min="0.5" step="0.01" required
+                                  className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
+                                />
+                              </div>
+                              {quoteForm.shape === 'oval' && quoteForm.size_w && quoteForm.size_h &&
+                               parseFloat(quoteForm.size_w) > 0 && parseFloat(quoteForm.size_h) > 0 && (
+                                <p className="text-stone-400 text-xs">
+                                  Area ≈ {(Math.PI * (parseFloat(quoteForm.size_w) / 2) * (parseFloat(quoteForm.size_h) / 2)).toFixed(2)} m²
+                                </p>
+                              )}
+                            </>
+                          )}
                         </div>
 
                         {/* Qty + Rush */}
@@ -1001,7 +1087,7 @@ export default function CustomerPortal() {
                           </div>
                           <div className="flex items-end pb-1">
                             <label className="flex items-center gap-2 cursor-pointer"
-                              onClick={() => setQuoteForm((f) => ({ ...f, rush_order: !f.rush_order }))}
+                              onClick={() => { setQuoteForm((f) => ({ ...f, rush_order: !f.rush_order })); setEstimate(null); }}
                             >
                               <div className="relative flex-shrink-0">
                                 <div className={`w-9 h-5 rounded-full transition-colors ${quoteForm.rush_order ? "bg-stone-900" : "bg-stone-200"}`} />
@@ -1019,6 +1105,73 @@ export default function CustomerPortal() {
                               </div>
                             </label>
                           </div>
+                        </div>
+
+                        {/* Estimate button + result */}
+                        <div className="space-y-3">
+                          <button type="button" onClick={handleEstimate}
+                            disabled={estimateLoading || !quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h)}
+                            className="w-full flex items-center justify-center gap-2 border border-stone-200 hover:border-stone-500 text-stone-600 hover:text-stone-900 disabled:opacity-40 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
+                          >
+                            {estimateLoading
+                              ? <><div className="w-3.5 h-3.5 border border-stone-400 border-t-stone-900 rounded-full animate-spin" /> Calculating…</>
+                              : <><Calculator size={13} /> Get Price Estimate</>}
+                          </button>
+
+                          {estimate && !estimateLoading && (
+                            <div className="border border-stone-100 bg-stone-50 px-4 py-3 space-y-1.5">
+                              <p className="text-stone-400 text-xs uppercase tracking-widest mb-2">Price Breakdown</p>
+
+                              <div className="flex justify-between text-xs">
+                                <span className="text-stone-400">
+                                  {estimate.size_sqm.toFixed(2)} m² × {parseInt(quoteForm.qty) || 1} pc
+                                </span>
+                                <span className="text-stone-700">{fmtC(estimate.subtotal)}</span>
+                              </div>
+
+                              {estimate.bulk_discount > 0 && (
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-green-600">Bulk discount</span>
+                                  <span className="text-green-600">−{fmtC(estimate.bulk_discount)}</span>
+                                </div>
+                              )}
+
+                              {estimate.rush_surcharge > 0 && (
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-amber-600">Early delivery surcharge</span>
+                                  <span className="text-amber-600">+{fmtC(estimate.rush_surcharge)}</span>
+                                </div>
+                              )}
+
+                              {estimate.size_surcharge > 0 && (
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-stone-500">Large format surcharge</span>
+                                  <span className="text-stone-500">+{fmtC(estimate.size_surcharge)}</span>
+                                </div>
+                              )}
+
+                              <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                                <span className="text-stone-400">Pre-tax</span>
+                                <span className="text-stone-700">{fmtC(estimate.pre_gst_price)}</span>
+                              </div>
+
+                              <div className="flex justify-between text-xs">
+                                <span className="text-stone-400">GST ({estimate.gst_pct.toFixed(0)}%)</span>
+                                <span className="text-stone-700">+{fmtC(estimate.gst_amount)}</span>
+                              </div>
+
+                              <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
+                                <span className="text-stone-900">Total (incl. GST)</span>
+                                <span className="text-stone-900">{fmtC(estimate.final_price)}</span>
+                              </div>
+
+                              {(parseInt(quoteForm.qty) || 1) > 1 && (
+                                <p className="text-stone-400 text-xs pt-0.5">
+                                  {fmtC(estimate.price_per_piece)} per piece · {estimate.estimated_days}d delivery
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1074,7 +1227,7 @@ export default function CustomerPortal() {
 
                         <div className="flex gap-2">
                           <button type="submit"
-                            disabled={quoteSubmitting || !quoteForm.size_w || !quoteForm.size_h || (!isCustomerAuthenticated && (!quoteForm.name || !quoteForm.email))}
+                            disabled={quoteSubmitting || !quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h) || (!isCustomerAuthenticated && (!quoteForm.name || !quoteForm.email))}
                             className="flex-1 border border-stone-300 hover:border-stone-600 text-stone-700 hover:text-stone-900 disabled:opacity-40 text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
                           >
                             {quoteSubmitting
@@ -1083,7 +1236,7 @@ export default function CustomerPortal() {
                           </button>
                           <button type="button"
                             onClick={handlePlaceOrder}
-                            disabled={!quoteForm.size_w || !quoteForm.size_h}
+                            disabled={!quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h)}
                             className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
                           >
                             <ShoppingBag size={13} /> Place Order

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogIn, UserPlus, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { LogIn, UserPlus, Eye, EyeOff, AlertTriangle, MailCheck } from 'lucide-react';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import CustomerLayout from '../components/CustomerLayout';
 
@@ -13,6 +13,7 @@ export default function CustomerLogin() {
   const [mode, setMode] = useState<Mode>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '', email: '', password: '', phone: '', company: '',
@@ -28,15 +29,40 @@ export default function CustomerLogin() {
     try {
       if (mode === 'login') {
         await customerLogin(form.email, form.password);
+        navigate('/my-quotes');
       } else {
         if (!form.name.trim()) { setError('Please enter your name.'); return; }
-        await customerRegister(form.name, form.email, form.password, form.phone || undefined, form.company || undefined);
+        const result = await customerRegister(form.name, form.email, form.password, form.phone || undefined, form.company || undefined);
+        setRegisteredEmail(result.email);
       }
-      navigate('/my-quotes');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Something went wrong. Please try again.');
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <CustomerLayout>
+        <div className="max-w-7xl mx-auto px-6 py-20">
+          <div className="max-w-md mx-auto text-center">
+            <MailCheck size={40} className="text-stone-400 mx-auto mb-6" />
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Almost there</p>
+            <h1 className="font-serif text-3xl font-light text-stone-900 mb-4">Check your email</h1>
+            <p className="text-stone-500 text-sm leading-relaxed">
+              We've sent a verification link to <strong className="text-stone-700">{registeredEmail}</strong>.
+              Please click the link to activate your account before signing in.
+            </p>
+            <button
+              onClick={() => { setRegisteredEmail(null); setMode('login'); }}
+              className="mt-8 text-stone-700 hover:text-stone-900 text-xs font-medium tracking-widest uppercase border-b border-stone-300 pb-0.5 transition-colors"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </CustomerLayout>
+    );
+  }
 
   return (
     <CustomerLayout>

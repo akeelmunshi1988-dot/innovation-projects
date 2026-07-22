@@ -80,6 +80,7 @@ export interface Quote {
   rush_order: boolean;
   margin_pct: number | null;
   gst_pct: number | null;
+  expected_delivery_days: number | null;
   status: 'draft' | 'sent' | 'accepted' | 'rejected';
   notes: string | null;
   vendor_notes: string | null;
@@ -150,6 +151,17 @@ export interface QuoteCalculateResponse {
   material_message: string;
   estimated_days: number;
   breakdown: QuoteBreakdownItem[];
+}
+
+export interface EmailTemplate {
+  id: number;
+  key: string;
+  name: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  is_active: boolean;
+  updated_at: string;
 }
 
 export interface ChatMessage {

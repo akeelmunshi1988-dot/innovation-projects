@@ -1,18 +1,28 @@
-import { useState } from 'react';
-import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail } from 'lucide-react';
 import axios from 'axios';
 
 import { useAuth } from '../contexts/AuthContext';
 import { CURRENCIES } from '../utils/currency';
+import { getEmailTemplates, updateEmailTemplate } from '../services/api';
+import type { EmailTemplate } from '../types';
 
-type Tab = 'general' | 'pricing' | 'gst' | 'account';
+type Tab = 'general' | 'pricing' | 'gst' | 'templates' | 'account';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'general',  label: 'General',    icon: <Building2 size={15} /> },
-  { id: 'pricing',  label: 'Pricing',    icon: <TrendingUp size={15} /> },
-  { id: 'gst',      label: 'GST & Tax',  icon: <FileText size={15} /> },
-  { id: 'account',  label: 'Account',    icon: <User size={15} /> },
+  { id: 'general',   label: 'General',         icon: <Building2 size={15} /> },
+  { id: 'pricing',   label: 'Pricing',         icon: <TrendingUp size={15} /> },
+  { id: 'gst',       label: 'GST & Tax',       icon: <FileText size={15} /> },
+  { id: 'templates', label: 'Email Templates', icon: <Mail size={15} /> },
+  { id: 'account',   label: 'Account',         icon: <User size={15} /> },
 ];
+
+const TEMPLATE_VARIABLES: Record<string, string[]> = {
+  quote_sent: ['customer_name', 'tenant_name', 'rug_name', 'size', 'qty', 'price', 'expected_delivery', 'note_html', 'note_text'],
+  invoice_email: ['customer_name', 'tenant_name', 'invoice_type_label', 'rug_name', 'size', 'qty', 'price', 'disclaimer'],
+  vendor_review_request: ['tenant_name', 'customer_name', 'customer_email', 'quote_id', 'rug_name', 'size', 'status', 'request_num', 'max_requests'],
+  customer_verification: ['customer_name', 'tenant_name', 'verification_link'],
+};
 
 const STATES = [
   ['09','Uttar Pradesh'], ['08','Rajasthan'], ['27','Maharashtra'],
@@ -58,9 +68,34 @@ export default function BusinessSettings() {
   const [address, setAddress] = useState(tenant.address ?? '');
   const [lutNumber, setLutNumber] = useState(tenant.lut_number ?? '');
 
+  // Features
+  const [aiAssistantCustomerEnabled, setAiAssistantCustomerEnabled] = useState(tenant.ai_assistant_customer_enabled ?? true);
+  const [aiAssistantVendorEnabled, setAiAssistantVendorEnabled] = useState(tenant.ai_assistant_vendor_enabled ?? true);
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [faviconError, setFaviconError] = useState('');
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFaviconUpload = async (file: File) => {
+    setUploadingFavicon(true);
+    setFaviconError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await axios.post('/api/tenant/favicon', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      updateTenant(data);
+    } catch (err: any) {
+      setFaviconError(err.response?.data?.detail || 'Favicon upload failed.');
+    } finally {
+      setUploadingFavicon(false);
+    }
+  };
 
   const foreignCurrencies = CURRENCIES.filter((c) => c.code !== tenant.base_currency);
   const ratesChanged  = foreignCurrencies.some((c) => {
@@ -68,7 +103,9 @@ export default function BusinessSettings() {
     const oldVal = (tenant.exchange_rates ?? {})[c.code] ?? 0;
     return Math.abs(newVal - oldVal) > 0.000001;
   });
-  const dirtyGeneral  = name !== tenant.name || currency !== tenant.currency || ratesChanged;
+  const dirtyGeneral  = name !== tenant.name || currency !== tenant.currency || ratesChanged
+    || aiAssistantCustomerEnabled !== (tenant.ai_assistant_customer_enabled ?? true)
+    || aiAssistantVendorEnabled !== (tenant.ai_assistant_vendor_enabled ?? true);
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct;
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '');
   const isDirty       = dirtyGeneral || dirtyPricing || dirtyGst;
@@ -77,6 +114,7 @@ export default function BusinessSettings() {
     general: dirtyGeneral,
     pricing: dirtyPricing,
     gst: dirtyGst,
+    templates: false,
     account: false,
   };
 
@@ -104,6 +142,8 @@ export default function BusinessSettings() {
         rush_surcharge_pct: parseFloat(rushPct),
         large_format_threshold_sqm: parseFloat(lfThreshold),
         large_format_surcharge_pct: parseFloat(lfSurchargePct),
+        ai_assistant_customer_enabled: aiAssistantCustomerEnabled,
+        ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
       });
       updateTenant(data);
       setSaved(true);
@@ -140,7 +180,7 @@ export default function BusinessSettings() {
   );
 
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-6 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-6">
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -186,14 +226,51 @@ export default function BusinessSettings() {
               <p className="text-dark-500 text-xs mt-0.5">Your business identity shown across the app.</p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className={labelCls}>Business Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className={inputCls}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className={labelCls}>Business Name</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className={inputCls}
+                />
+                <p className={hintCls}>Used as your browser tab title across the app and storefront.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className={labelCls}>Favicon</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-dark-800 border border-dark-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {tenant.logo_url ? (
+                      <img src={tenant.logo_url} alt="Favicon" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-dark-600 text-xs">—</span>
+                    )}
+                  </div>
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/x-icon,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFaviconUpload(file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => faviconInputRef.current?.click()}
+                    disabled={uploadingFavicon}
+                    className="text-xs bg-dark-800 hover:bg-dark-700 border border-dark-600 text-cream-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {uploadingFavicon ? 'Uploading…' : 'Upload image'}
+                  </button>
+                </div>
+                {faviconError && <p className="text-red-400 text-xs">{faviconError}</p>}
+                <p className={hintCls}>Shown as the browser tab icon. PNG, ICO, or SVG.</p>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -286,6 +363,54 @@ export default function BusinessSettings() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Features */}
+            <div className="space-y-3">
+              <div>
+                <p className={subLabelCls}>Features</p>
+                <p className={hintCls + ' -mt-1'}>Control where the AI assistant appears.</p>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                <div>
+                  <p className="text-cream-200 text-sm font-medium">AI Assistant for Customers</p>
+                  <p className="text-dark-400 text-xs">Shows the AI chat widget on your storefront.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiAssistantCustomerEnabled((v) => !v)}
+                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
+                    aiAssistantCustomerEnabled ? 'bg-gold-600' : 'bg-dark-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                      aiAssistantCustomerEnabled ? 'left-6' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                <div>
+                  <p className="text-cream-200 text-sm font-medium">AI Assistant for Vendor/Staff</p>
+                  <p className="text-dark-400 text-xs">Shows the AI Assistant page in your admin panel.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiAssistantVendorEnabled((v) => !v)}
+                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
+                    aiAssistantVendorEnabled ? 'bg-gold-600' : 'bg-dark-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                      aiAssistantVendorEnabled ? 'left-6' : 'left-1'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 
@@ -514,6 +639,9 @@ export default function BusinessSettings() {
           </div>
         )}
 
+        {/* ── Email Templates ─────────────────────────────────────────────────── */}
+        {tab === 'templates' && <EmailTemplatesPanel />}
+
         {/* ── Account ─────────────────────────────────────────────────────────── */}
         {tab === 'account' && (
           <div className="space-y-5">
@@ -564,6 +692,167 @@ export default function BusinessSettings() {
         )}
 
       </form>
+    </div>
+  );
+}
+
+function EmailTemplatesPanel() {
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [subject, setSubject] = useState('');
+  const [bodyText, setBodyText] = useState('');
+  const [bodyHtml, setBodyHtml] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getEmailTemplates()
+      .then((data) => {
+        setTemplates(data);
+        if (data.length > 0) selectTemplate(data[0]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const selectTemplate = (t: EmailTemplate) => {
+    setSelectedKey(t.key);
+    setSubject(t.subject);
+    setBodyText(t.body_text);
+    setBodyHtml(t.body_html);
+    setSaved(false);
+    setError('');
+  };
+
+  const selected = templates.find((t) => t.key === selectedKey) ?? null;
+
+  const handleSaveTemplate = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setSaved(false);
+    setError('');
+    try {
+      const updated = await updateEmailTemplate(selected.key, {
+        subject,
+        body_text: bodyText,
+        body_html: bodyHtml,
+      });
+      setTemplates((prev) => prev.map((t) => (t.key === updated.key ? updated : t)));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to save template.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="w-6 h-6 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-cream-100 font-semibold text-base">Email Templates</h2>
+        <p className="text-dark-500 text-xs mt-0.5">
+          Edit the subject and body of every automated email sent to customers and your team.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Template list */}
+        <div className="space-y-1.5">
+          {templates.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => selectTemplate(t)}
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                selectedKey === t.key
+                  ? 'bg-gold-600/15 border border-gold-700/40 text-cream-100'
+                  : 'border border-dark-700 text-dark-300 hover:text-cream-200 hover:border-dark-500'
+              }`}
+            >
+              <p className="font-medium">{t.name}</p>
+              <p className="text-dark-500 text-xs mt-0.5">
+                Updated {new Date(t.updated_at).toLocaleDateString()}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        {/* Editor */}
+        {selected && (
+          <div className="md:col-span-2 space-y-4">
+            <div className="space-y-1.5">
+              <label className={labelCls}>Subject</label>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Body (plain text)</label>
+              <textarea
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+                rows={8}
+                className={inputCls + ' font-mono text-xs leading-relaxed'}
+              />
+            </div>
+
+            {bodyHtml && (
+              <div className="space-y-1.5">
+                <label className={labelCls}>Body (HTML — optional, used for rich formatting)</label>
+                <textarea
+                  value={bodyHtml}
+                  onChange={(e) => setBodyHtml(e.target.value)}
+                  rows={8}
+                  className={inputCls + ' font-mono text-xs leading-relaxed'}
+                />
+              </div>
+            )}
+
+            <div className="bg-dark-800 border border-dark-700 rounded-xl p-3">
+              <p className={subLabelCls}>Available variables</p>
+              <p className="text-dark-400 text-xs font-mono mt-1 leading-relaxed">
+                {(TEMPLATE_VARIABLES[selected.key] ?? []).map((v) => `{{${v}}}`).join('  ')}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2 border-t border-dark-800">
+              <button
+                type="button"
+                onClick={handleSaveTemplate}
+                disabled={saving}
+                className="bg-gold-600 hover:bg-gold-500 disabled:bg-dark-700 disabled:text-dark-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2"
+              >
+                {saving ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
+                ) : 'Save Template'}
+              </button>
+              {saved && (
+                <span className="flex items-center gap-1.5 text-green-400 text-sm">
+                  <Check size={14} /> Saved
+                </span>
+              )}
+              {error && (
+                <span className="flex items-center gap-1.5 text-red-400 text-xs">
+                  <AlertTriangle size={13} /> {error}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -198,6 +198,21 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
+@router.get("/customer/settings")
+async def get_public_settings():
+    """Public, unauthenticated feature flags the storefront needs before any customer session exists."""
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        return {
+            "ai_assistant_enabled": tenant.ai_assistant_customer_enabled if tenant else True,
+            "business_name": tenant.name if tenant else None,
+            "logo_url": tenant.logo_url if tenant else None,
+        }
+    finally:
+        db.close()
+
+
 @router.get("/customer/catalog")
 async def get_public_catalog(sort: str = Query("newest")):
     from sqlalchemy import func as sqlfunc
@@ -268,6 +283,7 @@ class EstimateRequest(BaseModel):
     size_h: float = Field(..., gt=0, le=50)
     qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
+    shape: str = "rect"
 
 
 @router.post("/customer/catalog/{rug_id}/estimate")
@@ -286,6 +302,7 @@ async def estimate_rug_price(rug_id: int, body: EstimateRequest):
             material_id=rug.material_id,
             qty=body.qty,
             rush_order=body.rush_order,
+            shape=body.shape,
         )
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -394,6 +411,7 @@ class QuoteRequestBody(BaseModel):
     size_h: float = Field(..., gt=0, le=50)
     qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
+    shape: str = "rect"
     notes: Optional[str] = Field(None, max_length=2000)
 
 
@@ -464,6 +482,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             }
 
         # Calculate real price
+        shape = getattr(body, "shape", "rect") or "rect"
         engine = QuoteEngine(db, tenant_id=tid)
         calc = engine.calculate_quote(
             rug_id=body.rug_id,
@@ -472,6 +491,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             material_id=rug.material_id,
             qty=body.qty,
             rush_order=body.rush_order,
+            shape=shape,
         )
 
         quote = Quote(
@@ -481,6 +501,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             material_id=rug.material_id,
             custom_size_w=body.size_w,
             custom_size_h=body.size_h,
+            rug_shape=shape,
             qty=body.qty,
             base_price=calc.get("subtotal"),
             final_price=calc.get("final_price"),
@@ -495,12 +516,13 @@ async def request_quote(body: QuoteRequestBody, request: Request):
         db.commit()
         db.refresh(quote)
 
+        size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
         return {
             "quote_id": quote.id,
             "customer_name": customer.name,
             "rug_name": rug.name,
             "final_price": quote.final_price,
-            "size": f"{body.size_w}m × {body.size_h}m",
+            "size": size_display,
             "lead_time_days": rug.lead_time_days,
             "message": "Your quote request has been received. Our team will contact you shortly to confirm details.",
         }
@@ -522,6 +544,7 @@ class OrderDetailsBase(BaseModel):
     size_h: float = Field(..., gt=0, le=50)
     qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
+    shape: str = "rect"
     notes: Optional[str] = Field(None, max_length=2000)
     name: str = Field(..., min_length=1, max_length=200)
     email: EmailStr
@@ -558,6 +581,7 @@ async def create_payment_order(body: OrderDetailsBase):
             material_id=rug.material_id,
             qty=body.qty,
             rush_order=body.rush_order,
+            shape=getattr(body, "shape", "rect") or "rect",
         )
         if "error" in calc:
             raise HTTPException(status_code=400, detail=calc["error"])
@@ -651,12 +675,14 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             db.add(customer)
             db.flush()
 
+        shape = getattr(body, "shape", "rect") or "rect"
         engine = QuoteEngine(db, tenant_id=tid)
         calc = engine.calculate_quote(
             rug_id=body.rug_id, size_w=body.size_w, size_h=body.size_h,
             material_id=rug.material_id, qty=body.qty, rush_order=body.rush_order,
+            shape=shape,
         )
-        total_sqm = body.size_w * body.size_h * body.qty
+        total_sqm = body.size_w * body.size_h * body.qty  # bounding box for stock deduction
 
         # Atomic check-and-deduct — prevents oversell under concurrent orders
         deducted = db.execute(
@@ -671,6 +697,7 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
         quote = Quote(
             tenant_id=tid, customer_id=customer.id, rug_catalog_id=body.rug_id,
             material_id=rug.material_id, custom_size_w=body.size_w, custom_size_h=body.size_h,
+            rug_shape=shape,
             qty=body.qty, base_price=calc.get("subtotal"), final_price=calc.get("final_price"),
             price_currency=calc.get("price_currency") or (tenant.base_currency if tenant else "INR"),
             margin_pct=calc.get("profit_margin_pct"), gst_pct=calc.get("gst_pct"),
@@ -692,16 +719,17 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
         db.add(order)
         db.flush()
 
+        size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
         db.add(InventoryTransaction(
             tenant_id=tid, material_id=material.id, qty_change=-total_sqm,
             transaction_type="used",
-            notes=f"Order #{order.id} via Razorpay {body.razorpay_payment_id} — {rug.name} {body.size_w}×{body.size_h}m ×{body.qty}",
+            notes=f"Order #{order.id} via Razorpay {body.razorpay_payment_id} — {rug.name} {size_display} ×{body.qty}",
         ))
         db.commit()
 
         return {
             "order_id": order.id, "quote_id": quote.id, "rug_name": rug.name,
-            "size": f"{body.size_w}m × {body.size_h}m", "qty": body.qty,
+            "size": size_display, "qty": body.qty,
             "pre_gst_price": calc.get("pre_gst_price"),
             "gst_pct": calc.get("gst_pct", 12.0), "gst_amount": calc.get("gst_amount"),
             "final_price": quote.final_price, "price_currency": quote.price_currency,
@@ -761,6 +789,7 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             db.flush()
 
         # Calculate price
+        shape = getattr(body, "shape", "rect") or "rect"
         engine = QuoteEngine(db, tenant_id=tid)
         calc = engine.calculate_quote(
             rug_id=body.rug_id,
@@ -769,9 +798,10 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             material_id=rug.material_id,
             qty=body.qty,
             rush_order=body.rush_order,
+            shape=shape,
         )
 
-        total_sqm = body.size_w * body.size_h * body.qty
+        total_sqm = body.size_w * body.size_h * body.qty  # bounding box for stock deduction
 
         # Atomic check-and-deduct — prevents oversell under concurrent orders
         deducted = db.execute(
@@ -791,6 +821,7 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             material_id=rug.material_id,
             custom_size_w=body.size_w,
             custom_size_h=body.size_h,
+            rug_shape=shape,
             qty=body.qty,
             base_price=calc.get("subtotal"),
             final_price=calc.get("final_price"),
@@ -819,12 +850,13 @@ async def customer_checkout(body: CheckoutBody, request: Request):
         )
         db.add(order)
         db.flush()
+        size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
         tx = InventoryTransaction(
             tenant_id=tid,
             material_id=material.id,
             qty_change=-total_sqm,
             transaction_type="used",
-            notes=f"Order #{order.id} — {rug.name} {body.size_w}×{body.size_h}m ×{body.qty}",
+            notes=f"Order #{order.id} — {rug.name} {size_display} ×{body.qty}",
         )
         db.add(tx)
         db.commit()
@@ -833,7 +865,7 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             "order_id": order.id,
             "quote_id": quote.id,
             "rug_name": rug.name,
-            "size": f"{body.size_w}m × {body.size_h}m",
+            "size": size_display,
             "qty": body.qty,
             "pre_gst_price": calc.get("pre_gst_price"),
             "gst_pct": calc.get("gst_pct", 12.0),
@@ -914,16 +946,64 @@ async def get_customer_orders(
         for o in orders:
             q = o.quote
             rug = q.rug_catalog if q else None
+            mat = q.material if q else None
+            fp = q.final_price if q else None
+            gst = q.gst_pct if q else None
+            pre_gst = round(fp / (1 + gst / 100), 2) if fp and gst else None
+            gst_amount = round(fp - pre_gst, 2) if fp and pre_gst else None
+            size_w = q.custom_size_w if q else None
+            size_h = q.custom_size_h if q else None
+            qty = q.qty if q else 1
+            shape = (q.rug_shape or "rect") if q else "rect"
+            if size_w and size_h:
+                if shape == "circle":
+                    import math as _math
+                    size_sqm = round(_math.pi * (size_w / 2) ** 2, 4)
+                elif shape == "oval":
+                    import math as _math
+                    size_sqm = round(_math.pi * (size_w / 2) * (size_h / 2), 4)
+                else:
+                    size_sqm = round(size_w * size_h, 4)
+            else:
+                size_sqm = None
+            total_sqm = round(size_sqm * qty, 4) if size_sqm else None
+            base_price = q.base_price if q else None
+            price_per_piece = round(fp / qty, 2) if fp and qty else None
+            base_price_per_sqm = round(base_price / total_sqm, 2) if base_price and total_sqm else None
+            if size_w and size_h:
+                if shape == "circle":
+                    size_display = f"⌀ {size_w:g}m"
+                elif shape == "oval":
+                    size_display = f"{size_w:g}m × {size_h:g}m (oval)"
+                else:
+                    size_display = f"{size_w:g}m × {size_h:g}m"
+            else:
+                size_display = "—"
             result.append({
                 "order_id": o.id,
                 "quote_id": q.id if q else None,
                 "status": o.status,
                 "rug_name": rug.name if rug else "Custom Order",
-                "size": f"{q.custom_size_w:g}m × {q.custom_size_h:g}m" if q and q.custom_size_w and q.custom_size_h else "—",
-                "qty": q.qty if q else 1,
-                "final_price": q.final_price if q else None,
+                "material_name": mat.name if mat else None,
+                "weave_type": rug.weave_type if rug else None,
+                "rug_shape": shape,
+                "size": size_display,
+                "size_w": size_w,
+                "size_h": size_h,
+                "size_sqm": size_sqm,
+                "total_sqm": total_sqm,
+                "qty": qty,
+                "base_price": base_price,
+                "base_price_per_sqm": base_price_per_sqm,
+                "price_per_piece": price_per_piece,
+                "final_price": fp,
+                "pre_gst_price": pre_gst,
+                "gst_pct": gst,
+                "gst_amount": gst_amount,
+                "margin_pct": q.margin_pct if q else None,
                 "price_currency": q.price_currency if q else "INR",
                 "rush_order": q.rush_order if q else False,
+                "manual_discount_pct": q.manual_discount_pct if q else None,
                 "shipping_address": o.shipping_address,
                 "estimated_delivery": o.estimated_delivery.strftime("%Y-%m-%d") if o.estimated_delivery else None,
                 "created_at": o.created_at.strftime("%Y-%m-%d") if o.created_at else None,
@@ -934,6 +1014,55 @@ async def get_customer_orders(
             "page_size": page_size,
             "pages": math.ceil(total / page_size) if total > 0 else 0,
             "items": result,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/customer/orders/{order_id}/breakdown")
+async def get_customer_order_breakdown(order_id: int, email: str):
+    db = SessionLocal()
+    try:
+        same_email_ids = [
+            c.id for c in db.query(Customer).filter(Customer.email == email).all()
+        ]
+        if not same_email_ids:
+            raise HTTPException(status_code=404, detail="Order not found")
+        order = (
+            db.query(Order)
+            .join(Quote, Order.quote_id == Quote.id)
+            .filter(Order.id == order_id, Quote.customer_id.in_(same_email_ids))
+            .first()
+        )
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        q = order.quote
+        if not q or not q.rug_catalog_id or not q.material_id or not q.custom_size_w or not q.custom_size_h:
+            raise HTTPException(status_code=422, detail="Order is missing required fields for calculation")
+        engine = QuoteEngine(db, tenant_id=None)
+        result = engine.calculate_quote(
+            rug_id=q.rug_catalog_id,
+            size_w=q.custom_size_w,
+            size_h=q.custom_size_h,
+            material_id=q.material_id,
+            qty=q.qty or 1,
+            rush_order=bool(q.rush_order),
+            margin_override=q.margin_pct,
+            gst_override=q.gst_pct,
+            manual_discount_pct=q.manual_discount_pct,
+            shape=q.rug_shape or "rect",
+        )
+        if "error" in result:
+            raise HTTPException(status_code=422, detail=result["error"])
+        mat = q.material
+        rug = q.rug_catalog
+        return {
+            **result,
+            "stored_final_price": q.final_price,
+            "price_currency": q.price_currency or result.get("price_currency", "INR"),
+            "material_name": mat.name if mat else None,
+            "rug_name": rug.name if rug else "Custom Order",
+            "weave_type": rug.weave_type if rug else None,
         }
     finally:
         db.close()
@@ -1329,10 +1458,9 @@ def request_review(
 
     # Notify vendor by email (best-effort)
     try:
-        from app.api.routes.quotes import _send_quote_notification
         tenant = db.query(Tenant).filter(Tenant.id == quote.tenant_id).first()
         if tenant:
-            _notify_vendor_review_request(quote, tenant, current_customer, count + 1)
+            _notify_vendor_review_request(db, quote, tenant, current_customer, count + 1)
     except Exception:
         pass
 
@@ -1344,50 +1472,32 @@ def request_review(
     }
 
 
-def _notify_vendor_review_request(quote: Quote, tenant, customer: Customer, request_num: int) -> None:
+def _notify_vendor_review_request(db: Session, quote: Quote, tenant, customer: Customer, request_num: int) -> None:
     from app.core.config import settings
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
+    from app.services import email_service
 
-    smtp_host = settings.SMTP_HOST
-    smtp_user = settings.SMTP_USERNAME
-    smtp_pass = settings.SMTP_PASSWORD
     smtp_from = settings.SMTP_FROM_EMAIL
-    if not smtp_host or not smtp_user or not smtp_pass or not smtp_from:
+    if not smtp_from:
         return
 
     rug_name = str(quote.rug_catalog.name) if quote.rug_catalog else f"Quote #{quote.id}"
-    customer_name = str(customer.name)
-    tenant_name = str(tenant.name)
-    to_email = smtp_from  # notify the vendor (from address = vendor inbox)
+    size_str = f"{quote.custom_size_w}m × {quote.custom_size_h}m" if quote.custom_size_w else "custom size"
 
-    subject = f"[Review Request #{request_num}] {customer_name} — {rug_name}"
-    body = (
-        f"Hello {tenant_name} team,\n\n"
-        f"{customer_name} ({customer.email}) has requested a review of Quote #{quote.id}.\n\n"
-        f"Rug: {rug_name}\n"
-        f"Size: {quote.custom_size_w}m × {quote.custom_size_h}m\n"
-        f"Status: {quote.status}\n"
-        f"Review Request: #{request_num} of {MAX_REVIEW_REQUESTS}\n\n"
-        f"Please log in to the admin panel to review and update the quote.\n\n"
-        f"— LoomCraftRugs System"
+    subject, body_text, body_html = email_service.render_template(
+        db, quote.tenant_id, "vendor_review_request",
+        {
+            "tenant_name": tenant.name,
+            "customer_name": customer.name,
+            "customer_email": customer.email,
+            "quote_id": quote.id,
+            "rug_name": rug_name,
+            "size": size_str,
+            "status": quote.status,
+            "request_num": request_num,
+            "max_requests": MAX_REVIEW_REQUESTS,
+        },
     )
-
-    msg = MIMEMultipart()
-    msg["From"] = f"{settings.SMTP_FROM_NAME} <{smtp_from}>"
-    msg["To"] = to_email
-    msg["Reply-To"] = str(customer.email)
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
-
-    try:
-        with smtplib.SMTP(smtp_host, settings.SMTP_PORT) as smtp:
-            smtp.ehlo(); smtp.starttls()
-            smtp.login(smtp_user, smtp_pass)
-            smtp.send_message(msg)
-    except Exception:
-        pass
+    email_service.send_email(smtp_from, subject, body_text, body_html, reply_to=customer.email)  # notify the vendor inbox
 
 
 @router.patch("/customer/quotes/{quote_id}/accept")
@@ -1413,10 +1523,13 @@ def accept_quote(
     if body.customer_response_notes:
         quote.customer_response_notes = body.customer_response_notes
 
-    rug = quote.rug_catalog
-    lead_days = (rug.lead_time_days if rug else 21) or 21
-    if quote.rush_order:
-        lead_days = max(7, lead_days // 2)
+    if quote.expected_delivery_days is not None:
+        lead_days = int(quote.expected_delivery_days)
+    else:
+        rug = quote.rug_catalog
+        lead_days = (rug.lead_time_days if rug else 21) or 21
+        if quote.rush_order:
+            lead_days = max(7, lead_days // 2)
 
     order = Order(
         tenant_id=quote.tenant_id,

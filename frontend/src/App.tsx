@@ -26,6 +26,7 @@ import CustomerCheckout from './pages/CustomerCheckout';
 import CustomerOrderConfirm from './pages/CustomerOrderConfirm';
 import CustomerMyOrders from './pages/CustomerMyOrders';
 import CustomerLogin from './pages/CustomerLogin';
+import VerifyEmail from './pages/VerifyEmail';
 import CustomerMyQuotes from './pages/CustomerMyQuotes';
 import RugDetail from './pages/RugDetail';
 import BillingSettings from './pages/BillingSettings';
@@ -49,6 +50,7 @@ function App() {
           <Route path="/my-orders" element={<CustomerMyOrders />} />
           <Route path="/my-quotes" element={<CustomerMyQuotes />} />
           <Route path="/login" element={<CustomerLogin />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/visualizer" element={<CustomerPortal />} />
 
           {/* Admin login + pricing (public) */}

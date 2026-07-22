@@ -20,6 +20,7 @@ class QuoteEngine:
         margin_override: Optional[float] = None,
         gst_override: Optional[float] = None,
         manual_discount_pct: Optional[float] = None,
+        shape: str = "rect",
     ) -> dict:
         rug_query = self.db.query(RugCatalog).filter(RugCatalog.id == rug_id)
         if self.tenant_id is not None:
@@ -47,11 +48,20 @@ class QuoteEngine:
         if margin_override is not None:
             default_margin = margin_override
 
-        # Base calculations
-        size_sqm = round(size_w * size_h, 4)
+        # Base calculations — size_sqm is actual rug area (shape-aware)
+        if shape == "circle":
+            # size_w is the diameter; area = π * r²
+            size_sqm = round(math.pi * (size_w / 2) ** 2, 4)
+        elif shape == "oval":
+            # size_w × size_h are the two diameters; area = π * a * b where a, b are semi-axes
+            size_sqm = round(math.pi * (size_w / 2) * (size_h / 2), 4)
+        else:
+            size_sqm = round(size_w * size_h, 4)
         total_sqm = round(size_sqm * qty, 4)
-        waste_factor = 1.10  # 10% waste
-        required_sqm = round(total_sqm * waste_factor, 4)
+        # Material requirement uses bounding box (fabric is always cut from rectangles)
+        bounding_sqm = round(size_w * size_h * qty, 4)
+        waste_factor = 1.10  # 10% weaving/trim waste on bounding box
+        required_sqm = round(bounding_sqm * waste_factor, 4)
 
         # Convert material cost to base_currency before all calculations
         mat_cost_base = self._to_base(
@@ -178,10 +188,11 @@ class QuoteEngine:
         # Production timeline — use rush days only when rush is effective
         estimated_days = rush_candidate_days if rush_effective else standard_days
 
+        shape_label = {"circle": "circle", "oval": "oval"}.get(shape, "rectangle")
         breakdown = [
             {
                 "label": (
-                    f"Selling rate ({base_price_per_sqm:.2f}/sqm × {total_sqm:.2f} sqm) "
+                    f"Selling rate ({base_price_per_sqm:.2f}/sqm × {total_sqm:.2f} sqm {shape_label} area) "
                     f"[{margin_pct:.0f}% margin on {float(material.cost_per_sqm):.2f}/sqm material]"  # type: ignore[arg-type]
                 ),
                 "amount": subtotal,
@@ -195,6 +206,7 @@ class QuoteEngine:
         })
 
         return {
+            "shape": shape,
             "size_sqm": size_sqm,
             "total_sqm": total_sqm,
             "base_price_per_sqm": base_price_per_sqm,

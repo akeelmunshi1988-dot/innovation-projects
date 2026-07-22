@@ -18,6 +18,7 @@ interface CheckoutState {
   size_h: number;
   qty: number;
   rush_order: boolean;
+  shape?: string;
   notes?: string;
   estimated_price: number;
   pre_gst_price?: number;
@@ -92,8 +93,18 @@ export default function CustomerCheckout() {
   const currency = state.price_currency || 'INR';
   const sym = currencySymbol(currency);
   const fmt = (n: number) => fmtExact(n, currency);
-  const area = (state.size_w * state.size_h).toFixed(2);
-  const totalSqm = (state.size_w * state.size_h * state.qty).toFixed(2);
+  const shape = state.shape ?? 'rect';
+  const area = shape === 'circle'
+    ? (Math.PI * (state.size_w / 2) ** 2).toFixed(2)
+    : shape === 'oval'
+    ? (Math.PI * (state.size_w / 2) * (state.size_h / 2)).toFixed(2)
+    : (state.size_w * state.size_h).toFixed(2);
+  const totalSqm = (parseFloat(area) * state.qty).toFixed(2);
+  const sizeLabel = shape === 'circle'
+    ? `⌀ ${state.size_w}m`
+    : shape === 'oval'
+    ? `${state.size_w}m × ${state.size_h}m (oval)`
+    : `${state.size_w}m × ${state.size_h}m`;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -112,6 +123,7 @@ export default function CustomerCheckout() {
         rug_id: state.rug_id,
         size_w: state.size_w, size_h: state.size_h,
         qty: state.qty, rush_order: state.rush_order,
+        shape,
         notes: state.notes, name, email,
         phone: form.phone || undefined,
         company: form.company || undefined,
@@ -175,17 +187,20 @@ export default function CustomerCheckout() {
     setAuthError('');
     setAuthLoading(true);
     try {
-      let user;
+      let name = authForm.name;
+      let email = authForm.email;
       if (authMode === 'login') {
-        user = await customerLogin(authForm.email, authForm.password);
+        const user = await customerLogin(authForm.email, authForm.password);
+        name = user.name;
+        email = user.email;
       } else {
-        user = await customerRegister(
+        await customerRegister(
           authForm.name, authForm.email, authForm.password,
           authForm.phone || undefined, authForm.company || undefined,
         );
       }
       setAuthModal(false);
-      await initiatePayment(user.name, user.email);
+      await initiatePayment(name, email);
     } catch (err: any) {
       setAuthError(err.response?.data?.detail || 'Authentication failed. Please try again.');
     } finally {
@@ -226,7 +241,7 @@ export default function CustomerCheckout() {
                 <div>
                   <p className="font-serif text-lg font-light text-stone-900">{state.rug_name}</p>
                   <p className="text-stone-400 text-sm mt-0.5">
-                    {state.size_w}m × {state.size_h}m · {area} m² per piece
+                    {sizeLabel} · {area} m² per piece
                   </p>
                 </div>
 

@@ -20,6 +20,8 @@ export interface TenantInfo {
   rush_surcharge_pct: number;
   large_format_threshold_sqm: number;
   large_format_surcharge_pct: number;
+  ai_assistant_customer_enabled: boolean;
+  ai_assistant_vendor_enabled: boolean;
 }
 
 export interface AuthUser {

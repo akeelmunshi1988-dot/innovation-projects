@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { applyBranding } from '../utils/branding';
 
 interface NavItem {
   path: string;
@@ -50,6 +51,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const visibleNavItems = navItems.filter(
+    (item) => item.path !== '/admin/assistant' || user?.tenant.ai_assistant_vendor_enabled !== false
+  );
+
+  useEffect(() => {
+    if (user) applyBranding(user.tenant.name, user.tenant.logo_url);
+  }, [user?.tenant.name, user?.tenant.logo_url]);
+
   const handleLogout = () => {
     logout();
     navigate('/admin/login');
@@ -80,7 +89,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Scissors size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-cream-100 font-bold text-base leading-tight">LoomCraftRugs AI</h1>
+            <h1 className="text-cream-100 font-bold text-base leading-tight">{user?.tenant.name ?? 'LoomCraftRugs AI'}</h1>
             <p className="text-dark-400 text-xs">Rug Manufacturing System</p>
           </div>
           <button
@@ -94,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <div className="space-y-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
                 <Link

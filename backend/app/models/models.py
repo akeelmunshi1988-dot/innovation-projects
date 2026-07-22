@@ -29,6 +29,8 @@ class Tenant(Base):
     default_gst_pct = Column(Float, default=12.0)
     large_format_threshold_sqm = Column(Float, default=20.0)
     large_format_surcharge_pct = Column(Float, default=5.0)
+    ai_assistant_customer_enabled = Column(Boolean, default=True)  # show AI chat widget to shoppers
+    ai_assistant_vendor_enabled = Column(Boolean, default=True)    # show AI Assistant page to staff/admin
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -143,6 +145,9 @@ class Customer(Base):
     is_export_buyer = Column(Boolean, default=False)  # foreign buyer → export invoice
     hashed_password = Column(String(300), nullable=True)  # null = unregistered (portal-only after registration)
     is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)  # email verified — required to log in once hashed_password is set
+    verification_token = Column(String(100), nullable=True)
+    verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (UniqueConstraint("email", "tenant_id", name="uq_customer_email_tenant"),)
@@ -159,6 +164,7 @@ class Quote(Base):
     rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id"), nullable=True)
     custom_size_w = Column(Float, nullable=True)
     custom_size_h = Column(Float, nullable=True)
+    rug_shape = Column(String(20), default="rect")  # rect | circle | oval
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
     qty = Column(Integer, default=1)
     base_price = Column(Float, nullable=True)
@@ -168,6 +174,7 @@ class Quote(Base):
     margin_pct = Column(Float, nullable=True)             # effective margin % used when this quote was calculated
     gst_pct = Column(Float, nullable=True)                # GST % applied when this quote was calculated
     manual_discount_pct = Column(Float, nullable=True)    # vendor-set per-quote discount percentage
+    expected_delivery_days = Column(Integer, nullable=True)  # vendor-editable override of the engine's estimated_days
     status = Column(String(50), default="draft")
     notes = Column(Text, nullable=True)
     vendor_notes = Column(Text, nullable=True)            # message from vendor when sending/adjusting
@@ -208,3 +215,19 @@ class InventoryTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     material = relationship("Material", back_populates="inventory_transactions")
+
+
+class EmailTemplate(Base):
+    __tablename__ = "email_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    key = Column(String(50), nullable=False)     # e.g. "quote_sent" — fixed, code-defined set
+    name = Column(String(150), nullable=False)   # human label shown in Settings UI
+    subject = Column(String(300), nullable=False)
+    body_html = Column(Text, nullable=False)
+    body_text = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (UniqueConstraint("tenant_id", "key", name="uq_email_template_tenant_key"),)
