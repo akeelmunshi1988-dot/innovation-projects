@@ -31,6 +31,7 @@ class Tenant(Base):
     large_format_surcharge_pct = Column(Float, default=5.0)
     ai_assistant_customer_enabled = Column(Boolean, default=True)  # show AI chat widget to shoppers
     ai_assistant_vendor_enabled = Column(Boolean, default=True)    # show AI Assistant page to staff/admin
+    vendor_notification_email = Column(String(200), nullable=True)  # where quote-request/review-request emails go; falls back to SMTP_FROM_EMAIL
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

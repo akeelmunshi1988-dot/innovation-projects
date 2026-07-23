@@ -35,7 +35,7 @@ adduser loomcraft
 usermod -aG sudo loomcraft
 
 # Set up app directories (as root, no sudo needed)
-mkdir -p /var/www/loomcraft/{backend,frontend}
+mkdir -p /var/www/loomcraft/innovation-projects/backend /var/www/loomcraft/frontend
 chown -R loomcraft:loomcraft /var/www/loomcraft
 
 # Basic firewall
@@ -88,7 +88,7 @@ npm run build
 rsync -avz --exclude '__pycache__' --exclude '*.pyc' \
   --exclude 'venv' --exclude '.env' \
   /Applications/RugManufactureCustomApp/backend/ \
-  root@YOUR_SERVER_IP:/var/www/loomcraft/backend/
+  root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/
 
 # Upload built frontend
 rsync -avz /Applications/RugManufactureCustomApp/frontend/dist/ \
@@ -104,7 +104,7 @@ rsync -avz /Applications/RugManufactureCustomApp/frontend/public/ \
 ## Phase 6 — Set Up Python Virtual Environment (on VPS)
 
 ```bash
-cd /var/www/loomcraft/backend
+cd /var/www/loomcraft/innovation-projects/backend
 
 # Create virtual environment
 python3 -m venv venv
@@ -121,14 +121,14 @@ deactivate
 ## Phase 7 — Create Production .env (on VPS)
 
 ```bash
-nano /var/www/loomcraft/backend/.env
+nano /var/www/loomcraft/innovation-projects/backend/.env
 ```
 
-Paste and fill in your values:
+Paste and fill in your values (use your **rotated** Anthropic key — the one that was previously committed in `backend/.env.example` should be treated as compromised and never used again):
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-api03-YOUR-KEY-HERE
-DATABASE_URL=sqlite:////var/www/loomcraft/backend/rug_manufacture.db
+DATABASE_URL=sqlite:////var/www/loomcraft/innovation-projects/backend/rug_manufacture.db
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-gmail@gmail.com
@@ -136,7 +136,10 @@ SMTP_PASSWORD=your-16-char-gmail-app-password
 SMTP_FROM_EMAIL=your-gmail@gmail.com
 SMTP_FROM_NAME=LoomCraft AI
 JWT_SECRET=REPLACE_WITH_RANDOM_STRING
+FRONTEND_URL=https://yourdomain.com
 ```
+
+> **FRONTEND_URL** must be your real production domain (with `https://`, no trailing slash) — it's used to build the link inside customer email-verification emails. Left as the default `localhost:5173`, verification emails sent from production would contain broken links.
 
 Generate a strong JWT secret:
 
@@ -147,7 +150,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 Secure the file:
 
 ```bash
-chmod 600 /var/www/loomcraft/backend/.env
+chmod 600 /var/www/loomcraft/innovation-projects/backend/.env
 ```
 
 > **Gmail App Password:** Google Account → Security → 2-Step Verification (enable) → App Passwords → create one for "Mail". Use the 16-character code as SMTP_PASSWORD.
@@ -157,7 +160,7 @@ chmod 600 /var/www/loomcraft/backend/.env
 ## Phase 8 — Seed the Database (on VPS)
 
 ```bash
-cd /var/www/loomcraft/backend
+cd /var/www/loomcraft/innovation-projects/backend
 source venv/bin/activate
 python3 seed_data.py
 deactivate
@@ -166,6 +169,17 @@ deactivate
 This creates:
 - Admin login: `admin@loomcraft.demo` / `demo1234`
 - 6 materials, 8 rugs, 3 customers, 3 quotes, 1 order
+
+> **Migrating your existing local data instead of seeding fresh:** if you'd rather bring over your local `backend/rug_manufacture.db` (real quotes/customers) instead of starting with demo data, `scp` it to the server in place of running `seed_data.py`, then run the migration scripts once to add columns added after that db was first created:
+> ```bash
+> cd /var/www/loomcraft/innovation-projects/backend && source venv/bin/activate
+> python3 migrate_v2_customer_auth.py
+> python3 migrate_v3_manual_discount.py
+> python3 migrate_v4_verification_and_delivery.py
+> python3 migrate_v5_ai_assistant_toggles.py
+> deactivate
+> ```
+> Each script is idempotent (skips columns that already exist), so running all of them is safe even if some already applied.
 
 ---
 
@@ -185,9 +199,9 @@ After=network.target
 [Service]
 User=loomcraft
 Group=loomcraft
-WorkingDirectory=/var/www/loomcraft/backend
-EnvironmentFile=/var/www/loomcraft/backend/.env
-ExecStart=/var/www/loomcraft/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+WorkingDirectory=/var/www/loomcraft/innovation-projects/backend
+EnvironmentFile=/var/www/loomcraft/innovation-projects/backend/.env
+ExecStart=/var/www/loomcraft/innovation-projects/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -251,11 +265,11 @@ server {
 
     # Backend static files (admin-uploaded rug images)
     location /static/ {
-        alias /var/www/loomcraft/backend/static/;
+        alias /var/www/loomcraft/innovation-projects/backend/static/;
     }
 
     location /outputs/ {
-        alias /var/www/loomcraft/backend/outputs/;
+        alias /var/www/loomcraft/innovation-projects/backend/outputs/;
     }
 }
 ```
@@ -329,7 +343,7 @@ rsync -avz frontend/dist/ root@YOUR_SERVER_IP:/var/www/loomcraft/frontend/
 ```bash
 rsync -avz --exclude '__pycache__' --exclude '*.pyc' --exclude 'venv' --exclude '.env' \
   /Applications/RugManufactureCustomApp/backend/ \
-  root@YOUR_SERVER_IP:/var/www/loomcraft/backend/
+  root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/
 
 ssh root@YOUR_SERVER_IP "sudo systemctl restart loomcraft"
 ```
@@ -337,7 +351,7 @@ ssh root@YOUR_SERVER_IP "sudo systemctl restart loomcraft"
 ### Backup the database
 ```bash
 # From Mac
-scp root@YOUR_SERVER_IP:/var/www/loomcraft/backend/rug_manufacture.db \
+scp root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/rug_manufacture.db \
   ~/Desktop/loomcraft-backup-$(date +%Y%m%d).db
 ```
 
@@ -351,7 +365,7 @@ scp root@YOUR_SERVER_IP:/var/www/loomcraft/backend/rug_manufacture.db \
 | nginx 502 Bad Gateway | `sudo journalctl -u loomcraft -n 50` |
 | nginx config error | `sudo nginx -t` |
 | SSL not working | `sudo certbot certificates` |
-| Permission error on uploads | `sudo chown -R loomcraft:loomcraft /var/www/loomcraft/backend/uploads` |
+| Permission error on uploads | `sudo chown -R loomcraft:loomcraft /var/www/loomcraft/innovation-projects/backend/uploads` |
 
 ---
 

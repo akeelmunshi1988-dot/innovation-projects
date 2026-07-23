@@ -517,6 +517,14 @@ async def request_quote(body: QuoteRequestBody, request: Request):
         db.refresh(quote)
 
         size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
+
+        # Notify vendor by email (best-effort)
+        try:
+            if tenant:
+                _notify_vendor_quote_request(db, quote, tenant, customer, rug, size_display)
+        except Exception:
+            pass
+
         return {
             "quote_id": quote.id,
             "customer_name": customer.name,
@@ -1472,12 +1480,40 @@ def request_review(
     }
 
 
-def _notify_vendor_review_request(db: Session, quote: Quote, tenant, customer: Customer, request_num: int) -> None:
-    from app.core.config import settings
+def _notify_vendor_quote_request(db: Session, quote: Quote, tenant, customer: Customer, rug: RugCatalog, size_display: str) -> None:
     from app.services import email_service
 
-    smtp_from = settings.SMTP_FROM_EMAIL
-    if not smtp_from:
+    to_email = email_service.vendor_recipient(tenant)
+    if not to_email:
+        return
+
+    price_str = f"{quote.price_currency or tenant.base_currency} {quote.final_price:,.2f}" if quote.final_price is not None else "to be confirmed"
+    notes_line = f"Customer notes: {quote.notes}\n" if quote.notes else ""
+    phone_line = f", {customer.phone}" if customer.phone else ""
+
+    subject, body_text, body_html = email_service.render_template(
+        db, quote.tenant_id, "vendor_quote_request",
+        {
+            "tenant_name": tenant.name,
+            "customer_name": customer.name,
+            "customer_email": customer.email,
+            "customer_phone_line": phone_line,
+            "quote_id": quote.id,
+            "rug_name": rug.name,
+            "size": size_display,
+            "qty": quote.qty,
+            "price": price_str,
+            "notes_line": notes_line,
+        },
+    )
+    email_service.send_email(to_email, subject, body_text, body_html, reply_to=customer.email)
+
+
+def _notify_vendor_review_request(db: Session, quote: Quote, tenant, customer: Customer, request_num: int) -> None:
+    from app.services import email_service
+
+    to_email = email_service.vendor_recipient(tenant)
+    if not to_email:
         return
 
     rug_name = str(quote.rug_catalog.name) if quote.rug_catalog else f"Quote #{quote.id}"
@@ -1497,7 +1533,7 @@ def _notify_vendor_review_request(db: Session, quote: Quote, tenant, customer: C
             "max_requests": MAX_REVIEW_REQUESTS,
         },
     )
-    email_service.send_email(smtp_from, subject, body_text, body_html, reply_to=customer.email)  # notify the vendor inbox
+    email_service.send_email(to_email, subject, body_text, body_html, reply_to=customer.email)
 
 
 @router.patch("/customer/quotes/{quote_id}/accept")

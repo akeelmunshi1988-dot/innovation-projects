@@ -229,6 +229,8 @@ def update_tenant_settings(
         tenant.ai_assistant_customer_enabled = body.ai_assistant_customer_enabled
     if body.ai_assistant_vendor_enabled is not None:
         tenant.ai_assistant_vendor_enabled = body.ai_assistant_vendor_enabled
+    if body.vendor_notification_email is not None:
+        tenant.vendor_notification_email = body.vendor_notification_email
     db.commit()
     db.refresh(tenant)
     return TenantPublic.model_validate(tenant)

@@ -72,6 +72,9 @@ export default function BusinessSettings() {
   const [aiAssistantCustomerEnabled, setAiAssistantCustomerEnabled] = useState(tenant.ai_assistant_customer_enabled ?? true);
   const [aiAssistantVendorEnabled, setAiAssistantVendorEnabled] = useState(tenant.ai_assistant_vendor_enabled ?? true);
 
+  // Notifications
+  const [vendorNotificationEmail, setVendorNotificationEmail] = useState(tenant.vendor_notification_email ?? '');
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -105,7 +108,8 @@ export default function BusinessSettings() {
   });
   const dirtyGeneral  = name !== tenant.name || currency !== tenant.currency || ratesChanged
     || aiAssistantCustomerEnabled !== (tenant.ai_assistant_customer_enabled ?? true)
-    || aiAssistantVendorEnabled !== (tenant.ai_assistant_vendor_enabled ?? true);
+    || aiAssistantVendorEnabled !== (tenant.ai_assistant_vendor_enabled ?? true)
+    || vendorNotificationEmail !== (tenant.vendor_notification_email ?? '');
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct;
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '');
   const isDirty       = dirtyGeneral || dirtyPricing || dirtyGst;
@@ -144,6 +148,7 @@ export default function BusinessSettings() {
         large_format_surcharge_pct: parseFloat(lfSurchargePct),
         ai_assistant_customer_enabled: aiAssistantCustomerEnabled,
         ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
+        vendor_notification_email: vendorNotificationEmail.trim() || undefined,
       });
       updateTenant(data);
       setSaved(true);
@@ -411,6 +416,28 @@ export default function BusinessSettings() {
                     }`}
                   />
                 </button>
+              </div>
+            </div>
+
+            {/* Notifications */}
+            <div className="space-y-3">
+              <div>
+                <p className={subLabelCls}>Notifications</p>
+                <p className={hintCls + ' -mt-1'}>Where your team gets notified about customer activity.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className={labelCls}>Vendor Notification Email</label>
+                <input
+                  type="email"
+                  value={vendorNotificationEmail}
+                  onChange={(e) => setVendorNotificationEmail(e.target.value)}
+                  placeholder="orders@yourbusiness.com"
+                  className={inputCls}
+                />
+                <p className={hintCls}>
+                  Sent here when a customer requests a quote or asks for a re-review. Leave blank to use your SMTP sender address instead.
+                </p>
               </div>
             </div>
 
