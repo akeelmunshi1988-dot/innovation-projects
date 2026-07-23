@@ -9,6 +9,16 @@ export interface Material {
   is_available: boolean;
 }
 
+export interface ShowcaseVideo {
+  id: number;
+  title: string;
+  description: string | null;
+  video_url: string;
+  poster_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface RugCatalog {
   id: number;
   name: string;

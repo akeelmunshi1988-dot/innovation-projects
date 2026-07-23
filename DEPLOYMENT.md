@@ -320,6 +320,31 @@ Open `https://yourdomain.com` in browser — app should load fully.
 
 ---
 
+## Phase 13 — CDN for Homepage Videos (recommended before going live with video content)
+
+This setup serves everything — including the homepage showcase videos under
+`/static/showcase/` — directly from the VPS via nginx. That's fine for images,
+but video files are large; once you upload real craftsmanship videos, put
+Cloudflare (free tier) in front of the domain so videos are cached at the
+edge instead of re-served from the VPS on every homepage visit.
+
+1. Add the site to Cloudflare (free plan) and update your domain's
+   nameservers to the two Cloudflare assigns.
+2. Once DNS is active in Cloudflare, set the SSL/TLS mode to **Full (strict)**
+   — certbot's cert on the VPS already covers this.
+3. Under **Caching → Cache Rules**, add a rule to cache everything under
+   `/static/*` at the edge (`Cache Level: Cache Everything`), since those
+   files are immutable (each upload gets a new UUID filename).
+4. No app changes needed — `video_url` values returned by
+   `/api/customer/showcase-videos` are already relative paths (`/static/showcase/...`),
+   so they resolve through whichever host serves the domain, Cloudflare included.
+
+Without this, a handful of visitors streaming the intro video simultaneously
+will each pull the full file straight from the KVM 2's bandwidth allowance —
+fine at low traffic, worth fixing before any real promotion/launch.
+
+---
+
 ## Ongoing Maintenance
 
 ### View live backend logs

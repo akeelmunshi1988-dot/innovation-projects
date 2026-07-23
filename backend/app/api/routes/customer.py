@@ -213,6 +213,32 @@ async def get_public_settings():
         db.close()
 
 
+@router.get("/customer/showcase-videos")
+async def get_public_showcase_videos():
+    """Public, unauthenticated craftsmanship videos shown on the storefront homepage."""
+    from app.models.models import ShowcaseVideo
+    db = SessionLocal()
+    try:
+        videos = (
+            db.query(ShowcaseVideo)
+            .filter(ShowcaseVideo.is_active == True)
+            .order_by(ShowcaseVideo.sort_order.asc(), ShowcaseVideo.id.asc())
+            .all()
+        )
+        return [
+            {
+                "id": v.id,
+                "title": v.title,
+                "description": v.description,
+                "video_url": v.video_url,
+                "poster_url": v.poster_url,
+            }
+            for v in videos
+        ]
+    finally:
+        db.close()
+
+
 @router.get("/customer/catalog")
 async def get_public_catalog(sort: str = Query("newest")):
     from sqlalchemy import func as sqlfunc

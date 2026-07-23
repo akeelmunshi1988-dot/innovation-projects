@@ -17,6 +17,7 @@ import {
   CreditCard,
   Zap,
   Settings,
+  Film,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { path: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { path: '/admin/assistant', label: 'AI Assistant', icon: <MessageSquare size={18} /> },
   { path: '/admin/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
+  { path: '/admin/showcase-videos', label: 'Homepage Videos', icon: <Film size={18} /> },
   { path: '/admin/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },
   { path: '/admin/quotes', label: 'Quotes', icon: <FileText size={18} /> },
   { path: '/admin/orders', label: 'Orders', icon: <ShoppingBag size={18} /> },

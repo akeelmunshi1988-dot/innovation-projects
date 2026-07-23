@@ -232,3 +232,17 @@ class EmailTemplate(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (UniqueConstraint("tenant_id", "key", name="uq_email_template_tenant_key"),)
+
+
+class ShowcaseVideo(Base):
+    __tablename__ = "showcase_videos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    title = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    video_url = Column(String(300), nullable=False)
+    poster_url = Column(String(300), nullable=True)  # fallback/first-frame image shown before video loads
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -517,3 +517,34 @@ class DashboardStats(BaseModel):
     recent_orders: List[Any]
     recent_quotes: List[Any]
     monthly_revenue: List[Any]
+
+
+# ── Showcase Videos ────────────────────────────────────────────────────────────
+
+class ShowcaseVideoBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    video_url: str
+    poster_url: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class ShowcaseVideoCreate(ShowcaseVideoBase):
+    pass
+
+
+class ShowcaseVideoUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    video_url: Optional[str] = None
+    poster_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class ShowcaseVideo(ShowcaseVideoBase):
+    id: int
+
+    class Config:
+        from_attributes = True

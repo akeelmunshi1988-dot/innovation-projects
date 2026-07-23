@@ -11,6 +11,7 @@ import type {
   ChatMessage,
   DashboardStats,
   EmailTemplate,
+  ShowcaseVideo,
 } from '../types';
 
 const api = axios.create({
@@ -71,6 +72,27 @@ export const updateRug = async (id: number, rug: Partial<RugCatalog>): Promise<R
 
 export const deleteRug = async (id: number): Promise<void> => {
   await api.delete(`/catalog/${id}`);
+};
+
+// ── Showcase Videos ──────────────────────────────────────────────────────────
+
+export const getShowcaseVideos = async (): Promise<ShowcaseVideo[]> => {
+  const { data } = await api.get<ShowcaseVideo[]>('/showcase-videos');
+  return data;
+};
+
+export const createShowcaseVideo = async (video: Partial<ShowcaseVideo>): Promise<ShowcaseVideo> => {
+  const { data } = await api.post<ShowcaseVideo>('/showcase-videos', video);
+  return data;
+};
+
+export const updateShowcaseVideo = async (id: number, video: Partial<ShowcaseVideo>): Promise<ShowcaseVideo> => {
+  const { data } = await api.put<ShowcaseVideo>(`/showcase-videos/${id}`, video);
+  return data;
+};
+
+export const deleteShowcaseVideo = async (id: number): Promise<void> => {
+  await api.delete(`/showcase-videos/${id}`);
 };
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
