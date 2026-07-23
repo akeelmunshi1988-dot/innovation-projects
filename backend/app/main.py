@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.database import init_db
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates
+from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase
 
 app = FastAPI(
     title="LoomCraftRugs AI - Rug Manufacture System",
@@ -23,6 +23,7 @@ app.add_middleware(
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 os.makedirs(os.path.join(STATIC_DIR, "rugs"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "branding"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "showcase"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -43,6 +44,7 @@ app.include_router(customer.router, prefix="/api", tags=["Customer Portal"])
 app.include_router(billing.router, prefix="/api", tags=["Billing"])
 app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 app.include_router(email_templates.router, prefix="/api", tags=["Email Templates"])
+app.include_router(showcase.router, prefix="/api", tags=["Showcase Videos"])
 
 
 @app.get("/")

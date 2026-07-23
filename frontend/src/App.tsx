@@ -33,6 +33,7 @@ import BillingSettings from './pages/BillingSettings';
 import BusinessSettings from './pages/BusinessSettings';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
+import ShowcaseVideos from './pages/ShowcaseVideos';
 
 function App() {
   return (
@@ -68,6 +69,7 @@ function App() {
                     <Route path="assistant" element={<AIAssistant />} />
                     <Route path="catalog" element={<Catalog />} />
                     <Route path="catalog/:id" element={<RugDetail />} />
+                    <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="inventory" element={<Inventory />} />
