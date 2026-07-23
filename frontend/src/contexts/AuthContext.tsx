@@ -22,6 +22,7 @@ export interface TenantInfo {
   large_format_surcharge_pct: number;
   ai_assistant_customer_enabled: boolean;
   ai_assistant_vendor_enabled: boolean;
+  vendor_notification_email: string | null;
 }
 
 export interface AuthUser {

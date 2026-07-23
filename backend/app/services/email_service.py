@@ -81,6 +81,22 @@ DEFAULT_TEMPLATES = {
             "— {{tenant_name}} System"
         ),
     },
+    "vendor_quote_request": {
+        "name": "New Quote Request (to Vendor)",
+        "subject": "New quote request — {{rug_name}} from {{customer_name}}",
+        "body_html": "",  # vendor notification is plaintext-only today
+        "body_text": (
+            "Hello {{tenant_name}} team,\n\n"
+            "{{customer_name}} ({{customer_email}}{{customer_phone_line}}) just requested a quote.\n\n"
+            "Rug: {{rug_name}}\n"
+            "Size: {{size}}\n"
+            "Quantity: {{qty}}\n"
+            "Estimated price: {{price}}\n"
+            "{{notes_line}}"
+            "\nQuote #{{quote_id}} has been created as a draft. Log in to the admin panel to review and send it.\n\n"
+            "— {{tenant_name}} System"
+        ),
+    },
     "customer_verification": {
         "name": "Registration Verification",
         "subject": "Verify your email — {{tenant_name}}",
@@ -107,6 +123,14 @@ DEFAULT_TEMPLATES = {
         ),
     },
 }
+
+
+def vendor_recipient(tenant: Optional["Tenant"]) -> Optional[str]:
+    """Where vendor-facing notifications (new quote request, review request) should go —
+    the tenant's configured address if set, else the SMTP from-address."""
+    if tenant and tenant.vendor_notification_email:
+        return tenant.vendor_notification_email
+    return settings.SMTP_FROM_EMAIL
 
 
 def render_template(db: Session, tenant_id: Optional[int], key: str, variables: dict) -> tuple[str, str, str]:

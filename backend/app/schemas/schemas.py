@@ -357,6 +357,7 @@ class TenantPublic(BaseModel):
     large_format_surcharge_pct: float = 5.0
     ai_assistant_customer_enabled: bool = True
     ai_assistant_vendor_enabled: bool = True
+    vendor_notification_email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -376,6 +377,7 @@ class TenantUpdateRequest(BaseModel):
     large_format_surcharge_pct: Optional[float] = Field(None, ge=0, le=100)
     ai_assistant_customer_enabled: Optional[bool] = None
     ai_assistant_vendor_enabled: Optional[bool] = None
+    vendor_notification_email: Optional[EmailStr] = None
 
     @field_validator('gstin')
     @classmethod
