@@ -1,11 +1,11 @@
 """
-Migration v6: Showcase video intro flag.
+Migration v7: Showcase video intro flag.
 
 Adds:
   showcase_videos.is_intro  (INTEGER default 0) — marks a video as part of the
   rotating hero slot on the homepage instead of the "Behind the Craft" grid.
 
-Run once:  python3 migrate_v6_showcase_video_intro.py
+Run once:  python3 migrate_v7_showcase_video_intro.py
 """
 import sqlite3
 import os
@@ -32,7 +32,7 @@ def run():
 
     conn.commit()
     conn.close()
-    print("Migration v6 complete.")
+    print("Migration v7 complete.")
 
 
 if __name__ == "__main__":
