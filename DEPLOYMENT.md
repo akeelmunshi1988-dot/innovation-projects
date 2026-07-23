@@ -177,6 +177,8 @@ This creates:
 > python3 migrate_v3_manual_discount.py
 > python3 migrate_v4_verification_and_delivery.py
 > python3 migrate_v5_ai_assistant_toggles.py
+> python3 migrate_v6_vendor_notification_email.py
+> python3 migrate_v7_showcase_video_intro.py
 > deactivate
 > ```
 > Each script is idempotent (skips columns that already exist), so running all of them is safe even if some already applied.
