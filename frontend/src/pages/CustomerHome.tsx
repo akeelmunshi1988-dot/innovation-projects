@@ -171,7 +171,7 @@ export default function CustomerHome() {
                 who have spent years perfecting their craft. We blend time-honoured
                 techniques — hand-knotting, natural dyeing, meticulous finishing — with
                 rigorous quality control at every stage, so each piece meets the standards
-                international buyers expect: consistent weave density, accurate sizing, and
+                discerning buyers expect: consistent weave density, accurate sizing, and
                 colourfast dyes.
               </p>
               <p className="text-stone-500 leading-relaxed">
