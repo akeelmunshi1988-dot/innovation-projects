@@ -163,12 +163,16 @@ chmod 600 /var/www/loomcraft/innovation-projects/backend/.env
 cd /var/www/loomcraft/innovation-projects/backend
 source venv/bin/activate
 python3 seed_data.py
+python3 seed_showcase_videos.py
 deactivate
 ```
 
 This creates:
 - Admin login: `admin@loomcraft.demo` / `demo1234`
 - 6 materials, 8 rugs, 3 customers, 3 quotes, 1 order
+- 5 homepage showcase videos (2 rotating in the hero slot, 3 in the "Behind the Craft" grid) — requires the video/poster files under `backend/static/showcase/` to already be synced (Phase 5)
+
+> `seed_showcase_videos.py` is idempotent (skips any `video_url` already in the table), so it's also safe to run again after adding more videos to the repo, or on a server that already has some showcase videos from the admin panel.
 
 > **Migrating your existing local data instead of seeding fresh:** if you'd rather bring over your local `backend/rug_manufacture.db` (real quotes/customers) instead of starting with demo data, `scp` it to the server in place of running `seed_data.py`, then run the migration scripts once to add columns added after that db was first created:
 > ```bash
