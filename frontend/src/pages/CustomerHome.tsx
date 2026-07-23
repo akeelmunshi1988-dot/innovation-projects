@@ -14,6 +14,7 @@ interface ShowcaseVideo {
   description: string | null;
   video_url: string;
   poster_url: string | null;
+  is_intro?: boolean;
 }
 
 interface CatalogRug {
@@ -52,6 +53,7 @@ export default function CustomerHome() {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
+  const [introIndex, setIntroIndex] = useState(0);
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
 
   useEffect(() => {
@@ -75,8 +77,11 @@ export default function CustomerHome() {
   }, []);
 
   const featured = catalog.slice(0, 6);
-  const introVideo = videos[0];
-  const gridVideos = videos.slice(1);
+  const introVideos = videos.filter((v) => v.is_intro).length > 0
+    ? videos.filter((v) => v.is_intro)
+    : videos.slice(0, 1);
+  const gridVideos = videos.filter((v) => !introVideos.includes(v));
+  const introVideo = introVideos[introIndex % (introVideos.length || 1)];
 
   const openChat = (msg: string) => {
     window.dispatchEvent(new CustomEvent('loomcraftrugs:ask', { detail: { message: msg } }));
@@ -216,13 +221,15 @@ export default function CustomerHome() {
                   />
                 )}
                 <video
+                  key={introVideo.id}
                   className="absolute inset-0 w-full h-full object-cover"
                   src={introVideo.video_url}
                   poster={introVideo.poster_url || undefined}
                   autoPlay
                   muted
-                  loop
+                  loop={introVideos.length <= 1}
                   playsInline
+                  onEnded={() => setIntroIndex((i) => (i + 1) % introVideos.length)}
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-stone-900/80 via-stone-900/20 to-transparent">
                   <p className="text-white font-serif text-xl font-light">{introVideo.title}</p>
@@ -244,7 +251,15 @@ export default function CustomerHome() {
             <h2 className="font-serif text-4xl font-light text-stone-900">Behind the Craft</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
+              {
+                1: 'lg:grid-cols-1',
+                2: 'lg:grid-cols-2',
+                3: 'lg:grid-cols-3',
+              }[gridVideos.length] ?? 'lg:grid-cols-4'
+            }`}
+          >
             {gridVideos.map((v) => (
               <CraftVideoCard key={v.id} video={v} />
             ))}

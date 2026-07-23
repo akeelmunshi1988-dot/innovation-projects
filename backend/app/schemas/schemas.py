@@ -528,6 +528,7 @@ class ShowcaseVideoBase(BaseModel):
     poster_url: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
+    is_intro: bool = False
 
 
 class ShowcaseVideoCreate(ShowcaseVideoBase):
@@ -541,6 +542,7 @@ class ShowcaseVideoUpdate(BaseModel):
     poster_url: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+    is_intro: Optional[bool] = None
 
 
 class ShowcaseVideo(ShowcaseVideoBase):

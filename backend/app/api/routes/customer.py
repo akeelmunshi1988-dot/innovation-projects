@@ -232,6 +232,7 @@ async def get_public_showcase_videos():
                 "description": v.description,
                 "video_url": v.video_url,
                 "poster_url": v.poster_url,
+                "is_intro": v.is_intro,
             }
             for v in videos
         ]

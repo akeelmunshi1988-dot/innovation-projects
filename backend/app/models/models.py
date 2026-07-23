@@ -245,4 +245,5 @@ class ShowcaseVideo(Base):
     poster_url = Column(String(300), nullable=True)  # fallback/first-frame image shown before video loads
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    is_intro = Column(Boolean, default=False)  # shown in the rotating hero slot instead of the "Behind the Craft" grid
     created_at = Column(DateTime(timezone=True), server_default=func.now())
