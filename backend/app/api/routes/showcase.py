@@ -1,6 +1,9 @@
 import os
+import shutil
+import subprocess
 import uuid
 import cv2
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -10,6 +13,8 @@ from app.core.auth import get_current_user
 from app.models.models import ShowcaseVideo, StaffUser
 from app.schemas.schemas import ShowcaseVideoCreate, ShowcaseVideoUpdate, ShowcaseVideo as ShowcaseVideoSchema
 
+logger = logging.getLogger(__name__)
+
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "showcase")
 ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -17,6 +22,24 @@ MAX_VIDEO_SIZE_MB = 50
 MAX_IMAGE_SIZE_MB = 5
 
 router = APIRouter()
+
+
+def _remux_mov_to_mp4(mov_path: str, mp4_path: str) -> bool:
+    """Losslessly re-containers a .mov file into .mp4 (stream copy, no re-encode) so it plays
+    in browsers that refuse the video/quicktime mimetype even with a compatible H.264 codec.
+    Returns True on success. No-ops safely if ffmpeg isn't installed."""
+    if not shutil.which("ffmpeg"):
+        logger.warning("ffmpeg not found — skipping .mov -> .mp4 remux for %s", mov_path)
+        return False
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", mov_path, "-c", "copy", "-movflags", "+faststart", mp4_path],
+            capture_output=True, timeout=120,
+        )
+        return result.returncode == 0 and os.path.exists(mp4_path)
+    except Exception as e:
+        logger.warning("Failed to remux %s to mp4: %s", mov_path, e)
+        return False
 
 
 def _extract_poster_frame(video_path: str, poster_path: str) -> bool:
@@ -64,6 +87,16 @@ async def upload_showcase_video(
 
     with open(filepath, "wb") as f:
         f.write(contents)
+
+    # .mov serves as video/quicktime, which Chrome/Firefox often refuse to play even with a
+    # compatible H.264 codec — remux to .mp4 (lossless, stream copy) so it works everywhere.
+    if ext == "mov":
+        mp4_filename = f"{filename.rsplit('.', 1)[0]}.mp4"
+        mp4_path = os.path.join(UPLOAD_DIR, mp4_filename)
+        if _remux_mov_to_mp4(filepath, mp4_path):
+            os.remove(filepath)
+            filename = mp4_filename
+            filepath = mp4_path
 
     poster_url: Optional[str] = None
     poster_filename = f"{uuid.uuid4().hex}-poster.jpg"

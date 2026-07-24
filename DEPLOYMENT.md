@@ -57,8 +57,10 @@ python3 --version
 sudo apt install -y python3-venv python3-dev python3-pip \
   build-essential libssl-dev libffi-dev \
   nginx certbot python3-certbot-nginx \
-  libopencv-dev python3-opencv
+  libopencv-dev python3-opencv ffmpeg
 ```
+
+> **ffmpeg** is required for the showcase-video upload endpoint to remux `.mov` uploads to `.mp4` (browsers often refuse to play `video/quicktime` even with a compatible codec). Without it, `.mov` uploads still work but keep their original container and may not play in Chrome/Firefox.
 
 > If Python 3.x is lower than 3.9, add the deadsnakes PPA:
 > ```bash
