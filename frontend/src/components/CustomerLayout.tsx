@@ -11,6 +11,7 @@ const NAV = [
   { path: '/', label: 'Home' },
   { path: '/catalog', label: 'Collection' },
   { path: '/visualizer', label: 'Visualizer' },
+  { path: '/about', label: 'About Us' },
 ];
 
 const USER_MENU = [
@@ -298,6 +299,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">Account</p>
             <div className="space-y-2.5">
               {[
+                { to: '/about', label: 'About Us' },
                 { to: '/login', label: 'Sign In' },
                 { to: '/my-orders', label: 'My Orders' },
                 { to: '/my-quotes', label: 'My Quotes' },

@@ -11,11 +11,12 @@ type FormData = {
   poster_url: string;
   sort_order: string;
   is_active: boolean;
+  is_intro: boolean;
 };
 
-const BLANK: FormData = {
-  title: '', description: '', video_url: '', poster_url: '', sort_order: '0', is_active: true,
-};
+function blankForm(isIntro: boolean): FormData {
+  return { title: '', description: '', video_url: '', poster_url: '', sort_order: '0', is_active: true, is_intro: isIntro };
+}
 
 function videoToForm(v: ShowcaseVideo): FormData {
   return {
@@ -25,17 +26,19 @@ function videoToForm(v: ShowcaseVideo): FormData {
     poster_url: v.poster_url ?? '',
     sort_order: String(v.sort_order),
     is_active: v.is_active,
+    is_intro: v.is_intro,
   };
 }
 
 interface DrawerProps {
   editing: ShowcaseVideo | null;
+  defaultIsIntro: boolean;
   onClose: () => void;
   onSaved: (video: ShowcaseVideo) => void;
 }
 
-function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
-  const [form, setForm] = useState<FormData>(editing ? videoToForm(editing) : BLANK);
+function VideoDrawer({ editing, defaultIsIntro, onClose, onSaved }: DrawerProps) {
+  const [form, setForm] = useState<FormData>(editing ? videoToForm(editing) : blankForm(defaultIsIntro));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -55,10 +58,11 @@ function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const { data } = await axios.post<{ url: string }>('/api/showcase-videos/upload-video', fd, {
+      const { data } = await axios.post<{ url: string; poster_url: string | null }>('/api/showcase-videos/upload-video', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       set('video_url', data.url);
+      if (data.poster_url) set('poster_url', data.poster_url);
     } catch (err: any) {
       setError(err.response?.data?.detail ?? 'Video upload failed.');
     } finally {
@@ -95,6 +99,7 @@ function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
       poster_url: form.poster_url || null,
       sort_order: parseInt(form.sort_order) || 0,
       is_active: form.is_active,
+      is_intro: form.is_intro,
     };
     try {
       const saved = editing
@@ -113,15 +118,50 @@ function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
       <div className="fixed inset-0 bg-dark-950/60 backdrop-blur-sm z-40" onClick={onClose} />
       <div className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-dark-900 border-l border-dark-700 z-50 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700 flex-shrink-0">
-          <h2 className="text-cream-100 font-bold text-base">
-            {editing ? 'Edit Showcase Video' : 'Add Showcase Video'}
-          </h2>
+          <div>
+            <h2 className="text-cream-100 font-bold text-base">
+              {editing ? 'Edit Showcase Video' : 'Add Showcase Video'}
+            </h2>
+            <p className="text-dark-500 text-xs mt-0.5">
+              {form.is_intro ? 'Introductory Video (rotating homepage hero)' : 'Behind the Craft (homepage hover grid)'}
+            </p>
+          </div>
           <button onClick={onClose} className="text-dark-500 hover:text-cream-300 transition-colors p-1">
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+          <div className="space-y-1">
+            <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Section</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => set('is_intro', true)}
+                className={`px-3 py-2.5 rounded-lg border-2 text-left transition-all ${
+                  form.is_intro
+                    ? 'border-gold-500 bg-gold-600/10 text-cream-100'
+                    : 'border-dark-700 bg-dark-800 text-dark-300 hover:border-dark-500 hover:text-cream-300'
+                }`}
+              >
+                <p className="text-sm font-semibold leading-none">Introductory</p>
+                <p className="text-xs text-dark-400 mt-1">Rotating homepage hero</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => set('is_intro', false)}
+                className={`px-3 py-2.5 rounded-lg border-2 text-left transition-all ${
+                  !form.is_intro
+                    ? 'border-gold-500 bg-gold-600/10 text-cream-100'
+                    : 'border-dark-700 bg-dark-800 text-dark-300 hover:border-dark-500 hover:text-cream-300'
+                }`}
+              >
+                <p className="text-sm font-semibold leading-none">Behind the Craft</p>
+                <p className="text-xs text-dark-400 mt-1">Homepage hover grid</p>
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Title *</label>
             <input
@@ -171,6 +211,7 @@ function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
 
           <div className="space-y-1">
             <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Poster Image (optional)</label>
+            <p className="text-dark-500 text-xs -mt-0.5">Auto-generated from the video — upload your own to override it.</p>
             {form.poster_url && (
               <img src={form.poster_url} alt="Poster" className="w-full h-40 object-cover rounded-lg bg-dark-800 mb-2" />
             )}
@@ -203,7 +244,7 @@ function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
                 min="0"
                 className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600/60"
               />
-              <p className="text-dark-500 text-xs">Lowest number is the featured intro video on the homepage.</p>
+              <p className="text-dark-500 text-xs">Controls play order within its section (lowest first).</p>
             </div>
             <div className="flex items-center gap-3 pb-2">
               <button
@@ -244,11 +285,94 @@ function VideoDrawer({ editing, onClose, onSaved }: DrawerProps) {
   );
 }
 
+function VideoCard({ v, onEdit, onDelete }: { v: ShowcaseVideo; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <div className="card space-y-3">
+      <div className="relative overflow-hidden rounded-lg bg-dark-800 aspect-video">
+        {v.poster_url ? (
+          <img src={v.poster_url} alt={v.title} className="w-full h-full object-cover" />
+        ) : (
+          <video src={v.video_url} muted className="w-full h-full object-cover" />
+        )}
+      </div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-cream-100 font-semibold text-sm truncate">{v.title}</p>
+          {v.description && <p className="text-dark-400 text-xs mt-0.5 line-clamp-2">{v.description}</p>}
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${
+          v.is_active ? 'bg-green-900/30 text-green-300 border-green-700/30' : 'bg-dark-700 text-dark-300 border-dark-600'
+        }`}>
+          {v.is_active ? 'Active' : 'Hidden'}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs text-dark-500">
+        <span>Order: {v.sort_order}</span>
+        <div className="flex items-center gap-3">
+          <button onClick={onEdit} className="flex items-center gap-1 text-dark-400 hover:text-cream-200 transition-colors">
+            <Pencil size={13} /> Edit
+          </button>
+          <button onClick={onDelete} className="flex items-center gap-1 text-dark-400 hover:text-red-400 transition-colors">
+            <Trash2 size={13} /> Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VideoSection({
+  title, hint, videos, loading, onAdd, onEdit, onDelete,
+}: {
+  title: string;
+  hint: string;
+  videos: ShowcaseVideo[];
+  loading: boolean;
+  onAdd: () => void;
+  onEdit: (v: ShowcaseVideo) => void;
+  onDelete: (v: ShowcaseVideo) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-cream-100 font-bold text-lg">{title}</h2>
+          <p className="text-dark-400 text-sm">{hint}</p>
+        </div>
+        <button onClick={onAdd} className="btn-primary flex items-center gap-2 text-sm">
+          <Plus size={14} /> Add Video
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <div className="w-6 h-6 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : videos.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-3 border border-dashed border-dark-700 rounded-xl">
+          <Film size={28} className="text-dark-600" />
+          <p className="text-dark-400 text-sm">No videos in this section yet.</p>
+          <button onClick={onAdd} className="btn-secondary flex items-center gap-2 text-sm">
+            <Plus size={14} /> Add Video
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {videos.map((v) => (
+            <VideoCard key={v.id} v={v} onEdit={() => onEdit(v)} onDelete={() => onDelete(v)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ShowcaseVideos() {
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
   const [editing, setEditing] = useState<ShowcaseVideo | null>(null);
+  const [newVideoIsIntro, setNewVideoIsIntro] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ShowcaseVideo | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -282,86 +406,59 @@ export default function ShowcaseVideos() {
     }
   };
 
+  const openAdd = (isIntro: boolean) => {
+    setEditing(null);
+    setNewVideoIsIntro(isIntro);
+    setShowDrawer(true);
+  };
+
+  const openEdit = (v: ShowcaseVideo) => {
+    setEditing(v);
+    setShowDrawer(true);
+  };
+
+  const introVideos = videos.filter((v) => v.is_intro);
+  const craftVideos = videos.filter((v) => !v.is_intro);
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Film size={22} className="text-gold-400" />
           <div>
             <h1 className="text-2xl font-bold text-cream-100">Homepage Videos</h1>
-            <p className="text-dark-400 text-sm">
-              Craft videos shown on your storefront homepage. The lowest "Order" value becomes the featured intro video; the rest appear in the hover grid.
-            </p>
+            <p className="text-dark-400 text-sm">Craft videos shown on your storefront homepage.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={fetchVideos} className="btn-secondary flex items-center gap-2 text-sm">
-            <RefreshCw size={14} /> Refresh
-          </button>
-          <button onClick={() => { setEditing(null); setShowDrawer(true); }} className="btn-primary flex items-center gap-2 text-sm">
-            <Plus size={14} /> Add Video
-          </button>
-        </div>
+        <button onClick={fetchVideos} className="btn-secondary flex items-center gap-2 text-sm">
+          <RefreshCw size={14} /> Refresh
+        </button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : videos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Film size={40} className="text-dark-600" />
-          <p className="text-dark-400 text-sm">No showcase videos yet. Add your first craftsmanship video to bring your homepage to life.</p>
-          <button onClick={() => { setEditing(null); setShowDrawer(true); }} className="btn-primary flex items-center gap-2 text-sm">
-            <Plus size={14} /> Add Video
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {videos.map((v, i) => (
-            <div key={v.id} className="card space-y-3">
-              <div className="relative overflow-hidden rounded-lg bg-dark-800 aspect-video">
-                {v.poster_url ? (
-                  <img src={v.poster_url} alt={v.title} className="w-full h-full object-cover" />
-                ) : (
-                  <video src={v.video_url} muted className="w-full h-full object-cover" />
-                )}
-                {i === 0 && (
-                  <span className="absolute top-2 left-2 bg-gold-600 text-dark-950 text-xs font-bold px-2 py-0.5 rounded-full">
-                    Featured Intro
-                  </span>
-                )}
-              </div>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-cream-100 font-semibold text-sm truncate">{v.title}</p>
-                  {v.description && <p className="text-dark-400 text-xs mt-0.5 line-clamp-2">{v.description}</p>}
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${
-                  v.is_active ? 'bg-green-900/30 text-green-300 border-green-700/30' : 'bg-dark-700 text-dark-300 border-dark-600'
-                }`}>
-                  {v.is_active ? 'Active' : 'Hidden'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-dark-500">
-                <span>Order: {v.sort_order}</span>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => { setEditing(v); setShowDrawer(true); }} className="flex items-center gap-1 text-dark-400 hover:text-cream-200 transition-colors">
-                    <Pencil size={13} /> Edit
-                  </button>
-                  <button onClick={() => setDeleteTarget(v)} className="flex items-center gap-1 text-dark-400 hover:text-red-400 transition-colors">
-                    <Trash2 size={13} /> Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <VideoSection
+        title="Introductory Videos"
+        hint="Rotate one after another in the homepage hero — all active videos here play in sequence, in Order."
+        videos={introVideos}
+        loading={loading}
+        onAdd={() => openAdd(true)}
+        onEdit={openEdit}
+        onDelete={setDeleteTarget}
+      />
+
+      <VideoSection
+        title="Behind the Craft Videos"
+        hint="Shown in the homepage hover grid, below the intro section."
+        videos={craftVideos}
+        loading={loading}
+        onAdd={() => openAdd(false)}
+        onEdit={openEdit}
+        onDelete={setDeleteTarget}
+      />
 
       {showDrawer && (
         <VideoDrawer
           editing={editing}
+          defaultIsIntro={newVideoIsIntro}
           onClose={() => { setShowDrawer(false); setEditing(null); }}
           onSaved={handleSaved}
         />

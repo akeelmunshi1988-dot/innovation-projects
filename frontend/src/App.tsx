@@ -20,6 +20,7 @@ import Inventory from './pages/Inventory';
 import Customers from './pages/Customers';
 import CustomerPortal from './pages/CustomerPortal';
 import CustomerHome from './pages/CustomerHome';
+import AboutUs from './pages/AboutUs';
 import CustomerCatalog from './pages/CustomerCatalog';
 import CustomerRugDetail from './pages/CustomerRugDetail';
 import CustomerCheckout from './pages/CustomerCheckout';
@@ -34,6 +35,7 @@ import BusinessSettings from './pages/BusinessSettings';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import ShowcaseVideos from './pages/ShowcaseVideos';
+import WorkshopPhotos from './pages/WorkshopPhotos';
 
 function App() {
   return (
@@ -44,6 +46,7 @@ function App() {
         <Routes>
           {/* Customer shop — root paths */}
           <Route path="/" element={<CustomerHome />} />
+          <Route path="/about" element={<AboutUs />} />
           <Route path="/catalog" element={<CustomerCatalog />} />
           <Route path="/catalog/:id" element={<CustomerRugDetail />} />
           <Route path="/checkout" element={<CustomerCheckout />} />
@@ -70,6 +73,7 @@ function App() {
                     <Route path="catalog" element={<Catalog />} />
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
+                    <Route path="workshop-photos" element={<WorkshopPhotos />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="inventory" element={<Inventory />} />

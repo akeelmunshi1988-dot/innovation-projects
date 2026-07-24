@@ -9,6 +9,7 @@ from typing import List, Optional
 from datetime import datetime
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.config import settings
 from app.models.models import Quote, Customer, RugCatalog, Material, StaffUser, Tenant
 from app.schemas.schemas import (
     QuoteCreate,
@@ -26,6 +27,13 @@ from app.services import email_service
 _SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}
 
 
+def _fmt_dim(value_m: float, unit: str) -> str:
+    """Formats a metres-denominated dimension in the tenant's chosen display unit."""
+    if unit == "cm":
+        return str(round(value_m * 100))
+    return f"{value_m / 0.3048:g}"
+
+
 def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", customer: "Customer") -> None:
     """Fire-and-forget templated email to customer when a quote is sent."""
     to_email: Optional[str] = customer.email if customer else None
@@ -37,12 +45,29 @@ def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", custom
 
     rug_name: str = str(quote.rug_catalog.name) if quote.rug_catalog else "Custom Rug Order"
 
+    size_unit = tenant.default_size_unit or "ft"
     w = quote.custom_size_w
     h = quote.custom_size_h
-    size_str = f"{w:g}m × {h:g}m" if w is not None and h is not None else "custom size"
+    size_str = f"{_fmt_dim(w, size_unit)}x{_fmt_dim(h, size_unit)} {size_unit}" if w is not None and h is not None else "custom size"
 
     fp = quote.final_price
     price_str = f"{sym}{fp:,.2f}" if fp is not None else "to be confirmed"
+
+    bp = quote.base_price
+    subtotal_str = f"{sym}{bp:,.2f}" if bp is not None else "—"
+
+    gst_pct_str = f"{quote.gst_pct:g}%" if quote.gst_pct is not None else "—"
+
+    discount_pct = quote.manual_discount_pct
+    if discount_pct:
+        discount_line_html = (
+            f'<tr><td style="padding:8px 0;color:#666">Discount</td>'
+            f'<td style="padding:8px 0;color:#059669">-{discount_pct:g}%</td></tr>'
+        )
+        discount_line_text = f"Discount: -{discount_pct:g}%\n"
+    else:
+        discount_line_html = ""
+        discount_line_text = ""
 
     qty: int = int(quote.qty) if quote.qty is not None else 1
     qty_str = f"{qty} piece{'s' if qty > 1 else ''}"
@@ -64,6 +89,8 @@ def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", custom
     ) if vendor_note else ""
     note_text = f"Note: {vendor_note}\n" if vendor_note else ""
 
+    quote_link = f"{settings.FRONTEND_URL}/my-quotes"
+
     subject, body_text, body_html = email_service.render_template(
         db, quote.tenant_id, "quote_sent",
         {
@@ -73,9 +100,14 @@ def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", custom
             "size": size_str,
             "qty": qty_str,
             "price": price_str,
+            "subtotal": subtotal_str,
+            "gst_pct": gst_pct_str,
+            "discount_line_html": discount_line_html,
+            "discount_line_text": discount_line_text,
             "expected_delivery": delivery_str,
             "note_html": note_html,
             "note_text": note_text,
+            "quote_link": quote_link,
         },
     )
     email_service.send_email(to_email, subject, body_text, body_html)

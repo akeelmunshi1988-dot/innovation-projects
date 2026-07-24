@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail } from 'lucide-react';
+import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign } from 'lucide-react';
 import axios from 'axios';
 
 import { useAuth } from '../contexts/AuthContext';
 import { CURRENCIES } from '../utils/currency';
+import { SIZE_UNITS } from '../utils/size';
 import { getEmailTemplates, updateEmailTemplate } from '../services/api';
 import type { EmailTemplate } from '../types';
 
-type Tab = 'general' | 'pricing' | 'gst' | 'templates' | 'account';
+type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'templates' | 'account';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general',   label: 'General',         icon: <Building2 size={15} /> },
+  { id: 'currency',  label: 'Currency',        icon: <DollarSign size={15} /> },
   { id: 'pricing',   label: 'Pricing',         icon: <TrendingUp size={15} /> },
   { id: 'gst',       label: 'GST & Tax',       icon: <FileText size={15} /> },
   { id: 'templates', label: 'Email Templates', icon: <Mail size={15} /> },
@@ -18,7 +20,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 const TEMPLATE_VARIABLES: Record<string, string[]> = {
-  quote_sent: ['customer_name', 'tenant_name', 'rug_name', 'size', 'qty', 'price', 'expected_delivery', 'note_html', 'note_text'],
+  quote_sent: ['customer_name', 'tenant_name', 'rug_name', 'size', 'qty', 'price', 'subtotal', 'gst_pct', 'discount_line_html', 'discount_line_text', 'expected_delivery', 'note_html', 'note_text', 'quote_link'],
   invoice_email: ['customer_name', 'tenant_name', 'invoice_type_label', 'rug_name', 'size', 'qty', 'price', 'disclaimer'],
   vendor_review_request: ['tenant_name', 'customer_name', 'customer_email', 'quote_id', 'rug_name', 'size', 'status', 'request_num', 'max_requests'],
   customer_verification: ['customer_name', 'tenant_name', 'verification_link'],
@@ -55,6 +57,8 @@ export default function BusinessSettings() {
       Object.entries(tenant.exchange_rates ?? {}).map(([k, v]) => [k, String(v)])
     )
   );
+
+  const [sizeUnit, setSizeUnit] = useState(tenant.default_size_unit ?? 'ft');
 
   // Pricing
   const [marginPct, setMarginPct] = useState(String(tenant.default_profit_margin_pct ?? 40));
@@ -106,16 +110,19 @@ export default function BusinessSettings() {
     const oldVal = (tenant.exchange_rates ?? {})[c.code] ?? 0;
     return Math.abs(newVal - oldVal) > 0.000001;
   });
-  const dirtyGeneral  = name !== tenant.name || currency !== tenant.currency || ratesChanged
+  const dirtyGeneral  = name !== tenant.name
     || aiAssistantCustomerEnabled !== (tenant.ai_assistant_customer_enabled ?? true)
     || aiAssistantVendorEnabled !== (tenant.ai_assistant_vendor_enabled ?? true)
-    || vendorNotificationEmail !== (tenant.vendor_notification_email ?? '');
+    || vendorNotificationEmail !== (tenant.vendor_notification_email ?? '')
+    || sizeUnit !== (tenant.default_size_unit ?? 'ft');
+  const dirtyCurrency = currency !== tenant.currency || ratesChanged;
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct;
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '');
-  const isDirty       = dirtyGeneral || dirtyPricing || dirtyGst;
+  const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst;
 
   const tabDirty: Record<Tab, boolean> = {
     general: dirtyGeneral,
+    currency: dirtyCurrency,
     pricing: dirtyPricing,
     gst: dirtyGst,
     templates: false,
@@ -149,6 +156,7 @@ export default function BusinessSettings() {
         ai_assistant_customer_enabled: aiAssistantCustomerEnabled,
         ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
         vendor_notification_email: vendorNotificationEmail.trim() || undefined,
+        default_size_unit: sizeUnit,
       });
       updateTenant(data);
       setSaved(true);
@@ -278,6 +286,115 @@ export default function BusinessSettings() {
               </div>
             </div>
 
+            {/* Standard Size Unit */}
+            <div className="space-y-3">
+              <div>
+                <label className={labelCls}>Standard Size Unit</label>
+                <p className="text-dark-500 text-xs -mt-1">
+                  How rug standard sizes (e.g. 4x6) are displayed across the admin panel and storefront.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-w-xs">
+                {SIZE_UNITS.map((u) => (
+                  <button
+                    key={u.code}
+                    type="button"
+                    onClick={() => setSizeUnit(u.code)}
+                    className={`flex items-center justify-between gap-2 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                      sizeUnit === u.code
+                        ? 'border-gold-500 bg-gold-600/10 text-cream-100'
+                        : 'border-dark-700 bg-dark-800 text-dark-300 hover:border-dark-500 hover:text-cream-300'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">{u.label}</span>
+                    {sizeUnit === u.code && <Check size={14} className="text-gold-400 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Features */}
+            <div className="space-y-3">
+              <div>
+                <p className={subLabelCls}>Features</p>
+                <p className={hintCls + ' -mt-1'}>Control where the AI assistant appears.</p>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                <div>
+                  <p className="text-cream-200 text-sm font-medium">AI Assistant for Customers</p>
+                  <p className="text-dark-400 text-xs">Shows the AI chat widget on your storefront.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiAssistantCustomerEnabled((v) => !v)}
+                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
+                    aiAssistantCustomerEnabled ? 'bg-gold-600' : 'bg-dark-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                      aiAssistantCustomerEnabled ? 'left-6' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                <div>
+                  <p className="text-cream-200 text-sm font-medium">AI Assistant for Vendor/Staff</p>
+                  <p className="text-dark-400 text-xs">Shows the AI Assistant page in your admin panel.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiAssistantVendorEnabled((v) => !v)}
+                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
+                    aiAssistantVendorEnabled ? 'bg-gold-600' : 'bg-dark-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                      aiAssistantVendorEnabled ? 'left-6' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Notifications */}
+            <div className="space-y-3">
+              <div>
+                <p className={subLabelCls}>Notifications</p>
+                <p className={hintCls + ' -mt-1'}>Where your team gets notified about customer activity.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className={labelCls}>Vendor Notification Email</label>
+                <input
+                  type="email"
+                  value={vendorNotificationEmail}
+                  onChange={(e) => setVendorNotificationEmail(e.target.value)}
+                  placeholder="orders@yourbusiness.com"
+                  className={inputCls}
+                />
+                <p className={hintCls}>
+                  Sent here when a customer requests a quote or asks for a re-review. Leave blank to use your SMTP sender address instead.
+                </p>
+              </div>
+            </div>
+
+            <SaveBar />
+          </div>
+        )}
+
+        {/* ── Currency ────────────────────────────────────────────────────────── */}
+        {tab === 'currency' && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-cream-100 font-semibold text-base">Currency</h2>
+              <p className="text-dark-500 text-xs mt-0.5">Display currency and exchange rates used on invoices and quotes.</p>
+            </div>
+
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Display Currency</label>
@@ -368,76 +485,6 @@ export default function BusinessSettings() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Features */}
-            <div className="space-y-3">
-              <div>
-                <p className={subLabelCls}>Features</p>
-                <p className={hintCls + ' -mt-1'}>Control where the AI assistant appears.</p>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
-                <div>
-                  <p className="text-cream-200 text-sm font-medium">AI Assistant for Customers</p>
-                  <p className="text-dark-400 text-xs">Shows the AI chat widget on your storefront.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAiAssistantCustomerEnabled((v) => !v)}
-                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
-                    aiAssistantCustomerEnabled ? 'bg-gold-600' : 'bg-dark-600'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
-                      aiAssistantCustomerEnabled ? 'left-6' : 'left-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
-                <div>
-                  <p className="text-cream-200 text-sm font-medium">AI Assistant for Vendor/Staff</p>
-                  <p className="text-dark-400 text-xs">Shows the AI Assistant page in your admin panel.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAiAssistantVendorEnabled((v) => !v)}
-                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
-                    aiAssistantVendorEnabled ? 'bg-gold-600' : 'bg-dark-600'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
-                      aiAssistantVendorEnabled ? 'left-6' : 'left-1'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Notifications */}
-            <div className="space-y-3">
-              <div>
-                <p className={subLabelCls}>Notifications</p>
-                <p className={hintCls + ' -mt-1'}>Where your team gets notified about customer activity.</p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className={labelCls}>Vendor Notification Email</label>
-                <input
-                  type="email"
-                  value={vendorNotificationEmail}
-                  onChange={(e) => setVendorNotificationEmail(e.target.value)}
-                  placeholder="orders@yourbusiness.com"
-                  className={inputCls}
-                />
-                <p className={hintCls}>
-                  Sent here when a customer requests a quote or asks for a re-review. Leave blank to use your SMTP sender address instead.
-                </p>
               </div>
             </div>
 

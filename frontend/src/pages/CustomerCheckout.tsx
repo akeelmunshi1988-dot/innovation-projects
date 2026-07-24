@@ -5,10 +5,11 @@ import {
   CheckCircle, X, LogIn, UserPlus, Eye, EyeOff,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
-import { createPaymentOrder, verifyPayment } from '../services/api';
+import { createPaymentOrder, verifyPayment, getPublicSettings } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
 
 import { fmtExact, currencySymbol } from '../utils/currency';
+import { fmtDims } from '../utils/size';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 
 interface CheckoutState {
@@ -64,6 +65,7 @@ export default function CustomerCheckout() {
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [showAuthPwd, setShowAuthPwd] = useState(false);
+  const [sizeUnit, setSizeUnit] = useState('ft');
 
   // Load Razorpay checkout script once
   useEffect(() => {
@@ -73,6 +75,10 @@ export default function CustomerCheckout() {
     s.src = 'https://checkout.razorpay.com/v1/checkout.js';
     s.async = true;
     document.body.appendChild(s);
+  }, []);
+
+  useEffect(() => {
+    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
   }, []);
 
   if (!state) {
@@ -100,11 +106,7 @@ export default function CustomerCheckout() {
     ? (Math.PI * (state.size_w / 2) * (state.size_h / 2)).toFixed(2)
     : (state.size_w * state.size_h).toFixed(2);
   const totalSqm = (parseFloat(area) * state.qty).toFixed(2);
-  const sizeLabel = shape === 'circle'
-    ? `⌀ ${state.size_w}m`
-    : shape === 'oval'
-    ? `${state.size_w}m × ${state.size_h}m (oval)`
-    : `${state.size_w}m × ${state.size_h}m`;
+  const sizeLabel = fmtDims(state.size_w, state.size_h, sizeUnit, shape);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));

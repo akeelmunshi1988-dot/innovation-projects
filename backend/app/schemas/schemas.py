@@ -358,6 +358,7 @@ class TenantPublic(BaseModel):
     ai_assistant_customer_enabled: bool = True
     ai_assistant_vendor_enabled: bool = True
     vendor_notification_email: Optional[str] = None
+    default_size_unit: str = "ft"
 
     class Config:
         from_attributes = True
@@ -378,6 +379,14 @@ class TenantUpdateRequest(BaseModel):
     ai_assistant_customer_enabled: Optional[bool] = None
     ai_assistant_vendor_enabled: Optional[bool] = None
     vendor_notification_email: Optional[EmailStr] = None
+    default_size_unit: Optional[str] = None
+
+    @field_validator('default_size_unit')
+    @classmethod
+    def validate_default_size_unit(cls, v: Optional[str]) -> Optional[str]:
+        if v and v not in ('ft', 'cm'):
+            raise ValueError("default_size_unit must be 'ft' or 'cm'")
+        return v
 
     @field_validator('gstin')
     @classmethod
@@ -546,6 +555,35 @@ class ShowcaseVideoUpdate(BaseModel):
 
 
 class ShowcaseVideo(ShowcaseVideoBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ── Workshop Photos ────────────────────────────────────────────────────────────
+
+class WorkshopPhotoBase(BaseModel):
+    caption: str
+    description: Optional[str] = None
+    image_url: str
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class WorkshopPhotoCreate(WorkshopPhotoBase):
+    pass
+
+
+class WorkshopPhotoUpdate(BaseModel):
+    caption: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class WorkshopPhoto(WorkshopPhotoBase):
     id: int
 
     class Config:

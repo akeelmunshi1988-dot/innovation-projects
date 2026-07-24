@@ -6,6 +6,7 @@ import { getCatalog, createRug, updateRug, deleteRug, getInventory } from '../se
 import type { RugCatalog, Material } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant, CURRENCIES } from '../utils/currency';
+import { fmtSize } from '../utils/size';
 
 const PILE_OPTIONS   = ['low', 'medium', 'high', 'flat'];
 const WEAVE_OPTIONS  = ['hand-knotted', 'hand-tufted', 'flatweave', 'machine-woven'];
@@ -262,7 +263,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
           {/* Sizes */}
           <div className="space-y-1">
             <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">
-              Available Sizes <span className="text-dark-500 normal-case font-normal">(comma-separated, e.g. 2x3, 4x6, 6x9)</span>
+              Available Sizes <span className="text-dark-500 normal-case font-normal">(comma-separated, in feet, e.g. 2x3, 4x6, 6x9)</span>
             </label>
             <input
               value={form.sizes_raw}
@@ -622,7 +623,7 @@ const Catalog: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {rug.sizes.map((size) => (
                       <span key={size} className="bg-dark-800 text-dark-300 text-xs px-2 py-0.5 rounded border border-dark-700">
-                        {size}m
+                        {fmtSize(size, tenant.default_size_unit)}
                       </span>
                     ))}
                   </div>

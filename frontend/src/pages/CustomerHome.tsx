@@ -40,6 +40,14 @@ const MATERIALS = [
 ];
 
 const SHOW_HERO = false;
+const SHOW_FEATURED_RUGS = false;
+
+interface WorkshopPhoto {
+  id: number;
+  caption: string;
+  description: string | null;
+  image_url: string;
+}
 
 const HOW = [
   { n: '01', title: 'Browse & Choose',   desc: 'Explore our collection, filter by material, size, and style. Every design is available in custom dimensions.' },
@@ -55,6 +63,7 @@ export default function CustomerHome() {
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
   const [introIndex, setIntroIndex] = useState(0);
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
+  const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
 
   useEffect(() => {
     setCatalogLoading(true);
@@ -67,6 +76,12 @@ export default function CustomerHome() {
   useEffect(() => {
     axios.get('/api/customer/showcase-videos')
       .then(({ data }) => setVideos(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    axios.get('/api/customer/workshop-photos')
+      .then(({ data }) => setWorkshopPhotos(data))
       .catch(() => {});
   }, []);
 
@@ -268,79 +283,112 @@ export default function CustomerHome() {
       )}
 
       {/* ── FEATURED COLLECTION ───────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 py-20">
-        <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
-          <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Our Collection</p>
-            <h2 className="font-serif text-4xl font-light text-stone-900">Featured Rugs</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex border border-stone-200">
-              {(['newest', 'popular'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSort(s)}
-                  className={`text-xs px-4 py-2 font-medium uppercase tracking-wider transition-colors ${
-                    sort === s
-                      ? 'bg-stone-900 text-white'
-                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
-                  }`}
-                >
-                  {s === 'newest' ? 'Newest' : 'Popular'}
-                </button>
-              ))}
+      {SHOW_FEATURED_RUGS && (
+        <section className="max-w-7xl mx-auto px-6 py-20">
+          <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
+            <div>
+              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Our Collection</p>
+              <h2 className="font-serif text-4xl font-light text-stone-900">Featured Rugs</h2>
             </div>
-            <Link
-              to="/catalog"
-              className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
-            >
-              View All
-            </Link>
+            <div className="flex items-center gap-4">
+              <div className="flex border border-stone-200">
+                {(['newest', 'popular'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSort(s)}
+                    className={`text-xs px-4 py-2 font-medium uppercase tracking-wider transition-colors ${
+                      sort === s
+                        ? 'bg-stone-900 text-white'
+                        : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                    }`}
+                  >
+                    {s === 'newest' ? 'Newest' : 'Popular'}
+                  </button>
+                ))}
+              </div>
+              <Link
+                to="/catalog"
+                className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
+              >
+                View All
+              </Link>
+            </div>
           </div>
-        </div>
 
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10 transition-opacity duration-200 ${catalogLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-          {featured.map((rug) => (
-            <Link
-              key={rug.id}
-              to={`/catalog/${rug.id}`}
-              className="group block"
-            >
-              {/* Image */}
-              <div className="relative overflow-hidden bg-stone-100 aspect-[4/5]">
-                {rug.image_url ? (
-                  <img
-                    src={rug.image_url}
-                    alt={rug.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Layers size={32} className="text-stone-300" />
-                  </div>
-                )}
-                {!rug.available && (
-                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                    <span className="text-stone-500 text-xs tracking-widest uppercase">Unavailable</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="pt-4 space-y-1">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-serif text-lg font-light text-stone-900 leading-snug">{rug.name}</h3>
-                  <p className="text-stone-900 text-sm font-medium flex-shrink-0">{sym}{rug.base_price_per_sqm}<span className="text-stone-400 text-xs">/sqm</span></p>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10 transition-opacity duration-200 ${catalogLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+            {featured.map((rug) => (
+              <Link
+                key={rug.id}
+                to={`/catalog/${rug.id}`}
+                className="group block"
+              >
+                {/* Image */}
+                <div className="relative overflow-hidden bg-stone-100 aspect-[4/5]">
+                  {rug.image_url ? (
+                    <img
+                      src={rug.image_url}
+                      alt={rug.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Layers size={32} className="text-stone-300" />
+                    </div>
+                  )}
+                  {!rug.available && (
+                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                      <span className="text-stone-500 text-xs tracking-widest uppercase">Unavailable</span>
+                    </div>
+                  )}
                 </div>
-                <p className="text-stone-400 text-sm capitalize">
-                  {[rug.material, rug.weave_type].filter(Boolean).join(' · ')}
-                </p>
-                <p className="text-stone-400 text-xs">{rug.lead_time_days} days · {rug.sizes.length} sizes</p>
+
+                {/* Info */}
+                <div className="pt-4 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-serif text-lg font-light text-stone-900 leading-snug">{rug.name}</h3>
+                    <p className="text-stone-900 text-sm font-medium flex-shrink-0">{sym}{rug.base_price_per_sqm}<span className="text-stone-400 text-xs">/sqm</span></p>
+                  </div>
+                  <p className="text-stone-400 text-sm capitalize">
+                    {[rug.material, rug.weave_type].filter(Boolean).join(' · ')}
+                  </p>
+                  <p className="text-stone-400 text-xs">{rug.lead_time_days} days · {rug.sizes.length} sizes</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── INSIDE THE WORKSHOP ───────────────────────────────────────── */}
+      {!SHOW_FEATURED_RUGS && workshopPhotos.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 py-20">
+          <div className="mb-12 max-w-2xl">
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Behind the Scenes</p>
+            <h2 className="font-serif text-4xl font-light text-stone-900 mb-4">Inside the Workshop</h2>
+            <p className="text-stone-500 leading-relaxed">
+              A look at the people and process behind every rug — from raw fibre
+              to the finished piece that reaches your door.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {workshopPhotos.map((p) => (
+              <div key={p.id} className="group relative overflow-hidden bg-stone-100 aspect-[4/3]">
+                <img
+                  src={p.image_url}
+                  alt={p.caption}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-stone-900/80 via-stone-900/10 to-transparent">
+                  <p className="text-white font-serif text-lg font-light">{p.caption}</p>
+                  {p.description && <p className="text-stone-300 text-xs mt-0.5">{p.description}</p>}
+                </div>
               </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── MATERIALS ─────────────────────────────────────────────────── */}
       <section className="bg-stone-50 border-y border-stone-100 py-20">

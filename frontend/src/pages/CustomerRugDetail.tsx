@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import { fmtExact, currencySymbol } from '../utils/currency';
+import { fmtSize, feetToUnit, toMetres } from '../utils/size';
+import { getPublicSettings } from '../services/api';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 
 
@@ -75,6 +77,7 @@ export default function CustomerRugDetail() {
 
   const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [sizeUnit, setSizeUnit] = useState('ft');
 
   const [form, setForm] = useState<QuoteForm>({
     name: '', email: '', phone: '',
@@ -104,6 +107,12 @@ export default function CustomerRugDetail() {
   }, [id]);
 
   useEffect(() => {
+    getPublicSettings()
+      .then((data) => setSizeUnit(data.default_size_unit || 'ft'))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!id || !isCustomerAuthenticated || !customerToken) return;
     axios.get(`/api/customer/quotes?rug_id=${id}`, {
       headers: { Authorization: `Bearer ${customerToken}` },
@@ -114,14 +123,17 @@ export default function CustomerRugDetail() {
   }, [id, isCustomerAuthenticated, customerToken]);
 
   const effectiveSizeH = form.shape === 'circle' ? form.size_w : form.size_h;
+  // form.size_w/size_h are entered in `sizeUnit`; quote pricing is denominated in metres.
+  const sizeWMetres = toMetres(parseFloat(form.size_w), sizeUnit);
+  const sizeHMetres = toMetres(parseFloat(effectiveSizeH), sizeUnit);
 
   const calcPrice = async () => {
     if (!rug || !form.size_w || (form.shape !== 'circle' && !form.size_h)) return;
     setCalcLoading(true);
     try {
       const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
-        size_w: parseFloat(form.size_w),
-        size_h: parseFloat(effectiveSizeH),
+        size_w: sizeWMetres,
+        size_h: sizeHMetres,
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
         shape: form.shape,
@@ -143,8 +155,8 @@ export default function CustomerRugDetail() {
     setCalcLoading(true);
     try {
       const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
-        size_w: parseFloat(form.size_w),
-        size_h: parseFloat(effectiveSizeH),
+        size_w: sizeWMetres,
+        size_h: sizeHMetres,
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
         shape: form.shape,
@@ -152,7 +164,7 @@ export default function CustomerRugDetail() {
       navigate('/checkout', {
         state: {
           rug_id: rug.id, rug_name: rug.name,
-          size_w: parseFloat(form.size_w), size_h: parseFloat(effectiveSizeH),
+          size_w: sizeWMetres, size_h: sizeHMetres,
           qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
           shape: form.shape,
           notes: form.notes || undefined,
@@ -190,8 +202,8 @@ export default function CustomerRugDetail() {
         email,
         phone: form.phone || null,
         rug_id: rug.id,
-        size_w: parseFloat(form.size_w),
-        size_h: parseFloat(effectiveSizeH),
+        size_w: sizeWMetres,
+        size_h: sizeHMetres,
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
         shape: form.shape,
@@ -414,12 +426,14 @@ export default function CustomerRugDetail() {
                         <div className="flex flex-wrap gap-1.5">
                           {rug.sizes.map((size) => {
                             const parts = size.split('x').map(Number);
-                            const isSelected = form.size_w === String(parts[0]) && form.size_h === String(parts[1]);
+                            const dispW = parts.length === 2 ? String(feetToUnit(parts[0], sizeUnit)) : '';
+                            const dispH = parts.length === 2 ? String(feetToUnit(parts[1], sizeUnit)) : '';
+                            const isSelected = form.size_w === dispW && form.size_h === dispH;
                             return (
                               <button key={size} type="button"
                                 onClick={() => {
                                   if (parts.length === 2)
-                                    setForm((f) => ({ ...f, size_w: String(parts[0]), size_h: String(parts[1]) }));
+                                    setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
                                 }}
                                 className={`border px-3 py-1.5 text-xs transition-colors ${
                                   isSelected
@@ -427,7 +441,7 @@ export default function CustomerRugDetail() {
                                     : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
                                 }`}
                               >
-                                {size}m
+                                {fmtSize(size, sizeUnit)}
                               </button>
                             );
                           })}
@@ -464,16 +478,16 @@ export default function CustomerRugDetail() {
                     {/* Size inputs */}
                     {form.shape === 'circle' ? (
                       <div className="max-w-[160px]">
-                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Diameter (m) *</label>
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Diameter ({sizeUnit}) *</label>
                         <input
                           type="number" name="size_w" value={form.size_w}
                           onChange={e => setForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
-                          placeholder="3.0" step="0.01" min="0.5" required
+                          placeholder={sizeUnit === 'cm' ? '300' : '10'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
                           className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                         />
                         {form.size_w && parseFloat(form.size_w) > 0 && (
                           <p className="text-stone-400 text-xs mt-1">
-                            Area ≈ {(Math.PI * (parseFloat(form.size_w) / 2) ** 2).toFixed(2)} m²
+                            Area ≈ {(Math.PI * (toMetres(parseFloat(form.size_w), sizeUnit) / 2) ** 2).toFixed(2)} m²
                           </p>
                         )}
                       </div>
@@ -481,25 +495,25 @@ export default function CustomerRugDetail() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
-                            {form.shape === 'oval' ? 'Width / Axis A (m)' : 'Width (m)'} *
+                            {form.shape === 'oval' ? `Width / Axis A (${sizeUnit})` : `Width (${sizeUnit})`} *
                           </label>
                           <input type="number" name="size_w" value={form.size_w} onChange={handleFormChange}
-                            placeholder="2.4" step="0.01" min="0.5" required
+                            placeholder={sizeUnit === 'cm' ? '240' : '8'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
                             className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                           />
                         </div>
                         <div>
                           <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
-                            {form.shape === 'oval' ? 'Height / Axis B (m)' : 'Height (m)'} *
+                            {form.shape === 'oval' ? `Height / Axis B (${sizeUnit})` : `Height (${sizeUnit})`} *
                           </label>
                           <input type="number" name="size_h" value={form.size_h} onChange={handleFormChange}
-                            placeholder="1.8" step="0.01" min="0.5" required
+                            placeholder={sizeUnit === 'cm' ? '180' : '6'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
                             className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                           />
                         </div>
                         {form.shape === 'oval' && form.size_w && form.size_h && parseFloat(form.size_w) > 0 && parseFloat(form.size_h) > 0 && (
                           <p className="col-span-2 text-stone-400 text-xs -mt-1">
-                            Area ≈ {(Math.PI * (parseFloat(form.size_w) / 2) * (parseFloat(form.size_h) / 2)).toFixed(2)} m²
+                            Area ≈ {(Math.PI * (sizeWMetres / 2) * (sizeHMetres / 2)).toFixed(2)} m²
                           </p>
                         )}
                       </div>
@@ -607,7 +621,7 @@ export default function CustomerRugDetail() {
                               onClick={() => navigate('/checkout', {
                                 state: {
                                   rug_id: rug.id, rug_name: rug.name,
-                                  size_w: parseFloat(form.size_w), size_h: parseFloat(form.size_h),
+                                  size_w: sizeWMetres, size_h: sizeHMetres,
                                   qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
                                   notes: form.notes || undefined,
                                   estimated_price: priceResult.final_price,

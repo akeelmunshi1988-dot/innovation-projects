@@ -35,7 +35,7 @@ adduser loomcraft
 usermod -aG sudo loomcraft
 
 # Set up app directories (as root, no sudo needed)
-mkdir -p /var/www/loomcraft/innovation-projects/backend /var/www/loomcraft/frontend
+mkdir -p /var/www/loomcraft/innovation-projects/backend /var/www/loomcraft/innovation-projects/frontend
 chown -R loomcraft:loomcraft /var/www/loomcraft
 
 # Basic firewall
@@ -57,8 +57,10 @@ python3 --version
 sudo apt install -y python3-venv python3-dev python3-pip \
   build-essential libssl-dev libffi-dev \
   nginx certbot python3-certbot-nginx \
-  libopencv-dev python3-opencv
+  libopencv-dev python3-opencv ffmpeg
 ```
+
+> **ffmpeg** is required for the showcase-video upload endpoint to remux `.mov` uploads to `.mp4` (browsers often refuse to play `video/quicktime` even with a compatible codec). Without it, `.mov` uploads still work but keep their original container and may not play in Chrome/Firefox.
 
 > If Python 3.x is lower than 3.9, add the deadsnakes PPA:
 > ```bash
@@ -183,6 +185,8 @@ This creates:
 > python3 migrate_v5_ai_assistant_toggles.py
 > python3 migrate_v6_vendor_notification_email.py
 > python3 migrate_v7_showcase_video_intro.py
+> python3 migrate_v8_default_size_unit.py
+> python3 migrate_v9_quote_email_link_breakdown.py
 > deactivate
 > ```
 > Each script is idempotent (skips columns that already exist), so running all of them is safe even if some already applied.

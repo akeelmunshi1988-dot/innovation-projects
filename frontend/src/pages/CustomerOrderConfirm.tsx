@@ -1,10 +1,13 @@
+import { useEffect, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import {
   CheckCircle, Package, Truck, Clock, MapPin, ArrowRight, Search,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import { getPublicSettings } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
 import { fmtExact } from '../utils/currency';
+import { fmtDims } from '../utils/size';
 
 const STATUS_STEPS = [
   { key: 'pending',       label: 'Order Placed',   desc: 'Awaiting production confirmation' },
@@ -18,6 +21,11 @@ export default function CustomerOrderConfirm() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const order = location.state as CheckoutResponse | null;
+
+  const [sizeUnit, setSizeUnit] = useState('ft');
+  useEffect(() => {
+    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+  }, []);
 
   const currency = order?.price_currency ?? 'INR';
   const fmt = (n: number) => fmtExact(n, currency);
@@ -73,7 +81,7 @@ export default function CustomerOrderConfirm() {
             </div>
             <div>
               <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Size</p>
-              <p className="text-stone-700">{order.size}</p>
+              <p className="text-stone-700">{fmtDims(order.size_w, order.size_h, sizeUnit, order.shape)}</p>
             </div>
             <div>
               <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Quantity</p>

@@ -33,20 +33,28 @@ DEFAULT_TEMPLATES = {
     <tr><td style="padding:8px 0;color:#666">Size</td><td style="padding:8px 0">{{size}}</td></tr>
     <tr><td style="padding:8px 0;color:#666">Quantity</td><td style="padding:8px 0">{{qty}}</td></tr>
     <tr><td style="padding:8px 0;color:#666">Expected delivery</td><td style="padding:8px 0">{{expected_delivery}}</td></tr>
+    <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666">Subtotal</td><td style="padding:8px 0">{{subtotal}}</td></tr>
+    {{discount_line_html}}
+    <tr><td style="padding:8px 0;color:#666">GST</td><td style="padding:8px 0">{{gst_pct}}</td></tr>
     <tr style="border-top:2px solid #e5e5e5"><td style="padding:12px 0;color:#666;font-weight:600">Total Price</td>
     <td style="padding:12px 0;font-size:18px;font-weight:700;color:#d97706">{{price}}</td></tr>
   </table>
   {{note_html}}
-  <p>To <strong>accept or decline</strong> this quote, log in to your account and visit <em>My Quotes</em>.</p>
+  <p style="margin:24px 0"><a href="{{quote_link}}" style="background:#d97706;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">View My Quotes</a></p>
+  <p>To <strong>accept or decline</strong> this quote, click above or log in to your account and visit <em>My Quotes</em>.</p>
   <p style="color:#888;font-size:12px;margin-top:24px">This quote is valid for 7 days. For any queries, reply to this email.<br>— {{tenant_name}} Team</p>
 </div>
 </body></html>""",
         "body_text": (
             "Dear {{customer_name}},\n\n"
             "Your quote from {{tenant_name}} is ready.\n\n"
-            "Rug: {{rug_name}}\nSize: {{size}}\nQty: {{qty}}\nExpected delivery: {{expected_delivery}}\nTotal: {{price}}\n"
+            "Rug: {{rug_name}}\nSize: {{size}}\nQty: {{qty}}\nExpected delivery: {{expected_delivery}}\n"
+            "Subtotal: {{subtotal}}\n"
+            "{{discount_line_text}}"
+            "GST: {{gst_pct}}\n"
+            "Total: {{price}}\n"
             "{{note_text}}"
-            "\nLog in to your account and visit 'My Quotes' to accept or decline.\n\n– {{tenant_name}} Team"
+            "\nView and respond to your quote: {{quote_link}}\n\n– {{tenant_name}} Team"
         ),
     },
     "invoice_email": {

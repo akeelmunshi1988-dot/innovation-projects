@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Calculator, AlertTriangle, CheckCircle, Clock, DollarSign, Package, Send, UserPlus } from 'lucide-react';
+import { Calculator, AlertTriangle, CheckCircle, Clock, DollarSign, Package, Send, UserPlus, X } from 'lucide-react';
 import { getCatalog, getInventory, calculateQuote, getCustomers, createCustomer, createQuote, sendQuoteToCustomer } from '../services/api';
 import type { RugCatalog, Material, QuoteCalculateResponse, Customer } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
+import { toMetres } from '../utils/size';
 
 const QuoteBuilder: React.FC = () => {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ const QuoteBuilder: React.FC = () => {
   const [searchParams] = useSearchParams();
   const tenant = user!.tenant;
   const fmt = (n: number, currency?: string | null) => fmtTenant(n, tenant, currency);
+  const sizeUnit = tenant.default_size_unit ?? 'ft';
 
   const [rugs, setRugs] = useState<RugCatalog[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -40,6 +42,7 @@ const QuoteBuilder: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -97,8 +100,8 @@ const QuoteBuilder: React.FC = () => {
     try {
       const data = await calculateQuote({
         rug_id: Number(rugId),
-        size_w: parseFloat(sizeW),
-        size_h: parseFloat(sizeH),
+        size_w: toMetres(parseFloat(sizeW), sizeUnit),
+        size_h: toMetres(parseFloat(sizeH), sizeUnit),
         material_id: Number(materialId),
         qty: parseInt(qty) || 1,
         rush_order: rushOrder,
@@ -149,8 +152,8 @@ const QuoteBuilder: React.FC = () => {
         customer_id: Number(finalCustomerId),
         rug_catalog_id: Number(rugId),
         material_id: Number(materialId),
-        custom_size_w: parseFloat(sizeW),
-        custom_size_h: parseFloat(sizeH),
+        custom_size_w: toMetres(parseFloat(sizeW), sizeUnit),
+        custom_size_h: toMetres(parseFloat(sizeH), sizeUnit),
         qty: parseInt(qty) || 1,
         base_price: result.subtotal,
         final_price: result.final_price,
@@ -224,7 +227,7 @@ const QuoteBuilder: React.FC = () => {
               {/* Dimensions */}
               <div>
                 <label className="block text-cream-300 text-xs font-medium mb-1.5 uppercase tracking-wider">
-                  Dimensions (meters) *
+                  Dimensions ({sizeUnit}) *
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -232,8 +235,8 @@ const QuoteBuilder: React.FC = () => {
                     value={sizeW}
                     onChange={(e) => setSizeW(e.target.value)}
                     placeholder="Width"
-                    min="0.5"
-                    step="0.1"
+                    min={sizeUnit === 'cm' ? '30' : '1'}
+                    step={sizeUnit === 'cm' ? '1' : '0.1'}
                     className="input-field w-full text-sm"
                     required
                   />
@@ -243,15 +246,15 @@ const QuoteBuilder: React.FC = () => {
                     value={sizeH}
                     onChange={(e) => setSizeH(e.target.value)}
                     placeholder="Length"
-                    min="0.5"
-                    step="0.1"
+                    min={sizeUnit === 'cm' ? '30' : '1'}
+                    step={sizeUnit === 'cm' ? '1' : '0.1'}
                     className="input-field w-full text-sm"
                     required
                   />
                 </div>
                 {sizeW && sizeH && (
                   <p className="text-dark-500 text-xs mt-1">
-                    Area: {(parseFloat(sizeW) * parseFloat(sizeH)).toFixed(2)} sqm per piece
+                    Area: {(toMetres(parseFloat(sizeW), sizeUnit) * toMetres(parseFloat(sizeH), sizeUnit)).toFixed(2)} sqm per piece
                   </p>
                 )}
               </div>
@@ -349,13 +352,23 @@ const QuoteBuilder: React.FC = () => {
             <>
               {/* Summary card */}
               <div className="card bg-gold-900/10 border-gold-700/20 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <h2 className="text-cream-100 font-bold text-lg">Quote Summary</h2>
-                  {rushOrder && (
-                    <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/50 px-2 py-0.5 rounded-full">
-                      EARLY DELIVERY
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {rushOrder && (
+                      <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/50 px-2 py-0.5 rounded-full">
+                        EARLY DELIVERY
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowSendModal(true)}
+                      className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5 whitespace-nowrap"
+                    >
+                      {sendSuccess ? <CheckCircle size={13} /> : <Send size={13} />}
+                      {sendSuccess ? 'Quote Sent' : 'Send Quote to Customer'}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -395,127 +408,6 @@ const QuoteBuilder: React.FC = () => {
                     <p className="text-dark-500 text-xs mt-1">Expected delivery (editable)</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Customer + Send */}
-              <div className="card space-y-4">
-                <h3 className="text-cream-100 font-semibold">Customer &amp; Send</h3>
-
-                {!showNewCustomer ? (
-                  <div className="space-y-2">
-                    <label className="block text-cream-300 text-xs font-medium uppercase tracking-wider">
-                      Select Customer
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={customerId}
-                        onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="input-field w-full text-sm"
-                      >
-                        <option value="">Choose a customer...</option>
-                        {customers.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} {c.company ? `— ${c.company}` : `— ${c.email}`}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setShowNewCustomer(true)}
-                        className="flex-shrink-0 flex items-center gap-1.5 text-xs text-gold-400 hover:text-gold-300 border border-dark-600 rounded-lg px-3 py-2 transition-colors"
-                      >
-                        <UserPlus size={14} /> New
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3 bg-dark-800 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-cream-200 text-sm font-medium">New Customer</p>
-                      <button
-                        type="button"
-                        onClick={() => setShowNewCustomer(false)}
-                        className="text-dark-400 hover:text-cream-300 text-xs"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <input
-                      value={newCustomerName}
-                      onChange={(e) => setNewCustomerName(e.target.value)}
-                      placeholder="Name *"
-                      className="input-field w-full text-sm"
-                    />
-                    <input
-                      value={newCustomerEmail}
-                      onChange={(e) => setNewCustomerEmail(e.target.value)}
-                      placeholder="Email *"
-                      type="email"
-                      className="input-field w-full text-sm"
-                    />
-                    <input
-                      value={newCustomerPhone}
-                      onChange={(e) => setNewCustomerPhone(e.target.value)}
-                      placeholder="Phone (optional)"
-                      className="input-field w-full text-sm"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-cream-300 text-xs font-medium mb-1.5 uppercase tracking-wider">
-                    Note to Customer (optional)
-                  </label>
-                  <textarea
-                    value={vendorNotes}
-                    onChange={(e) => setVendorNotes(e.target.value)}
-                    rows={2}
-                    placeholder="e.g. Thanks for your interest — happy to adjust size or material."
-                    className="input-field w-full text-sm resize-none"
-                  />
-                </div>
-
-                {sendError && (
-                  <div className="flex items-start gap-2 bg-red-900/10 border border-red-700/30 rounded-lg p-3">
-                    <AlertTriangle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-300 text-xs">{sendError}</p>
-                  </div>
-                )}
-
-                {sendSuccess ? (
-                  <div className="flex items-center justify-between gap-3 bg-green-900/10 border border-green-700/30 rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle size={15} className="text-green-400 flex-shrink-0" />
-                      <p className="text-green-300 text-xs">{sendSuccess}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/admin/quotes')}
-                      className="text-xs text-gold-400 hover:text-gold-300 whitespace-nowrap"
-                    >
-                      View in Quotes →
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSaveAndSend}
-                    disabled={sending || (customerId === '' && !showNewCustomer)}
-                    className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50"
-                  >
-                    {sending ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send size={16} />
-                        Save &amp; Send Quote
-                      </>
-                    )}
-                  </button>
-                )}
               </div>
 
               {/* Price breakdown */}
@@ -597,6 +489,140 @@ const QuoteBuilder: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showSendModal && result && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSendModal(false)} />
+          <div className="relative bg-dark-900 border border-dark-700 rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-cream-100 font-semibold">Customer &amp; Send</h3>
+              <button
+                type="button"
+                onClick={() => setShowSendModal(false)}
+                className="text-dark-400 hover:text-cream-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {!showNewCustomer ? (
+              <div className="space-y-2">
+                <label className="block text-cream-300 text-xs font-medium uppercase tracking-wider">
+                  Select Customer
+                </label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="input-field w-full text-sm"
+                  >
+                    <option value="">Choose a customer...</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.company ? `— ${c.company}` : `— ${c.email}`}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCustomer(true)}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs text-gold-400 hover:text-gold-300 border border-dark-600 rounded-lg px-3 py-2 transition-colors"
+                  >
+                    <UserPlus size={14} /> New
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 bg-dark-800 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-cream-200 text-sm font-medium">New Customer</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCustomer(false)}
+                    className="text-dark-400 hover:text-cream-300 text-xs"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <input
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  placeholder="Name *"
+                  className="input-field w-full text-sm"
+                />
+                <input
+                  value={newCustomerEmail}
+                  onChange={(e) => setNewCustomerEmail(e.target.value)}
+                  placeholder="Email *"
+                  type="email"
+                  className="input-field w-full text-sm"
+                />
+                <input
+                  value={newCustomerPhone}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  placeholder="Phone (optional)"
+                  className="input-field w-full text-sm"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-cream-300 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                Note to Customer (optional)
+              </label>
+              <textarea
+                value={vendorNotes}
+                onChange={(e) => setVendorNotes(e.target.value)}
+                rows={2}
+                placeholder="e.g. Thanks for your interest — happy to adjust size or material."
+                className="input-field w-full text-sm resize-none"
+              />
+            </div>
+
+            {sendError && (
+              <div className="flex items-start gap-2 bg-red-900/10 border border-red-700/30 rounded-lg p-3">
+                <AlertTriangle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-red-300 text-xs">{sendError}</p>
+              </div>
+            )}
+
+            {sendSuccess ? (
+              <div className="flex items-center justify-between gap-3 bg-green-900/10 border border-green-700/30 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={15} className="text-green-400 flex-shrink-0" />
+                  <p className="text-green-300 text-xs">{sendSuccess}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/quotes')}
+                  className="text-xs text-gold-400 hover:text-gold-300 whitespace-nowrap"
+                >
+                  View in Quotes →
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSaveAndSend}
+                disabled={sending || (customerId === '' && !showNewCustomer)}
+                className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50"
+              >
+                {sending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Save &amp; Send Quote
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -131,11 +131,55 @@ async def replace_rug(
 
     rug = crop_to_content(rug)
 
-    # Resize rug to a standard rectangle
-    rug_width, rug_height = 1200, 800
-    rug = cv2.resize(rug, (rug_width, rug_height))
-
     h, w = room.shape[:2]
+    pts_dst = np.array(corner_points[:4], dtype=np.float32)
+
+    # Size the working canvas from the rug's own aspect ratio and from how
+    # large it will actually appear in the room photo, instead of a fixed
+    # 1200x800 box: a fixed box either squashed non-3:2 rug photos before
+    # the warp (visible pattern distortion), or forced an upscale — and
+    # therefore blur — whenever the marked area on a high-res room photo
+    # (phone photos are often 3000-4000px) was bigger than 1200x800.
+    dst_w = max(
+        float(np.linalg.norm(pts_dst[1] - pts_dst[0])),
+        float(np.linalg.norm(pts_dst[2] - pts_dst[3])),
+    )
+    dst_h = max(
+        float(np.linalg.norm(pts_dst[3] - pts_dst[0])),
+        float(np.linalg.norm(pts_dst[2] - pts_dst[1])),
+    )
+    if shape == "circle":
+        # Center-crop to a square so the circular mask sits on undistorted
+        # content instead of stretching a rectangular photo — most rug
+        # photography is shot with the main medallion/pattern roughly
+        # centred, so this keeps whichever part of the photo the circle
+        # will actually show. (A radial/polar remap was tried here first,
+        # but it only reads as a "round rug" for patterns with strong
+        # bilateral symmetry; on a typical dense, non-radial oriental
+        # pattern it smears into an unusable swirl.)
+        rh, rw = rug.shape[:2]
+        side = min(rh, rw)
+        y0 = (rh - side) // 2
+        x0 = (rw - side) // 2
+        rug = rug[y0:y0 + side, x0:x0 + side]
+
+        diameter = int(min(max(max(dst_w, dst_h) * 1.25, side), 2400))
+        resize_interp = cv2.INTER_AREA if diameter < side else cv2.INTER_LANCZOS4
+        rug = cv2.resize(rug, (diameter, diameter), interpolation=resize_interp)
+        rug_width = rug_height = diameter
+    else:
+        src_h, src_w = rug.shape[:2]
+        src_aspect = src_w / src_h
+
+        # Supersample ~1.25x the destination footprint so the perspective warp
+        # is slightly downsampling (crisp) rather than upsampling (soft); never
+        # downscale below the source's own resolution; cap so a rug marked very
+        # large on a huge room photo doesn't blow up processing time.
+        rug_width  = int(min(max(dst_w * 1.25, src_w), 2400))
+        rug_height = int(rug_width / src_aspect)
+
+        resize_interp = cv2.INTER_AREA if rug_width < src_w else cv2.INTER_LANCZOS4
+        rug = cv2.resize(rug, (rug_width, rug_height), interpolation=resize_interp)
 
     pts_src = np.array([
         [0,         0],
@@ -143,9 +187,8 @@ async def replace_rug(
         [rug_width, rug_height],
         [0,         rug_height],
     ], dtype=np.float32)
-    pts_dst    = np.array(corner_points[:4], dtype=np.float32)
     matrix     = cv2.getPerspectiveTransform(pts_src, pts_dst)
-    warped_rug = cv2.warpPerspective(rug, matrix, (w, h))
+    warped_rug = cv2.warpPerspective(rug, matrix, (w, h), flags=cv2.INTER_LANCZOS4)
 
     # Build flat mask in rug coordinate space then warp it
     flat_mask = np.zeros((rug_height, rug_width), dtype=np.uint8)
@@ -208,6 +251,7 @@ async def get_public_settings():
             "ai_assistant_enabled": tenant.ai_assistant_customer_enabled if tenant else True,
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
+            "default_size_unit": tenant.default_size_unit if tenant else "ft",
         }
     finally:
         db.close()
@@ -235,6 +279,31 @@ async def get_public_showcase_videos():
                 "is_intro": v.is_intro,
             }
             for v in videos
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/customer/workshop-photos")
+async def get_public_workshop_photos():
+    """Public, unauthenticated 'Inside the Workshop' gallery shown on the storefront homepage."""
+    from app.models.models import WorkshopPhoto
+    db = SessionLocal()
+    try:
+        photos = (
+            db.query(WorkshopPhoto)
+            .filter(WorkshopPhoto.is_active == True)
+            .order_by(WorkshopPhoto.sort_order.asc(), WorkshopPhoto.id.asc())
+            .all()
+        )
+        return [
+            {
+                "id": p.id,
+                "caption": p.caption,
+                "description": p.description,
+                "image_url": p.image_url,
+            }
+            for p in photos
         ]
     finally:
         db.close()
@@ -901,6 +970,9 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             "quote_id": quote.id,
             "rug_name": rug.name,
             "size": size_display,
+            "size_w": body.size_w,
+            "size_h": body.size_h,
+            "shape": shape,
             "qty": body.qty,
             "pre_gst_price": calc.get("pre_gst_price"),
             "gst_pct": calc.get("gst_pct", 12.0),
