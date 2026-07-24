@@ -18,6 +18,7 @@ import {
   Zap,
   Settings,
   Film,
+  Image,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { path: '/admin/assistant', label: 'AI Assistant', icon: <MessageSquare size={18} /> },
   { path: '/admin/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
   { path: '/admin/showcase-videos', label: 'Homepage Videos', icon: <Film size={18} /> },
+  { path: '/admin/workshop-photos', label: 'Workshop Photos', icon: <Image size={18} /> },
   { path: '/admin/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },
   { path: '/admin/quotes', label: 'Quotes', icon: <FileText size={18} /> },
   { path: '/admin/orders', label: 'Orders', icon: <ShoppingBag size={18} /> },
@@ -131,7 +133,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         {/* AI Credits meter */}
-        {user && (() => {
+        {user && user.tenant.ai_assistant_vendor_enabled !== false && (() => {
           const plan = user.tenant.plan;
           const used = user.tenant.ai_credits_used ?? 0;
           const limits: Record<string, number> = { starter: 200, growth: 1000, pro: -1 };

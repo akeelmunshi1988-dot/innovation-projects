@@ -23,6 +23,7 @@ export interface TenantInfo {
   ai_assistant_customer_enabled: boolean;
   ai_assistant_vendor_enabled: boolean;
   vendor_notification_email: string | null;
+  default_size_unit: string;
 }
 
 export interface AuthUser {

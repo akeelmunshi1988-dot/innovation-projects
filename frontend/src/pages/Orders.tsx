@@ -4,6 +4,7 @@ import { getOrders, updateOrderStatus, getOrderBreakdown } from '../services/api
 import type { Order, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
+import { fmtDim } from '../utils/size';
 
 type Breakdown = QuoteCalculateResponse & {
   stored_final_price: number | null;
@@ -240,7 +241,7 @@ const Orders: React.FC = () => {
                             <span className="text-dark-400">Size</span>
                             <span className="text-cream-200">
                               {quote?.custom_size_w && quote?.custom_size_h
-                                ? `${quote.custom_size_w} × ${quote.custom_size_h} m`
+                                ? `${fmtDim(quote.custom_size_w, user!.tenant.default_size_unit ?? 'ft')} × ${fmtDim(quote.custom_size_h, user!.tenant.default_size_unit ?? 'ft')} ${user!.tenant.default_size_unit ?? 'ft'}`
                                 : '—'}
                             </span>
                           </div>

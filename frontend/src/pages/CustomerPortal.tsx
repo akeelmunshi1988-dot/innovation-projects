@@ -4,6 +4,8 @@ import axios from "axios";
 import { RefreshCw, Download, Zap, Maximize2, X, Search, CheckCircle2, Send, CheckCircle, AlertTriangle, ShoppingBag, Calculator } from "lucide-react";
 import CustomerLayout from "../components/CustomerLayout";
 import { fmtExact, currencySymbol } from "../utils/currency";
+import { fmtSize, feetToUnit, toMetres } from "../utils/size";
+import { getPublicSettings } from "../services/api";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
 
 const CUSTOMER_CURRENCY = 'INR';
@@ -104,6 +106,7 @@ export default function CustomerPortal() {
   }
   const [estimate, setEstimate]         = useState<EstimateResult | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
+  const [sizeUnit, setSizeUnit] = useState('ft');
 
   const loadDefaultRoom = () => {
     fetch(DEFAULT_ROOM_SRC).then((r) => r.blob()).then((blob) => {
@@ -114,6 +117,7 @@ export default function CustomerPortal() {
   useEffect(() => {
     axios.get("/api/customer/catalog").then(({ data }) => setCatalog(data)).catch(() => {});
     loadDefaultRoom();
+    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -447,8 +451,8 @@ export default function CustomerPortal() {
 
   const handlePlaceOrder = async () => {
     if (!selectedRug) return;
-    const w = parseFloat(quoteForm.size_w);
-    const h = quoteForm.shape === 'circle' ? w : parseFloat(quoteForm.size_h);
+    const w = toMetres(parseFloat(quoteForm.size_w), sizeUnit);
+    const h = quoteForm.shape === 'circle' ? w : toMetres(parseFloat(quoteForm.size_h), sizeUnit);
     const qty = parseInt(quoteForm.qty) || 1;
     if (!w || (!h && quoteForm.shape !== 'circle')) {
       navigate(`/catalog/${selectedRug.id}`);
@@ -492,8 +496,8 @@ export default function CustomerPortal() {
     if (!selectedRug) return;
     setQuoteSubmitting(true); setQuoteError("");
     try {
-      const sw = parseFloat(quoteForm.size_w);
-      const sh = quoteForm.shape === 'circle' ? sw : parseFloat(quoteForm.size_h);
+      const sw = toMetres(parseFloat(quoteForm.size_w), sizeUnit);
+      const sh = quoteForm.shape === 'circle' ? sw : toMetres(parseFloat(quoteForm.size_h), sizeUnit);
       const { data } = await axios.post("/api/customer/request-quote", {
         name:       isCustomerAuthenticated && customer ? customer.name : quoteForm.name,
         email:      isCustomerAuthenticated && customer ? customer.email : quoteForm.email,
@@ -517,8 +521,8 @@ export default function CustomerPortal() {
 
   const handleEstimate = async () => {
     if (!selectedRug) return;
-    const sw = parseFloat(quoteForm.size_w);
-    const sh = quoteForm.shape === 'circle' ? sw : parseFloat(quoteForm.size_h);
+    const sw = toMetres(parseFloat(quoteForm.size_w), sizeUnit);
+    const sh = quoteForm.shape === 'circle' ? sw : toMetres(parseFloat(quoteForm.size_h), sizeUnit);
     if (!sw || (!sh && quoteForm.shape !== 'circle')) return;
     setEstimateLoading(true);
     try {
@@ -991,18 +995,20 @@ export default function CustomerPortal() {
                             <p className="text-xs uppercase tracking-widest text-stone-400">Standard Sizes</p>
                             <div className="flex flex-wrap gap-1.5">
                               {selectedRug.sizes.map((s) => {
-                                const [w, h] = s.split("x").map((v) => v.trim());
-                                const isActive = quoteForm.size_w === w && quoteForm.size_h === h;
+                                const [w, h] = s.split("x").map((v) => parseFloat(v.trim()));
+                                const dispW = String(feetToUnit(w, sizeUnit));
+                                const dispH = String(feetToUnit(h, sizeUnit));
+                                const isActive = quoteForm.size_w === dispW && quoteForm.size_h === dispH;
                                 return (
                                   <button key={s} type="button"
-                                    onClick={() => setQuoteForm((f) => ({ ...f, size_w: w, size_h: h }))}
+                                    onClick={() => setQuoteForm((f) => ({ ...f, size_w: dispW, size_h: dispH }))}
                                     className={`px-3 py-1 text-xs border transition-colors ${
                                       isActive
                                         ? "bg-stone-900 text-white border-stone-900"
                                         : "text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-900"
                                     }`}
                                   >
-                                    {s} ft
+                                    {fmtSize(s, sizeUnit)}
                                   </button>
                                 );
                               })}
@@ -1037,39 +1043,39 @@ export default function CustomerPortal() {
                         <div className="space-y-2">
                           {quoteForm.shape === 'circle' ? (
                             <>
-                              <p className="text-xs uppercase tracking-widest text-stone-400">Diameter (m)</p>
+                              <p className="text-xs uppercase tracking-widest text-stone-400">Diameter ({sizeUnit})</p>
                               <input
                                 name="size_w" value={quoteForm.size_w}
                                 onChange={e => setQuoteForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
-                                placeholder="e.g. 3.0" type="number" min="0.5" step="0.01" required
+                                placeholder={sizeUnit === 'cm' ? 'e.g. 300' : 'e.g. 10'} type="number" min={sizeUnit === 'cm' ? '30' : '1'} step={sizeUnit === 'cm' ? '1' : '0.1'} required
                                 className="w-40 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
                               />
                               {quoteForm.size_w && parseFloat(quoteForm.size_w) > 0 && (
                                 <p className="text-stone-400 text-xs">
-                                  Area ≈ {(Math.PI * (parseFloat(quoteForm.size_w) / 2) ** 2).toFixed(2)} m²
+                                  Area ≈ {(Math.PI * (toMetres(parseFloat(quoteForm.size_w), sizeUnit) / 2) ** 2).toFixed(2)} m²
                                 </p>
                               )}
                             </>
                           ) : (
                             <>
                               <p className="text-xs uppercase tracking-widest text-stone-400">
-                                {quoteForm.shape === 'oval' ? 'Axes (m)' : 'Size (m)'}
+                                {quoteForm.shape === 'oval' ? `Axes (${sizeUnit})` : `Size (${sizeUnit})`}
                               </p>
                               <div className="flex gap-2 items-center">
                                 <input name="size_w" value={quoteForm.size_w} onChange={handleQuoteChange}
-                                  placeholder={quoteForm.shape === 'oval' ? 'Axis A' : 'Width'} type="number" min="0.5" step="0.01" required
+                                  placeholder={quoteForm.shape === 'oval' ? 'Axis A' : 'Width'} type="number" min={sizeUnit === 'cm' ? '30' : '1'} step={sizeUnit === 'cm' ? '1' : '0.1'} required
                                   className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
                                 />
                                 <span className="text-stone-300 text-sm">×</span>
                                 <input name="size_h" value={quoteForm.size_h} onChange={handleQuoteChange}
-                                  placeholder={quoteForm.shape === 'oval' ? 'Axis B' : 'Height'} type="number" min="0.5" step="0.01" required
+                                  placeholder={quoteForm.shape === 'oval' ? 'Axis B' : 'Height'} type="number" min={sizeUnit === 'cm' ? '30' : '1'} step={sizeUnit === 'cm' ? '1' : '0.1'} required
                                   className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
                                 />
                               </div>
                               {quoteForm.shape === 'oval' && quoteForm.size_w && quoteForm.size_h &&
                                parseFloat(quoteForm.size_w) > 0 && parseFloat(quoteForm.size_h) > 0 && (
                                 <p className="text-stone-400 text-xs">
-                                  Area ≈ {(Math.PI * (parseFloat(quoteForm.size_w) / 2) * (parseFloat(quoteForm.size_h) / 2)).toFixed(2)} m²
+                                  Area ≈ {(Math.PI * (toMetres(parseFloat(quoteForm.size_w), sizeUnit) / 2) * (toMetres(parseFloat(quoteForm.size_h), sizeUnit) / 2)).toFixed(2)} m²
                                 </p>
                               )}
                             </>

@@ -231,6 +231,8 @@ def update_tenant_settings(
         tenant.ai_assistant_vendor_enabled = body.ai_assistant_vendor_enabled
     if body.vendor_notification_email is not None:
         tenant.vendor_notification_email = body.vendor_notification_email
+    if body.default_size_unit is not None:
+        tenant.default_size_unit = body.default_size_unit
     db.commit()
     db.refresh(tenant)
     return TenantPublic.model_validate(tenant)

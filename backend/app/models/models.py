@@ -32,6 +32,7 @@ class Tenant(Base):
     ai_assistant_customer_enabled = Column(Boolean, default=True)  # show AI chat widget to shoppers
     ai_assistant_vendor_enabled = Column(Boolean, default=True)    # show AI Assistant page to staff/admin
     vendor_notification_email = Column(String(200), nullable=True)  # where quote-request/review-request emails go; falls back to SMTP_FROM_EMAIL
+    default_size_unit = Column(String(10), default="ft")  # "ft" or "cm" — display unit for standard rug sizes
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -246,4 +247,17 @@ class ShowcaseVideo(Base):
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_intro = Column(Boolean, default=False)  # shown in the rotating hero slot instead of the "Behind the Craft" grid
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class WorkshopPhoto(Base):
+    __tablename__ = "workshop_photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    caption = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    image_url = Column(String(300), nullable=False)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

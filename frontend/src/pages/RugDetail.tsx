@@ -12,6 +12,7 @@ import {
 import type { RugCatalog, Quote, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant, CURRENCIES } from '../utils/currency';
+import { fmtSize, sizeAreaSqm, toMetres } from '../utils/size';
 
 const MATERIAL_BADGE: Record<string, string> = {
   wool:      'bg-amber-900/40 text-amber-300 border border-amber-700/40',
@@ -48,8 +49,8 @@ export default function RugDetail() {
   const [error, setError] = useState<string | null>(null);
 
   // Calculator
-  const [calcW, setCalcW] = useState('3');
-  const [calcH, setCalcH] = useState('4');
+  const [calcW, setCalcW] = useState(tenant.default_size_unit === 'cm' ? '90' : '3');
+  const [calcH, setCalcH] = useState(tenant.default_size_unit === 'cm' ? '120' : '4');
   const [calcQty, setCalcQty] = useState('1');
   const [calcRush, setCalcRush] = useState(false);
   const [calcResult, setCalcResult] = useState<QuoteCalculateResponse | null>(null);
@@ -121,8 +122,8 @@ export default function RugDetail() {
     try {
       const result = await calculateQuote({
         rug_id: rug.id,
-        size_w: w,
-        size_h: h,
+        size_w: toMetres(w, tenant.default_size_unit),
+        size_h: toMetres(h, tenant.default_size_unit),
         material_id: rug.material_id,
         qty,
         rush_order: calcRush,
@@ -350,11 +351,11 @@ export default function RugDetail() {
                   key={size}
                   className="group relative bg-dark-800 hover:bg-dark-750 border border-dark-600 hover:border-gold-600/40 rounded-xl px-4 py-2.5 transition-all cursor-default"
                 >
-                  <p className="text-cream-200 font-semibold text-sm">{size}m</p>
+                  <p className="text-cream-200 font-semibold text-sm">{fmtSize(size, tenant.default_size_unit)}</p>
                   {(() => {
-                    const [w, h] = size.split('x').map(Number);
-                    if (w && h) {
-                      return <p className="text-dark-500 text-xs">{(w * h).toFixed(1)} m²</p>;
+                    const area = sizeAreaSqm(size);
+                    if (area) {
+                      return <p className="text-dark-500 text-xs">{area.toFixed(1)} m²</p>;
                     }
                     return null;
                   })()}
@@ -472,7 +473,7 @@ export default function RugDetail() {
               {/* Width × Height */}
               <div>
                 <label className="text-cream-400 text-xs uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                  <Ruler size={11} /> Dimensions (meters)
+                  <Ruler size={11} /> Dimensions ({tenant.default_size_unit})
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 space-y-0.5">
@@ -480,8 +481,8 @@ export default function RugDetail() {
                       type="number"
                       value={calcW}
                       onChange={(e) => { setCalcW(e.target.value); setCalcResult(null); }}
-                      min="0.5"
-                      step="0.5"
+                      min={tenant.default_size_unit === 'cm' ? '30' : '1'}
+                      step={tenant.default_size_unit === 'cm' ? '5' : '0.5'}
                       placeholder="Width"
                       className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
                     />
@@ -493,8 +494,8 @@ export default function RugDetail() {
                       type="number"
                       value={calcH}
                       onChange={(e) => { setCalcH(e.target.value); setCalcResult(null); }}
-                      min="0.5"
-                      step="0.5"
+                      min={tenant.default_size_unit === 'cm' ? '30' : '1'}
+                      step={tenant.default_size_unit === 'cm' ? '5' : '0.5'}
                       placeholder="Length"
                       className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
                     />
@@ -503,7 +504,7 @@ export default function RugDetail() {
                 </div>
                 {calcW && calcH && (
                   <p className="text-gold-400/70 text-xs mt-1.5 text-right">
-                    {(parseFloat(calcW) * parseFloat(calcH)).toFixed(2)} m² per piece
+                    {(toMetres(parseFloat(calcW), tenant.default_size_unit) * toMetres(parseFloat(calcH), tenant.default_size_unit)).toFixed(2)} m² per piece
                   </p>
                 )}
               </div>
@@ -787,7 +788,7 @@ export default function RugDetail() {
 
               <div className="space-y-1.5">
                 <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                  Sizes (comma-separated, e.g. 2x3, 4x6, 6x9)
+                  Sizes (comma-separated, in feet, e.g. 2x3, 4x6, 6x9)
                 </label>
                 <input
                   value={editSizes}

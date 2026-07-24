@@ -17,6 +17,16 @@ export interface ShowcaseVideo {
   poster_url: string | null;
   sort_order: number;
   is_active: boolean;
+  is_intro: boolean;
+}
+
+export interface WorkshopPhoto {
+  id: number;
+  caption: string;
+  description: string | null;
+  image_url: string;
+  sort_order: number;
+  is_active: boolean;
 }
 
 export interface RugCatalog {

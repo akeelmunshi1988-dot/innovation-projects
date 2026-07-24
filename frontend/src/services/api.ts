@@ -12,6 +12,7 @@ import type {
   DashboardStats,
   EmailTemplate,
   ShowcaseVideo,
+  WorkshopPhoto,
 } from '../types';
 
 const api = axios.create({
@@ -93,6 +94,27 @@ export const updateShowcaseVideo = async (id: number, video: Partial<ShowcaseVid
 
 export const deleteShowcaseVideo = async (id: number): Promise<void> => {
   await api.delete(`/showcase-videos/${id}`);
+};
+
+// ── Workshop Photos ───────────────────────────────────────────────────────────
+
+export const getWorkshopPhotos = async (): Promise<WorkshopPhoto[]> => {
+  const { data } = await api.get<WorkshopPhoto[]>('/workshop-photos');
+  return data;
+};
+
+export const createWorkshopPhoto = async (photo: Partial<WorkshopPhoto>): Promise<WorkshopPhoto> => {
+  const { data } = await api.post<WorkshopPhoto>('/workshop-photos', photo);
+  return data;
+};
+
+export const updateWorkshopPhoto = async (id: number, photo: Partial<WorkshopPhoto>): Promise<WorkshopPhoto> => {
+  const { data } = await api.put<WorkshopPhoto>(`/workshop-photos/${id}`, photo);
+  return data;
+};
+
+export const deleteWorkshopPhoto = async (id: number): Promise<void> => {
+  await api.delete(`/workshop-photos/${id}`);
 };
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -371,6 +393,7 @@ export const getPublicSettings = async (): Promise<{
   ai_assistant_enabled: boolean;
   business_name: string | null;
   logo_url: string | null;
+  default_size_unit: string;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;
@@ -450,6 +473,9 @@ export interface CheckoutResponse {
   quote_id: number;
   rug_name: string;
   size: string;
+  size_w: number;
+  size_h: number;
+  shape?: string;
   qty: number;
   pre_gst_price: number | null;
   gst_pct: number;

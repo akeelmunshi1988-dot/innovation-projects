@@ -34,6 +34,7 @@ import BusinessSettings from './pages/BusinessSettings';
 import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import ShowcaseVideos from './pages/ShowcaseVideos';
+import WorkshopPhotos from './pages/WorkshopPhotos';
 
 function App() {
   return (
@@ -70,6 +71,7 @@ function App() {
                     <Route path="catalog" element={<Catalog />} />
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
+                    <Route path="workshop-photos" element={<WorkshopPhotos />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="inventory" element={<Inventory />} />

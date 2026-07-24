@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '../components/CustomerLayout';
-import { getMyOrders, getCustomerOrderBreakdown } from '../services/api';
+import { getMyOrders, getCustomerOrderBreakdown, getPublicSettings } from '../services/api';
 import type { CustomerOrder, OrderBreakdown } from '../services/api';
 import { fmtExact } from '../utils/currency';
+import { fmtDims } from '../utils/size';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import axios from 'axios';
 
@@ -17,7 +18,7 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   cancelled:     { label: 'Cancelled',      color: 'text-red-600 border-red-200 bg-red-50',          dot: 'bg-red-400' },
 };
 
-function OrderCard({ order, email, customerToken }: { order: CustomerOrder; email: string; customerToken: string | null }) {
+function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerOrder; email: string; customerToken: string | null; sizeUnit: string }) {
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null);
@@ -99,7 +100,7 @@ function OrderCard({ order, email, customerToken }: { order: CustomerOrder; emai
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
                 {order.rug_shape === 'circle' ? 'Diameter' : 'Size'} (per piece)
               </p>
-              <p className="text-stone-900 text-sm">{order.size}</p>
+              <p className="text-stone-900 text-sm">{fmtDims(order.size_w, order.size_h, sizeUnit, order.rug_shape)}</p>
               {order.size_sqm != null && (
                 <p className="text-stone-400 text-xs mt-0.5">{order.size_sqm.toFixed(2)} m²</p>
               )}
@@ -329,6 +330,11 @@ export default function CustomerMyOrders() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [sizeUnit, setSizeUnit] = useState('ft');
+
+  useEffect(() => {
+    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+  }, []);
 
   interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
 
@@ -559,7 +565,7 @@ export default function CustomerMyOrders() {
               </div>
             )}
 
-            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} />)}
+            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} sizeUnit={sizeUnit} />)}
 
             {hasMore && (
               <button
@@ -646,7 +652,7 @@ export default function CustomerMyOrders() {
                 <p className="text-stone-400 text-sm">
                   Found <span className="text-stone-900 font-medium">{guestTotal}</span> order{guestTotal !== 1 ? 's' : ''} for {searchedEmail}
                 </p>
-                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} />)}
+                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} sizeUnit={sizeUnit} />)}
                 {guestHasMore && (
                   <button
                     onClick={handleGuestLoadMore}

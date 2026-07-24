@@ -35,7 +35,7 @@ adduser loomcraft
 usermod -aG sudo loomcraft
 
 # Set up app directories (as root, no sudo needed)
-mkdir -p /var/www/loomcraft/innovation-projects/backend /var/www/loomcraft/frontend
+mkdir -p /var/www/loomcraft/innovation-projects/backend /var/www/loomcraft/innovation-projects/frontend
 chown -R loomcraft:loomcraft /var/www/loomcraft
 
 # Basic firewall
@@ -183,6 +183,8 @@ This creates:
 > python3 migrate_v5_ai_assistant_toggles.py
 > python3 migrate_v6_vendor_notification_email.py
 > python3 migrate_v7_showcase_video_intro.py
+> python3 migrate_v8_default_size_unit.py
+> python3 migrate_v9_quote_email_link_breakdown.py
 > deactivate
 > ```
 > Each script is idempotent (skips columns that already exist), so running all of them is safe even if some already applied.

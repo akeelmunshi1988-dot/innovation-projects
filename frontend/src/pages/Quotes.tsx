@@ -7,6 +7,7 @@ import { getQuotes, updateQuote, downloadInvoice, sendQuoteEmail, sendQuoteToCus
 import type { Quote } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
+import { fmtDim } from '../utils/size';
 
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   draft:    { label: 'Draft',    color: 'text-dark-400 bg-dark-800 border-dark-700',          icon: <Clock size={12} /> },
@@ -23,11 +24,13 @@ interface EmailModalState {
   type: 'proforma' | 'tax' | 'export';
 }
 
-function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) => string): string {
+function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) => string, sizeUnit: string): string {
   const phone = q.customer?.phone?.replace(/\D/g, '') ?? '';
   const name = q.customer?.name ?? 'there';
   const rug = q.rug_catalog?.name ?? `Rug #${q.rug_catalog_id}`;
-  const size = q.custom_size_w && q.custom_size_h ? `${q.custom_size_w}×${q.custom_size_h}m` : '';
+  const size = q.custom_size_w && q.custom_size_h
+    ? `${fmtDim(q.custom_size_w, sizeUnit)}×${fmtDim(q.custom_size_h, sizeUnit)} ${sizeUnit}`
+    : '';
   const price = q.final_price != null ? fmt(q.final_price, q.price_currency) : 'TBD';
   const msg = [
     `Hi ${name},`,
@@ -49,6 +52,7 @@ function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) =
 export default function Quotes() {
   const { user } = useAuth();
   const fmt = (n: number, currency?: string | null) => fmtTenant(n, user!.tenant, currency);
+  const sizeUnit = user!.tenant.default_size_unit ?? 'ft';
 
   const [quotes, setQuotes]         = useState<Quote[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -329,9 +333,10 @@ export default function Quotes() {
         <PipelineView
           quotes={baseFiltered}
           fmt={fmt}
+          sizeUnit={sizeUnit}
           updating={updating}
           onChangeStatus={changeStatus}
-          onWhatsApp={(q) => window.open(buildWhatsAppUrl(q, fmt), '_blank')}
+          onWhatsApp={(q) => window.open(buildWhatsAppUrl(q, fmt, sizeUnit), '_blank')}
           onEmail={openEmailModal}
           onDownload={downloadInvoice}
         />
@@ -359,11 +364,12 @@ export default function Quotes() {
               key={q.id}
               q={q}
               fmt={fmt}
+              sizeUnit={sizeUnit}
               isOpen={expanded === q.id}
               updating={updating}
               onToggle={() => setExpanded(expanded === q.id ? null : q.id)}
               onChangeStatus={changeStatus}
-              onWhatsApp={() => window.open(buildWhatsAppUrl(q, fmt), '_blank')}
+              onWhatsApp={() => window.open(buildWhatsAppUrl(q, fmt, sizeUnit), '_blank')}
               onEmail={() => openEmailModal(q)}
               onDownload={downloadInvoice}
               onSend={() => setSendModal({ quoteId: q.id, vendorNotes: q.vendor_notes ?? '' })}
@@ -594,6 +600,7 @@ export default function Quotes() {
 interface QuoteRowProps {
   q: Quote;
   fmt: (n: number, currency?: string | null) => string;
+  sizeUnit: string;
   isOpen: boolean;
   updating: number | null;
   onToggle: () => void;
@@ -605,9 +612,12 @@ interface QuoteRowProps {
   onAdjust: () => void;
 }
 
-function QuoteRow({ q, fmt, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust }: QuoteRowProps) {
+function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust }: QuoteRowProps) {
   const meta = STATUS_META[q.status];
   const sqm  = q.custom_size_w && q.custom_size_h ? (q.custom_size_w * q.custom_size_h).toFixed(2) : null;
+  const dims = q.custom_size_w && q.custom_size_h
+    ? `${fmtDim(q.custom_size_w, sizeUnit)}×${fmtDim(q.custom_size_h, sizeUnit)} ${sizeUnit}`
+    : null;
 
   return (
     <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
@@ -629,7 +639,7 @@ function QuoteRow({ q, fmt, isOpen, updating, onToggle, onChangeStatus, onWhatsA
           </div>
           <p className="text-dark-400 text-xs truncate mt-0.5">
             {q.rug_catalog?.name ?? `Rug #${q.rug_catalog_id}`}
-            {sqm && ` · ${q.custom_size_w}×${q.custom_size_h}m (${sqm}m²)`}
+            {sqm && ` · ${dims} (${sqm}m²)`}
             {q.qty > 1 && ` · qty ${q.qty}`}
           </p>
         </div>
@@ -662,7 +672,7 @@ function QuoteRow({ q, fmt, isOpen, updating, onToggle, onChangeStatus, onWhatsA
             </div>
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Specs</p>
-              {sqm && <p className="text-cream-200 font-medium">{q.custom_size_w} × {q.custom_size_h}m</p>}
+              {sqm && <p className="text-cream-200 font-medium">{dims}</p>}
               <p className="text-dark-400 text-xs">Qty: {q.qty} · {q.rush_order ? 'Early Delivery' : 'Standard'}</p>
             </div>
             <div>
@@ -791,6 +801,7 @@ function QuoteRow({ q, fmt, isOpen, updating, onToggle, onChangeStatus, onWhatsA
 interface PipelineProps {
   quotes: Quote[];
   fmt: (n: number, currency?: string | null) => string;
+  sizeUnit: string;
   updating: number | null;
   onChangeStatus: (id: number, status: Quote['status']) => void;
   onWhatsApp: (q: Quote) => void;
@@ -819,7 +830,7 @@ const NEXT_STATUS: Record<string, Quote['status'] | null> = {
   rejected: null,
 };
 
-function PipelineView({ quotes, fmt, updating, onChangeStatus, onWhatsApp, onEmail, onDownload }: PipelineProps) {
+function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhatsApp, onEmail, onDownload }: PipelineProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-start">
       {STATUS_ORDER.map((status) => {
@@ -866,7 +877,11 @@ function PipelineView({ quotes, fmt, updating, onChangeStatus, onWhatsApp, onEma
                     <div>
                       <p className="text-dark-300 text-xs truncate">{q.rug_catalog?.name ?? `#${q.rug_catalog_id}`}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        {sqm && <span className="text-dark-500 text-[10px]">{q.custom_size_w}×{q.custom_size_h}m</span>}
+                        {sqm && (
+                          <span className="text-dark-500 text-[10px]">
+                            {fmtDim(q.custom_size_w!, sizeUnit)}×{fmtDim(q.custom_size_h!, sizeUnit)} {sizeUnit}
+                          </span>
+                        )}
                         {q.rush_order && <span className="text-[10px] text-orange-400 font-semibold">Early</span>}
                       </div>
                     </div>

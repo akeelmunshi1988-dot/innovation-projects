@@ -8,6 +8,8 @@ import axios from 'axios';
 import CustomerLayout from '../components/CustomerLayout';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { fmtExact } from '../utils/currency';
+import { fmtDims } from '../utils/size';
+import { getPublicSettings } from '../services/api';
 
 interface CustomerQuote {
   quote_id: number;
@@ -44,7 +46,7 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   rejected: { label: 'Rejected',              color: 'text-red-600 border-red-200 bg-red-50',             dot: 'bg-red-400' },
 };
 
-function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () => void }) {
+function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeUnit: string; onRefresh: () => void }) {
   const { customerToken } = useCustomerAuth();
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(quote.status === 'sent');
@@ -148,7 +150,7 @@ function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () =
         <div className="flex-1 min-w-0">
           <p className="font-serif text-base font-light text-stone-900 truncate">{quote.rug_name}</p>
           <p className="text-stone-400 text-xs mt-0.5">
-            Quote #{quote.quote_id} · {quote.created_at ?? '—'} · {quote.size}
+            Quote #{quote.quote_id} · {quote.created_at ?? '—'} · {fmtDims(quote.size_w, quote.size_h, sizeUnit)}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
@@ -169,7 +171,7 @@ function QuoteCard({ quote, onRefresh }: { quote: CustomerQuote; onRefresh: () =
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Size</p>
-              <p className="text-stone-900 text-sm">{quote.size}</p>
+              <p className="text-stone-900 text-sm">{fmtDims(quote.size_w, quote.size_h, sizeUnit)}</p>
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Qty</p>
@@ -469,6 +471,11 @@ export default function CustomerMyQuotes() {
   const [sizeMax, setSizeMax] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [sizeUnit, setSizeUnit] = useState('ft');
+
+  useEffect(() => {
+    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+  }, []);
 
   interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
 
@@ -710,7 +717,7 @@ export default function CustomerMyQuotes() {
           )}
 
           {!loading && quotes.map((q: CustomerQuote) => (
-            <QuoteCard key={q.quote_id} quote={q} onRefresh={() => fetchPage(1, currentOpts(), false)} />
+            <QuoteCard key={q.quote_id} quote={q} sizeUnit={sizeUnit} onRefresh={() => fetchPage(1, currentOpts(), false)} />
           ))}
 
           {!loading && hasMore && (

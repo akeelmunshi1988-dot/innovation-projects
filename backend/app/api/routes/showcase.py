@@ -1,9 +1,10 @@
 import os
 import uuid
+import cv2
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.models import ShowcaseVideo, StaffUser
@@ -16,6 +17,32 @@ MAX_VIDEO_SIZE_MB = 50
 MAX_IMAGE_SIZE_MB = 5
 
 router = APIRouter()
+
+
+def _extract_poster_frame(video_path: str, poster_path: str) -> bool:
+    """Grabs a representative frame from a video file and saves it as a JPEG poster.
+    Seeks ~10% into the video (skips a possibly-black opening frame). Returns True on success."""
+    cap = cv2.VideoCapture(video_path)
+    try:
+        if not cap.isOpened():
+            return False
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        target_frame = max(1, int(frame_count * 0.1)) if frame_count > 0 else 0
+        cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+        ok, frame = cap.read()
+        if not ok:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ok, frame = cap.read()
+        if not ok:
+            return False
+        ok2, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if not ok2:
+            return False
+        with open(poster_path, "wb") as f:
+            f.write(buf.tobytes())
+        return True
+    finally:
+        cap.release()
 
 
 @router.post("/showcase-videos/upload-video")
@@ -38,7 +65,13 @@ async def upload_showcase_video(
     with open(filepath, "wb") as f:
         f.write(contents)
 
-    return JSONResponse({"url": f"/static/showcase/{filename}"})
+    poster_url: Optional[str] = None
+    poster_filename = f"{uuid.uuid4().hex}-poster.jpg"
+    poster_path = os.path.join(UPLOAD_DIR, poster_filename)
+    if _extract_poster_frame(filepath, poster_path):
+        poster_url = f"/static/showcase/{poster_filename}"
+
+    return JSONResponse({"url": f"/static/showcase/{filename}", "poster_url": poster_url})
 
 
 @router.post("/showcase-videos/upload-poster")
