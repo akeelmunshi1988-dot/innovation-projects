@@ -24,6 +24,10 @@ export interface TenantInfo {
   ai_assistant_vendor_enabled: boolean;
   vendor_notification_email: string | null;
   default_size_unit: string;
+  contact_emails: string[];
+  contact_phones: string[];
+  contact_address: string | null;
+  contact_hours: string | null;
 }
 
 export interface AuthUser {

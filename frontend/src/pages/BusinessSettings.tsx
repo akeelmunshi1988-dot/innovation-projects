@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign } from 'lucide-react';
+import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign, Phone, X, Plus } from 'lucide-react';
 import axios from 'axios';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -8,13 +8,14 @@ import { SIZE_UNITS } from '../utils/size';
 import { getEmailTemplates, updateEmailTemplate } from '../services/api';
 import type { EmailTemplate } from '../types';
 
-type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'templates' | 'account';
+type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general',   label: 'General',         icon: <Building2 size={15} /> },
   { id: 'currency',  label: 'Currency',        icon: <DollarSign size={15} /> },
   { id: 'pricing',   label: 'Pricing',         icon: <TrendingUp size={15} /> },
   { id: 'gst',       label: 'GST & Tax',       icon: <FileText size={15} /> },
+  { id: 'contact',   label: 'Contact',         icon: <Phone size={15} /> },
   { id: 'templates', label: 'Email Templates', icon: <Mail size={15} /> },
   { id: 'account',   label: 'Account',         icon: <User size={15} /> },
 ];
@@ -79,6 +80,25 @@ export default function BusinessSettings() {
   // Notifications
   const [vendorNotificationEmail, setVendorNotificationEmail] = useState(tenant.vendor_notification_email ?? '');
 
+  // Contact (public "About Us" page)
+  const [contactEmails, setContactEmails] = useState<string[]>(tenant.contact_emails ?? []);
+  const [contactPhones, setContactPhones] = useState<string[]>(tenant.contact_phones ?? []);
+  const [contactAddress, setContactAddress] = useState(tenant.contact_address ?? '');
+  const [contactHours, setContactHours] = useState(tenant.contact_hours ?? '');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+
+  const addContactEmail = () => {
+    const v = newContactEmail.trim();
+    if (v && !contactEmails.includes(v)) setContactEmails((prev) => [...prev, v]);
+    setNewContactEmail('');
+  };
+  const addContactPhone = () => {
+    const v = newContactPhone.trim();
+    if (v && !contactPhones.includes(v)) setContactPhones((prev) => [...prev, v]);
+    setNewContactPhone('');
+  };
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -118,13 +138,18 @@ export default function BusinessSettings() {
   const dirtyCurrency = currency !== tenant.currency || ratesChanged;
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct;
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '');
-  const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst;
+  const dirtyContact  = JSON.stringify(contactEmails) !== JSON.stringify(tenant.contact_emails ?? [])
+    || JSON.stringify(contactPhones) !== JSON.stringify(tenant.contact_phones ?? [])
+    || contactAddress !== (tenant.contact_address ?? '')
+    || contactHours !== (tenant.contact_hours ?? '');
+  const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
 
   const tabDirty: Record<Tab, boolean> = {
     general: dirtyGeneral,
     currency: dirtyCurrency,
     pricing: dirtyPricing,
     gst: dirtyGst,
+    contact: dirtyContact,
     templates: false,
     account: false,
   };
@@ -157,6 +182,10 @@ export default function BusinessSettings() {
         ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
         vendor_notification_email: vendorNotificationEmail.trim() || undefined,
         default_size_unit: sizeUnit,
+        contact_emails: contactEmails,
+        contact_phones: contactPhones,
+        contact_address: contactAddress.trim() || undefined,
+        contact_hours: contactHours.trim() || undefined,
       });
       updateTenant(data);
       setSaved(true);
@@ -708,6 +737,92 @@ export default function BusinessSettings() {
                 </div>
               </div>
             )}
+
+            <SaveBar />
+          </div>
+        )}
+
+        {/* ── Contact ─────────────────────────────────────────────────────────── */}
+        {tab === 'contact' && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-cream-100 font-semibold text-base">Contact Details</h2>
+              <p className="text-dark-500 text-xs mt-0.5">Shown on your public "About Us" / Contact page. Add as many emails and phone numbers as you like.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Email Addresses</label>
+              <div className="flex flex-wrap gap-2">
+                {contactEmails.map((e) => (
+                  <span key={e} className="flex items-center gap-1.5 bg-dark-800 border border-dark-700 rounded-lg pl-3 pr-2 py-1.5 text-cream-200 text-sm">
+                    {e}
+                    <button type="button" onClick={() => setContactEmails((prev) => prev.filter((x) => x !== e))} className="text-dark-500 hover:text-red-400 transition-colors">
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <input
+                  type="email"
+                  value={newContactEmail}
+                  onChange={(e) => setNewContactEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addContactEmail(); } }}
+                  placeholder="hello@yourbusiness.com"
+                  className={inputCls}
+                />
+                <button type="button" onClick={addContactEmail} className="btn-secondary flex items-center gap-1.5 px-4 text-sm whitespace-nowrap">
+                  <Plus size={14} /> Add
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Phone Numbers</label>
+              <div className="flex flex-wrap gap-2">
+                {contactPhones.map((p) => (
+                  <span key={p} className="flex items-center gap-1.5 bg-dark-800 border border-dark-700 rounded-lg pl-3 pr-2 py-1.5 text-cream-200 text-sm">
+                    {p}
+                    <button type="button" onClick={() => setContactPhones((prev) => prev.filter((x) => x !== p))} className="text-dark-500 hover:text-red-400 transition-colors">
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <input
+                  value={newContactPhone}
+                  onChange={(e) => setNewContactPhone(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addContactPhone(); } }}
+                  placeholder="+91 00000 00000"
+                  className={inputCls}
+                />
+                <button type="button" onClick={addContactPhone} className="btn-secondary flex items-center gap-1.5 px-4 text-sm whitespace-nowrap">
+                  <Plus size={14} /> Add
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Workshop / Visiting Address</label>
+              <textarea
+                value={contactAddress}
+                onChange={(e) => setContactAddress(e.target.value)}
+                rows={3}
+                placeholder="Shown publicly — can differ from your registered GST address"
+                className={inputCls + ' resize-none'}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Hours</label>
+              <input
+                value={contactHours}
+                onChange={(e) => setContactHours(e.target.value)}
+                placeholder="Mon–Sat, 9am–6pm"
+                className={inputCls}
+              />
+            </div>
 
             <SaveBar />
           </div>

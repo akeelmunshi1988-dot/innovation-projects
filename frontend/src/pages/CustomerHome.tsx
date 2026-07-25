@@ -64,6 +64,9 @@ export default function CustomerHome() {
   const [introIndex, setIntroIndex] = useState(0);
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
+  const [craftGridVisible, setCraftGridVisible] = useState(true);
+  const [craftRugPool, setCraftRugPool] = useState<CatalogRug[]>([]);
+  const [craftChunkIndex, setCraftChunkIndex] = useState(0);
 
   useEffect(() => {
     setCatalogLoading(true);
@@ -90,6 +93,44 @@ export default function CustomerHome() {
       .then((data) => setAiConsultantEnabled(data.ai_assistant_enabled))
       .catch(() => setAiConsultantEnabled(true));
   }, []);
+
+  // Rug grid over the "Our Craft" background video: shows up to 12 random rugs, 4 at a
+  // time, swapping to the next 4 every 20s (up to 3 transitions). Once all 12 have been
+  // shown, the grid hides for 20s (letting the video play alone) before reshuffling a
+  // fresh random set and starting over.
+  useEffect(() => {
+    if (catalog.length === 0) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const shuffle = () => [...catalog].sort(() => Math.random() - 0.5).slice(0, 12);
+
+    const runCycle = () => {
+      if (cancelled) return;
+      const pool = shuffle();
+      const chunkCount = Math.max(1, Math.ceil(pool.length / 4));
+      setCraftRugPool(pool);
+      setCraftChunkIndex(0);
+      setCraftGridVisible(true);
+
+      let i = 0;
+      const showNextChunk = () => {
+        if (cancelled) return;
+        i += 1;
+        if (i < chunkCount) {
+          setCraftChunkIndex(i);
+          timer = setTimeout(showNextChunk, 20000);
+        } else {
+          setCraftGridVisible(false);
+          timer = setTimeout(runCycle, 20000);
+        }
+      };
+      timer = setTimeout(showNextChunk, 20000);
+    };
+
+    runCycle();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [catalog]);
 
   const featured = catalog.slice(0, 6);
   const introVideos = videos.filter((v) => v.is_intro).length > 0
@@ -166,7 +207,6 @@ export default function CustomerHome() {
                   <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors duration-300" />
                   <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-stone-900/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                     <p className="text-white text-xs font-medium truncate">{rug.name}</p>
-                    <p className="text-stone-300 text-xs">{sym}{rug.base_price_per_sqm}/sqm</p>
                   </div>
                 </Link>
               ))}
@@ -175,83 +215,108 @@ export default function CustomerHome() {
         </section>
       )}
 
-      {/* ── OUR CRAFT (intro description + featured video) ──────────────── */}
+      {/* ── OUR CRAFT (full-width background video + rug mosaic) ─────────── */}
       {introVideo && (
-        <section className="max-w-7xl mx-auto px-6 pt-16 pb-24">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-16 lg:gap-20 items-center">
+        <section className="relative overflow-hidden min-h-[640px] flex items-center py-20">
+          {/* Full-bleed background video */}
+          <div className="absolute inset-0">
+            {introVideo.poster_url && (
+              <img
+                src={introVideo.poster_url}
+                alt={introVideo.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )}
+            <video
+              key={introVideo.id}
+              className="absolute inset-0 w-full h-full object-cover"
+              src={introVideo.video_url}
+              poster={introVideo.poster_url || undefined}
+              autoPlay
+              muted
+              loop={introVideos.length <= 1}
+              playsInline
+              onEnded={() => setIntroIndex((i) => (i + 1) % introVideos.length)}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-stone-900/85 via-stone-900/55 to-stone-900/20" />
+          </div>
 
-            {/* Description */}
-            <div className="space-y-6">
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Our Craft</p>
-              <h2 className="font-serif text-4xl font-light text-stone-900 leading-tight">
-                Where tradition meets<br />precision
-              </h2>
-              <p className="text-stone-500 leading-relaxed">
-                Every rug that leaves our workshop passes through the hands of master weavers
-                who have spent years perfecting their craft. We blend time-honoured
-                techniques — hand-knotting, natural dyeing, meticulous finishing — with
-                rigorous quality control at every stage, so each piece meets the standards
-                discerning buyers expect: consistent weave density, accurate sizing, and
-                colourfast dyes.
-              </p>
-              <p className="text-stone-500 leading-relaxed">
-                From raw fibre to finished rug, nothing ships until it earns our mark of approval.
-              </p>
-              <ul className="space-y-2 pt-2">
-                {['Hand-knotted, made to order', 'Natural, colourfast dyes', 'Quality-checked before dispatch'].map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm text-stone-600">
-                    <span className="w-1 h-1 rounded-full bg-stone-400 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
+          <div className="relative max-w-7xl mx-auto px-6 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-16 lg:gap-20 items-center">
 
-              <div className="flex flex-wrap items-center gap-4 pt-2">
-                <Link
-                  to="/catalog"
-                  className="inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
-                >
-                  Explore Collection <ArrowRight size={14} />
-                </Link>
-                <Link
-                  to="/visualizer"
-                  className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
-                >
-                  Try Room Visualizer
-                </Link>
-              </div>
-            </div>
+              {/* Description */}
+              <div className="space-y-6">
+                <p className="text-xs tracking-[0.2em] uppercase text-stone-300">Our Craft</p>
+                <h2 className="font-serif text-4xl font-light text-white leading-tight">
+                  Where tradition meets<br />precision
+                </h2>
+                <p className="text-stone-200 leading-relaxed">
+                  Every rug that leaves our workshop passes through the hands of master weavers
+                  who have spent years perfecting their craft. We blend time-honoured
+                  techniques — hand-knotting, natural dyeing, meticulous finishing — with
+                  rigorous quality control at every stage, so each piece meets the standards
+                  discerning buyers expect: consistent weave density, accurate sizing, and
+                  colourfast dyes.
+                </p>
+                <p className="text-stone-200 leading-relaxed">
+                  From raw fibre to finished rug, nothing ships until it earns our mark of approval.
+                </p>
+                <ul className="space-y-2 pt-2">
+                  {['Hand-knotted, made to order', 'Natural, colourfast dyes', 'Quality-checked before dispatch'].map((f) => (
+                    <li key={f} className="flex items-center gap-2.5 text-sm text-stone-200">
+                      <span className="w-1 h-1 rounded-full bg-stone-300 flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
 
-            {/* Featured intro video */}
-            <div className="relative">
-              {/* Offset accent frame */}
-              <div className="hidden sm:block absolute -bottom-4 -right-4 w-full h-full bg-stone-900/90 rounded-2xl" />
-
-              <div className="relative overflow-hidden bg-stone-100 aspect-[4/3] rounded-2xl shadow-2xl ring-1 ring-stone-900/5">
-                {introVideo.poster_url && (
-                  <img
-                    src={introVideo.poster_url}
-                    alt={introVideo.title}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                )}
-                <video
-                  key={introVideo.id}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  src={introVideo.video_url}
-                  poster={introVideo.poster_url || undefined}
-                  autoPlay
-                  muted
-                  loop={introVideos.length <= 1}
-                  playsInline
-                  onEnded={() => setIntroIndex((i) => (i + 1) % introVideos.length)}
-                />
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-stone-900/80 via-stone-900/20 to-transparent">
-                  <p className="text-white font-serif text-xl font-light">{introVideo.title}</p>
-                  {introVideo.description && (
-                    <p className="text-stone-300 text-sm mt-1">{introVideo.description}</p>
-                  )}
+                <div className="flex flex-wrap items-center gap-4 pt-2">
+                  <Link
+                    to="/catalog"
+                    className="inline-flex items-center gap-3 bg-white hover:bg-stone-100 text-stone-900 text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
+                  >
+                    Explore Collection <ArrowRight size={14} />
+                  </Link>
+                  <Link
+                    to="/visualizer"
+                    className="text-sm text-stone-200 hover:text-white transition-colors border-b border-stone-400 hover:border-white pb-0.5"
+                  >
+                    Try Room Visualizer
+                  </Link>
                 </div>
+              </div>
+
+              {/* Rug mosaic — cycles through up to 12 random rugs, 4 at a time every 20s,
+                  then hides for 20s once all 12 have been shown */}
+              <div
+                className={`hidden lg:grid grid-cols-2 gap-3 transition-opacity duration-[1500ms] ease-in-out ${
+                  craftGridVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                {craftRugPool.slice(craftChunkIndex * 4, craftChunkIndex * 4 + 4).map((rug, i) => (
+                  <Link
+                    key={rug.id}
+                    to={`/catalog/${rug.id}`}
+                    className={`group relative overflow-hidden bg-stone-100 rounded-xl shadow-2xl ring-1 ring-white/10 ${i === 0 ? 'row-span-2' : ''}`}
+                    style={{ aspectRatio: i === 0 ? '3/4' : '4/3' }}
+                  >
+                    {rug.image_url ? (
+                      <img
+                        src={rug.image_url}
+                        alt={rug.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Layers size={28} className="text-stone-300" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors duration-300" />
+                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-stone-900/70 to-transparent">
+                      <p className="text-white text-xs font-medium truncate">{rug.name}</p>
+                    </div>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -260,24 +325,26 @@ export default function CustomerHome() {
 
       {/* ── BEHIND THE CRAFT (hover-to-play video grid) ──────────────────── */}
       {gridVideos.length > 0 && (
-        <section className="max-w-7xl mx-auto px-6 pb-24">
-          <div className="mb-12">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">See It Made</p>
-            <h2 className="font-serif text-4xl font-light text-stone-900">Behind the Craft</h2>
-          </div>
+        <section className="bg-stone-50 border-y border-stone-100 py-20">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="mb-12">
+              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">See It Made</p>
+              <h2 className="font-serif text-4xl font-light text-stone-900">Behind the Craft</h2>
+            </div>
 
-          <div
-            className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
-              {
-                1: 'lg:grid-cols-1',
-                2: 'lg:grid-cols-2',
-                3: 'lg:grid-cols-3',
-              }[gridVideos.length] ?? 'lg:grid-cols-4'
-            }`}
-          >
-            {gridVideos.map((v) => (
-              <CraftVideoCard key={v.id} video={v} />
-            ))}
+            <div
+              className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
+                {
+                  1: 'lg:grid-cols-1',
+                  2: 'lg:grid-cols-2',
+                  3: 'lg:grid-cols-3',
+                }[gridVideos.length] ?? 'lg:grid-cols-4'
+              }`}
+            >
+              {gridVideos.map((v) => (
+                <CraftVideoCard key={v.id} video={v} />
+              ))}
+            </div>
           </div>
         </section>
       )}
@@ -482,23 +549,25 @@ export default function CustomerHome() {
       )}
 
       {/* ── VISUALIZER CTA ────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="border border-stone-200 p-12 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-3 text-center md:text-left">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400">AI Room Visualizer</p>
-            <h2 className="font-serif text-4xl font-light text-stone-900">
-              See it in your room<br />before you order
-            </h2>
-            <p className="text-stone-500 text-sm max-w-md leading-relaxed">
-              Upload a photo of your space, choose a rug, click 4 floor corners — our AI composites the rug into your room in seconds.
-            </p>
+      <section className="bg-stone-50 border-y border-stone-100 py-20">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="border border-stone-200 bg-white p-12 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-3 text-center md:text-left">
+              <p className="text-xs tracking-[0.2em] uppercase text-stone-400">AI Room Visualizer</p>
+              <h2 className="font-serif text-4xl font-light text-stone-900">
+                See it in your room<br />before you order
+              </h2>
+              <p className="text-stone-500 text-sm max-w-md leading-relaxed">
+                Upload a photo of your space, choose a rug, click 4 floor corners — our AI composites the rug into your room in seconds.
+              </p>
+            </div>
+            <Link
+              to="/visualizer"
+              className="flex-shrink-0 inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
+            >
+              Try Free <ArrowRight size={14} />
+            </Link>
           </div>
-          <Link
-            to="/visualizer"
-            className="flex-shrink-0 inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
-          >
-            Try Free <ArrowRight size={14} />
-          </Link>
         </div>
       </section>
 

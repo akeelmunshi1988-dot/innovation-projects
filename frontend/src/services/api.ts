@@ -394,6 +394,10 @@ export const getPublicSettings = async (): Promise<{
   business_name: string | null;
   logo_url: string | null;
   default_size_unit: string;
+  contact_emails: string[];
+  contact_phones: string[];
+  contact_address: string | null;
+  contact_hours: string | null;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;

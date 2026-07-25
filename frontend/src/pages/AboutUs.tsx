@@ -10,11 +10,13 @@ interface Person {
   initials: string;
 }
 
+const SHOW_TEAM = false;
+
 const OWNER: Person = {
-  name: 'Owner Name',
-  role: 'Founder & Managing Director',
+  name: 'Haris Ahmed',
+  role: 'Founder',
   bio: 'With over two decades in the craft, our founder set out to bring authentic, hand-made rugs directly from the loom to your home — no middlemen, no compromises on quality. Every design that leaves our workshop is personally reviewed before it ships.',
-  initials: 'ON',
+  initials: 'HA',
 };
 
 const TEAM: Person[] = [
@@ -40,10 +42,20 @@ const TEAM: Person[] = [
 
 export default function AboutUs() {
   const [businessName, setBusinessName] = useState('Our Workshop');
+  const [contactEmails, setContactEmails] = useState<string[]>([]);
+  const [contactPhones, setContactPhones] = useState<string[]>([]);
+  const [contactAddress, setContactAddress] = useState<string | null>(null);
+  const [contactHours, setContactHours] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicSettings()
-      .then((data) => { if (data.business_name) setBusinessName(data.business_name); })
+      .then((data) => {
+        if (data.business_name) setBusinessName(data.business_name);
+        setContactEmails(data.contact_emails ?? []);
+        setContactPhones(data.contact_phones ?? []);
+        setContactAddress(data.contact_address ?? null);
+        setContactHours(data.contact_hours ?? null);
+      })
       .catch(() => {});
   }, []);
 
@@ -69,18 +81,18 @@ export default function AboutUs() {
           <div className="space-y-5">
             <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Who We Are</p>
             <h2 className="font-serif text-3xl font-light text-stone-900">
-              Craftsmanship passed down, not mass produced
+              Generations of craftsmanship, never mass-produced
             </h2>
             <p className="text-stone-500 leading-relaxed">
-              What started as a small family loom has grown into a workshop trusted for
-              custom, hand-made rugs — without losing the values we started with. Every
-              rug is made to order, in the size and material you choose, by weavers who
-              have practiced this craft for generations.
+              What began as a single family loom has grown into a workshop trusted for
+              custom, hand-made rugs — without compromising the principles it was founded
+              on. Every rug is made to order, in the size and material you specify, by
+              artisans who have refined this craft over generations.
             </p>
             <p className="text-stone-500 leading-relaxed">
               We work directly with our weavers and source natural materials responsibly,
-              so every rug that reaches your door reflects real craftsmanship — not a
-              factory line.
+              ensuring every rug that reaches your door reflects genuine craftsmanship —
+              never a factory production line.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -118,6 +130,7 @@ export default function AboutUs() {
       </section>
 
       {/* ── TEAM ─────────────────────────────────────────────────────── */}
+      {SHOW_TEAM && (
       <section className="bg-stone-50 border-y border-stone-100 py-20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-12 max-w-2xl">
@@ -140,6 +153,7 @@ export default function AboutUs() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── CONTACT ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 py-20">
@@ -150,19 +164,39 @@ export default function AboutUs() {
             Have a question about a custom order, sizing, or materials? We'd love to hear from you.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: <Mail size={18} />, label: 'Email', value: 'hello@yourbusiness.com' },
-            { icon: <Phone size={18} />, label: 'Phone', value: '+91 00000 00000' },
-            { icon: <MapPin size={18} />, label: 'Workshop', value: 'Your City, India' },
-            { icon: <Clock size={18} />, label: 'Hours', value: 'Mon–Sat, 9am–6pm' },
-          ].map((c) => (
-            <div key={c.label} className="border border-stone-200 p-6 space-y-2">
-              <div className="text-stone-400">{c.icon}</div>
-              <p className="text-xs tracking-widest uppercase text-stone-400">{c.label}</p>
-              <p className="text-stone-900 text-sm">{c.value}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="border border-stone-200 p-6 space-y-2">
+            <div className="text-stone-400"><Mail size={18} /></div>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Email</p>
+            {contactEmails.length > 0 ? (
+              contactEmails.map((e) => (
+                <a key={e} href={`mailto:${e}`} className="block text-stone-900 text-sm hover:text-stone-600 transition-colors truncate" title={e}>{e}</a>
+              ))
+            ) : (
+              <p className="text-stone-400 text-sm italic">Coming soon</p>
+            )}
+          </div>
+          <div className="border border-stone-200 p-6 space-y-2">
+            <div className="text-stone-400"><Phone size={18} /></div>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Phone</p>
+            {contactPhones.length > 0 ? (
+              contactPhones.map((p) => (
+                <a key={p} href={`tel:${p}`} className="block text-stone-900 text-sm hover:text-stone-600 transition-colors">{p}</a>
+              ))
+            ) : (
+              <p className="text-stone-400 text-sm italic">Coming soon</p>
+            )}
+          </div>
+          <div className="border border-stone-200 p-6 space-y-2">
+            <div className="text-stone-400"><MapPin size={18} /></div>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Workshop</p>
+            <p className="text-stone-900 text-sm whitespace-pre-line">{contactAddress || 'Coming soon'}</p>
+          </div>
+          <div className="border border-stone-200 p-6 space-y-2">
+            <div className="text-stone-400"><Clock size={18} /></div>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Hours</p>
+            <p className="text-stone-900 text-sm">{contactHours || 'Coming soon'}</p>
+          </div>
         </div>
       </section>
     </CustomerLayout>

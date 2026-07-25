@@ -187,6 +187,7 @@ This creates:
 > python3 migrate_v7_showcase_video_intro.py
 > python3 migrate_v8_default_size_unit.py
 > python3 migrate_v9_quote_email_link_breakdown.py
+> python3 migrate_v10_contact_details.py
 > deactivate
 > ```
 > Each script is idempotent (skips columns that already exist), so running all of them is safe even if some already applied.
