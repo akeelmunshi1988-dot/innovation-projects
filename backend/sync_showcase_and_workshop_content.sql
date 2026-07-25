@@ -4,6 +4,15 @@
 --   sqlite3 /var/www/loomcraft/innovation-projects/backend/rug_manufacture.db < sync_showcase_and_workshop_content.sql
 -- Run this AFTER the file sync (Phase 5) has copied backend/static/showcase and backend/static/workshop.
 
+-- ── Cleanup: rows for videos removed from the local library ──────
+-- These two were part of the original seed_showcase_videos.py set and got replaced
+-- locally (their files no longer exist under backend/static/showcase), but this script
+-- only upserts what's currently local — it can't know to remove rows on its own.
+DELETE FROM showcase_videos WHERE video_url IN (
+  '/static/showcase/rug-moroccan-weaving-process.mp4',
+  '/static/showcase/rug-colorful-loom-weaving.mp4'
+);
+
 -- ── Showcase Videos ──────────────────────────────────────────────
 
 INSERT INTO showcase_videos (tenant_id, title, description, video_url, poster_url, sort_order, is_active, is_intro)
