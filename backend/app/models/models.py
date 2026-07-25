@@ -33,6 +33,10 @@ class Tenant(Base):
     ai_assistant_vendor_enabled = Column(Boolean, default=True)    # show AI Assistant page to staff/admin
     vendor_notification_email = Column(String(200), nullable=True)  # where quote-request/review-request emails go; falls back to SMTP_FROM_EMAIL
     default_size_unit = Column(String(10), default="ft")  # "ft" or "cm" — display unit for standard rug sizes
+    contact_emails = Column(JSON, nullable=True)          # list[str] — shown on the public "About Us" / Contact page
+    contact_phones = Column(JSON, nullable=True)          # list[str]
+    contact_address = Column(Text, nullable=True)         # workshop/visiting address — distinct from the GST registered address
+    contact_hours = Column(String(200), nullable=True)    # e.g. "Mon-Sat, 9am-6pm"
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

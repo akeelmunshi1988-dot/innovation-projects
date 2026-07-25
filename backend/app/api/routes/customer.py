@@ -252,6 +252,10 @@ async def get_public_settings():
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
             "default_size_unit": tenant.default_size_unit if tenant else "ft",
+            "contact_emails": (tenant.contact_emails or []) if tenant else [],
+            "contact_phones": (tenant.contact_phones or []) if tenant else [],
+            "contact_address": tenant.contact_address if tenant else None,
+            "contact_hours": tenant.contact_hours if tenant else None,
         }
     finally:
         db.close()

@@ -233,6 +233,14 @@ def update_tenant_settings(
         tenant.vendor_notification_email = body.vendor_notification_email
     if body.default_size_unit is not None:
         tenant.default_size_unit = body.default_size_unit
+    if body.contact_emails is not None:
+        tenant.contact_emails = body.contact_emails
+    if body.contact_phones is not None:
+        tenant.contact_phones = body.contact_phones
+    if body.contact_address is not None:
+        tenant.contact_address = body.contact_address
+    if body.contact_hours is not None:
+        tenant.contact_hours = body.contact_hours
     db.commit()
     db.refresh(tenant)
     return TenantPublic.model_validate(tenant)

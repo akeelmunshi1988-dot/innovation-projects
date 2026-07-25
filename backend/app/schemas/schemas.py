@@ -359,6 +359,15 @@ class TenantPublic(BaseModel):
     ai_assistant_vendor_enabled: bool = True
     vendor_notification_email: Optional[str] = None
     default_size_unit: str = "ft"
+    contact_emails: List[str] = []
+    contact_phones: List[str] = []
+    contact_address: Optional[str] = None
+    contact_hours: Optional[str] = None
+
+    @field_validator('contact_emails', 'contact_phones', mode='before')
+    @classmethod
+    def _none_to_empty_list(cls, v):
+        return v if v is not None else []
 
     class Config:
         from_attributes = True
@@ -380,6 +389,29 @@ class TenantUpdateRequest(BaseModel):
     ai_assistant_vendor_enabled: Optional[bool] = None
     vendor_notification_email: Optional[EmailStr] = None
     default_size_unit: Optional[str] = None
+    contact_emails: Optional[List[str]] = None
+    contact_phones: Optional[List[str]] = None
+    contact_address: Optional[str] = None
+    contact_hours: Optional[str] = Field(None, max_length=200)
+
+    @field_validator('contact_emails')
+    @classmethod
+    def validate_contact_emails(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        cleaned = [e.strip() for e in v if e.strip()]
+        email_re = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+        for e in cleaned:
+            if not email_re.match(e):
+                raise ValueError(f'Invalid email address: {e}')
+        return cleaned
+
+    @field_validator('contact_phones')
+    @classmethod
+    def validate_contact_phones(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        return [p.strip() for p in v if p.strip()]
 
     @field_validator('default_size_unit')
     @classmethod
