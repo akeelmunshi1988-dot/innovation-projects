@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.cache import cache_get, cache_set
 from app.models.models import Order, Quote, Material, StaffUser, Tenant
 from app.schemas.schemas import DashboardStats
 
@@ -17,6 +18,10 @@ def get_dashboard_stats(
     current_user: StaffUser = Depends(get_current_user),
 ):
     tid = current_user.tenant_id
+
+    cached = cache_get("dashboard_stats", str(tid))
+    if cached is not None:
+        return cached
 
     tenant = db.query(Tenant).filter(Tenant.id == tid).first()
     base_currency = (tenant.base_currency or "INR") if tenant else "INR"
@@ -117,7 +122,7 @@ def get_dashboard_stats(
             "orders": len(month_quotes),
         })
 
-    return DashboardStats(
+    stats = DashboardStats(
         total_orders=total_orders,
         total_revenue=round(total_revenue, 2),
         active_quotes=active_quotes,
@@ -128,3 +133,5 @@ def get_dashboard_stats(
         recent_quotes=recent_quotes,
         monthly_revenue=monthly_revenue,
     )
+    cache_set("dashboard_stats", stats, str(tid))
+    return stats

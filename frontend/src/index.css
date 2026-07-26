@@ -81,4 +81,8 @@
   .badge-rejected {
     @apply bg-red-900/50 text-red-300 border border-red-700/50 text-xs px-2 py-0.5 rounded-full font-medium;
   }
+
+  .badge-cancelled {
+    @apply bg-red-900/50 text-red-300 border border-red-700/50 text-xs px-2 py-0.5 rounded-full font-medium;
+  }
 }

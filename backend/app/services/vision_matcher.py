@@ -84,7 +84,7 @@ def analyze_and_match(
 Customer requirements:
 - Desired size: {size_w}m × {size_h}m ({size_w * size_h:.1f} sqm)
 - Quantity: {qty} piece(s)
-- Early delivery: {"Yes" if rush_order else "No"}
+- Rush: {"Yes" if rush_order else "No"}
 {f"- Maximum budget: ${budget_max:,.0f}" if budget_max else "- Budget: Not specified"}
 
 Our available catalog:
@@ -226,7 +226,7 @@ def analyze_and_match_room(
 Customer requirements:
 - Desired rug size: {size_w}m × {size_h}m ({size_w * size_h:.1f} sqm)
 - Quantity: {qty} piece(s)
-- Early delivery: {"Yes" if rush_order else "No"}
+- Rush: {"Yes" if rush_order else "No"}
 {f"- Maximum budget: ${budget_max:,.0f}" if budget_max else "- Budget: Not specified"}
 
 Our available catalog:

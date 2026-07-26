@@ -1,22 +1,42 @@
 import os
 import secrets
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from typing import Optional
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, UploadFile, File, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.auth import hash_password, verify_password, create_access_token, get_current_user
+from app.core.cache import cache_get, cache_set, cache_clear
+from app.core.auth import (
+    hash_password, verify_password, create_access_token, get_current_user, get_current_customer,
+    create_refresh_token, rotate_refresh_token, revoke_refresh_token,
+)
 from app.models.models import Tenant, StaffUser, Customer
 from app.schemas.schemas import (
     RegisterRequest, LoginRequest, TokenResponse, MeResponse, TenantPublic, TenantUpdateRequest,
     CustomerRegisterRequest, CustomerLoginRequest, CustomerTokenResponse,
-    CustomerRegisterResponse, CustomerVerifyEmailRequest,
+    CustomerRegisterResponse, CustomerVerifyEmailRequest, RefreshResponse,
 )
 from app.services import email_service
 
 router = APIRouter()
+
+REFRESH_COOKIE_NAME = "refresh_token"
+REFRESH_COOKIE_PATH = "/api/auth"
+
+
+def _set_refresh_cookie(response: Response, raw_token: str) -> None:
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        raw_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path=REFRESH_COOKIE_PATH,
+    )
 
 VERIFICATION_TOKEN_TTL_HOURS = 24
 
@@ -44,7 +64,7 @@ def _send_verification_email(db: Session, customer: Customer, tenant: Tenant) ->
 
 
 @router.post("/auth/register", response_model=TokenResponse, status_code=201)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(body: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     # Slug must be unique
     if db.query(Tenant).filter(Tenant.slug == body.slug).first():
         raise HTTPException(status_code=400, detail="Slug already taken. Choose a different company identifier.")
@@ -81,6 +101,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(tenant)
 
     token = create_access_token({"sub": str(user.id)})
+    _set_refresh_cookie(response, create_refresh_token(db, "staff", user.id))
     return TokenResponse(
         access_token=token,
         user_id=user.id,
@@ -92,12 +113,13 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.query(StaffUser).filter(StaffUser.email == body.email, StaffUser.is_active == True).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     token = create_access_token({"sub": str(user.id)})
+    _set_refresh_cookie(response, create_refresh_token(db, "staff", user.id))
     return TokenResponse(
         access_token=token,
         user_id=user.id,
@@ -110,13 +132,27 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/auth/me", response_model=MeResponse)
 def me(current_user: StaffUser = Depends(get_current_user)):
+    cache_key = str(current_user.tenant_id)
+    tenant_public = cache_get("tenant", cache_key)
+    if tenant_public is None:
+        tenant_public = TenantPublic.model_validate(current_user.tenant)
+        cache_set("tenant", tenant_public, cache_key)
     return MeResponse(
         user_id=current_user.id,
         full_name=current_user.full_name,
         email=current_user.email,
         role=current_user.role,
-        tenant=TenantPublic.model_validate(current_user.tenant),
+        tenant=tenant_public,
     )
+
+
+@router.get("/auth/customer/me")
+def customer_me(current_customer: Customer = Depends(get_current_customer)):
+    return {
+        "customer_id": current_customer.id,
+        "name": current_customer.name,
+        "email": current_customer.email,
+    }
 
 
 @router.post("/auth/customer/register", response_model=CustomerRegisterResponse, status_code=201)
@@ -162,7 +198,7 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
 
 
 @router.post("/auth/customer/verify-email", response_model=CustomerTokenResponse)
-def customer_verify_email(body: CustomerVerifyEmailRequest, db: Session = Depends(get_db)):
+def customer_verify_email(body: CustomerVerifyEmailRequest, response: Response, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.verification_token == body.token).first()
     if not customer:
         raise HTTPException(status_code=400, detail="Invalid or already-used verification link.")
@@ -175,11 +211,12 @@ def customer_verify_email(body: CustomerVerifyEmailRequest, db: Session = Depend
     db.commit()
 
     token = create_access_token({"sub": str(customer.id), "type": "customer"})
+    _set_refresh_cookie(response, create_refresh_token(db, "customer", customer.id))
     return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email)
 
 
 @router.post("/auth/customer/login", response_model=CustomerTokenResponse)
-def customer_login(body: CustomerLoginRequest, db: Session = Depends(get_db)):
+def customer_login(body: CustomerLoginRequest, response: Response, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.email == body.email, Customer.is_active == True).first()
     if not customer or not customer.hashed_password or not verify_password(body.password, customer.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -187,7 +224,28 @@ def customer_login(body: CustomerLoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Please verify your email before logging in. Check your inbox for the verification link.")
 
     token = create_access_token({"sub": str(customer.id), "type": "customer"})
+    _set_refresh_cookie(response, create_refresh_token(db, "customer", customer.id))
     return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email)
+
+
+@router.post("/auth/refresh", response_model=RefreshResponse)
+def refresh(response: Response, db: Session = Depends(get_db), refresh_token: Optional[str] = Cookie(None)):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token provided")
+
+    user_type, user_id, new_raw_token = rotate_refresh_token(db, refresh_token)
+    _set_refresh_cookie(response, new_raw_token)
+
+    token = create_access_token({"sub": str(user_id), **({"type": "customer"} if user_type == "customer" else {})})
+    return RefreshResponse(access_token=token)
+
+
+@router.post("/auth/logout")
+def logout(response: Response, db: Session = Depends(get_db), refresh_token: Optional[str] = Cookie(None)):
+    if refresh_token:
+        revoke_refresh_token(db, refresh_token)
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+    return {"message": "Logged out"}
 
 
 @router.patch("/tenant/settings", response_model=TenantPublic)
@@ -243,6 +301,8 @@ def update_tenant_settings(
         tenant.contact_hours = body.contact_hours
     db.commit()
     db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")  # /customer/settings mirrors business_name/logo_url/contact fields from this same tenant row
     return TenantPublic.model_validate(tenant)
 
 
@@ -272,4 +332,6 @@ async def upload_tenant_favicon(
     tenant.logo_url = f"/static/branding/{filename}"
     db.commit()
     db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")
     return TenantPublic.model_validate(tenant)

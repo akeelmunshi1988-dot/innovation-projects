@@ -2,20 +2,20 @@ import { useState, useEffect } from 'react';
 import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '../components/CustomerLayout';
-import { getMyOrders, getCustomerOrderBreakdown, getPublicSettings } from '../services/api';
-import type { CustomerOrder, OrderBreakdown } from '../services/api';
+import { getMyOrders, getCustomerOrderBreakdown, getCustomerOrderTimeline, getPublicSettings } from '../services/api';
+import type { CustomerOrder, OrderBreakdown, OrderTimelineEntry } from '../services/api';
 import { fmtExact } from '../utils/currency';
 import { fmtDims } from '../utils/size';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import axios from 'axios';
 
 const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
-  pending:       { label: 'Order Placed',   color: 'text-amber-700 border-amber-200 bg-amber-50',    dot: 'bg-amber-400' },
-  confirmed:     { label: 'Confirmed',      color: 'text-blue-700 border-blue-200 bg-blue-50',       dot: 'bg-blue-500' },
-  in_production: { label: 'In Production',  color: 'text-purple-700 border-purple-200 bg-purple-50', dot: 'bg-purple-500' },
-  shipped:       { label: 'Shipped',        color: 'text-teal-700 border-teal-200 bg-teal-50',       dot: 'bg-teal-500' },
-  delivered:     { label: 'Delivered',      color: 'text-green-700 border-green-200 bg-green-50',    dot: 'bg-green-500' },
-  cancelled:     { label: 'Cancelled',      color: 'text-red-600 border-red-200 bg-red-50',          dot: 'bg-red-400' },
+  pending:        { label: 'Order Placed',   color: 'text-amber-700 border-amber-200 bg-amber-50',    dot: 'bg-amber-400' },
+  in_production:  { label: 'In Production',  color: 'text-purple-700 border-purple-200 bg-purple-50', dot: 'bg-purple-500' },
+  quality_check:  { label: 'Quality Check',  color: 'text-indigo-700 border-indigo-200 bg-indigo-50', dot: 'bg-indigo-500' },
+  shipped:        { label: 'Shipped',        color: 'text-teal-700 border-teal-200 bg-teal-50',       dot: 'bg-teal-500' },
+  delivered:      { label: 'Delivered',      color: 'text-green-700 border-green-200 bg-green-50',    dot: 'bg-green-500' },
+  cancelled:      { label: 'Cancelled',      color: 'text-red-600 border-red-200 bg-red-50',          dot: 'bg-red-400' },
 };
 
 function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerOrder; email: string; customerToken: string | null; sizeUnit: string }) {
@@ -24,6 +24,9 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
   const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownError, setBreakdownError] = useState(false);
+  const [timeline, setTimeline] = useState<OrderTimelineEntry[] | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState(false);
   const currency = order.price_currency || 'INR';
   const fmt = (n: number) => fmtExact(n, currency);
   const meta = STATUS_META[order.status] ?? { label: order.status, color: 'text-stone-500 border-stone-200 bg-stone-50', dot: 'bg-stone-300' };
@@ -41,6 +44,18 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
         setBreakdownError(true);
       } finally {
         setBreakdownLoading(false);
+      }
+    }
+    if (next && !timeline && !timelineLoading) {
+      setTimelineLoading(true);
+      setTimelineError(false);
+      try {
+        const tl = await getCustomerOrderTimeline(order.order_id, email);
+        setTimeline(tl);
+      } catch {
+        setTimelineError(true);
+      } finally {
+        setTimelineLoading(false);
       }
     }
   };
@@ -122,7 +137,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Type</p>
               <p className={`text-sm ${order.rush_order ? 'text-amber-600' : 'text-stone-500'}`}>
-                {order.rush_order ? 'Early Delivery' : 'Standard'}
+                {order.rush_order ? 'Rush' : 'Standard'}
               </p>
             </div>
             {order.material_name && (
@@ -147,6 +162,44 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
               <div>
                 <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Rate / m²</p>
                 <p className="text-stone-900 text-sm">{fmt(order.base_price_per_sqm)}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Status timeline — lazy loaded */}
+          <div className="border border-stone-100 bg-stone-50 px-4 py-3">
+            <p className="text-stone-400 text-xs uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Clock size={11} /> Order Timeline
+            </p>
+
+            {timelineLoading && (
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-stone-400 text-xs">Loading timeline…</span>
+              </div>
+            )}
+
+            {timelineError && (
+              <p className="text-stone-400 text-xs py-1">Could not load order timeline.</p>
+            )}
+
+            {timeline && !timelineLoading && (
+              <div className="space-y-3">
+                {timeline.map((entry, i) => {
+                  const tm = STATUS_META[entry.status] ?? { label: entry.status, color: 'text-stone-500', dot: 'bg-stone-300' };
+                  const date = entry.at ? new Date(entry.at) : null;
+                  return (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${tm.dot}`} />
+                      <div className="flex-1 flex items-baseline justify-between gap-2">
+                        <span className="text-stone-800 text-sm">{tm.label}</span>
+                        <span className="text-stone-400 text-xs flex-shrink-0">
+                          {date ? date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -207,16 +260,29 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
                   <span className="text-stone-700">{fmt(bd.pre_gst_price)}</span>
                 </div>
 
-                {/* GST */}
-                <div className="flex justify-between text-xs">
-                  <span className="text-stone-400">GST ({bd.gst_pct.toFixed(0)}%)</span>
-                  <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
-                </div>
-
-                {/* Margin note */}
-                <p className="text-stone-300 text-xs pt-1">
-                  Margin: {bd.profit_margin_pct.toFixed(0)}% · Material cost: {fmt(bd.material_cost_per_sqm)}/m²
-                </p>
+                {/* GST — CGST+SGST for same-state, IGST for inter-state */}
+                {bd.gst_split?.type === 'cgst_sgst' ? (
+                  <>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-stone-400">CGST ({bd.gst_split.cgst_pct?.toFixed(1)}%)</span>
+                      <span className="text-stone-700">+{fmt(bd.gst_amount / 2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-stone-400">SGST ({bd.gst_split.sgst_pct?.toFixed(1)}%)</span>
+                      <span className="text-stone-700">+{fmt(bd.gst_amount / 2)}</span>
+                    </div>
+                  </>
+                ) : bd.gst_split?.type === 'igst' ? (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-400">IGST ({bd.gst_split.igst_pct?.toFixed(0)}%)</span>
+                    <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-400">GST ({bd.gst_pct.toFixed(0)}%)</span>
+                    <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
+                  </div>
+                )}
               </>
             )}
 
@@ -237,7 +303,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
                 )}
                 {order.rush_order && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-amber-600">Early delivery surcharge</span>
+                    <span className="text-amber-600">Rush surcharge</span>
                     <span className="text-amber-600">included</span>
                   </div>
                 )}

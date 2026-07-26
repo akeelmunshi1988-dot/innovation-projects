@@ -40,7 +40,7 @@ function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) =
     size ? `📐 Size   : ${size}` : '',
     `📦 Qty    : ${q.qty || 1}`,
     `💰 Total  : ${price}`,
-    q.rush_order ? '⚡ Early delivery' : '',
+    q.rush_order ? '⚡ Rush' : '',
     '',
     'This quote is valid for 15 days. Please confirm to proceed.',
     '— LoomCraftRugs Team',
@@ -265,7 +265,7 @@ export default function Quotes() {
                 : 'bg-dark-900 border-dark-600 text-dark-400 hover:text-cream-300 hover:border-dark-500'
             }`}
           >
-            ⚡ Early Delivery Only
+            ⚡ Rush Only
           </button>
 
           {activeFilterCount > 0 && (
@@ -673,7 +673,7 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Specs</p>
               {sqm && <p className="text-cream-200 font-medium">{dims}</p>}
-              <p className="text-dark-400 text-xs">Qty: {q.qty} · {q.rush_order ? 'Early Delivery' : 'Standard'}</p>
+              <p className="text-dark-400 text-xs">Qty: {q.qty} · {q.rush_order ? 'Rush' : 'Standard'}</p>
             </div>
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Pricing</p>

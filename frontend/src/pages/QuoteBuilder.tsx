@@ -296,7 +296,7 @@ const QuoteBuilder: React.FC = () => {
               {/* Rush order toggle */}
               <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
                 <div>
-                  <p className="text-cream-200 text-sm font-medium">Early Delivery</p>
+                  <p className="text-cream-200 text-sm font-medium">Rush</p>
                   <p className="text-dark-400 text-xs">+25% surcharge, faster than estimated</p>
                 </div>
                 <button
@@ -357,7 +357,7 @@ const QuoteBuilder: React.FC = () => {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {rushOrder && (
                       <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/50 px-2 py-0.5 rounded-full">
-                        EARLY DELIVERY
+                        RUSH
                       </span>
                     )}
                     <button

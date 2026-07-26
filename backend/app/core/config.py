@@ -10,7 +10,9 @@ class Settings(BaseSettings):
 
     JWT_SECRET: str = "loomcraft-dev-secret-change-in-production"
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    JWT_EXPIRE_MINUTES: int = 30  # short-lived access token — refreshed via the refresh_token cookie
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    COOKIE_SECURE: bool = True  # set False in .env for local http:// dev if needed
 
     RAZORPAY_KEY_ID: Optional[str] = None
     RAZORPAY_KEY_SECRET: Optional[str] = None

@@ -183,10 +183,9 @@ const Dashboard: React.FC = () => {
         <div className="card space-y-3">
           <h2 className="text-cream-100 font-semibold mb-1">Quick Actions</h2>
           {[
-            { to: '/assistant', label: 'Ask AI Assistant', icon: '🤖', desc: 'Get instant answers' },
-            { to: '/quote-builder', label: 'Build a Quote', icon: '📋', desc: 'Calculate pricing' },
-            { to: '/catalog', label: 'View Catalog', icon: '📖', desc: 'Browse all rugs' },
-            { to: '/inventory', label: 'Check Inventory', icon: '📦', desc: 'Stock levels' },
+            { to: '/admin/quote-builder', label: 'Build a Quote', icon: '📋', desc: 'Calculate pricing' },
+            { to: '/admin/catalog', label: 'View Catalog', icon: '📖', desc: 'Browse all rugs' },
+            { to: '/admin/inventory', label: 'Check Inventory', icon: '📦', desc: 'Stock levels' },
           ].map((action) => (
             <Link
               key={action.to}
@@ -212,7 +211,7 @@ const Dashboard: React.FC = () => {
               <Clock size={18} className="text-gold-400" />
               <h2 className="text-cream-100 font-semibold">Recent Orders</h2>
             </div>
-            <Link to="/orders" className="text-gold-500 hover:text-gold-400 text-xs flex items-center gap-1">
+            <Link to="/admin/orders" className="text-gold-500 hover:text-gold-400 text-xs flex items-center gap-1">
               View all <ArrowRight size={12} />
             </Link>
           </div>
@@ -249,8 +248,8 @@ const Dashboard: React.FC = () => {
               <FileText size={18} className="text-gold-400" />
               <h2 className="text-cream-100 font-semibold">Recent Quotes</h2>
             </div>
-            <Link to="/quote-builder" className="text-gold-500 hover:text-gold-400 text-xs flex items-center gap-1">
-              New quote <ArrowRight size={12} />
+            <Link to="/admin/quotes" className="text-gold-500 hover:text-gold-400 text-xs flex items-center gap-1">
+              View all <ArrowRight size={12} />
             </Link>
           </div>
           {stats.recent_quotes.length === 0 ? (

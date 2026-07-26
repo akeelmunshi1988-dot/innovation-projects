@@ -535,7 +535,7 @@ export default function RugDetail() {
               >
                 <Zap size={15} className={calcRush ? 'text-gold-400' : 'text-dark-500'} />
                 <div className="text-left flex-1">
-                  <p className="font-medium">Early Delivery</p>
+                  <p className="font-medium">Rush</p>
                   <p className="text-xs opacity-70">+25% surcharge · Faster than estimated</p>
                 </div>
                 {calcRush && <CheckCircle size={14} className="text-gold-400 flex-shrink-0" />}
@@ -604,7 +604,7 @@ export default function RugDetail() {
                   )}
                   {calcResult.rush_surcharge > 0 && (
                     <div className="flex justify-between text-orange-400">
-                      <span>Early delivery fee</span>
+                      <span>Rush fee</span>
                       <span>+{fmt(calcResult.rush_surcharge, calcResult.price_currency)}</span>
                     </div>
                   )}

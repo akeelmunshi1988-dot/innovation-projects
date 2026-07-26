@@ -258,7 +258,7 @@ export default function CustomerCheckout() {
                   </div>
                   {state.rush_order && (
                     <div className="flex justify-between">
-                      <span className="text-amber-600 text-xs">Early delivery</span>
+                      <span className="text-amber-600 text-xs">Rush</span>
                       <span className="text-amber-600 text-xs">+25%</span>
                     </div>
                   )}

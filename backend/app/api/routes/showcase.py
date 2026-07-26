@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.cache import cache_clear
 from app.models.models import ShowcaseVideo, StaffUser
 from app.schemas.schemas import ShowcaseVideoCreate, ShowcaseVideoUpdate, ShowcaseVideo as ShowcaseVideoSchema
 
@@ -153,6 +154,7 @@ def create_showcase_video(
     db.add(db_video)
     db.commit()
     db.refresh(db_video)
+    cache_clear("showcase_videos")
     return db_video
 
 
@@ -173,6 +175,7 @@ def update_showcase_video(
         setattr(video, field, value)
     db.commit()
     db.refresh(video)
+    cache_clear("showcase_videos")
     return video
 
 
@@ -190,4 +193,5 @@ def delete_showcase_video(
         raise HTTPException(status_code=404, detail="Showcase video not found")
     db.delete(video)
     db.commit()
+    cache_clear("showcase_videos")
     return {"message": "Showcase video deleted successfully"}

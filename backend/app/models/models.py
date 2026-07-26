@@ -209,6 +209,15 @@ class Order(Base):
     quote = relationship("Quote", back_populates="order")
 
 
+class OrderStatusHistory(Base):
+    __tablename__ = "order_status_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    status = Column(String(50), nullable=False)
+    changed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class InventoryTransaction(Base):
     __tablename__ = "inventory_transactions"
 
@@ -264,4 +273,17 @@ class WorkshopPhoto(Base):
     image_url = Column(String(300), nullable=False)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_type = Column(String(10), nullable=False)  # "staff" | "customer"
+    user_id = Column(Integer, nullable=False)
+    token_hash = Column(String(64), nullable=False, index=True)  # SHA-256 hex digest — raw token is never stored
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    replaced_by_id = Column(Integer, ForeignKey("refresh_tokens.id"), nullable=True)  # rotation chain
     created_at = Column(DateTime(timezone=True), server_default=func.now())

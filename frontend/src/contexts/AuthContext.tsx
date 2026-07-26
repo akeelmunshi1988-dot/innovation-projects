@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { refreshAccessToken } from '../services/authRefresh';
 
 export interface TenantInfo {
   id: number;
@@ -79,10 +80,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    axios.post('/api/auth/logout').catch(() => {});
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
+  }, []);
+
+  // On first load with no access token, try a silent refresh — a valid
+  // refresh_token cookie means the session can resume without forcing login.
+  useEffect(() => {
+    if (token || user) return;
+    let cancelled = false;
+    (async () => {
+      const newToken = await refreshAccessToken();
+      if (!newToken || cancelled) return;
+      localStorage.setItem(TOKEN_KEY, newToken);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      try {
+        const { data } = await axios.get('/api/auth/me');
+        if (cancelled) return;
+        localStorage.setItem(USER_KEY, JSON.stringify(data));
+        setUser(data);
+        setToken(newToken);
+      } catch {
+        // /auth/me failed even with a fresh token — leave the user logged out
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateTenant = useCallback((updated: Partial<TenantInfo>) => {

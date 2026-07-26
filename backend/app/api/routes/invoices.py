@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.models import StaffUser, Quote, Tenant, Customer
 from app.services.invoice_generator import generate_invoice_pdf
+from app.services.size_format import fmt_dims as _fmt_dims
 from app.services import email_service
 
 router = APIRouter()
@@ -51,7 +52,9 @@ def _build_pdf(quote_id: int, invoice_type: str, db: Session, tenant_id: int):
     final_price_display = round(quote.final_price * (_to_rate / _from_rate), 2)
 
     rate_per_sqm = round(final_price_display / total_sqm, 2) if total_sqm > 0 else 0.0
-    size_desc = f"{quote.custom_size_w}×{quote.custom_size_h}m ({size_sqm:.2f}m²)"
+    size_unit = tenant.default_size_unit or "ft"
+    dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
+    size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
 
     is_export = invoice_type == "export" or bool(customer and customer.is_export_buyer)
     effective_type = "export" if is_export and invoice_type != "proforma" else invoice_type
@@ -73,10 +76,12 @@ def _build_pdf(quote_id: int, invoice_type: str, db: Session, tenant_id: int):
         rug_name=rug.name,
         hsn_code=rug.hsn_code or "5703",
         size_desc=size_desc,
+        size_dims_str=dims_str,
         qty=qty,
         rate_per_sqm=rate_per_sqm,
         size_sqm=size_sqm,
         currency=tenant.currency or "INR",
+        expected_delivery_days=quote.expected_delivery_days,
     )
     return pdf_bytes, quote, customer, tenant, effective_type, final_price_display
 
@@ -116,7 +121,10 @@ def send_quote_email(
     _SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}
     currency_sym = _SYMBOLS.get(tenant.currency or "INR", tenant.currency or "$")
     rug_name = quote.rug_catalog.name if quote.rug_catalog else f"Rug #{quote.rug_catalog_id}"
-    size_str = f"{quote.custom_size_w}×{quote.custom_size_h}m" if quote.custom_size_w else "custom size"
+    size_str = (
+        _fmt_dims(quote.custom_size_w, quote.custom_size_h, tenant.default_size_unit or "ft", quote.rug_shape or "rect")
+        if quote.custom_size_w else "custom size"
+    )
     price_str = f"{currency_sym}{final_price_display:,.2f}" if quote.final_price else "TBD"
     type_label = {"proforma": "Proforma Invoice", "tax": "Tax Invoice", "export": "Export Invoice"}.get(effective_type, "Invoice")
     disclaimer = (

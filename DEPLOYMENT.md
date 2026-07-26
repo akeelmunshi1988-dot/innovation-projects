@@ -188,9 +188,10 @@ This creates:
 > python3 migrate_v8_default_size_unit.py
 > python3 migrate_v9_quote_email_link_breakdown.py
 > python3 migrate_v10_contact_details.py
+> python3 migrate_v11_refresh_tokens.py
 > deactivate
 > ```
-> Each script is idempotent (skips columns that already exist), so running all of them is safe even if some already applied.
+> Each script is idempotent (skips columns/tables that already exist), so running all of them is safe even if some already applied.
 
 ---
 
@@ -270,7 +271,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_cache_bypass $http_upgrade;
-        client_max_body_size 20M;
+        client_max_body_size 55M;
         proxy_read_timeout 120s;
     }
 
@@ -331,28 +332,43 @@ Open `https://yourdomain.com` in browser — app should load fully.
 
 ---
 
-## Phase 13 — CDN for Homepage Videos (recommended before going live with video content)
+## Phase 13 — CDN for Videos and Images (recommended before going live)
 
-This setup serves everything — including the homepage showcase videos under
-`/static/showcase/` — directly from the VPS via nginx. That's fine for images,
-but video files are large; once you upload real craftsmanship videos, put
-Cloudflare (free tier) in front of the domain so videos are cached at the
-edge instead of re-served from the VPS on every homepage visit.
+This setup serves everything under `/static/` — catalog photos, showcase
+videos, workshop photos, branding — directly from the VPS via nginx. Every
+upload there (`catalog.py`, `showcase.py`, `workshop.py`, `auth.py`'s
+favicon endpoint) gets a fresh UUID filename, so a given URL's content
+never changes. That means it's safe to cache aggressively, and video files
+in particular are large enough that it's worth doing before any real
+traffic — otherwise a handful of visitors watching the homepage intro video
+at once each pull the full file straight from the KVM 2's bandwidth
+allowance.
+
+The app already sends the right signal for this: the `/static` mount in
+`app/main.py` sets `Cache-Control: public, max-age=31536000, immutable` on
+every file it serves. Cloudflare (and browsers) respect that header on its
+own, so putting Cloudflare in front of the domain is mostly DNS + SSL
+setup, not cache-rule authoring:
 
 1. Add the site to Cloudflare (free plan) and update your domain's
    nameservers to the two Cloudflare assigns.
 2. Once DNS is active in Cloudflare, set the SSL/TLS mode to **Full (strict)**
    — certbot's cert on the VPS already covers this.
-3. Under **Caching → Cache Rules**, add a rule to cache everything under
-   `/static/*` at the edge (`Cache Level: Cache Everything`), since those
-   files are immutable (each upload gets a new UUID filename).
-4. No app changes needed — `video_url` values returned by
-   `/api/customer/showcase-videos` are already relative paths (`/static/showcase/...`),
-   so they resolve through whichever host serves the domain, Cloudflare included.
+3. Under **Caching → Configuration**, leave the default **Standard** cache
+   level — Cloudflare will honor the `immutable` header automatically. Only
+   add an explicit **Cache Rule** for `/static/*` (`Cache Level: Cache
+   Everything`) if you want edge caching even for requests that skip
+   standard caching for some other reason (e.g. cookies present).
+4. No app changes needed — `video_url`/`image_url`/`poster_url` values
+   returned by the public endpoints (`/api/customer/showcase-videos`,
+   `/customer/workshop-photos`, `/customer/catalog`, etc.) are already
+   relative paths (`/static/...`), so they resolve through whichever host
+   serves the domain, Cloudflare included.
 
-Without this, a handful of visitors streaming the intro video simultaneously
-will each pull the full file straight from the KVM 2's bandwidth allowance —
-fine at low traffic, worth fixing before any real promotion/launch.
+If you ever need to force-replace a file at the *same* URL (rather than
+uploading a new one with a new UUID), purge that path from Cloudflare's
+cache manually — the `immutable` header means it won't otherwise re-check
+the origin until the year-long `max-age` expires.
 
 ---
 

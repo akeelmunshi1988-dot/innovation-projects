@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.cache import cache_clear
 from app.models.models import WorkshopPhoto, StaffUser
 from app.schemas.schemas import WorkshopPhotoCreate, WorkshopPhotoUpdate, WorkshopPhoto as WorkshopPhotoSchema
 
@@ -62,6 +63,7 @@ def create_workshop_photo(
     db.add(db_photo)
     db.commit()
     db.refresh(db_photo)
+    cache_clear("workshop_photos")
     return db_photo
 
 
@@ -82,6 +84,7 @@ def update_workshop_photo(
         setattr(photo, field, value)
     db.commit()
     db.refresh(photo)
+    cache_clear("workshop_photos")
     return photo
 
 
@@ -99,4 +102,5 @@ def delete_workshop_photo(
         raise HTTPException(status_code=404, detail="Workshop photo not found")
     db.delete(photo)
     db.commit()
+    cache_clear("workshop_photos")
     return {"message": "Workshop photo deleted successfully"}

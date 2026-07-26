@@ -536,7 +536,7 @@ export default function CustomerRugDetail() {
                                 </div>
                               </div>
                               <div>
-                                <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
+                                <p className="text-stone-700 text-xs font-medium">Rush</p>
                                 <p className="text-stone-400 text-xs">+25% fee</p>
                               </div>
                             </div>
@@ -553,7 +553,7 @@ export default function CustomerRugDetail() {
                               </div>
                             </div>
                             <div>
-                              <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
+                              <p className="text-stone-700 text-xs font-medium">Rush</p>
                               <p className="text-stone-400 text-xs">
                                 {priceResult
                                   ? `${priceResult.standard_days}d → ${priceResult.rush_days}d · +25% fee`
@@ -600,7 +600,7 @@ export default function CustomerRugDetail() {
                             )}
                             {priceResult.rush_surcharge > 0 && (
                               <div className="flex justify-between text-xs">
-                                <span className="text-amber-600">Early delivery fee</span>
+                                <span className="text-amber-600">Rush fee</span>
                                 <span className="text-amber-600">+{fmtC(priceResult.rush_surcharge)}</span>
                               </div>
                             )}

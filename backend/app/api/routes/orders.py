@@ -4,13 +4,13 @@ from sqlalchemy import or_
 from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
-from app.models.models import Order, Quote, StaffUser, Customer, RugCatalog
+from app.models.models import Order, OrderStatusHistory, Quote, StaffUser, Customer, RugCatalog
 from app.schemas.schemas import OrderCreate, OrderUpdate, Order as OrderSchema
 from app.services.quote_engine import QuoteEngine
 
 router = APIRouter()
 
-VALID_STATUSES = ["pending", "in_production", "quality_check", "shipped", "delivered"]
+VALID_STATUSES = ["pending", "in_production", "quality_check", "shipped", "delivered", "cancelled"]
 
 
 @router.get("/orders", response_model=List[OrderSchema])
@@ -117,7 +117,10 @@ def update_order_status(
     ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    old_status = order.status
     order.status = status
+    if status != old_status:
+        db.add(OrderStatusHistory(order_id=order.id, status=status))
     db.commit()
     db.refresh(order)
     return order

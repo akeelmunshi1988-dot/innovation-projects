@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { refreshAccessToken } from './authRefresh';
 import type {
   Material,
   RugCatalog,
@@ -17,6 +18,7 @@ import type {
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,8 +33,16 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original?._retried) {
+      original._retried = true;
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        localStorage.setItem('loomcraftrugs_token', newToken);
+        original.headers['Authorization'] = `Bearer ${newToken}`;
+        return api(original);
+      }
       localStorage.removeItem('loomcraftrugs_token');
       localStorage.removeItem('loomcraftrugs_user');
       window.location.href = '/admin/login';
@@ -572,6 +582,13 @@ export interface OrderBreakdownLine {
   amount: number;
 }
 
+export interface GstSplit {
+  type: 'cgst_sgst' | 'igst' | null;
+  cgst_pct?: number;
+  sgst_pct?: number;
+  igst_pct?: number;
+}
+
 export interface OrderBreakdown {
   rug_name: string;
   material_name: string | null;
@@ -579,8 +596,6 @@ export interface OrderBreakdown {
   size_sqm: number;
   total_sqm: number;
   base_price_per_sqm: number;
-  material_cost_per_sqm: number;
-  profit_margin_pct: number;
   subtotal: number;
   bulk_discount: number;
   manual_discount: number;
@@ -589,6 +604,7 @@ export interface OrderBreakdown {
   pre_gst_price: number;
   gst_pct: number;
   gst_amount: number;
+  gst_split: GstSplit;
   final_price: number;
   price_per_piece: number;
   price_currency: string;
@@ -640,6 +656,22 @@ export const getCustomerOrderBreakdown = async (
 ): Promise<OrderBreakdown> => {
   const { data } = await axios.get<OrderBreakdown>(
     `/api/customer/orders/${orderId}/breakdown`,
+    { params: { email } },
+  );
+  return data;
+};
+
+export interface OrderTimelineEntry {
+  status: string;
+  at: string | null;
+}
+
+export const getCustomerOrderTimeline = async (
+  orderId: number,
+  email: string,
+): Promise<OrderTimelineEntry[]> => {
+  const { data } = await axios.get<OrderTimelineEntry[]>(
+    `/api/customer/orders/${orderId}/timeline`,
     { params: { email } },
   );
   return data;

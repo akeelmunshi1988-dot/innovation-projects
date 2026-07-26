@@ -93,7 +93,7 @@ TOOLS = [
                 },
                 "rush_order": {
                     "type": "boolean",
-                    "description": "Whether this is an early delivery order (faster than estimated delivery, extra surcharge).",
+                    "description": "Whether this is a rush order (faster than estimated delivery, extra surcharge).",
                     "default": False,
                 },
             },
@@ -139,7 +139,7 @@ TOOLS = [
                 },
                 "rush_order": {
                     "type": "boolean",
-                    "description": "Whether the order is an early delivery order.",
+                    "description": "Whether the order is a rush order.",
                     "default": False,
                 },
             },
@@ -377,9 +377,9 @@ class AIAgent:
                 "answer": "For catalog rugs: minimum 2 pieces per style. For custom rugs: minimum 4 sqm. For bulk/wholesale orders (10+ pieces), discounts of 15% apply automatically.",
             },
             {
-                "topic": "early delivery orders",
-                "question": "Can you do early delivery?",
-                "answer": "Yes. Early delivery orders (delivery in under 7 days from production start) carry a 25% surcharge. Rush delivery is subject to production capacity — please contact us to confirm availability.",
+                "topic": "rush orders",
+                "question": "Can you do rush delivery?",
+                "answer": "Yes. Rush orders (delivery in under 7 days from production start) carry a 25% surcharge. Rush delivery is subject to production capacity — please contact us to confirm availability.",
             },
             {
                 "topic": "quality",
