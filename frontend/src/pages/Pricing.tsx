@@ -130,7 +130,7 @@ export default function Pricing() {
       {/* Footer */}
       <footer className="border-t border-dark-700 py-8 text-center">
         <p className="text-dark-600 text-xs">
-          © 2025 LoomCraftRugs AI · Powered by Claude AI ·{' '}
+          © 2025 LoomCraftRugs AI ·{' '}
           <Link to="/pricing" className="hover:text-dark-400 transition-colors">Pricing</Link>
         </p>
       </footer>

@@ -10,6 +10,7 @@ import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { fmtExact } from '../utils/currency';
 import { fmtDims } from '../utils/size';
 import { getPublicSettings } from '../services/api';
+import type { GstSplit } from '../services/api';
 
 interface CustomerQuote {
   quote_id: number;
@@ -36,6 +37,7 @@ interface CustomerQuote {
   size_w: number | null;
   size_h: number | null;
   gst_pct: number | null;
+  gst_split?: GstSplit;
   lead_time_days: number | null;
 }
 
@@ -183,7 +185,7 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Type</p>
               <p className={`text-sm ${quote.rush_order ? 'text-amber-600' : 'text-stone-500'}`}>
-                {quote.rush_order ? 'Early Delivery' : 'Standard'}
+                {quote.rush_order ? 'Rush' : 'Standard'}
               </p>
             </div>
             <div>
@@ -216,7 +218,7 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
 
               {quote.rush_order && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-amber-600">Early delivery surcharge</span>
+                  <span className="text-amber-600">Rush surcharge</span>
                   <span className="text-amber-600">included</span>
                 </div>
               )}
@@ -229,10 +231,28 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
               )}
 
               {quote.gst_pct != null && quote.gst_amount != null && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-stone-400">GST ({quote.gst_pct.toFixed(0)}%)</span>
-                  <span className="text-stone-700">+{fmt(quote.gst_amount)}</span>
-                </div>
+                quote.gst_split?.type === 'cgst_sgst' ? (
+                  <>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-stone-400">CGST ({quote.gst_split.cgst_pct?.toFixed(1)}%)</span>
+                      <span className="text-stone-700">+{fmt(quote.gst_amount / 2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-stone-400">SGST ({quote.gst_split.sgst_pct?.toFixed(1)}%)</span>
+                      <span className="text-stone-700">+{fmt(quote.gst_amount / 2)}</span>
+                    </div>
+                  </>
+                ) : quote.gst_split?.type === 'igst' ? (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-400">IGST ({quote.gst_split.igst_pct?.toFixed(0)}%)</span>
+                    <span className="text-stone-700">+{fmt(quote.gst_amount)}</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-400">GST ({quote.gst_pct.toFixed(0)}%)</span>
+                    <span className="text-stone-700">+{fmt(quote.gst_amount)}</span>
+                  </div>
+                )
               )}
 
               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
@@ -393,7 +413,7 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
                         className="mt-0.5 flex-shrink-0 accent-amber-600"
                       />
                       <div>
-                        <p className="text-amber-800 text-xs font-medium">Remove early delivery fee (−25%)</p>
+                        <p className="text-amber-800 text-xs font-medium">Remove rush fee (−25%)</p>
                         <p className="text-amber-600 text-xs mt-0.5">Switch to standard delivery to reduce the total price</p>
                       </div>
                     </label>

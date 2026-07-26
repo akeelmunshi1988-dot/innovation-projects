@@ -20,12 +20,24 @@ app.add_middleware(
 )
 
 
+class CachedStaticFiles(StaticFiles):
+    """Every upload under /static gets a fresh UUID filename (see catalog.py,
+    showcase.py, workshop.py upload endpoints) — a given URL's content never
+    changes, so it's safe to mark cacheable for a year. This is what lets a
+    CDN (Cloudflare, see DEPLOYMENT.md Phase 13) cache these at the edge
+    instead of re-serving them from the VPS on every visit."""
+    def file_response(self, *args, **kwargs):
+        resp = super().file_response(*args, **kwargs)
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
+
+
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 os.makedirs(os.path.join(STATIC_DIR, "rugs"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "branding"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "showcase"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "workshop"), exist_ok=True)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", CachedStaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.on_event("startup")

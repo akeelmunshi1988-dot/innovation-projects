@@ -93,7 +93,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Scissors size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-cream-100 font-bold text-base leading-tight">{user?.tenant.name ?? 'LoomCraftRugs AI'}</h1>
+            {user ? (
+              <h1 className="text-cream-100 font-bold text-base leading-tight">{user.tenant.name}</h1>
+            ) : (
+              <span className="inline-block h-4 w-32 bg-dark-700 rounded animate-pulse" />
+            )}
             <p className="text-dark-400 text-xs">Rug Manufacturing System</p>
           </div>
           <button
@@ -184,7 +188,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <LogOut size={13} /> Sign Out
           </button>
-          <p className="text-dark-600 text-xs px-1">Powered by Claude AI</p>
         </div>
       </aside>
 

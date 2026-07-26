@@ -7,6 +7,7 @@ import type { RugCatalog, Material } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant, CURRENCIES } from '../utils/currency';
 import { fmtSize } from '../utils/size';
+import CornerCropModal from '../components/CornerCropModal';
 
 const PILE_OPTIONS   = ['low', 'medium', 'high', 'flat'];
 const WEAVE_OPTIONS  = ['hand-knotted', 'hand-tufted', 'flatweave', 'machine-woven'];
@@ -77,26 +78,16 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
   const [form, setForm]         = useState<FormData>(editing ? rugToForm(editing) : BLANK);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
-  const [uploading, setUploading] = useState(false);
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('upload');
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const fileRef                 = useRef<HTMLInputElement>(null);
   const firstRef                = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = async (file: File) => {
+  // Opens the corner-crop modal instead of uploading directly — the modal's
+  // own "Apply Crop" / "Use Original" actions do the actual upload.
+  const handleImageUpload = (file: File) => {
     if (!file) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      set('image_url', data.url);
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Image upload failed.');
-    } finally {
-      setUploading(false);
-    }
+    setCropFile(file);
   };
 
   useEffect(() => { setTimeout(() => firstRef.current?.focus(), 50); }, []);
@@ -303,14 +294,12 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
                 onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageUpload(f); }}
                 className="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-dark-600 hover:border-gold-600/50 rounded-xl p-5 cursor-pointer transition-colors group"
               >
-                {uploading ? (
-                  <div className="w-5 h-5 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
-                ) : form.image_url ? (
+                {form.image_url ? (
                   <img src={form.image_url} alt="preview" className="h-28 w-full object-cover rounded-lg" />
                 ) : (
                   <>
                     <Upload size={22} className="text-dark-500 group-hover:text-gold-500 transition-colors" />
-                    <p className="text-dark-400 text-xs text-center">Click or drag &amp; drop<br /><span className="text-dark-600">JPEG, PNG, WebP · max 5 MB</span></p>
+                    <p className="text-dark-400 text-xs text-center">Click or drag &amp; drop<br /><span className="text-dark-600">JPEG, PNG, WebP · max 20 MB</span></p>
                   </>
                 )}
                 <input
@@ -320,7 +309,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
                   className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
                 />
-                {form.image_url && !uploading && (
+                {form.image_url && (
                   <button type="button"
                     onClick={(e) => { e.stopPropagation(); set('image_url', ''); }}
                     className="absolute top-2 right-2 bg-dark-800 rounded-full p-1 text-dark-400 hover:text-red-400 transition-colors">
@@ -374,6 +363,14 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
           </button>
         </div>
       </div>
+
+      {cropFile && (
+        <CornerCropModal
+          file={cropFile}
+          onComplete={(url) => { set('image_url', url); setCropFile(null); }}
+          onCancel={() => setCropFile(null)}
+        />
+      )}
     </>
   );
 }

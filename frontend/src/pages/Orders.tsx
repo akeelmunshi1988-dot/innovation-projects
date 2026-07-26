@@ -14,7 +14,7 @@ type Breakdown = QuoteCalculateResponse & {
   gst_locked: boolean;
 };
 
-const ALL_STATUSES = ['pending', 'in_production', 'quality_check', 'shipped', 'delivered'];
+const ALL_STATUSES = ['pending', 'in_production', 'quality_check', 'shipped', 'delivered', 'cancelled'];
 
 const statusLabel: Record<string, string> = {
   pending: 'Pending',
@@ -22,6 +22,7 @@ const statusLabel: Record<string, string> = {
   quality_check: 'Quality Check',
   shipped: 'Shipped',
   delivered: 'Delivered',
+  cancelled: 'Cancelled',
 };
 
 const statusClass: Record<string, string> = {
@@ -30,6 +31,7 @@ const statusClass: Record<string, string> = {
   quality_check: 'badge-quality',
   shipped: 'badge-shipped',
   delivered: 'badge-delivered',
+  cancelled: 'badge-cancelled',
 };
 
 const fmtDate = (s: string | null) =>

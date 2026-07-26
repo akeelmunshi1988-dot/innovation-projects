@@ -1100,7 +1100,7 @@ export default function CustomerPortal() {
                                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${quoteForm.rush_order ? "translate-x-5" : "translate-x-0.5"}`} />
                               </div>
                               <div>
-                                <span className="text-stone-700 text-xs font-medium whitespace-nowrap">Early Delivery (+25%)</span>
+                                <span className="text-stone-700 text-xs font-medium whitespace-nowrap">Rush (+25%)</span>
                                 {selectedRug && (
                                   <p className="text-xs text-stone-400 whitespace-nowrap">
                                     {quoteForm.rush_order
@@ -1144,7 +1144,7 @@ export default function CustomerPortal() {
 
                               {estimate.rush_surcharge > 0 && (
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-amber-600">Early delivery surcharge</span>
+                                  <span className="text-amber-600">Rush surcharge</span>
                                   <span className="text-amber-600">+{fmtC(estimate.rush_surcharge)}</span>
                                 </div>
                               )}

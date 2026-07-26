@@ -466,6 +466,11 @@ class TokenResponse(BaseModel):
     tenant: TenantPublic
 
 
+class RefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 class MeResponse(BaseModel):
     user_id: int
     full_name: Optional[str]

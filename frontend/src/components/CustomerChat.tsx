@@ -231,7 +231,7 @@ export default function CustomerChat() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-cream-100 font-semibold text-sm">Rug Consultant</p>
-              <p className="text-dark-400 text-xs">Powered by Claude AI · Always available</p>
+              <p className="text-dark-400 text-xs">Always available</p>
             </div>
             <button
               onClick={() => setExpanded(e => !e)}

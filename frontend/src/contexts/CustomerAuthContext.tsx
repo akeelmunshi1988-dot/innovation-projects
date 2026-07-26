@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
+import { refreshAccessToken } from '../services/authRefresh';
 
 export interface CustomerUser {
   customer_id: number;
@@ -76,17 +77,35 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const customerLogout = useCallback(() => {
+    axios.post('/api/auth/logout').catch(() => {});
     localStorage.removeItem(CTOKEN_KEY);
     localStorage.removeItem(CUSER_KEY);
     setCustomerToken(null);
     setCustomer(null);
   }, []);
 
-  // Keep a customer-specific axios instance header whenever token changes
+  // On first load with no customer token, try a silent refresh — a valid
+  // refresh_token cookie means the session can resume without forcing login.
+  // Skipped if a staff session is active (refresh_token cookie is shared
+  // per-browser; the /auth/refresh response tells us which kind it is via
+  // whichever token type was rotated, so only apply it if no admin token exists).
   useEffect(() => {
-    // We pass the token as a header manually in customer API calls (see api.ts)
-    // This effect just keeps the stored token in sync
-  }, [customerToken]);
+    if (customerToken || customer || localStorage.getItem('loomcraftrugs_token')) return;
+    let cancelled = false;
+    (async () => {
+      const newToken = await refreshAccessToken();
+      if (!newToken || cancelled) return;
+      try {
+        const { data } = await axios.get('/api/auth/customer/me', { headers: { Authorization: `Bearer ${newToken}` } });
+        if (cancelled) return;
+        _persist(newToken, { customer_id: data.customer_id, name: data.name, email: data.email });
+      } catch {
+        // Refreshed token wasn't a customer session (or /customer/me failed) — leave logged out
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <CustomerAuthContext.Provider value={{

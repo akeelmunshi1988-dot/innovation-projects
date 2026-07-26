@@ -1,4 +1,5 @@
 import math
+import re
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query, Request
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
@@ -18,11 +19,13 @@ from app.services.vision_matcher import analyze_and_match, analyze_and_match_roo
 from app.services.quote_engine import QuoteEngine
 from app.core.config import settings
 from app.core.database import SessionLocal, get_db
+from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, InventoryTransaction, Tenant
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderStatusHistory, InventoryTransaction, Tenant
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services.invoice_generator import generate_invoice_pdf
+from app.services.size_format import fmt_dims as _fmt_dims
 from app.schemas.schemas import QuoteCustomerRespondRequest
 
 router = APIRouter()
@@ -38,9 +41,17 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 _FRONTEND_PUBLIC = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'frontend', 'public')
 )
+_STATIC_DIR = os.path.join(_BASE, 'static')  # backend-served uploads (admin-uploaded catalog/showcase/workshop images)
 
 def _load_rug_from_catalog(image_url: str) -> np.ndarray:
-    if image_url.startswith("/"):
+    if image_url.startswith("/static/"):
+        # Admin-uploaded images (catalog, showcase, workshop) — served by the backend, not the frontend.
+        path = os.path.join(_STATIC_DIR, image_url[len("/static/"):])
+        img = cv2.imread(path)
+        if img is None:
+            raise HTTPException(status_code=404, detail=f"Rug image not found: {path}")
+    elif image_url.startswith("/"):
+        # Bundled demo/seed images shipped with the frontend (e.g. /rugs/rug-abstract.jpg).
         path = os.path.join(_FRONTEND_PUBLIC, image_url.lstrip("/"))
         img = cv2.imread(path)
         if img is None:
@@ -244,10 +255,13 @@ MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 @router.get("/customer/settings")
 async def get_public_settings():
     """Public, unauthenticated feature flags the storefront needs before any customer session exists."""
+    cached = cache_get("settings")
+    if cached is not None:
+        return cached
     db = SessionLocal()
     try:
         tenant = db.query(Tenant).first()
-        return {
+        result = {
             "ai_assistant_enabled": tenant.ai_assistant_customer_enabled if tenant else True,
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
@@ -257,6 +271,8 @@ async def get_public_settings():
             "contact_address": tenant.contact_address if tenant else None,
             "contact_hours": tenant.contact_hours if tenant else None,
         }
+        cache_set("settings", result)
+        return result
     finally:
         db.close()
 
@@ -264,6 +280,9 @@ async def get_public_settings():
 @router.get("/customer/showcase-videos")
 async def get_public_showcase_videos():
     """Public, unauthenticated craftsmanship videos shown on the storefront homepage."""
+    cached = cache_get("showcase_videos")
+    if cached is not None:
+        return cached
     from app.models.models import ShowcaseVideo
     db = SessionLocal()
     try:
@@ -273,7 +292,7 @@ async def get_public_showcase_videos():
             .order_by(ShowcaseVideo.sort_order.asc(), ShowcaseVideo.id.asc())
             .all()
         )
-        return [
+        result = [
             {
                 "id": v.id,
                 "title": v.title,
@@ -284,6 +303,8 @@ async def get_public_showcase_videos():
             }
             for v in videos
         ]
+        cache_set("showcase_videos", result)
+        return result
     finally:
         db.close()
 
@@ -291,6 +312,9 @@ async def get_public_showcase_videos():
 @router.get("/customer/workshop-photos")
 async def get_public_workshop_photos():
     """Public, unauthenticated 'Inside the Workshop' gallery shown on the storefront homepage."""
+    cached = cache_get("workshop_photos")
+    if cached is not None:
+        return cached
     from app.models.models import WorkshopPhoto
     db = SessionLocal()
     try:
@@ -300,7 +324,7 @@ async def get_public_workshop_photos():
             .order_by(WorkshopPhoto.sort_order.asc(), WorkshopPhoto.id.asc())
             .all()
         )
-        return [
+        result = [
             {
                 "id": p.id,
                 "caption": p.caption,
@@ -309,12 +333,18 @@ async def get_public_workshop_photos():
             }
             for p in photos
         ]
+        cache_set("workshop_photos", result)
+        return result
     finally:
         db.close()
 
 
 @router.get("/customer/catalog")
 async def get_public_catalog(sort: str = Query("newest")):
+    cache_key = f"list:{sort}"
+    cached = cache_get("catalog", cache_key)
+    if cached is not None:
+        return cached
     from sqlalchemy import func as sqlfunc
     db = SessionLocal()
     try:
@@ -329,7 +359,7 @@ async def get_public_catalog(sort: str = Query("newest")):
         else:
             q = q.order_by(RugCatalog.id.desc())
         rugs = q.all()
-        return [
+        result = [
             {
                 "id": r.id,
                 "name": r.name,
@@ -347,6 +377,8 @@ async def get_public_catalog(sort: str = Query("newest")):
             }
             for r in rugs
         ]
+        cache_set("catalog", result, cache_key)
+        return result
     finally:
         db.close()
 
@@ -1130,6 +1162,41 @@ async def get_customer_orders(
         db.close()
 
 
+def _gst_split(tenant_state: Optional[str], customer_state: Optional[str], gst_pct: Optional[float]) -> dict:
+    """
+    Same same-state/inter-state logic as invoice_generator.py: same state code
+    on both sides -> CGST+SGST split evenly, otherwise IGST at the full rate.
+    Lets customer-facing pages show "CGST 6% + SGST 6%" (or "IGST 12%") instead
+    of an undifferentiated "GST 12%".
+    """
+    if not gst_pct:
+        return {"type": None}
+    if tenant_state and customer_state and tenant_state == customer_state:
+        half = round(gst_pct / 2, 2)
+        return {"type": "cgst_sgst", "cgst_pct": half, "sgst_pct": half}
+    return {"type": "igst", "igst_pct": gst_pct}
+
+
+def _customer_safe_breakdown(result: dict) -> dict:
+    """
+    calculate_quote() is shared with staff-facing tools that legitimately need
+    to see margin/cost data — strip that out here rather than in the engine
+    itself, specifically for customer-facing responses. Removes the top-level
+    fields and the bracketed margin/cost detail embedded in the first
+    breakdown line's label (e.g. "... [40% margin on 1800.00/sqm material]").
+    """
+    safe = {k: v for k, v in result.items() if k not in ("material_cost_per_sqm", "profit_margin_pct")}
+    breakdown = safe.get("breakdown")
+    if breakdown:
+        cleaned = []
+        for i, line in enumerate(breakdown):
+            if i == 0 and "label" in line:
+                line = {**line, "label": re.sub(r"\s*\[[^\]]*margin[^\]]*\]", "", line["label"]).strip()}
+            cleaned.append(line)
+        safe["breakdown"] = cleaned
+    return safe
+
+
 @router.get("/customer/orders/{order_id}/breakdown")
 async def get_customer_order_breakdown(order_id: int, email: str):
     db = SessionLocal()
@@ -1167,14 +1234,54 @@ async def get_customer_order_breakdown(order_id: int, email: str):
             raise HTTPException(status_code=422, detail=result["error"])
         mat = q.material
         rug = q.rug_catalog
+        tenant = db.query(Tenant).filter(Tenant.id == q.tenant_id).first()
+        cust = q.customer
         return {
-            **result,
+            **_customer_safe_breakdown(result),
             "stored_final_price": q.final_price,
             "price_currency": q.price_currency or result.get("price_currency", "INR"),
             "material_name": mat.name if mat else None,
             "rug_name": rug.name if rug else "Custom Order",
             "weave_type": rug.weave_type if rug else None,
+            "gst_split": _gst_split(
+                tenant.state_code if tenant else None,
+                cust.state_code if cust else None,
+                result.get("gst_pct"),
+            ),
         }
+    finally:
+        db.close()
+
+
+@router.get("/customer/orders/{order_id}/timeline")
+async def get_customer_order_timeline(order_id: int, email: str):
+    db = SessionLocal()
+    try:
+        same_email_ids = [
+            c.id for c in db.query(Customer).filter(Customer.email == email).all()
+        ]
+        if not same_email_ids:
+            raise HTTPException(status_code=404, detail="Order not found")
+        order = (
+            db.query(Order)
+            .join(Quote, Order.quote_id == Quote.id)
+            .filter(Order.id == order_id, Quote.customer_id.in_(same_email_ids))
+            .first()
+        )
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        history = (
+            db.query(OrderStatusHistory)
+            .filter(OrderStatusHistory.order_id == order.id)
+            .order_by(OrderStatusHistory.changed_at.asc())
+            .all()
+        )
+        # The order's own creation is the implicit first entry — no need to
+        # backfill history rows for orders placed before this feature shipped.
+        timeline = [{"status": "pending", "at": order.created_at.isoformat() if order.created_at else None}]
+        timeline += [{"status": h.status, "at": h.changed_at.isoformat() if h.changed_at else None} for h in history]
+        return timeline
     finally:
         db.close()
 
@@ -1231,7 +1338,7 @@ Quantity (both flows):
 - Show "1 piece", "2 pieces", "4 pieces", "Other quantity"
 
 Delivery type (both flows):
-- Show "Standard delivery" and "Early delivery (+25% fee)"
+- Show "Standard delivery" and "Rush (+25% fee)"
 
 Intent / next step — always confirm before taking action:
 - If customer seems ready to order: "Proceed to checkout", "Request a quote first", "Browse more rugs"
@@ -1273,7 +1380,7 @@ Rules:
                     "size_w":    {"type": "number",  "description": "Width in metres"},
                     "size_h":    {"type": "number",  "description": "Height/length in metres"},
                     "qty":       {"type": "integer", "description": "Number of pieces", "default": 1},
-                    "rush_order":{"type": "boolean", "description": "True if early delivery is needed"},
+                    "rush_order":{"type": "boolean", "description": "True if rush delivery is needed"},
                     "notes":     {"type": "string",  "description": "Special requirements"},
                 },
                 "required": ["rug_id", "rug_name", "size_w", "size_h"],
@@ -1493,6 +1600,7 @@ def get_customer_quotes(
     else:
         order = Quote.created_at.desc()
     quotes = base_q.order_by(order).offset((page - 1) * page_size).limit(page_size).all()
+    tenant = db.query(Tenant).filter(Tenant.id == current_customer.tenant_id).first()
     result = []
     for q in quotes:
         rug = q.rug_catalog
@@ -1519,6 +1627,11 @@ def get_customer_quotes(
             "pre_gst_price": round(
                 q.final_price / (1 + (q.gst_pct or 0) / 100), 2
             ) if q.final_price else None,
+            "gst_split": _gst_split(
+                tenant.state_code if tenant else None,
+                q.customer.state_code if q.customer else None,
+                q.gst_pct,
+            ),
             "manual_discount_pct": q.manual_discount_pct,
             "rush_order": q.rush_order,
             "notes": q.notes,
@@ -1739,7 +1852,7 @@ def negotiate_quote(
     if body.proposed_qty is not None and body.proposed_qty != quote.qty:
         parts.append(f"Requested quantity: {body.proposed_qty} (was {quote.qty})")
     if body.remove_rush:
-        parts.append("Remove early delivery fee — switch to standard delivery")
+        parts.append("Remove rush fee — switch to standard delivery")
     if body.requested_lead_days is not None:
         parts.append(f"Requested lead time: {body.requested_lead_days} days")
     if body.message.strip():
@@ -1781,7 +1894,9 @@ def download_customer_invoice(
     total_sqm = size_sqm * qty
     invoice_currency = tenant.currency if tenant else "INR"
     rate_per_sqm = round(quote.final_price / total_sqm, 2) if total_sqm > 0 else 0.0
-    size_desc = f"{quote.custom_size_w}×{quote.custom_size_h}m ({size_sqm:.2f}m²)"
+    size_unit = (tenant.default_size_unit if tenant else None) or "ft"
+    dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
+    size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
 
     pdf_bytes = generate_invoice_pdf(
         quote_id=quote.id,
@@ -1800,10 +1915,12 @@ def download_customer_invoice(
         rug_name=rug.name,
         hsn_code=rug.hsn_code or "5703",
         size_desc=size_desc,
+        size_dims_str=dims_str,
         qty=qty,
         rate_per_sqm=rate_per_sqm,
         size_sqm=size_sqm,
         currency=invoice_currency,
+        expected_delivery_days=quote.expected_delivery_days,
     )
 
     filename = f"invoice-order-{order_id:04d}.pdf"

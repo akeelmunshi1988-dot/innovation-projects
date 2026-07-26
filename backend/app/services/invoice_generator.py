@@ -1,6 +1,6 @@
 """GST-compliant invoice PDF generator using ReportLab."""
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from reportlab.lib import colors
@@ -93,6 +93,8 @@ def generate_invoice_pdf(
     rate_per_sqm: float,
     size_sqm: float,
     currency: str = "INR",
+    expected_delivery_days: Optional[int] = None,
+    size_dims_str: Optional[str] = None,  # e.g. "10.0x10.0 ft" — pre-formatted in the vendor's default_size_unit
 ) -> bytes:
     buf = BytesIO()
 
@@ -233,83 +235,126 @@ def generate_invoice_pdf(
     story.append(header_table)
     story.append(Spacer(1, 8))
 
-    # ── Line items ───────────────────────────────────────────────────────────────
-    sym = "₹" if currency == "INR" else "$"
+    # ── Item card: name/HSN heading + a stat grid (size, qty, rate, delivery) ─────
+    # ReportLab's base Helvetica font predates Unicode's Rupee sign (U+20B9) and
+    # has no glyph for it — it silently renders as a black box. "Rs." is the
+    # safe, always-available fallback; other currency symbols here (£, €) are
+    # part of the standard WinAnsi encoding Helvetica does support.
+    _CURRENCY_SYMBOLS = {"INR": "Rs. ", "USD": "$", "EUR": "€", "GBP": "£"}
+    sym = _CURRENCY_SYMBOLS.get(currency, currency + " ")
 
-    item_headers = ["#", "Description of Goods", "HSN", "Size", "Qty", "Rate/sqm",
-                    "Taxable Value"]
-    item_row = [
-        "1",
-        Paragraph(rug_name, value_style),
-        hsn_code,
-        size_desc,
-        str(qty),
-        f"{sym}{rate_per_sqm:,.2f}",
-        f"{sym}{taxable_value:,.2f}",
+    stat_label = ParagraphStyle("statlabel", fontSize=6.5, fontName="Helvetica-Bold",
+                                 textColor=colors.grey, leading=9)
+    stat_value = ParagraphStyle("statvalue", fontSize=10, fontName="Helvetica-Bold",
+                                 textColor=DARK, leading=13)
+
+    delivery_str = None
+    if expected_delivery_days:
+        delivery_str = (now + timedelta(days=expected_delivery_days)).strftime("%d-%m-%Y")
+
+    stat_cells = [
+        [Paragraph("SIZE (PER PIECE)", stat_label), Paragraph(size_dims_str or f"{size_sqm:.2f} m²", stat_value)],
+        [Paragraph("QUANTITY", stat_label), Paragraph(f"{qty} pc" + ("s" if qty != 1 else ""), stat_value)],
+        [Paragraph("RATE / M²", stat_label), Paragraph(f"{sym}{rate_per_sqm:,.2f}", stat_value)],
     ]
+    if delivery_str:
+        stat_cells.append([Paragraph("EST. DELIVERY", stat_label), Paragraph(delivery_str, stat_value)])
+    else:
+        stat_cells.append([Paragraph("HSN CODE", stat_label), Paragraph(hsn_code, stat_value)])
 
-    item_data = [item_headers, item_row]
-    item_table = Table(
-        item_data,
-        colWidths=["4%", "32%", "8%", "14%", "6%", "14%", "22%"],
+    stats_table = Table(
+        [[c[0] for c in stat_cells], [c[1] for c in stat_cells]],
+        colWidths=["25%", "25%", "25%", "25%"],
     )
+    stats_table.setStyle(TableStyle([
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 2),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 0),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    item_card = [
+        [Paragraph(rug_name, ParagraphStyle("itemname", fontSize=12, fontName="Helvetica-Bold",
+                                             textColor=DARK, spaceAfter=1)),
+         Paragraph(f"HSN {hsn_code} · {size_desc}", small_style)],
+        [stats_table],
+    ]
+    item_table = Table(item_card, colWidths=["100%"])
     item_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), DARK),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 8),
-        ("FONTSIZE", (0, 1), (-1, -1), 9),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("ALIGN", (1, 0), (1, -1), "LEFT"),
-        ("ALIGN", (-1, 0), (-1, -1), "RIGHT"),
-        ("ALIGN", (-2, 0), (-2, -1), "RIGHT"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID", (0, 0), (-1, -1), 0.5, MID_GREY),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_GREY]),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("BACKGROUND", (0, 0), (-1, -1), LIGHT_GREY),
+        ("BOX", (0, 0), (-1, -1), 0.5, MID_GREY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("TOPPADDING", (0, 1), (-1, 1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 10),
     ]))
     story.append(item_table)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 8))
 
-    # ── Tax summary ──────────────────────────────────────────────────────────────
-    tax_rows = [["Taxable Amount", f"{sym}{taxable_value:,.2f}"]]
+    # ── Price calculation card ────────────────────────────────────────────────────
+    calc_line = ParagraphStyle("calcline", fontSize=9, fontName="Helvetica",
+                                textColor=DARK)
+    calc_line_muted = ParagraphStyle("calclinemuted", fontSize=9, fontName="Helvetica",
+                                      textColor=colors.grey)
+    calc_total_label = ParagraphStyle("calctotallabel", fontSize=11, fontName="Helvetica-Bold",
+                                       textColor=DARK)
+    calc_total_value = ParagraphStyle("calctotalvalue", fontSize=13, fontName="Helvetica-Bold",
+                                       textColor=GOLD)
+
+    calc_rows = [
+        [Paragraph(f"Rate: {sym}{rate_per_sqm:,.2f}/m² × {total_sqm:.2f} m²", calc_line),
+         Paragraph(f"{sym}{taxable_value:,.2f}", calc_line)],
+        [Paragraph("Pre-tax total", calc_line_muted),
+         Paragraph(f"{sym}{taxable_value:,.2f}", calc_line_muted)],
+    ]
     if is_proforma:
-        tax_rows.append(["GST (Indicative - subject to final invoice)", "—"])
-        tax_rows.append(["", ""])
+        calc_rows.append([Paragraph("GST (indicative — final invoice may vary)", calc_line_muted),
+                           Paragraph("—", calc_line_muted)])
     elif is_export:
-        tax_rows.append(["IGST (0% - Export)", f"{sym}0.00"])
-        tax_rows.append(["", ""])
+        calc_rows.append([Paragraph("IGST (0% — export under LUT)", calc_line_muted),
+                           Paragraph(f"{sym}0.00", calc_line_muted)])
     elif same_state:
-        tax_rows.append([f"CGST @ {GST_RATE*50:.0f}%", f"{sym}{cgst:,.2f}"])
-        tax_rows.append([f"SGST @ {GST_RATE*50:.0f}%", f"{sym}{sgst:,.2f}"])
+        calc_rows.append([Paragraph(f"CGST @ {GST_RATE*50:.0f}%", calc_line_muted),
+                           Paragraph(f"+{sym}{cgst:,.2f}", calc_line_muted)])
+        calc_rows.append([Paragraph(f"SGST @ {GST_RATE*50:.0f}%", calc_line_muted),
+                           Paragraph(f"+{sym}{sgst:,.2f}", calc_line_muted)])
     else:
-        tax_rows.append([f"IGST @ {GST_RATE*100:.0f}%", f"{sym}{igst:,.2f}"])
-        tax_rows.append(["", ""])
-    tax_rows.append(["GRAND TOTAL", f"{sym}{grand_total:,.2f}"])
+        calc_rows.append([Paragraph(f"IGST @ {GST_RATE*100:.0f}%", calc_line_muted),
+                           Paragraph(f"+{sym}{igst:,.2f}", calc_line_muted)])
 
-    # Right-align the tax summary
-    right_col = [["", ""], ["", ""]]  # padding left column
-    full_width = 181 * mm  # A4 - margins
-    tax_table = Table(tax_rows, colWidths=["65%", "35%"])
-    tax_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, -1), (-1, -1), 11),
-        ("TEXTCOLOR", (0, -1), (-1, -1), GOLD),
-        ("LINEABOVE", (0, -1), (-1, -1), 1.5, GOLD),
+    calc_table = Table(calc_rows, colWidths=["65%", "35%"])
+    calc_table.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (1, 0), (1, -1), 4),
     ]))
 
-    # Wrap tax table in a right-aligned container
-    outer = Table([[None, tax_table]], colWidths=["48%", "52%"])
-    outer.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    story.append(outer)
-    story.append(Spacer(1, 6))
+    total_row = Table(
+        [[Paragraph(("Total (indicative)" if is_proforma else "Total (incl. GST)"), calc_total_label),
+          Paragraph(f"{sym}{grand_total:,.2f}", calc_total_value)]],
+        colWidths=["65%", "35%"],
+    )
+    total_row.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("LINEABOVE", (0, 0), (-1, 0), 1, GOLD),
+    ]))
+
+    calc_card = Table([[calc_table], [total_row]], colWidths=["100%"])
+    calc_card.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), LIGHT_GREY),
+        ("BOX", (0, 0), (-1, -1), 0.5, MID_GREY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 10),
+    ]))
+    story.append(calc_card)
+    story.append(Spacer(1, 8))
 
     # ── Amount in words ──────────────────────────────────────────────────────────
     story.append(HRFlowable(width="100%", thickness=0.5, color=MID_GREY, spaceAfter=4))

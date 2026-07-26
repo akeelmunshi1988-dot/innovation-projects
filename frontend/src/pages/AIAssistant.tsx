@@ -10,7 +10,7 @@ const SUGGESTED_QUESTIONS = [
   "What's the price for a 4x6m wool rug?",
   "Do we have silk in stock?",
   "What's our MOQ for custom orders?",
-  "How long for early delivery?",
+  "How long for rush delivery?",
   "Show me the full rug catalog with prices",
   "What bulk discounts do we offer?",
   "Is Tibetan wool available and how much?",
@@ -90,7 +90,7 @@ const AIAssistant: React.FC = () => {
           <div>
             <h1 className="text-cream-100 font-bold">AI Business Assistant</h1>
             <p className="text-dark-400 text-xs">
-              Powered by Claude · Queries real business data · Never fabricates prices
+              Queries real business data · Never fabricates prices
             </p>
           </div>
         </div>
