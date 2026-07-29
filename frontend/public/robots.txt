@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /order/
+Disallow: /my-orders
+Disallow: /my-quotes
+Disallow: /login
+Disallow: /verify-email
+
+Sitemap: https://loomcraftrugs.in/sitemap.xml

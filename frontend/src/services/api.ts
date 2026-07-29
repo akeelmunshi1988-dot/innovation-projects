@@ -566,7 +566,6 @@ export interface CustomerOrder {
   pre_gst_price: number | null;
   gst_pct: number | null;
   gst_amount: number | null;
-  margin_pct: number | null;
   price_currency: string;
   rush_order: boolean;
   manual_discount_pct: number | null;

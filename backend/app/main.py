@@ -1,8 +1,10 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
-from app.core.database import init_db
+from app.core.database import init_db, SessionLocal
+from app.core.config import settings
 from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop
 
 app = FastAPI(
@@ -69,3 +71,37 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+STATIC_SITEMAP_ROUTES = ["/", "/about", "/catalog", "/visualizer"]
+
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    """
+    Mounted unprefixed (not under /api) so it lives at the conventional root
+    URL search engines expect. NOTE: in production this requires an nginx
+    location block routing /sitemap.xml to the backend — see DEPLOYMENT.md
+    Phase 10 — since nginx's `location /` otherwise serves the frontend's
+    SPA shell for any path it doesn't recognize as a static file.
+    """
+    from app.models.models import RugCatalog
+
+    base_url = settings.FRONTEND_URL.rstrip("/")
+    db = SessionLocal()
+    try:
+        rug_ids = [r.id for r in db.query(RugCatalog.id).all()]
+    finally:
+        db.close()
+
+    urls = [f"{base_url}{path}" for path in STATIC_SITEMAP_ROUTES]
+    urls += [f"{base_url}/catalog/{rug_id}" for rug_id in rug_ids]
+
+    entries = "\n".join(f"  <url><loc>{url}</loc></url>" for url in urls)
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{entries}\n"
+        "</urlset>"
+    )
+    return Response(content=xml, media_type="application/xml")

@@ -4,6 +4,7 @@ import {
   CheckCircle, Package, Truck, Clock, MapPin, ArrowRight, Search,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
 import { fmtExact } from '../utils/currency';
@@ -53,6 +54,7 @@ export default function CustomerOrderConfirm() {
 
   return (
     <CustomerLayout>
+      <SEO title="Order Confirmed" description="Your custom rug order has been placed." noindex />
       <div className="max-w-3xl mx-auto px-6 py-16 space-y-8">
 
         {/* Success banner */}

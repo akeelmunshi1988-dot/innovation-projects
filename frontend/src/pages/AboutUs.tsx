@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
 
 interface Person {
@@ -61,6 +62,10 @@ export default function AboutUs() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title={`About ${businessName}`}
+        description={`Learn about ${businessName}'s craftsmanship, workshop, and the master weavers behind every handmade custom rug.`}
+      />
       {/* ── HERO ─────────────────────────────────────────────────────── */}
       <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
         <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-3">Our Story</p>

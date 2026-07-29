@@ -275,6 +275,14 @@ server {
         proxy_read_timeout 120s;
     }
 
+    # Sitemap -> FastAPI backend (mounted unprefixed at /sitemap.xml, not under /api,
+    # so it lives at the conventional root URL search engines expect)
+    location = /sitemap.xml {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
     # Backend static files (admin-uploaded rug images)
     location /static/ {
         alias /var/www/loomcraft/innovation-projects/backend/static/;

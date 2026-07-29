@@ -1143,7 +1143,6 @@ async def get_customer_orders(
                 "pre_gst_price": pre_gst,
                 "gst_pct": gst,
                 "gst_amount": gst_amount,
-                "margin_pct": q.margin_pct if q else None,
                 "price_currency": q.price_currency if q else "INR",
                 "rush_order": q.rush_order if q else False,
                 "manual_discount_pct": q.manual_discount_pct if q else None,

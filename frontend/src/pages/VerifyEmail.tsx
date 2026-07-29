@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -37,6 +38,7 @@ export default function VerifyEmail() {
 
   return (
     <CustomerLayout>
+      <SEO title="Verify Email" description="Verifying your email address." noindex />
       <div className="max-w-7xl mx-auto px-6 py-20">
         <div className="max-w-md mx-auto text-center">
           {status === 'verifying' && (

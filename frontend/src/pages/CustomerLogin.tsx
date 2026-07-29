@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, UserPlus, Eye, EyeOff, AlertTriangle, MailCheck } from 'lucide-react';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 
 type Mode = 'login' | 'register';
 
@@ -66,6 +67,7 @@ export default function CustomerLogin() {
 
   return (
     <CustomerLayout>
+      <SEO title="Sign In" description="Sign in to your account to track orders and manage quotes." noindex />
       <div className="max-w-7xl mx-auto px-6 py-20">
         <div className="max-w-md mx-auto">
 

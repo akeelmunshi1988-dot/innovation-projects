@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
+import SEO from './SEO';
 
 interface NavItem {
   path: string;
@@ -70,6 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-dark-950">
+      <SEO title="Admin" description="LoomCraftRugs admin panel." noindex />
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
