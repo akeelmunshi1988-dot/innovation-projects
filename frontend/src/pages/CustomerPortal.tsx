@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { RefreshCw, Download, Zap, Maximize2, X, Search, CheckCircle2, Send, CheckCircle, AlertTriangle, ShoppingBag, Calculator } from "lucide-react";
 import CustomerLayout from "../components/CustomerLayout";
+import SEO from "../components/SEO";
 import { fmtExact, currencySymbol } from "../utils/currency";
 import { fmtSize, feetToUnit, toMetres } from "../utils/size";
 import { getPublicSettings } from "../services/api";
@@ -549,6 +550,10 @@ export default function CustomerPortal() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Room Visualizer — See Any Rug in Your Space"
+        description="Upload a photo of your room and preview any rug from our collection before you order — powered by AI room visualization."
+      />
       <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
 
         {/* Header */}

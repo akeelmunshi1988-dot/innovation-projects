@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Layers, X } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 
 interface CatalogRug {
   id: number;
@@ -68,6 +69,10 @@ export default function CustomerCatalog() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Rug Collection — Wool, Silk, Cotton & Synthetic"
+        description="Browse our full collection of handcrafted rugs in wool, silk, cotton, and synthetic weaves. Every design available in custom sizes, made to order."
+      />
       <div className="max-w-7xl mx-auto px-6">
 
         {/* ── Page header ───────────────────────────────────────────── */}

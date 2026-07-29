@@ -5,6 +5,7 @@ import {
   CheckCircle, X, LogIn, UserPlus, Eye, EyeOff,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { createPaymentOrder, verifyPayment, getPublicSettings } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
 
@@ -212,6 +213,7 @@ export default function CustomerCheckout() {
 
   return (
     <CustomerLayout>
+      <SEO title="Checkout" description="Complete your custom rug order." noindex />
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
 
         {/* Breadcrumb */}

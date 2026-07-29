@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { getMyOrders, getCustomerOrderBreakdown, getCustomerOrderTimeline, getPublicSettings } from '../services/api';
 import type { CustomerOrder, OrderBreakdown, OrderTimelineEntry } from '../services/api';
 import { fmtExact } from '../utils/currency';
@@ -495,6 +496,7 @@ export default function CustomerMyOrders() {
   if (isCustomerAuthenticated && customer) {
     return (
       <CustomerLayout>
+        <SEO title="My Orders" description="View and track your custom rug orders." noindex />
         <div className="max-w-3xl mx-auto px-6">
           <div className="py-14 border-b border-stone-100 flex items-end justify-between gap-4 flex-wrap">
             <div>
@@ -654,6 +656,7 @@ export default function CustomerMyOrders() {
   // ── Guest view ────────────────────────────────────────────────────────────────
   return (
     <CustomerLayout>
+      <SEO title="My Orders" description="Look up your custom rug orders by email." noindex />
       <div className="max-w-3xl mx-auto px-6">
         <div className="py-14 border-b border-stone-100">
           <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Track</p>

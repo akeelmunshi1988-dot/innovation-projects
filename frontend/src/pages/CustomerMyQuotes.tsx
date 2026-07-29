@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { fmtExact } from '../utils/currency';
 import { fmtDims } from '../utils/size';
@@ -564,6 +565,7 @@ export default function CustomerMyQuotes() {
   if (!isCustomerAuthenticated) {
     return (
       <CustomerLayout>
+        <SEO title="My Quotes" description="Sign in to view your rug quotes." noindex />
         <div className="min-h-[70vh] flex items-center justify-center px-6">
           <div className="text-center space-y-5 max-w-sm">
             <FileText size={32} className="text-stone-300 mx-auto" />
@@ -583,6 +585,7 @@ export default function CustomerMyQuotes() {
 
   return (
     <CustomerLayout>
+      <SEO title="My Quotes" description="View and respond to quotes sent to you." noindex />
       <div className="max-w-3xl mx-auto px-6">
         {/* Header */}
         <div className="py-14 border-b border-stone-100 flex items-end justify-between gap-4 flex-wrap">

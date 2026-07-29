@@ -6,6 +6,7 @@ import {
   ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { fmtExact, currencySymbol } from '../utils/currency';
 import { fmtSize, feetToUnit, toMetres } from '../utils/size';
 import { getPublicSettings } from '../services/api';
@@ -286,6 +287,30 @@ export default function CustomerRugDetail() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title={rug.name}
+        description={
+          rug.description ??
+          `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size, starting at ${sym}${rug.base_price_per_sqm}/m².`
+        }
+        image={rug.image_url ?? undefined}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: rug.name,
+          description: rug.description ?? undefined,
+          image: rug.image_url ?? undefined,
+          material: rug.material,
+          offers: {
+            '@type': 'Offer',
+            price: rug.base_price_per_sqm,
+            priceCurrency: currency,
+            availability: rug.available
+              ? 'https://schema.org/InStock'
+              : 'https://schema.org/OutOfStock',
+          },
+        }}
+      />
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
 
         {/* Breadcrumb */}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, Layers, Zap, Play } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { currencySymbol } from '../utils/currency';
 import { getPublicSettings } from '../services/api';
 
@@ -150,6 +151,10 @@ export default function CustomerHome() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Handcrafted Custom Rugs, Made to Order"
+        description="Premium handcrafted rugs custom-made to your exact size, material, and design — wool, silk, cotton, and synthetic weaves from India's finest workshops. Visualize any rug in your room before you order."
+      />
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       {SHOW_HERO && (
