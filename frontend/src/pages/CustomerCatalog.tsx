@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Search, Layers, X } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface CatalogRug {
   id: number;
@@ -33,6 +34,7 @@ export default function CustomerCatalog() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('default');
+  const { displayPrice } = useCurrency();
 
   const materialParam = searchParams.get('material') ?? 'all';
   const pileParam     = searchParams.get('pile')     ?? 'all';
@@ -207,7 +209,7 @@ export default function CustomerCatalog() {
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-serif text-base font-light text-stone-900 leading-snug">{rug.name}</h3>
                       <p className="text-stone-900 text-sm flex-shrink-0">
-                        ₹{rug.base_price_per_sqm}<span className="text-stone-400 text-xs">/m²</span>
+                        {displayPrice(rug.base_price_per_sqm)}<span className="text-stone-400 text-xs">/m²</span>
                       </p>
                     </div>
                     <p className="text-stone-400 text-sm capitalize">

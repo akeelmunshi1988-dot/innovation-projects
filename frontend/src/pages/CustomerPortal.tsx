@@ -4,14 +4,10 @@ import axios from "axios";
 import { RefreshCw, Download, Zap, Maximize2, X, Search, CheckCircle2, Send, CheckCircle, AlertTriangle, ShoppingBag, Calculator } from "lucide-react";
 import CustomerLayout from "../components/CustomerLayout";
 import SEO from "../components/SEO";
-import { fmtExact, currencySymbol } from "../utils/currency";
-import { fmtSize, feetToUnit, toMetres } from "../utils/size";
+import { fmtSize, feetToUnit, toMetres, inputUnit } from "../utils/size";
 import { getPublicSettings } from "../services/api";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
-
-const CUSTOMER_CURRENCY = 'INR';
-const sym = currencySymbol(CUSTOMER_CURRENCY);
-const fmtC = (n: number) => fmtExact(n, CUSTOMER_CURRENCY);
+import { useCurrency } from "../contexts/CurrencyContext";
 
 type Point = [number, number];
 
@@ -62,6 +58,7 @@ export default function CustomerPortal() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { customer, isCustomerAuthenticated } = useCustomerAuth();
+  const { displayPrice } = useCurrency();
   const preselectedId = searchParams.get('rug_id') ? parseInt(searchParams.get('rug_id')!) : null;
   const didPreselect = useRef(false);
 
@@ -465,18 +462,21 @@ export default function CustomerPortal() {
       });
       navigate('/checkout', {
         state: {
-          rug_id: selectedRug.id,
-          rug_name: selectedRug.name,
-          size_w: w, size_h: h, qty,
-          rush_order: quoteForm.rush_order,
-          shape: quoteForm.shape,
-          notes: quoteForm.notes || undefined,
-          estimated_price: data.final_price,
-          pre_gst_price: data.pre_gst_price,
-          gst_pct: data.gst_pct,
-          gst_amount: data.gst_amount,
-          price_currency: data.price_currency ?? 'INR',
-          estimated_days: data.estimated_days,
+          items: [{
+            rug_id: selectedRug.id,
+            rug_name: selectedRug.name,
+            image_url: selectedRug.image_url,
+            size_w: w, size_h: h, qty,
+            rush_order: quoteForm.rush_order,
+            shape: quoteForm.shape,
+            notes: quoteForm.notes || undefined,
+            estimated_price: data.final_price,
+            pre_gst_price: data.pre_gst_price,
+            gst_pct: data.gst_pct,
+            gst_amount: data.gst_amount,
+            price_currency: data.price_currency ?? 'INR',
+            estimated_days: data.estimated_days,
+          }],
           name:  quoteForm.name  || undefined,
           email: quoteForm.email || undefined,
           phone: quoteForm.phone || undefined,
@@ -963,7 +963,7 @@ export default function CustomerPortal() {
                       <div className="flex gap-10 border-t border-stone-100 pt-4 w-full justify-center">
                         <div className="text-center">
                           <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Estimated Total</p>
-                          <p className="text-stone-900 font-medium text-xl">{fmtC(quoteResult.final_price)}</p>
+                          <p className="text-stone-900 font-medium text-xl">{displayPrice(quoteResult.final_price, estimate?.price_currency)}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Expected Delivery</p>
@@ -990,7 +990,7 @@ export default function CustomerPortal() {
                           <div className="min-w-0">
                             <p className="text-stone-900 text-sm font-medium truncate">{selectedRug.name}</p>
                             <p className="text-stone-400 text-xs">{selectedRug.material} · {selectedRug.weave_type}</p>
-                            <p className="text-stone-600 text-xs mt-0.5">{sym}{selectedRug.base_price_per_sqm}/sqm · {selectedRug.lead_time_days}d delivery</p>
+                            <p className="text-stone-600 text-xs mt-0.5">{displayPrice(selectedRug.base_price_per_sqm)}/sqm · {selectedRug.lead_time_days}d delivery</p>
                           </div>
                         </div>
 
@@ -1048,7 +1048,7 @@ export default function CustomerPortal() {
                         <div className="space-y-2">
                           {quoteForm.shape === 'circle' ? (
                             <>
-                              <p className="text-xs uppercase tracking-widest text-stone-400">Diameter ({sizeUnit})</p>
+                              <p className="text-xs uppercase tracking-widest text-stone-400">Diameter ({inputUnit(sizeUnit)})</p>
                               <input
                                 name="size_w" value={quoteForm.size_w}
                                 onChange={e => setQuoteForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
@@ -1064,7 +1064,7 @@ export default function CustomerPortal() {
                           ) : (
                             <>
                               <p className="text-xs uppercase tracking-widest text-stone-400">
-                                {quoteForm.shape === 'oval' ? `Axes (${sizeUnit})` : `Size (${sizeUnit})`}
+                                {quoteForm.shape === 'oval' ? `Axes (${inputUnit(sizeUnit)})` : `Size (${inputUnit(sizeUnit)})`}
                               </p>
                               <div className="flex gap-2 items-center">
                                 <input name="size_w" value={quoteForm.size_w} onChange={handleQuoteChange}
@@ -1137,48 +1137,48 @@ export default function CustomerPortal() {
                                 <span className="text-stone-400">
                                   {estimate.size_sqm.toFixed(2)} m² × {parseInt(quoteForm.qty) || 1} pc
                                 </span>
-                                <span className="text-stone-700">{fmtC(estimate.subtotal)}</span>
+                                <span className="text-stone-700">{displayPrice(estimate.subtotal, estimate.price_currency)}</span>
                               </div>
 
                               {estimate.bulk_discount > 0 && (
                                 <div className="flex justify-between text-xs">
                                   <span className="text-green-600">Bulk discount</span>
-                                  <span className="text-green-600">−{fmtC(estimate.bulk_discount)}</span>
+                                  <span className="text-green-600">−{displayPrice(estimate.bulk_discount, estimate.price_currency)}</span>
                                 </div>
                               )}
 
                               {estimate.rush_surcharge > 0 && (
                                 <div className="flex justify-between text-xs">
                                   <span className="text-amber-600">Rush surcharge</span>
-                                  <span className="text-amber-600">+{fmtC(estimate.rush_surcharge)}</span>
+                                  <span className="text-amber-600">+{displayPrice(estimate.rush_surcharge, estimate.price_currency)}</span>
                                 </div>
                               )}
 
                               {estimate.size_surcharge > 0 && (
                                 <div className="flex justify-between text-xs">
                                   <span className="text-stone-500">Large format surcharge</span>
-                                  <span className="text-stone-500">+{fmtC(estimate.size_surcharge)}</span>
+                                  <span className="text-stone-500">+{displayPrice(estimate.size_surcharge, estimate.price_currency)}</span>
                                 </div>
                               )}
 
                               <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
                                 <span className="text-stone-400">Pre-tax</span>
-                                <span className="text-stone-700">{fmtC(estimate.pre_gst_price)}</span>
+                                <span className="text-stone-700">{displayPrice(estimate.pre_gst_price, estimate.price_currency)}</span>
                               </div>
 
                               <div className="flex justify-between text-xs">
-                                <span className="text-stone-400">GST ({estimate.gst_pct.toFixed(0)}%)</span>
-                                <span className="text-stone-700">+{fmtC(estimate.gst_amount)}</span>
+                                <span className="text-stone-400">Tax ({estimate.gst_pct.toFixed(0)}%)</span>
+                                <span className="text-stone-700">+{displayPrice(estimate.gst_amount, estimate.price_currency)}</span>
                               </div>
 
                               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                                <span className="text-stone-900">Total (incl. GST)</span>
-                                <span className="text-stone-900">{fmtC(estimate.final_price)}</span>
+                                <span className="text-stone-900">Total (incl. Tax)</span>
+                                <span className="text-stone-900">{displayPrice(estimate.final_price, estimate.price_currency)}</span>
                               </div>
 
                               {(parseInt(quoteForm.qty) || 1) > 1 && (
                                 <p className="text-stone-400 text-xs pt-0.5">
-                                  {fmtC(estimate.price_per_piece)} per piece · {estimate.estimated_days}d delivery
+                                  {displayPrice(estimate.price_per_piece, estimate.price_currency)} per piece · {estimate.estimated_days}d delivery
                                 </p>
                               )}
                             </div>

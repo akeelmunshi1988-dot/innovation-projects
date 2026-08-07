@@ -5,7 +5,7 @@ import { getCatalog, getInventory, calculateQuote, getCustomers, createCustomer,
 import type { RugCatalog, Material, QuoteCalculateResponse, Customer } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
-import { toMetres } from '../utils/size';
+import { toMetres, inputUnit } from '../utils/size';
 
 const QuoteBuilder: React.FC = () => {
   const { user } = useAuth();
@@ -13,7 +13,7 @@ const QuoteBuilder: React.FC = () => {
   const [searchParams] = useSearchParams();
   const tenant = user!.tenant;
   const fmt = (n: number, currency?: string | null) => fmtTenant(n, tenant, currency);
-  const sizeUnit = tenant.default_size_unit ?? 'ft';
+  const sizeUnit = inputUnit(tenant.default_size_unit ?? 'ft');
 
   const [rugs, setRugs] = useState<RugCatalog[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);

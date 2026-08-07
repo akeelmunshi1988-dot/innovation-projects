@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
+import { CartProvider } from './contexts/CartContext';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -24,9 +26,12 @@ import AboutUs from './pages/AboutUs';
 import CustomerCatalog from './pages/CustomerCatalog';
 import CustomerRugDetail from './pages/CustomerRugDetail';
 import CustomerCheckout from './pages/CustomerCheckout';
+import CustomerCart from './pages/CustomerCart';
+import CustomerCustomRugRequest from './pages/CustomerCustomRugRequest';
 import CustomerOrderConfirm from './pages/CustomerOrderConfirm';
 import CustomerMyOrders from './pages/CustomerMyOrders';
 import CustomerLogin from './pages/CustomerLogin';
+import CustomerOAuthCallback from './pages/CustomerOAuthCallback';
 import VerifyEmail from './pages/VerifyEmail';
 import CustomerMyQuotes from './pages/CustomerMyQuotes';
 import RugDetail from './pages/RugDetail';
@@ -36,11 +41,18 @@ import Pricing from './pages/Pricing';
 import Quotes from './pages/Quotes';
 import ShowcaseVideos from './pages/ShowcaseVideos';
 import WorkshopPhotos from './pages/WorkshopPhotos';
+import Testimonials from './pages/Testimonials';
+import ProjectGallery from './pages/ProjectGallery';
+import NewsletterSubscribers from './pages/NewsletterSubscribers';
+import PromoCodes from './pages/PromoCodes';
+import { FEATURE_FLAGS } from './config/featureFlags';
 
 function App() {
   return (
     <AuthProvider>
       <CustomerAuthProvider>
+      <CurrencyProvider>
+      <CartProvider>
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
@@ -49,11 +61,14 @@ function App() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/catalog" element={<CustomerCatalog />} />
           <Route path="/catalog/:id" element={<CustomerRugDetail />} />
+          <Route path="/cart" element={<CustomerCart />} />
+          <Route path="/custom-rug-request" element={<CustomerCustomRugRequest />} />
           <Route path="/checkout" element={<CustomerCheckout />} />
           <Route path="/order/:id" element={<CustomerOrderConfirm />} />
           <Route path="/my-orders" element={<CustomerMyOrders />} />
           <Route path="/my-quotes" element={<CustomerMyQuotes />} />
           <Route path="/login" element={<CustomerLogin />} />
+          <Route path="/oauth-callback" element={<CustomerOAuthCallback />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/visualizer" element={<CustomerPortal />} />
 
@@ -74,12 +89,16 @@ function App() {
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
+                    <Route path="testimonials" element={<Testimonials />} />
+                    <Route path="project-gallery" element={<ProjectGallery />} />
+                    <Route path="newsletter-subscribers" element={<NewsletterSubscribers />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="inventory" element={<Inventory />} />
                     <Route path="customers" element={<Customers />} />
                     <Route path="quotes" element={<Quotes />} />
-                    <Route path="billing" element={<BillingSettings />} />
+                    <Route path="promo-codes" element={<PromoCodes />} />
+                    {FEATURE_FLAGS.SHOW_BILLING && <Route path="billing" element={<BillingSettings />} />}
                     <Route path="settings" element={<BusinessSettings />} />
                     <Route path="*" element={<Navigate to="/admin" replace />} />
                   </Routes>
@@ -91,6 +110,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </CartProvider>
+      </CurrencyProvider>
       </CustomerAuthProvider>
     </AuthProvider>
   );

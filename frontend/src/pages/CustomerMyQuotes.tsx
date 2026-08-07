@@ -250,14 +250,14 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
                   </div>
                 ) : (
                   <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">GST ({quote.gst_pct.toFixed(0)}%)</span>
+                    <span className="text-stone-400">Tax ({quote.gst_pct.toFixed(0)}%)</span>
                     <span className="text-stone-700">+{fmt(quote.gst_amount)}</span>
                   </div>
                 )
               )}
 
               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                <span className="text-stone-900">Total (incl. GST)</span>
+                <span className="text-stone-900">Total (incl. Tax)</span>
                 <span className="text-stone-900">{fmt(quote.final_price)}</span>
               </div>
             </div>
@@ -333,11 +333,14 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
                 <button
                   onClick={() => navigate('/checkout', {
                     state: {
-                      rug_id: quote.rug_id, rug_name: quote.rug_name,
-                      size_w: quote.size_w, size_h: quote.size_h, qty: quote.qty,
-                      rush_order: quote.rush_order, notes: quote.notes ?? undefined,
-                      estimated_price: quote.final_price, price_currency: quote.price_currency,
-                      gst_pct: quote.gst_pct ?? 0, estimated_days: quote.lead_time_days ?? 21,
+                      items: [{
+                        rug_id: quote.rug_id, rug_name: quote.rug_name, image_url: quote.rug_image_url,
+                        size_w: quote.size_w, size_h: quote.size_h, qty: quote.qty,
+                        rush_order: quote.rush_order, notes: quote.notes ?? undefined,
+                        estimated_price: quote.final_price, pre_gst_price: quote.pre_gst_price ?? undefined,
+                        gst_pct: quote.gst_pct ?? 0, gst_amount: quote.gst_amount ?? undefined,
+                        price_currency: quote.price_currency, estimated_days: quote.lead_time_days ?? 21,
+                      }],
                     },
                   })}
                   className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-3 transition-colors flex items-center justify-center gap-2"

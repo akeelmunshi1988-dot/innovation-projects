@@ -3,11 +3,11 @@ import {
   FileText, RefreshCw, ChevronDown, CheckCircle, Send, XCircle, Clock,
   AlertTriangle, Download, MessageCircle, Mail, X, LayoutList, Columns, Search, Pencil,
 } from 'lucide-react';
-import { getQuotes, updateQuote, downloadInvoice, sendQuoteEmail, sendQuoteToCustomer, adjustQuotePrice } from '../services/api';
+import { getQuotes, updateQuote, downloadInvoice, sendQuoteEmail, sendQuoteToCustomer, adjustQuotePrice, rejectQuote } from '../services/api';
 import type { Quote } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
-import { fmtDim } from '../utils/size';
+import { fmtDims } from '../utils/size';
 
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   draft:    { label: 'Draft',    color: 'text-dark-400 bg-dark-800 border-dark-700',          icon: <Clock size={12} /> },
@@ -18,6 +18,15 @@ const STATUS_META: Record<string, { label: string; color: string; icon: React.Re
 
 const STATUS_ORDER: Quote['status'][] = ['draft', 'sent', 'accepted', 'rejected'];
 
+const MATERIAL_PREFERENCE_LABELS: Record<string, string> = {
+  wool: 'Wool', silk: 'Silk', cotton: 'Cotton', synthetic: 'Synthetic', no_preference: 'No preference',
+};
+
+function rugName(q: Quote): string {
+  if (q.rug_catalog?.name) return q.rug_catalog.name;
+  return q.is_custom_request ? 'Custom Rug Request' : `Rug #${q.rug_catalog_id}`;
+}
+
 interface EmailModalState {
   quoteId: number;
   email: string;
@@ -27,9 +36,9 @@ interface EmailModalState {
 function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) => string, sizeUnit: string): string {
   const phone = q.customer?.phone?.replace(/\D/g, '') ?? '';
   const name = q.customer?.name ?? 'there';
-  const rug = q.rug_catalog?.name ?? `Rug #${q.rug_catalog_id}`;
+  const rug = rugName(q);
   const size = q.custom_size_w && q.custom_size_h
-    ? `${fmtDim(q.custom_size_w, sizeUnit)}×${fmtDim(q.custom_size_h, sizeUnit)} ${sizeUnit}`
+    ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit)
     : '';
   const price = q.final_price != null ? fmt(q.final_price, q.price_currency) : 'TBD';
   const msg = [
@@ -65,6 +74,7 @@ export default function Quotes() {
   // Filters
   const [search, setSearch]         = useState('');
   const [rushOnly, setRushOnly]     = useState(false);
+  const [customOnly, setCustomOnly] = useState(false);
   const [dateFrom, setDateFrom]     = useState('');
   const [dateTo, setDateTo]         = useState('');
 
@@ -80,6 +90,10 @@ export default function Quotes() {
   // Adjust price modal
   const [adjustModal, setAdjustModal] = useState<{ quoteId: number; originalPrice: number; newPrice: string; discountPct: string; vendorNotes: string } | null>(null);
   const [adjusting, setAdjusting]     = useState(false);
+
+  // Reject modal
+  const [rejectModal, setRejectModal] = useState<{ quoteId: number; reason: string } | null>(null);
+  const [rejecting, setRejecting]     = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -168,6 +182,20 @@ export default function Quotes() {
     }
   };
 
+  const handleRejectQuote = async () => {
+    if (!rejectModal) return;
+    setRejecting(true);
+    try {
+      const updated = await rejectQuote(rejectModal.quoteId, rejectModal.reason.trim() || undefined);
+      setQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+      setRejectModal(null);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   // Apply text/rush/date filters first (used by both views)
   const baseFiltered = quotes
     .filter((q) => {
@@ -177,11 +205,12 @@ export default function Quotes() {
         q.customer?.name ?? '',
         q.customer?.company ?? '',
         q.customer?.email ?? '',
-        q.rug_catalog?.name ?? '',
+        rugName(q),
         String(q.id),
       ].some((v) => v.toLowerCase().includes(term));
     })
     .filter((q) => !rushOnly || q.rush_order)
+    .filter((q) => !customOnly || q.is_custom_request)
     .filter((q) => !dateFrom || new Date(q.created_at) >= new Date(dateFrom))
     .filter((q) => !dateTo   || new Date(q.created_at) <= new Date(dateTo + 'T23:59:59'));
 
@@ -193,8 +222,8 @@ export default function Quotes() {
     ...Object.fromEntries(STATUS_ORDER.map((s) => [s, baseFiltered.filter((q) => q.status === s).length])),
   };
 
-  const activeFilterCount = [search, rushOnly, dateFrom, dateTo].filter(Boolean).length;
-  const clearFilters = () => { setSearch(''); setRushOnly(false); setDateFrom(''); setDateTo(''); };
+  const activeFilterCount = [search, rushOnly, customOnly, dateFrom, dateTo].filter(Boolean).length;
+  const clearFilters = () => { setSearch(''); setRushOnly(false); setCustomOnly(false); setDateFrom(''); setDateTo(''); };
 
   return (
     <div className="p-6 space-y-5">
@@ -266,6 +295,17 @@ export default function Quotes() {
             }`}
           >
             ⚡ Rush Only
+          </button>
+
+          <button
+            onClick={() => setCustomOnly((v) => !v)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
+              customOnly
+                ? 'bg-gold-900/30 border-gold-600/60 text-gold-400'
+                : 'bg-dark-900 border-dark-600 text-dark-400 hover:text-cream-300 hover:border-dark-500'
+            }`}
+          >
+            Custom Requests Only
           </button>
 
           {activeFilterCount > 0 && (
@@ -374,6 +414,7 @@ export default function Quotes() {
               onDownload={downloadInvoice}
               onSend={() => setSendModal({ quoteId: q.id, vendorNotes: q.vendor_notes ?? '' })}
               onAdjust={() => setAdjustModal({ quoteId: q.id, originalPrice: q.final_price ?? 0, newPrice: String(q.final_price ?? ''), discountPct: String((q as any).manual_discount_pct ?? ''), vendorNotes: q.vendor_notes ?? '' })}
+              onReject={() => setRejectModal({ quoteId: q.id, reason: '' })}
             />
           ))}
         </div>
@@ -477,7 +518,11 @@ export default function Quotes() {
                     placeholder="0.00"
                     className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
                   />
-                  <p className="text-dark-600 text-xs mt-1">Original: {fmt(adjustModal.originalPrice, null)} — enter discount % above or override price directly</p>
+                  <p className="text-dark-600 text-xs mt-1">
+                    {adjustModal.originalPrice > 0
+                      ? <>Original: {fmt(adjustModal.originalPrice, null)} — enter discount % above or override price directly</>
+                      : 'No price set yet — enter the price you\'re quoting for this request'}
+                  </p>
                 </div>
 
                 <div>
@@ -507,6 +552,45 @@ export default function Quotes() {
           </div>
         );
       })()}
+
+      {/* Reject Quote Modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
+              <div className="flex items-center gap-2">
+                <XCircle size={16} className="text-red-400" />
+                <h2 className="text-cream-100 font-semibold">Reject Quote</h2>
+              </div>
+              <button onClick={() => setRejectModal(null)} className="text-dark-400 hover:text-cream-300"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Reason (optional, shared with customer)</label>
+                <textarea
+                  rows={3}
+                  value={rejectModal.reason}
+                  onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                  placeholder="e.g. This design isn't something we can produce at the requested size…"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-red-500 resize-none"
+                />
+              </div>
+              <p className="text-dark-500 text-xs">The customer will be emailed that this quote was declined, including the reason above if provided.</p>
+            </div>
+            <div className="flex gap-3 px-5 pb-5">
+              <button onClick={() => setRejectModal(null)} className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 text-sm hover:bg-dark-700 transition-colors">Cancel</button>
+              <button
+                onClick={handleRejectQuote}
+                disabled={rejecting}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {rejecting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <XCircle size={14} />}
+                {rejecting ? 'Rejecting…' : 'Reject & Notify Customer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Email Modal */}
       {emailModal && (
@@ -610,13 +694,14 @@ interface QuoteRowProps {
   onDownload: (id: number, type: 'tax' | 'export' | 'proforma') => void;
   onSend: () => void;
   onAdjust: () => void;
+  onReject: () => void;
 }
 
-function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust }: QuoteRowProps) {
+function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust, onReject }: QuoteRowProps) {
   const meta = STATUS_META[q.status];
   const sqm  = q.custom_size_w && q.custom_size_h ? (q.custom_size_w * q.custom_size_h).toFixed(2) : null;
   const dims = q.custom_size_w && q.custom_size_h
-    ? `${fmtDim(q.custom_size_w, sizeUnit)}×${fmtDim(q.custom_size_h, sizeUnit)} ${sizeUnit}`
+    ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit)
     : null;
 
   return (
@@ -636,9 +721,12 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             {q.rush_order && (
               <span className="text-xs bg-orange-900/30 text-orange-400 border border-orange-700/30 rounded-full px-2 py-0.5">Early</span>
             )}
+            {q.is_custom_request && (
+              <span className="text-xs bg-gold-900/30 text-gold-400 border border-gold-700/30 rounded-full px-2 py-0.5">Custom Request</span>
+            )}
           </div>
           <p className="text-dark-400 text-xs truncate mt-0.5">
-            {q.rug_catalog?.name ?? `Rug #${q.rug_catalog_id}`}
+            {rugName(q)}
             {sqm && ` · ${dims} (${sqm}m²)`}
             {q.qty > 1 && ` · qty ${q.qty}`}
           </p>
@@ -667,7 +755,7 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             </div>
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Rug</p>
-              <p className="text-cream-200 font-medium">{q.rug_catalog?.name ?? `#${q.rug_catalog_id}`}</p>
+              <p className="text-cream-200 font-medium">{rugName(q)}</p>
               <p className="text-dark-400 text-xs">{q.material?.name ?? '—'}</p>
             </div>
             <div>
@@ -682,9 +770,43 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             </div>
           </div>
 
+          {q.is_custom_request && (
+            <div className="bg-gold-900/10 border border-gold-700/30 rounded-lg px-3 py-3 space-y-3">
+              <p className="text-gold-400 text-xs uppercase tracking-wider font-semibold">Custom Rug Request Brief</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-dark-400 text-xs">Room</p>
+                  <p className="text-cream-200">{q.room_type || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-dark-400 text-xs">Material preference</p>
+                  <p className="text-cream-200">{MATERIAL_PREFERENCE_LABELS[q.material_preference ?? ''] ?? q.material_preference ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-dark-400 text-xs">Budget range</p>
+                  <p className="text-cream-200">{q.budget_range || '—'}</p>
+                </div>
+              </div>
+              {q.reference_image_urls && q.reference_image_urls.length > 0 && (
+                <div>
+                  <p className="text-dark-400 text-xs mb-1.5">Reference images</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {q.reference_image_urls.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer" className="block w-16 h-16 rounded-lg overflow-hidden border border-dark-700 hover:border-gold-600 transition-colors">
+                        <img src={url} alt="Reference" className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {q.notes && (
             <div className="bg-dark-900 rounded-lg px-3 py-2.5">
-              <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Customer Notes</p>
+              <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">
+                {q.is_custom_request ? 'Style / Vision Notes' : 'Customer Notes'}
+              </p>
               <p className="text-dark-200 text-sm">{q.notes}</p>
             </div>
           )}
@@ -703,13 +825,14 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             </div>
           )}
 
-          {/* Status actions */}
+          {/* Status actions — Sent/Accepted require a price to already be set (enforced
+              server-side too); Rejected opens a reason modal instead of firing directly. */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-dark-500 text-xs">Status:</span>
-            {STATUS_ORDER.filter((s) => s !== q.status).map((s) => (
+            {STATUS_ORDER.filter((s) => s !== q.status && !((s === 'sent' || s === 'accepted') && q.final_price == null)).map((s) => (
               <button
                 key={s}
-                onClick={() => onChangeStatus(q.id, s)}
+                onClick={() => (s === 'rejected' ? onReject() : onChangeStatus(q.id, s))}
                 disabled={updating === q.id}
                 className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${STATUS_META[s].color} hover:opacity-80`}
               >
@@ -721,11 +844,18 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             ))}
           </div>
 
-          {/* Action row */}
-          {q.final_price != null && (
+          {/* Pricing actions — Adjust/Set Price is always available (not gated on final_price)
+              so a fresh custom request with no price yet can actually be priced. */}
+          {q.status !== 'accepted' && q.status !== 'rejected' && (
             <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dark-800">
-              {/* Send to Customer */}
-              {q.status !== 'accepted' && q.status !== 'rejected' && (
+              <button
+                onClick={onAdjust}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-gold-700/40 bg-gold-900/20 text-gold-400 hover:bg-gold-900/40 transition-colors"
+              >
+                <Pencil size={11} /> {q.final_price != null ? 'Adjust Price' : 'Set Price'}
+              </button>
+
+              {q.final_price != null && (
                 <button
                   onClick={onSend}
                   className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-700/40 bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-colors"
@@ -733,19 +863,13 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
                   <Send size={11} /> Send to Customer
                 </button>
               )}
+            </div>
+          )}
 
-              {/* Adjust Price */}
-              {q.status !== 'accepted' && q.status !== 'rejected' && (
-                <button
-                  onClick={onAdjust}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-gold-700/40 bg-gold-900/20 text-gold-400 hover:bg-gold-900/40 transition-colors"
-                >
-                  <Pencil size={11} /> Adjust Price
-                </button>
-              )}
-
-              <span className="text-dark-700 text-xs">·</span>
-
+          {/* Contact + downloads — need a price to be meaningful, shown regardless of status
+              (accepted quotes still need their invoice downloaded). */}
+          {q.final_price != null && (
+            <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-dark-800">
               {/* WhatsApp */}
               <button
                 onClick={onWhatsApp}
@@ -875,11 +999,11 @@ function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhats
 
                     {/* Rug + size */}
                     <div>
-                      <p className="text-dark-300 text-xs truncate">{q.rug_catalog?.name ?? `#${q.rug_catalog_id}`}</p>
+                      <p className="text-dark-300 text-xs truncate">{rugName(q)}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         {sqm && (
                           <span className="text-dark-500 text-[10px]">
-                            {fmtDim(q.custom_size_w!, sizeUnit)}×{fmtDim(q.custom_size_h!, sizeUnit)} {sizeUnit}
+                            {fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit)}
                           </span>
                         )}
                         {q.rush_order && <span className="text-[10px] text-orange-400 font-semibold">Early</span>}
@@ -924,8 +1048,8 @@ function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhats
                         </button>
                       )}
 
-                      {/* Advance status */}
-                      {nextStatus && (
+                      {/* Advance status — Sent/Accepted require a price (enforced server-side too) */}
+                      {nextStatus && !((nextStatus === 'sent' || nextStatus === 'accepted') && q.final_price == null) && (
                         <button
                           onClick={() => onChangeStatus(q.id, nextStatus)}
                           disabled={updating === q.id}

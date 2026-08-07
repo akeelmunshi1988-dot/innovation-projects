@@ -1,6 +1,7 @@
 export const SIZE_UNITS = [
   { code: 'ft', label: 'Feet (ft)' },
   { code: 'cm', label: 'Centimetres (cm)' },
+  { code: 'both', label: 'Both (ft & cm)' },
 ];
 
 const FT_TO_CM = 30.48;
@@ -12,6 +13,17 @@ function parseSize(size: string): [number, number] | null {
 }
 
 /**
+ * Sizes are entered/stored/priced canonically in feet — `unit` only ever
+ * controls how a number is displayed or how a typed input is interpreted.
+ * "both" is a display-only mode (show ft and cm together); anywhere a single
+ * input widget needs one concrete unit to operate in (min/step/placeholder,
+ * ft<->metres conversion), normalize "both" down to "ft" with this first.
+ */
+export function inputUnit(unit: string): 'ft' | 'cm' {
+  return unit === 'cm' ? 'cm' : 'ft';
+}
+
+/**
  * `size` is stored canonically in feet, e.g. "4x6". Formats for display in the
  * given unit — sizes are never converted at rest, only at render time.
  */
@@ -19,9 +31,9 @@ export function fmtSize(size: string, unit: string = 'ft'): string {
   const parsed = parseSize(size);
   if (!parsed) return size;
   const [w, h] = parsed;
-  if (unit === 'cm') {
-    return `${Math.round(w * FT_TO_CM)}x${Math.round(h * FT_TO_CM)} cm`;
-  }
+  const cm = `${Math.round(w * FT_TO_CM)}x${Math.round(h * FT_TO_CM)} cm`;
+  if (unit === 'both') return `${size} ft (${cm})`;
+  if (unit === 'cm') return cm;
   return `${size} ft`;
 }
 
@@ -65,6 +77,11 @@ export function fmtDims(
   shape: string = 'rect',
 ): string {
   if (wM == null || !Number.isFinite(wM)) return '—';
+  if (unit === 'both') {
+    const ft = fmtDims(wM, hM, 'ft', shape);
+    const cm = fmtDims(wM, hM, 'cm', shape);
+    return `${ft} (${cm})`;
+  }
   const w = fmtDim(wM, unit);
   if (shape === 'circle') return `⌀ ${w} ${unit}`;
   if (hM == null || !Number.isFinite(hM)) return '—';

@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, Layers, Zap, Play } from 'lucide-react';
+import { ArrowRight, Layers, Zap, Play, Star, Quote as QuoteIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { currencySymbol } from '../utils/currency';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { getPublicSettings } from '../services/api';
-
-const sym = currencySymbol('INR');
+import type { Testimonial, ProjectGalleryItem } from '../types';
 
 interface ShowcaseVideo {
   id: number;
@@ -40,8 +39,13 @@ const MATERIALS = [
   { id: 'synthetic', label: 'Synthetic', desc: 'Stain-proof, outdoor, budget-friendly' },
 ];
 
-const SHOW_HERO = false;
+const SHOW_HERO = true;
 const SHOW_FEATURED_RUGS = false;
+// "Our Craft" section: true = full-bleed background video, false = full-width static image
+// (uses the intro video's poster image, or falls back to the first workshop photo)
+const SHOW_CRAFT_VIDEO = true;
+// Curated full-bleed hero image (Pexels, "beige and brown rug with a leaf design" by Beyzanur K.)
+const HERO_IMAGE_URL = 'https://images.pexels.com/photos/28379848/pexels-photo-28379848.jpeg?auto=compress&cs=tinysrgb&w=1920';
 
 interface WorkshopPhoto {
   id: number;
@@ -51,10 +55,21 @@ interface WorkshopPhoto {
 }
 
 const HOW = [
-  { n: '01', title: 'Browse & Choose',   desc: 'Explore our collection, filter by material, size, and style. Every design is available in custom dimensions.' },
-  { n: '02', title: 'Visualise It',      desc: 'Upload a photo of your room and place any rug using our AI visualizer — see it before you order.' },
-  { n: '03', title: 'We Craft & Deliver', desc: 'Request a quote, confirm your order, and our craftsmen begin production. Delivered to your door.' },
+  { n: '01', title: 'Design',             desc: 'Share your vision, room dimensions, and style — our team translates it into a custom rug design.' },
+  { n: '02', title: 'Material',            desc: 'Choose from wool, silk, cotton, or synthetic fibres, each sourced for durability and colourfastness.' },
+  { n: '03', title: 'Weaving',             desc: 'Master artisans hand-knot every rug on traditional looms, weeks or months in the making.' },
+  { n: '04', title: 'Quality Inspection',  desc: 'Every piece is checked for weave density, accurate sizing, and dye consistency before it ships.' },
+  { n: '05', title: 'Global Delivery',     desc: 'Packed and shipped worldwide, with export documentation handled for you door to door.' },
 ];
+
+const WHY_LOOMCRAFT = [
+  { stat: '30+', label: 'Years Craftsmanship', desc: 'Three decades weaving for discerning homes and hospitality brands worldwide.' },
+  { stat: '100%', label: 'Artisan-Made', desc: 'Every rug is hand-knotted by skilled weavers — no machine shortcuts.' },
+  { stat: 'MTO', label: 'Made-to-Order', desc: 'Every size and every colourway is woven specifically for your space.' },
+  { stat: 'Export', label: 'Export Quality', desc: 'Rigorous quality control meets the standards of international buyers.' },
+];
+
+const TRUST_BAR = ['Handmade', 'Custom Sizes', 'Worldwide Shipping', 'Family Workshop', 'Sustainable Materials'];
 
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
@@ -65,9 +80,10 @@ export default function CustomerHome() {
   const [introIndex, setIntroIndex] = useState(0);
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
-  const [craftGridVisible, setCraftGridVisible] = useState(true);
-  const [craftRugPool, setCraftRugPool] = useState<CatalogRug[]>([]);
-  const [craftChunkIndex, setCraftChunkIndex] = useState(0);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
+  const [gallerySlide, setGallerySlide] = useState(0);
+  const { displayPrice } = useCurrency();
 
   useEffect(() => {
     setCatalogLoading(true);
@@ -95,43 +111,17 @@ export default function CustomerHome() {
       .catch(() => setAiConsultantEnabled(true));
   }, []);
 
-  // Rug grid over the "Our Craft" background video: shows up to 12 random rugs, 4 at a
-  // time, swapping to the next 4 every 20s (up to 3 transitions). Once all 12 have been
-  // shown, the grid hides for 20s (letting the video play alone) before reshuffling a
-  // fresh random set and starting over.
   useEffect(() => {
-    if (catalog.length === 0) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
+    axios.get('/api/customer/testimonials')
+      .then(({ data }) => setTestimonials(data))
+      .catch(() => {});
+  }, []);
 
-    const shuffle = () => [...catalog].sort(() => Math.random() - 0.5).slice(0, 12);
-
-    const runCycle = () => {
-      if (cancelled) return;
-      const pool = shuffle();
-      const chunkCount = Math.max(1, Math.ceil(pool.length / 4));
-      setCraftRugPool(pool);
-      setCraftChunkIndex(0);
-      setCraftGridVisible(true);
-
-      let i = 0;
-      const showNextChunk = () => {
-        if (cancelled) return;
-        i += 1;
-        if (i < chunkCount) {
-          setCraftChunkIndex(i);
-          timer = setTimeout(showNextChunk, 20000);
-        } else {
-          setCraftGridVisible(false);
-          timer = setTimeout(runCycle, 20000);
-        }
-      };
-      timer = setTimeout(showNextChunk, 20000);
-    };
-
-    runCycle();
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [catalog]);
+  useEffect(() => {
+    axios.get('/api/customer/gallery-items')
+      .then(({ data }) => setGalleryItems(data))
+      .catch(() => {});
+  }, []);
 
   const featured = catalog.slice(0, 6);
   const introVideos = videos.filter((v) => v.is_intro).length > 0
@@ -139,6 +129,9 @@ export default function CustomerHome() {
     : videos.slice(0, 1);
   const gridVideos = videos.filter((v) => !introVideos.includes(v));
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
+  const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
+  const showCraftSection = SHOW_CRAFT_VIDEO ? Boolean(introVideo) : Boolean(craftImageUrl);
+  const heroImage = HERO_IMAGE_URL;
 
   const openChat = (msg: string) => {
     window.dispatchEvent(new CustomEvent('loomcraftrugs:ask', { detail: { message: msg } }));
@@ -156,106 +149,92 @@ export default function CustomerHome() {
         description="Premium handcrafted rugs custom-made to your exact size, material, and design — wool, silk, cotton, and synthetic weaves from India's finest workshops. Visualize any rug in your room before you order."
       />
 
-      {/* ── HERO ──────────────────────────────────────────────────────── */}
+      {/* ── HERO (full-bleed cinematic image, text overlaid) ─────────────── */}
       {SHOW_HERO && (
-        <section className="max-w-7xl mx-auto px-6 pt-20 pb-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <section className="relative w-full overflow-hidden min-h-[640px] flex items-end">
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt="Handcrafted rug"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-stone-100" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/95 via-stone-900/80 to-stone-900/45" />
 
-            {/* Text */}
-            <div className="space-y-8">
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 font-medium">
-                Handcrafted Custom Rugs · Made in India
+          <div className="relative max-w-7xl mx-auto px-6 pb-16 pt-32 w-full">
+            <div className="max-w-xl space-y-7">
+              <p className="text-xs tracking-[0.2em] uppercase text-stone-200 font-medium">
+                Handcrafted Custom Rugs · Worldwide Shipping
               </p>
-              <h1 className="font-serif text-6xl md:text-7xl font-light text-stone-900 leading-[1.05] tracking-tight">
-                Rugs that tell<br />
-                <em className="font-normal not-italic">your</em> story
+              <h1 className="font-serif text-6xl md:text-7xl font-light text-white leading-[1.05] tracking-tight">
+                Handcrafted Rugs.<br />
+                Made for <em className="font-normal not-italic">Timeless</em> Spaces.
               </h1>
-              <p className="text-stone-500 text-lg leading-relaxed max-w-md">
+              <p className="text-stone-200 text-lg leading-relaxed max-w-md">
                 Every rug made to your exact size and specification, from India's finest workshops. Custom dimensions, premium materials, delivered to your door.
               </p>
 
+              {/* CTAs */}
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  to="/catalog"
+                  className="inline-flex items-center gap-3 bg-white hover:bg-stone-100 text-stone-900 text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
+                >
+                  Explore Collection <ArrowRight size={14} />
+                </Link>
+                <Link
+                  to="/custom-rug-request"
+                  className="inline-flex items-center gap-3 border border-white/50 hover:border-white text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
+                >
+                  Request Custom Rug
+                </Link>
+              </div>
+
               {/* Stats */}
-              <div className="flex gap-10 pt-4 border-t border-stone-100">
+              <div className="flex gap-10 pt-4 border-t border-white/20">
                 {[
                   { v: `${catalog.length || 8}+`, l: 'Designs' },
                   { v: '4',     l: 'Materials' },
                   { v: '7–60', l: 'Day Delivery' },
                 ].map((s) => (
                   <div key={s.l}>
-                    <p className="font-serif text-2xl text-stone-900 font-light">{s.v}</p>
-                    <p className="text-stone-400 text-xs uppercase tracking-wider mt-0.5">{s.l}</p>
+                    <p className="font-serif text-2xl text-white font-light">{s.v}</p>
+                    <p className="text-stone-300 text-xs uppercase tracking-wider mt-0.5">{s.l}</p>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Rug mosaic */}
-            <div className="hidden lg:grid grid-cols-2 gap-3">
-              {featured.slice(0, 4).map((rug, i) => (
-                <Link
-                  key={rug.id}
-                  to={`/catalog/${rug.id}`}
-                  className={`group relative overflow-hidden bg-stone-100 ${i === 0 ? 'row-span-2' : ''}`}
-                  style={{ aspectRatio: i === 0 ? '3/4' : '4/3' }}
-                >
-                  {rug.image_url ? (
-                    <img
-                      src={rug.image_url}
-                      alt={rug.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Layers size={28} className="text-stone-300" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-stone-900/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <p className="text-white text-xs font-medium truncate">{rug.name}</p>
-                  </div>
-                </Link>
-              ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* ── OUR CRAFT (full-width background video + rug mosaic) ─────────── */}
-      {introVideo && (
-        <section className="relative overflow-hidden min-h-[640px] flex items-center py-20">
-          {/* Full-bleed background video */}
-          <div className="absolute inset-0">
-            {introVideo.poster_url && (
-              <img
-                src={introVideo.poster_url}
-                alt={introVideo.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            )}
-            <video
-              key={introVideo.id}
-              className="absolute inset-0 w-full h-full object-cover"
-              src={introVideo.video_url}
-              poster={introVideo.poster_url || undefined}
-              autoPlay
-              muted
-              loop={introVideos.length <= 1}
-              playsInline
-              onEnded={() => setIntroIndex((i) => (i + 1) % introVideos.length)}
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-stone-900/85 via-stone-900/55 to-stone-900/20" />
-          </div>
+      {/* ── TRUST BAR ──────────────────────────────────────────────────── */}
+      <section className="border-y border-stone-100 bg-stone-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
+          {TRUST_BAR.map((t, i) => (
+            <React.Fragment key={t}>
+              <span className="text-stone-500 text-xs uppercase tracking-widest">{t}</span>
+              {i < TRUST_BAR.length - 1 && <span className="hidden sm:inline text-stone-300">·</span>}
+            </React.Fragment>
+          ))}
+        </div>
+      </section>
 
-          <div className="relative max-w-7xl mx-auto px-6 w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-16 lg:gap-20 items-center">
+      {/* ── OUR CRAFT (text left ~40% / video right ~60%) ────────────────── */}
+      {showCraftSection && (
+        <section className="py-20">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-12 lg:gap-16 items-center">
 
               {/* Description */}
               <div className="space-y-6">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-300">Our Craft</p>
-                <h2 className="font-serif text-4xl font-light text-white leading-tight">
+                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Our Craft</p>
+                <h2 className="font-serif text-4xl font-light text-stone-900 leading-tight">
                   Where tradition meets<br />precision
                 </h2>
-                <p className="text-stone-200 leading-relaxed">
+                <p className="text-stone-500 leading-relaxed">
                   Every rug that leaves our workshop passes through the hands of master weavers
                   who have spent years perfecting their craft. We blend time-honoured
                   techniques — hand-knotting, natural dyeing, meticulous finishing — with
@@ -263,13 +242,13 @@ export default function CustomerHome() {
                   discerning buyers expect: consistent weave density, accurate sizing, and
                   colourfast dyes.
                 </p>
-                <p className="text-stone-200 leading-relaxed">
+                <p className="text-stone-500 leading-relaxed">
                   From raw fibre to finished rug, nothing ships until it earns our mark of approval.
                 </p>
                 <ul className="space-y-2 pt-2">
                   {['Hand-knotted, made to order', 'Natural, colourfast dyes', 'Quality-checked before dispatch'].map((f) => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm text-stone-200">
-                      <span className="w-1 h-1 rounded-full bg-stone-300 flex-shrink-0" />
+                    <li key={f} className="flex items-center gap-2.5 text-sm text-stone-600">
+                      <span className="w-1 h-1 rounded-full bg-stone-400 flex-shrink-0" />
                       {f}
                     </li>
                   ))}
@@ -278,55 +257,71 @@ export default function CustomerHome() {
                 <div className="flex flex-wrap items-center gap-4 pt-2">
                   <Link
                     to="/catalog"
-                    className="inline-flex items-center gap-3 bg-white hover:bg-stone-100 text-stone-900 text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
+                    className="inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
                   >
                     Explore Collection <ArrowRight size={14} />
                   </Link>
                   <Link
                     to="/visualizer"
-                    className="text-sm text-stone-200 hover:text-white transition-colors border-b border-stone-400 hover:border-white pb-0.5"
+                    className="text-sm text-stone-600 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
                   >
                     Try Room Visualizer
                   </Link>
                 </div>
               </div>
 
-              {/* Rug mosaic — cycles through up to 12 random rugs, 4 at a time every 20s,
-                  then hides for 20s once all 12 have been shown */}
-              <div
-                className={`hidden lg:grid grid-cols-2 gap-3 transition-opacity duration-[1500ms] ease-in-out ${
-                  craftGridVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
-              >
-                {craftRugPool.slice(craftChunkIndex * 4, craftChunkIndex * 4 + 4).map((rug, i) => (
-                  <Link
-                    key={rug.id}
-                    to={`/catalog/${rug.id}`}
-                    className={`group relative overflow-hidden bg-stone-100 rounded-xl shadow-2xl ring-1 ring-white/10 ${i === 0 ? 'row-span-2' : ''}`}
-                    style={{ aspectRatio: i === 0 ? '3/4' : '4/3' }}
-                  >
-                    {rug.image_url ? (
+              {/* Video / image — contained, not full-bleed */}
+              <div className="relative overflow-hidden bg-stone-100 w-full" style={{ aspectRatio: '4/3' }}>
+                {SHOW_CRAFT_VIDEO ? (
+                  <>
+                    {introVideo.poster_url && (
                       <img
-                        src={rug.image_url}
-                        alt={rug.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        src={introVideo.poster_url}
+                        alt={introVideo.title}
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Layers size={28} className="text-stone-300" />
-                      </div>
                     )}
-                    <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors duration-300" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-stone-900/70 to-transparent">
-                      <p className="text-white text-xs font-medium truncate">{rug.name}</p>
-                    </div>
-                  </Link>
-                ))}
+                    <video
+                      key={introVideo.id}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      src={introVideo.video_url}
+                      poster={introVideo.poster_url || undefined}
+                      autoPlay
+                      muted
+                      loop={introVideos.length <= 1}
+                      playsInline
+                      onEnded={() => setIntroIndex((i) => (i + 1) % introVideos.length)}
+                    />
+                  </>
+                ) : (
+                  <img
+                    src={craftImageUrl!}
+                    alt="Our Craft"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
               </div>
             </div>
           </div>
         </section>
       )}
+
+      {/* ── WHY LOOMCRAFT ──────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="mb-12 max-w-2xl">
+          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Why LoomCraft</p>
+          <h2 className="font-serif text-4xl font-light text-stone-900">Craftsmanship you can trust</h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-stone-200">
+          {WHY_LOOMCRAFT.map((w) => (
+            <div key={w.label} className="bg-white p-8 space-y-2">
+              <p className="font-serif text-3xl font-light text-stone-900">{w.stat}</p>
+              <p className="text-stone-900 text-sm font-medium">{w.label}</p>
+              <p className="text-stone-500 text-xs leading-relaxed">{w.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ── BEHIND THE CRAFT (hover-to-play video grid) ──────────────────── */}
       {gridVideos.length > 0 && (
@@ -418,7 +413,7 @@ export default function CustomerHome() {
                 <div className="pt-4 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-serif text-lg font-light text-stone-900 leading-snug">{rug.name}</h3>
-                    <p className="text-stone-900 text-sm font-medium flex-shrink-0">{sym}{rug.base_price_per_sqm}<span className="text-stone-400 text-xs">/sqm</span></p>
+                    <p className="text-stone-900 text-sm font-medium flex-shrink-0">{displayPrice(rug.base_price_per_sqm)}<span className="text-stone-400 text-xs">/sqm</span></p>
                   </div>
                   <p className="text-stone-400 text-sm capitalize">
                     {[rug.material, rug.weave_type].filter(Boolean).join(' · ')}
@@ -488,14 +483,14 @@ export default function CustomerHome() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────── */}
+      {/* ── CUSTOM RUG JOURNEY ────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="mb-12">
           <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">The Process</p>
-          <h2 className="font-serif text-4xl font-light text-stone-900">How It Works</h2>
+          <h2 className="font-serif text-4xl font-light text-stone-900">Custom Rug Journey</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
           {HOW.map((step) => (
             <div key={step.n} className="space-y-4">
               <p className="font-serif text-5xl font-light text-stone-200">{step.n}</p>
@@ -505,6 +500,112 @@ export default function CustomerHome() {
           ))}
         </div>
       </section>
+
+      {/* ── TESTIMONIALS ──────────────────────────────────────────────── */}
+      {testimonials.length > 0 && (
+        <section className="bg-stone-50 border-y border-stone-100 py-20">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="mb-12 max-w-2xl">
+              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Testimonials</p>
+              <h2 className="font-serif text-4xl font-light text-stone-900">What International Buyers Say</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {testimonials.slice(0, 6).map((t) => (
+                <div key={t.id} className="bg-white border border-stone-200 p-8 space-y-4">
+                  <QuoteIcon size={20} className="text-stone-300" />
+                  <p className="text-stone-600 text-sm leading-relaxed">{t.quote}</p>
+                  {t.rating != null && (
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} size={12} className={i < t.rating! ? 'text-stone-900 fill-stone-900' : 'text-stone-200'} />
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 pt-2">
+                    {t.photo_url ? (
+                      <img src={t.photo_url} alt={t.author_name} className="w-9 h-9 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 text-xs font-medium">
+                        {t.author_name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-stone-900 text-sm font-medium">{t.author_name}</p>
+                      <p className="text-stone-400 text-xs">{[t.author_title, t.country].filter(Boolean).join(' · ')}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── PROJECT GALLERY (slider, whole/uncropped images) ─────────────── */}
+      {galleryItems.length > 0 && (() => {
+        const current = Math.min(gallerySlide, galleryItems.length - 1);
+        const g = galleryItems[current];
+        const tile = (
+          <div className="relative bg-stone-100 w-full aspect-[21/9] flex items-center justify-center">
+            <img
+              src={g.image_url}
+              alt={g.caption ?? ''}
+              className="w-full h-full object-contain"
+            />
+            {g.caption && (
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-900/60 via-transparent to-transparent flex items-end pointer-events-none">
+                <p className="text-white font-serif text-xl md:text-2xl font-light px-6 md:px-10 pb-6 md:pb-8">{g.caption}</p>
+              </div>
+            )}
+          </div>
+        );
+        return (
+          <section className="py-20">
+            <div className="max-w-7xl mx-auto px-6 mb-12 max-w-2xl">
+              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Project Gallery</p>
+              <h2 className="font-serif text-4xl font-light text-stone-900">Rugs in Their New Homes</h2>
+            </div>
+            <div className="relative group">
+              {g.link_url ? (
+                <a href={g.link_url} target="_blank" rel="noreferrer" className="block">{tile}</a>
+              ) : (
+                tile
+              )}
+              {galleryItems.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setGallerySlide((current - 1 + galleryItems.length) % galleryItems.length)}
+                    aria-label="Previous project"
+                    className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGallerySlide((current + 1) % galleryItems.length)}
+                    aria-label="Next project"
+                    className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                    {galleryItems.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setGallerySlide(i)}
+                        aria-label={`Go to project ${i + 1}`}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ── AI CONSULTANT ─────────────────────────────────────────────── */}
       {aiConsultantEnabled && (

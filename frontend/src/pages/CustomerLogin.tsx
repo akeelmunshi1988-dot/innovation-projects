@@ -4,6 +4,7 @@ import { LogIn, UserPlus, Eye, EyeOff, AlertTriangle, MailCheck } from 'lucide-r
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import SocialLoginButtons from '../components/SocialLoginButtons';
 
 type Mode = 'login' | 'register';
 
@@ -200,6 +201,10 @@ export default function CustomerLogin() {
               )}
             </button>
           </form>
+
+          <div className="mt-6">
+            <SocialLoginButtons returnTo="/my-quotes" />
+          </div>
 
           <p className="text-stone-400 text-xs mt-6 leading-relaxed">
             Already placed an order without an account?{' '}

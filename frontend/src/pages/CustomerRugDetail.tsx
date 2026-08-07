@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import DOMPurify from 'dompurify';
 import {
   Layers, Send, CheckCircle, AlertTriangle, Zap, Eye,
-  ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink,
+  ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink, ShoppingBag,
+  ChevronLeft,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import SocialLoginButtons from '../components/SocialLoginButtons';
 import { fmtExact, currencySymbol } from '../utils/currency';
-import { fmtSize, feetToUnit, toMetres } from '../utils/size';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { useCart } from '../contexts/CartContext';
+import { fmtSize, feetToUnit, toMetres, inputUnit } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 
@@ -17,6 +22,7 @@ interface RugDetail {
   id: number;
   name: string;
   description: string | null;
+  about_content_html: string | null;
   weave_type: string | null;
   pile_height: string | null;
   material: string;
@@ -27,6 +33,7 @@ interface RugDetail {
   base_price_currency: string | null;
   lead_time_days: number;
   image_url: string | null;
+  images: { id: number; image_url: string; sort_order: number }[];
   available: boolean;
 }
 
@@ -41,8 +48,6 @@ interface PriceResult {
   pre_gst_price: number;
   gst_pct: number;
   gst_amount: number;
-  moq_met: boolean;
-  moq_message: string;
   material_available: boolean;
   estimated_days: number;
   standard_days: number;
@@ -70,6 +75,9 @@ export default function CustomerRugDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
+  const { displayPrice } = useCurrency();
+  const { addItem } = useCart();
+  const [addedToCart, setAddedToCart] = useState(false);
   const [rug, setRug] = useState<RugDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -79,6 +87,7 @@ export default function CustomerRugDetail() {
   const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
+  const [activeSlide, setActiveSlide] = useState(0);
 
   const [form, setForm] = useState<QuoteForm>({
     name: '', email: '', phone: '',
@@ -101,6 +110,7 @@ export default function CustomerRugDetail() {
 
   useEffect(() => {
     if (!id) return;
+    setActiveSlide(0);
     axios.get(`/api/customer/catalog/${id}`)
       .then(({ data }) => setRug(data))
       .catch(() => setNotFound(true))
@@ -146,38 +156,6 @@ export default function CustomerRugDetail() {
       }
     } catch (err: any) {
       console.error('Price estimate failed:', err.response?.data?.detail || err.message);
-    } finally {
-      setCalcLoading(false);
-    }
-  };
-
-  const handleDirectOrder = async () => {
-    if (!rug) return;
-    setCalcLoading(true);
-    try {
-      const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
-        size_w: sizeWMetres,
-        size_h: sizeHMetres,
-        qty: parseInt(form.qty) || 1,
-        rush_order: form.rush_order,
-        shape: form.shape,
-      });
-      navigate('/checkout', {
-        state: {
-          rug_id: rug.id, rug_name: rug.name,
-          size_w: sizeWMetres, size_h: sizeHMetres,
-          qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
-          shape: form.shape,
-          notes: form.notes || undefined,
-          estimated_price: data.final_price,
-          pre_gst_price: data.pre_gst_price,
-          gst_pct: data.gst_pct, gst_amount: data.gst_amount,
-          price_currency: data.price_currency ?? 'INR',
-          estimated_days: data.estimated_days,
-        },
-      });
-    } catch (err: any) {
-      console.error('Order estimate failed:', err.response?.data?.detail || err.message);
     } finally {
       setCalcLoading(false);
     }
@@ -281,7 +259,6 @@ export default function CustomerRugDetail() {
 
   const currency = rug?.base_price_currency ?? priceResult?.price_currency ?? 'INR';
   const sym = currencySymbol(currency);
-  const fmtC = (n: number) => fmtExact(n, currency);
 
   const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
 
@@ -362,16 +339,77 @@ export default function CustomerRugDetail() {
           {/* Left: Image + Details */}
           <div className="lg:col-span-3 space-y-8">
 
-            {/* Hero image */}
-            <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/3' }}>
-              {rug.image_url ? (
-                <img src={rug.image_url} alt={rug.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Layers size={48} className="text-stone-300" />
+            {/* Hero image / slider */}
+            {(() => {
+              const slides = [
+                ...(rug.image_url ? [rug.image_url] : []),
+                ...rug.images.map((img) => img.image_url),
+              ];
+              if (slides.length === 0) {
+                return (
+                  <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/3' }}>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Layers size={48} className="text-stone-300" />
+                    </div>
+                  </div>
+                );
+              }
+              const current = Math.min(activeSlide, slides.length - 1);
+              return (
+                <div className="space-y-2">
+                  <div className="relative overflow-hidden bg-stone-100 group" style={{ aspectRatio: '4/3' }}>
+                    <img src={slides[current]} alt={`${rug.name} — view ${current + 1}`} className="w-full h-full object-cover" />
+                    {slides.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSlide((current - 1 + slides.length) % slides.length)}
+                          aria-label="Previous image"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSlide((current + 1) % slides.length)}
+                          aria-label="Next image"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                          {slides.map((_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setActiveSlide(i)}
+                              aria-label={`Go to image ${i + 1}`}
+                              className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {slides.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto">
+                      {slides.map((src, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setActiveSlide(i)}
+                          className={`flex-shrink-0 w-16 h-16 overflow-hidden border transition-colors ${
+                            i === current ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'
+                          }`}
+                        >
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Name + meta */}
             <div className="space-y-3">
@@ -381,7 +419,7 @@ export default function CustomerRugDetail() {
                   {rug.weave_type && <p className="text-stone-400 text-sm capitalize mt-1">{rug.weave_type}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-stone-900 font-medium text-xl">{sym}{rug.base_price_per_sqm}</p>
+                  <p className="text-stone-900 font-medium text-xl">{displayPrice(rug.base_price_per_sqm, currency)}</p>
                   <p className="text-stone-400 text-xs">per m²</p>
                 </div>
               </div>
@@ -395,11 +433,18 @@ export default function CustomerRugDetail() {
               </div>
             </div>
 
-            {/* Description */}
-            {rug.description && (
+            {/* About this rug */}
+            {(rug.about_content_html || rug.description) && (
               <div className="border-t border-stone-100 pt-6 space-y-2">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">About</h2>
-                <p className="text-stone-600 text-sm leading-relaxed">{rug.description}</p>
+                {rug.about_content_html ? (
+                  <div
+                    className="prose-content"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html) }}
+                  />
+                ) : (
+                  <p className="text-stone-600 text-sm leading-relaxed">{rug.description}</p>
+                )}
               </div>
             )}
 
@@ -428,7 +473,7 @@ export default function CustomerRugDetail() {
                   <h3 className="font-serif text-2xl font-light text-stone-900">Quote Requested</h3>
                   <p className="text-stone-600 text-sm">
                     Quote #{quoteResult.quote_id} — Total{' '}
-                    <span className="font-medium text-stone-900">{quoteResult.final_price != null ? fmtC(quoteResult.final_price) : '—'}</span>
+                    <span className="font-medium text-stone-900">{quoteResult.final_price != null ? displayPrice(quoteResult.final_price, currency) : '—'}</span>
                   </p>
                   <p className="text-stone-500 text-sm">We'll contact you within 24 hours to confirm details.</p>
                   <p className="text-stone-400 text-xs">Expected delivery: {quoteResult.lead_time_days} days</p>
@@ -503,7 +548,7 @@ export default function CustomerRugDetail() {
                     {/* Size inputs */}
                     {form.shape === 'circle' ? (
                       <div className="max-w-[160px]">
-                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Diameter ({sizeUnit}) *</label>
+                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Diameter ({inputUnit(sizeUnit)}) *</label>
                         <input
                           type="number" name="size_w" value={form.size_w}
                           onChange={e => setForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
@@ -520,7 +565,7 @@ export default function CustomerRugDetail() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
-                            {form.shape === 'oval' ? `Width / Axis A (${sizeUnit})` : `Width (${sizeUnit})`} *
+                            {form.shape === 'oval' ? `Width / Axis A (${inputUnit(sizeUnit)})` : `Width (${inputUnit(sizeUnit)})`} *
                           </label>
                           <input type="number" name="size_w" value={form.size_w} onChange={handleFormChange}
                             placeholder={sizeUnit === 'cm' ? '240' : '8'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
@@ -529,7 +574,7 @@ export default function CustomerRugDetail() {
                         </div>
                         <div>
                           <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
-                            {form.shape === 'oval' ? `Height / Axis B (${sizeUnit})` : `Height (${sizeUnit})`} *
+                            {form.shape === 'oval' ? `Height / Axis B (${inputUnit(sizeUnit)})` : `Height (${inputUnit(sizeUnit)})`} *
                           </label>
                           <input type="number" name="size_h" value={form.size_h} onChange={handleFormChange}
                             placeholder={sizeUnit === 'cm' ? '180' : '6'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
@@ -602,13 +647,13 @@ export default function CustomerRugDetail() {
                               : <Zap size={13} />}
                             Estimate
                           </button>
-                          <button type="button" onClick={handleDirectOrder} disabled={calcLoading || !rug.available}
+                          <button type="submit" disabled={submitting || !rug.available}
                             className="flex-1 flex items-center justify-center gap-2 text-xs font-medium bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white px-3 py-2.5 transition-colors uppercase tracking-wider"
                           >
-                            {calcLoading
+                            {submitting
                               ? <div className="w-3.5 h-3.5 border border-white/30 border-t-white rounded-full animate-spin" />
                               : <Send size={13} />}
-                            Place Order
+                            Request Quote
                           </button>
                         </div>
                         {priceResult && (
@@ -620,47 +665,67 @@ export default function CustomerRugDetail() {
                             {priceResult.bulk_discount > 0 && (
                               <div className="flex justify-between text-xs">
                                 <span className="text-green-600">Bulk discount</span>
-                                <span className="text-green-600">−{fmtC(priceResult.bulk_discount)}</span>
+                                <span className="text-green-600">−{displayPrice(priceResult.bulk_discount, priceResult.price_currency)}</span>
                               </div>
                             )}
                             {priceResult.rush_surcharge > 0 && (
                               <div className="flex justify-between text-xs">
                                 <span className="text-amber-600">Rush fee</span>
-                                <span className="text-amber-600">+{fmtC(priceResult.rush_surcharge)}</span>
+                                <span className="text-amber-600">+{displayPrice(priceResult.rush_surcharge, priceResult.price_currency)}</span>
                               </div>
                             )}
                             <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
                               <span className="text-stone-400">Pre-tax</span>
-                              <span className="text-stone-700">{fmtC(priceResult.pre_gst_price)}</span>
+                              <span className="text-stone-700">{displayPrice(priceResult.pre_gst_price, priceResult.price_currency)}</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-stone-400">GST ({priceResult.gst_pct?.toFixed(0)}%)</span>
-                              <span className="text-stone-700">+{fmtC(priceResult.gst_amount)}</span>
+                              <span className="text-stone-400">Tax ({priceResult.gst_pct?.toFixed(0)}%)</span>
+                              <span className="text-stone-700">+{displayPrice(priceResult.gst_amount, priceResult.price_currency)}</span>
                             </div>
                             <div className="flex justify-between text-sm font-medium pt-1 border-t border-stone-200">
-                              <span className="text-stone-900">Total (incl. GST)</span>
-                              <span className="text-stone-900">{fmtC(priceResult.final_price)}</span>
+                              <span className="text-stone-900">Total (incl. Tax)</span>
+                              <span className="text-stone-900">{displayPrice(priceResult.final_price, priceResult.price_currency)}</span>
                             </div>
                             <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
-                            <button type="button"
-                              onClick={() => navigate('/checkout', {
-                                state: {
-                                  rug_id: rug.id, rug_name: rug.name,
-                                  size_w: sizeWMetres, size_h: sizeHMetres,
-                                  qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
-                                  notes: form.notes || undefined,
-                                  estimated_price: priceResult.final_price,
-                                  pre_gst_price: priceResult.pre_gst_price,
-                                  gst_pct: priceResult.gst_pct, gst_amount: priceResult.gst_amount,
-                                  price_currency: priceResult.price_currency ?? 'INR',
-                                  estimated_days: priceResult.estimated_days,
-                                  name: form.name || undefined, email: form.email || undefined, phone: form.phone || undefined,
-                                },
-                              })}
-                              className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-2.5 transition-colors mt-1"
-                            >
-                              Place Order
-                            </button>
+                            <div className="flex gap-2 mt-1">
+                              <button type="button"
+                                onClick={() => {
+                                  addItem({
+                                    rug_id: rug.id, rug_name: rug.name, image_url: rug.image_url,
+                                    size_w: sizeWMetres, size_h: sizeHMetres, shape: form.shape,
+                                    qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
+                                    notes: form.notes || undefined,
+                                  });
+                                  setAddedToCart(true);
+                                  setTimeout(() => setAddedToCart(false), 2500);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 border border-stone-300 hover:border-stone-900 text-stone-900 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
+                              >
+                                {addedToCart ? <><CheckCircle size={13} className="text-green-600" /> Added</> : <><ShoppingBag size={13} /> Add to Cart</>}
+                              </button>
+                              <button type="button"
+                                onClick={() => navigate('/checkout', {
+                                  state: {
+                                    items: [{
+                                      rug_id: rug.id, rug_name: rug.name, image_url: rug.image_url,
+                                      size_w: sizeWMetres, size_h: sizeHMetres,
+                                      qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
+                                      shape: form.shape,
+                                      notes: form.notes || undefined,
+                                      estimated_price: priceResult.final_price,
+                                      pre_gst_price: priceResult.pre_gst_price,
+                                      gst_pct: priceResult.gst_pct, gst_amount: priceResult.gst_amount,
+                                      price_currency: priceResult.price_currency ?? 'INR',
+                                      estimated_days: priceResult.estimated_days,
+                                    }],
+                                    name: form.name || undefined, email: form.email || undefined, phone: form.phone || undefined,
+                                  },
+                                })}
+                                className="flex-1 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
+                              >
+                                Buy Now
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -796,6 +861,9 @@ export default function CustomerRugDetail() {
                     : <><UserPlus size={13} /> Register & Request Quote</>}
               </button>
             </form>
+            <div className="px-5 pb-5">
+              <SocialLoginButtons />
+            </div>
           </div>
         </div>
       )}

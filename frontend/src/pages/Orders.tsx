@@ -4,7 +4,7 @@ import { getOrders, updateOrderStatus, getOrderBreakdown } from '../services/api
 import type { Order, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
-import { fmtDim } from '../utils/size';
+import { fmtDims } from '../utils/size';
 
 type Breakdown = QuoteCalculateResponse & {
   stored_final_price: number | null;
@@ -48,6 +48,7 @@ const Orders: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [breakdowns, setBreakdowns] = useState<Record<number, Breakdown | 'loading' | 'error'>>({});
+  const [shipPrompt, setShipPrompt] = useState<{ orderId: number; value: string } | null>(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -81,16 +82,22 @@ const Orders: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (orderId: number, newStatus: string) => {
+  const handleStatusChange = async (orderId: number, newStatus: string, shippingCost?: number) => {
     setUpdatingId(orderId);
     try {
-      const updated = await updateOrderStatus(orderId, newStatus);
+      const updated = await updateOrderStatus(orderId, newStatus, shippingCost);
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
     } catch {
       // silently fail
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleConfirmShipped = async (orderId: number) => {
+    if (!shipPrompt || shipPrompt.orderId !== orderId) return;
+    await handleStatusChange(orderId, 'shipped', parseFloat(shipPrompt.value) || 0);
+    setShipPrompt(null);
   };
 
   return (
@@ -187,6 +194,10 @@ const Orders: React.FC = () => {
             const quote = order.quote;
             const isExpanded = expandedId === order.id;
             const bd = breakdowns[order.id];
+            const itemCount = order.items?.length ?? (quote ? 1 : 0);
+            const orderTotal = order.items && order.items.length > 0
+              ? order.items.reduce((sum, it) => sum + (it.quote?.final_price ?? 0), 0)
+              : quote?.final_price ?? 0;
             return (
               <div key={order.id} className="card space-y-0 overflow-hidden">
                 {/* Row */}
@@ -205,7 +216,7 @@ const Orders: React.FC = () => {
                       )}
                     </div>
                     <p className="text-dark-400 text-xs mt-0.5 truncate">
-                      {quote?.rug_catalog?.name ?? 'Custom Rug'} · {quote?.customer?.name ?? 'No customer'}
+                      {quote?.rug_catalog?.name ?? 'Custom Rug'}{itemCount > 1 ? ` +${itemCount - 1} more` : ''} · {quote?.customer?.name ?? 'No customer'}
                     </p>
                   </div>
 
@@ -214,9 +225,9 @@ const Orders: React.FC = () => {
                     Est: {fmtDate(order.estimated_delivery)}
                   </div>
 
-                  {quote?.final_price && (
+                  {orderTotal > 0 && (
                     <div className="text-gold-400 font-semibold text-sm flex-shrink-0">
-                      {fmt(quote.final_price, quote?.price_currency)}
+                      {fmt(orderTotal, quote?.price_currency)}
                     </div>
                   )}
 
@@ -229,6 +240,18 @@ const Orders: React.FC = () => {
                 {/* Expanded */}
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-dark-700 space-y-4">
+                    {itemCount > 1 && order.items && (
+                      <div className="bg-dark-800 border border-dark-700 rounded-lg divide-y divide-dark-700">
+                        {order.items.map((it) => (
+                          <div key={it.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                            <span className="text-cream-200">{it.quote?.rug_catalog?.name ?? 'Custom Rug'} × {it.quote?.qty ?? 1}</span>
+                            {it.quote?.final_price != null && (
+                              <span className="text-gold-400">{fmt(it.quote.final_price, it.quote.price_currency)}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {/* Top row: order info + status controls */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Order details */}
@@ -242,9 +265,7 @@ const Orders: React.FC = () => {
                           <div className="flex justify-between">
                             <span className="text-dark-400">Size</span>
                             <span className="text-cream-200">
-                              {quote?.custom_size_w && quote?.custom_size_h
-                                ? `${fmtDim(quote.custom_size_w, user!.tenant.default_size_unit ?? 'ft')} × ${fmtDim(quote.custom_size_h, user!.tenant.default_size_unit ?? 'ft')} ${user!.tenant.default_size_unit ?? 'ft'}`
-                                : '—'}
+                              {fmtDims(quote?.custom_size_w, quote?.custom_size_h, user!.tenant.default_size_unit ?? 'ft')}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -267,6 +288,20 @@ const Orders: React.FC = () => {
                               <span className="text-cream-300 text-xs text-right">{bd.shipping_address}</span>
                             </div>
                           )}
+                          {order.shipping_cost != null && (
+                            <div className="flex justify-between">
+                              <span className="text-dark-400">Shipping cost</span>
+                              <span className="text-cream-200">{order.shipping_cost > 0 ? fmt(order.shipping_cost, quote?.price_currency) : 'Free'}</span>
+                            </div>
+                          )}
+                          {order.promo_code && (
+                            <div className="flex justify-between">
+                              <span className="text-dark-400">Promo applied</span>
+                              <span className="text-green-400">
+                                {order.promo_code}{order.discount_amount ? ` (−${fmt(order.discount_amount, quote?.price_currency)})` : ''}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -278,7 +313,16 @@ const Orders: React.FC = () => {
                             <button
                               key={s}
                               disabled={order.status === s || updatingId === order.id}
-                              onClick={() => handleStatusChange(order.id, s)}
+                              onClick={() => {
+                                if (s === 'shipped') {
+                                  setShipPrompt({
+                                    orderId: order.id,
+                                    value: String(order.shipping_cost ?? user!.tenant.default_shipping_rate ?? 0),
+                                  });
+                                } else {
+                                  handleStatusChange(order.id, s);
+                                }
+                              }}
                               className={`
                                 text-sm px-3 py-2 rounded-lg border text-left transition-all
                                 ${order.status === s
@@ -292,6 +336,34 @@ const Orders: React.FC = () => {
                             </button>
                           ))}
                         </div>
+                        {shipPrompt?.orderId === order.id && (
+                          <div className="bg-dark-800 border border-gold-600/40 rounded-lg p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <label className="text-dark-400 text-xs">Shipping cost ({user!.tenant.base_currency})</label>
+                            <input
+                              type="number" min="0" step="0.01" autoFocus
+                              value={shipPrompt.value}
+                              onChange={(e) => setShipPrompt({ orderId: order.id, value: e.target.value })}
+                              className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-cream-100 text-sm focus:outline-none focus:border-gold-600/60"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmShipped(order.id)}
+                                disabled={updatingId === order.id}
+                                className="flex-1 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-white text-xs font-semibold py-1.5 rounded-lg transition-colors"
+                              >
+                                {updatingId === order.id ? 'Saving…' : 'Confirm Shipped'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShipPrompt(null)}
+                                className="px-3 text-dark-400 hover:text-cream-200 text-xs transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -344,6 +416,12 @@ const Orders: React.FC = () => {
                               <p className="text-amber-500/80 text-xs flex items-center gap-1">
                                 <AlertTriangle size={10} />
                                 Rates reflect current settings — order predates rate locking.
+                              </p>
+                            )}
+                            {!bd.moq_met && (
+                              <p className="text-amber-500/80 text-xs flex items-center gap-1">
+                                <AlertTriangle size={10} />
+                                {bd.moq_message}
                               </p>
                             )}
 

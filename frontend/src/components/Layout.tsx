@@ -19,10 +19,15 @@ import {
   Settings,
   Film,
   Image,
+  Quote,
+  LayoutGrid,
+  Mail,
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
 import SEO from './SEO';
+import { FEATURE_FLAGS } from '../config/featureFlags';
 
 interface NavItem {
   path: string;
@@ -36,13 +41,17 @@ const navItems: NavItem[] = [
   { path: '/admin/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
   { path: '/admin/showcase-videos', label: 'Homepage Videos', icon: <Film size={18} /> },
   { path: '/admin/workshop-photos', label: 'Workshop Photos', icon: <Image size={18} /> },
+  { path: '/admin/testimonials', label: 'Testimonials', icon: <Quote size={18} /> },
+  { path: '/admin/project-gallery', label: 'Project Gallery', icon: <LayoutGrid size={18} /> },
+  { path: '/admin/newsletter-subscribers', label: 'Newsletter', icon: <Mail size={18} /> },
   { path: '/admin/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },
   { path: '/admin/quotes', label: 'Quotes', icon: <FileText size={18} /> },
+  { path: '/admin/promo-codes', label: 'Promo Codes', icon: <Tag size={18} /> },
   { path: '/admin/orders', label: 'Orders', icon: <ShoppingBag size={18} /> },
   { path: '/admin/inventory', label: 'Inventory', icon: <Package size={18} /> },
   { path: '/admin/customers', label: 'Customers', icon: <Users size={18} /> },
   { path: '/', label: 'Customer Shop', icon: <Store size={18} /> },
-  { path: '/admin/billing', label: 'Billing', icon: <CreditCard size={18} /> },
+  ...(FEATURE_FLAGS.SHOW_BILLING ? [{ path: '/admin/billing', label: 'Billing', icon: <CreditCard size={18} /> }] : []),
   { path: '/admin/settings', label: 'Settings', icon: <Settings size={18} /> },
 ];
 
