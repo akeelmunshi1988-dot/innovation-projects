@@ -12,6 +12,8 @@ import os
 # ── Room image config ──────────────────────────────────────────────────────────
 ROOM_LOCAL = "/Applications/RugManufactureCustomApp/frontend/public/room-canvas.jpg"
 ROOM_FALLBACK_URL = "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1400&q=85"
+FRONTEND_PUBLIC = "/Applications/RugManufactureCustomApp/frontend/public"
+BACKEND_STATIC = os.path.join(os.path.dirname(__file__), "..", "..", "static")
 
 # Floor region (percentages of room image dimensions)
 FLOOR = {"x": 8, "y": 58, "width": 80, "height": 30}
@@ -39,11 +41,53 @@ def _load_room() -> np.ndarray:
     return _room
 
 
+def match_lighting(rug_bgr: np.ndarray, room_bgr: np.ndarray, region_pts: np.ndarray, strength: float = 0.4) -> np.ndarray:
+    """Nudges the rug's brightness/warmth toward the room's own ambient lighting,
+    sampled from the exact floor area (in the original photo) the rug will sit on —
+    a warm-lit wood floor or a cool, shaded corner both leave a visible cast on
+    whatever's placed there. Without this the rug reads as a flat sticker pasted
+    over the photo regardless of how clean the perspective warp is.
+
+    Partial statistic transfer in LAB space (Reinhard et al.): shift the rug's
+    per-channel mean/std toward the room's, blended at `strength` so the rug's
+    own color identity survives — a strength of 1.0 would recolor it entirely
+    to the room's palette, which looks wrong for a patterned rug.
+    """
+    mask = np.zeros(room_bgr.shape[:2], dtype=np.uint8)
+    cv2.fillConvexPoly(mask, region_pts.astype(np.int32), 255)
+    sampled = room_bgr[mask > 0]
+    if sampled.size == 0:
+        return rug_bgr
+
+    room_lab = cv2.cvtColor(sampled.reshape(-1, 1, 3), cv2.COLOR_BGR2LAB).astype(np.float32).reshape(-1, 3)
+    room_mean = room_lab.mean(axis=0)
+    room_std = room_lab.std(axis=0) + 1e-6
+
+    rug_lab = cv2.cvtColor(rug_bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
+    flat = rug_lab.reshape(-1, 3)
+    rug_mean = flat.mean(axis=0)
+    rug_std = flat.std(axis=0) + 1e-6
+
+    target_mean = rug_mean * (1 - strength) + room_mean * strength
+    target_std = rug_std * (1 - strength) + room_std * strength
+
+    matched = (rug_lab - rug_mean) * (target_std / rug_std) + target_mean
+    matched = np.clip(matched, 0, 255).astype(np.uint8)
+    return cv2.cvtColor(matched, cv2.COLOR_LAB2BGR)
+
+
 def _load_rug(url: str) -> np.ndarray:
     if url in _rug_cache:
         return _rug_cache[url]
-    if url.startswith("/"):
-        path = f"/Applications/RugManufactureCustomApp/frontend/public{url}"
+    if url.startswith("/static/"):
+        # Admin-uploaded images (catalog, showcase, workshop) — served by the backend, not the frontend.
+        path = os.path.join(BACKEND_STATIC, url[len("/static/"):])
+        img = cv2.imread(path)
+        if img is None:
+            raise FileNotFoundError(f"Rug image not found at {path}")
+    elif url.startswith("/"):
+        # Bundled demo/seed images shipped with the frontend (e.g. /rugs/rug-abstract.jpg).
+        path = os.path.join(FRONTEND_PUBLIC, url.lstrip("/"))
         img = cv2.imread(path)
         if img is None:
             raise FileNotFoundError(f"Rug image not found at {path}")
@@ -67,7 +111,6 @@ def compose(rug_image_url: str, opacity: float = 0.90) -> bytes:
     rug = _load_rug(rug_image_url)
 
     room_h, room_w = room.shape[:2]
-    rug_h, rug_w = rug.shape[:2]
 
     # Convert floor-region percentages → pixel coordinates
     rx = int(FLOOR["x"] / 100 * room_w)
@@ -80,9 +123,6 @@ def compose(rug_image_url: str, opacity: float = 0.90) -> bytes:
     top_w = int(rw * PERSPECTIVE)
     top_x = cx - top_w // 2
 
-    # Rug source corners (rectangle)
-    src = np.float32([[0, 0], [rug_w, 0], [rug_w, rug_h], [0, rug_h]])
-
     # Floor destination corners (trapezoid)
     dst = np.float32([
         [top_x,          ry],
@@ -90,6 +130,14 @@ def compose(rug_image_url: str, opacity: float = 0.90) -> bytes:
         [rx + rw,        ry + rh],
         [rx,             ry + rh],
     ])
+
+    # Match the rug's brightness/warmth to this room's floor lighting before
+    # warping — sold the realism far more than the perspective math alone.
+    rug = match_lighting(rug, room, dst, strength=0.35)
+    rug_h, rug_w = rug.shape[:2]
+
+    # Rug source corners (rectangle)
+    src = np.float32([[0, 0], [rug_w, 0], [rug_w, rug_h], [0, rug_h]])
 
     # ── Perspective warp ──────────────────────────────────────────────────────
     M = cv2.getPerspectiveTransform(src, dst)
@@ -108,17 +156,31 @@ def compose(rug_image_url: str, opacity: float = 0.90) -> bytes:
         t = (y - ry) / max(rh - 1, 1)           # 0 at top, 1 at bottom
         depth[y, :] = 0.62 + 0.38 * t            # 0.62 → 1.0
 
-    # ── Drop shadow just outside the rug perimeter ────────────────────────────
-    shadow_pts = np.float32([
+    # ── Two-layer drop shadow just outside the rug perimeter ─────────────────
+    # A single soft blob reads as haze; a tight dark contact shadow right at
+    # the edge plus a wider soft ambient one underneath is what a real rug
+    # laid on a floor actually casts.
+    contact_pts = np.float32([
+        [top_x - 2,         ry + 1],
+        [top_x + top_w + 2, ry + 1],
+        [rx + rw + 4,       ry + rh + 4],
+        [rx - 4,            ry + rh + 4],
+    ])
+    contact = np.zeros((room_h, room_w), dtype=np.float32)
+    cv2.fillConvexPoly(contact, contact_pts.astype(np.int32), 0.65)
+    contact = cv2.GaussianBlur(contact, (9, 9), 0)
+
+    ambient_pts = np.float32([
         [top_x - 6,         ry + 3],
         [top_x + top_w + 6, ry + 3],
         [rx + rw + 12,      ry + rh + 10],
         [rx - 12,           ry + rh + 10],
     ])
-    shadow = np.zeros((room_h, room_w), dtype=np.float32)
-    cv2.fillConvexPoly(shadow, shadow_pts.astype(np.int32), 0.50)
-    shadow = cv2.GaussianBlur(shadow, (25, 25), 0)
-    shadow *= (1 - mask)  # only outside the rug
+    ambient = np.zeros((room_h, room_w), dtype=np.float32)
+    cv2.fillConvexPoly(ambient, ambient_pts.astype(np.int32), 0.35)
+    ambient = cv2.GaussianBlur(ambient, (35, 35), 0)
+
+    shadow = np.clip(contact + ambient, 0, 1) * (1 - mask)  # only outside the rug
 
     # ── Composite ─────────────────────────────────────────────────────────────
     room_f  = room.astype(np.float32)

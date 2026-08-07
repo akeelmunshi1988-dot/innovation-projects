@@ -19,6 +19,7 @@ from app.schemas.schemas import (
     QuoteCalculateResponse,
     QuoteSendRequest,
     QuoteAdjustRequest,
+    QuoteRejectRequest,
 )
 from app.services.quote_engine import QuoteEngine
 from app.services import email_service
@@ -108,6 +109,35 @@ def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", custom
             "note_html": note_html,
             "note_text": note_text,
             "quote_link": quote_link,
+        },
+    )
+    email_service.send_email(to_email, subject, body_text, body_html)
+
+
+def _send_quote_rejection_notification(db: Session, quote: Quote, tenant: "Tenant", customer: "Customer", reason: Optional[str]) -> None:
+    """Fire-and-forget templated email to customer when a vendor declines a quote/request."""
+    to_email: Optional[str] = customer.email if customer else None
+    if not to_email:
+        return
+
+    rug_name: str = str(quote.rug_catalog.name) if quote.rug_catalog else "Custom Rug Request"
+    reason_line_html = (
+        f'<div style="background:#fef2f2;border-left:3px solid #dc2626;padding:12px 16px;'
+        f'margin:16px 0;border-radius:4px"><p style="margin:0;font-size:13px;color:#991b1b">'
+        f'<strong>Reason:</strong> {reason}</p></div>'
+    ) if reason else ""
+    reason_line_text = f"Reason: {reason}\n" if reason else ""
+    catalog_link = f"{settings.FRONTEND_URL}/catalog"
+
+    subject, body_text, body_html = email_service.render_template(
+        db, quote.tenant_id, "quote_rejected",
+        {
+            "customer_name": customer.name,
+            "tenant_name": tenant.name,
+            "rug_name": rug_name,
+            "reason_line_html": reason_line_html,
+            "reason_line_text": reason_line_text,
+            "catalog_link": catalog_link,
         },
     )
     email_service.send_email(to_email, subject, body_text, body_html)
@@ -215,10 +245,44 @@ def update_quote(
     ).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
-    for field, value in quote_update.model_dump(exclude_unset=True).items():
+    update_fields = quote_update.model_dump(exclude_unset=True)
+    resulting_status = update_fields.get("status", quote.status)
+    resulting_price = update_fields.get("final_price", quote.final_price)
+    if resulting_status in ("sent", "accepted") and resulting_price is None:
+        raise HTTPException(status_code=400, detail=f"Cannot mark this quote as '{resulting_status}' until a price has been set. Use \"Set Price\" first.")
+    for field, value in update_fields.items():
         setattr(quote, field, value)
     db.commit()
     db.refresh(quote)
+    return quote
+
+
+@router.patch("/quotes/{quote_id}/reject", response_model=QuoteSchema)
+def reject_quote(
+    quote_id: int,
+    body: QuoteRejectRequest,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    quote = db.query(Quote).filter(
+        Quote.id == quote_id,
+        Quote.tenant_id == current_user.tenant_id,
+    ).first()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    if quote.status in ("accepted", "rejected"):
+        raise HTTPException(status_code=400, detail=f"Cannot reject a quote that is already '{quote.status}'")
+    quote.status = "rejected"
+    if body.reason:
+        quote.vendor_notes = body.reason
+    db.commit()
+    db.refresh(quote)
+
+    customer = db.query(Customer).filter(Customer.id == quote.customer_id).first()
+    tenant = db.query(Tenant).filter(Tenant.id == quote.tenant_id).first()
+    if customer and tenant:
+        _send_quote_rejection_notification(db, quote, tenant, customer, body.reason)
+
     return quote
 
 

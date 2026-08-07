@@ -1,11 +1,13 @@
 import os
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop
+from app.core.logging_config import logger
+from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes
 
 app = FastAPI(
     title="LoomCraftRugs AI - Rug Manufacture System",
@@ -20,6 +22,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Logs every API request to backend/logs/app.log — method, path, status, duration.
+    Unhandled exceptions get their full traceback logged here before re-raising, since
+    otherwise they're only visible in whichever terminal happened to be running uvicorn
+    at the time (see logging_config.py)."""
+    start = time.time()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = (time.time() - start) * 1000
+        logger.exception(f"{request.method} {request.url.path} raised an unhandled exception after {duration_ms:.0f}ms")
+        raise
+    duration_ms = (time.time() - start) * 1000
+    log = logger.warning if response.status_code >= 500 else logger.info
+    log(f"{request.method} {request.url.path} {response.status_code} {duration_ms:.0f}ms")
+    return response
 
 
 class CachedStaticFiles(StaticFiles):
@@ -39,6 +60,9 @@ os.makedirs(os.path.join(STATIC_DIR, "rugs"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "branding"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "showcase"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "workshop"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "testimonials"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "gallery"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "custom-requests"), exist_ok=True)
 app.mount("/static", CachedStaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -61,6 +85,10 @@ app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 app.include_router(email_templates.router, prefix="/api", tags=["Email Templates"])
 app.include_router(showcase.router, prefix="/api", tags=["Showcase Videos"])
 app.include_router(workshop.router, prefix="/api", tags=["Workshop Photos"])
+app.include_router(testimonials.router, prefix="/api", tags=["Testimonials"])
+app.include_router(gallery.router, prefix="/api", tags=["Project Gallery"])
+app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
+app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 
 
 @app.get("/")
