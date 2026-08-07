@@ -210,7 +210,7 @@ export default function CustomerCart() {
             </div>
 
             <div className="lg:col-span-1">
-              <div className="border border-stone-200 p-5 space-y-4 sticky top-24">
+              <div className="border border-stone-200 p-5 space-y-4 sticky top-[102px]">
                 <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Order Total</p>
 
                 {/* Promo code */}
