@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, Layers, Zap, Play, Star, Quote as QuoteIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -71,6 +71,23 @@ const WHY_LOOMCRAFT = [
 
 const TRUST_BAR = ['Handmade', 'Custom Sizes', 'Worldwide Shipping', 'Family Workshop', 'Sustainable Materials'];
 
+// Decorative warp/weft crosshatch — echoes the loom motif in the brand mark, used as a
+// faint background texture on the material cards rather than a literal illustration.
+function LoomMotif({ className }: { className?: string }) {
+  const lines = [8, 22, 36, 50, 64, 78, 92, 106, 120];
+  return (
+    <svg viewBox="0 0 128 128" className={className} aria-hidden="true">
+      {lines.map((v, i) => (
+        <line key={`v${i}`} x1={v} y1="0" x2={v} y2="128" stroke="currentColor" strokeWidth={i % 2 === 0 ? 1 : 0.5} />
+      ))}
+      {lines.map((h, i) => (
+        <line key={`h${i}`} x1="0" y1={h} x2="128" y2={h} stroke="currentColor" strokeWidth={i % 2 === 0 ? 1 : 0.5} />
+      ))}
+      <circle cx="64" cy="64" r="46" stroke="currentColor" strokeWidth="1" fill="none" />
+    </svg>
+  );
+}
+
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
   const [sort, setSort] = useState<'newest' | 'popular'>('newest');
@@ -83,6 +100,7 @@ export default function CustomerHome() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
   const [gallerySlide, setGallerySlide] = useState(0);
+  const [testimonialSlide, setTestimonialSlide] = useState(0);
   const { displayPrice } = useCurrency();
 
   useEffect(() => {
@@ -161,7 +179,7 @@ export default function CustomerHome() {
           ) : (
             <div className="absolute inset-0 bg-stone-100" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/95 via-stone-900/80 to-stone-900/45" />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 to-stone-900/25" />
 
           <div className="relative max-w-7xl mx-auto px-6 pb-16 pt-32 w-full">
             <div className="max-w-xl space-y-7">
@@ -470,11 +488,12 @@ export default function CustomerHome() {
               <Link
                 key={m.id}
                 to={`/catalog?material=${m.id}`}
-                className="group bg-white p-8 space-y-3 hover:bg-stone-50 transition-colors"
+                className="group relative overflow-hidden bg-white p-8 space-y-3 hover:bg-stone-50 transition-colors"
               >
-                <p className="font-serif text-2xl font-light text-stone-900">{m.label}</p>
-                <p className="text-stone-500 text-sm leading-relaxed">{m.desc}</p>
-                <p className="text-xs text-stone-400 group-hover:text-stone-900 transition-colors flex items-center gap-1.5 pt-2">
+                <LoomMotif className="absolute -bottom-4 -right-4 w-32 h-32 text-stone-100 group-hover:text-stone-200 transition-colors pointer-events-none" />
+                <p className="relative font-serif text-2xl font-light text-stone-900">{m.label}</p>
+                <p className="relative text-stone-500 text-sm leading-relaxed">{m.desc}</p>
+                <p className="relative text-xs text-stone-400 group-hover:text-stone-900 transition-colors flex items-center gap-1.5 pt-2">
                   Browse {m.label} <ArrowRight size={11} />
                 </p>
               </Link>
@@ -501,45 +520,101 @@ export default function CustomerHome() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ──────────────────────────────────────────────── */}
-      {testimonials.length > 0 && (
-        <section className="bg-stone-50 border-y border-stone-100 py-20">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="mb-12 max-w-2xl">
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Testimonials</p>
-              <h2 className="font-serif text-4xl font-light text-stone-900">What International Buyers Say</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {testimonials.slice(0, 6).map((t) => (
-                <div key={t.id} className="bg-white border border-stone-200 p-8 space-y-4">
-                  <QuoteIcon size={20} className="text-stone-300" />
-                  <p className="text-stone-600 text-sm leading-relaxed">{t.quote}</p>
-                  {t.rating != null && (
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={12} className={i < t.rating! ? 'text-stone-900 fill-stone-900' : 'text-stone-200'} />
-                      ))}
+      {/* ── TESTIMONIALS (slider, 2 dark spotlight cards per page) ────────── */}
+      {testimonials.length > 0 && (() => {
+        const PAGE_SIZE = 2;
+        const totalPages = Math.max(1, Math.ceil(testimonials.length / PAGE_SIZE));
+        const currentPage = Math.min(testimonialSlide, totalPages - 1);
+        const pageItems = testimonials.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+
+        return (
+          <section className="bg-stone-50 border-y border-stone-100 py-20">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="mb-12 max-w-2xl">
+                <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Testimonials</p>
+                <h2 className="font-serif text-4xl font-light text-stone-900">What Buyers Say</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {pageItems.map((t) => (
+                  <div
+                    key={t.id}
+                    className={`relative overflow-hidden bg-[#4a4d52] p-10 md:p-12 flex flex-col justify-between ${
+                      pageItems.length === 1 ? 'md:col-span-2' : ''
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="absolute -top-3 left-6 font-serif leading-none text-white/10 text-8xl md:text-9xl pointer-events-none select-none"
+                    >
+                      “
+                    </span>
+
+                    <div className="relative space-y-5">
+                      {t.rating != null && (
+                        <div className="flex gap-1">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} size={13} className={i < t.rating! ? 'text-white fill-white' : 'text-white/20'} />
+                          ))}
+                        </div>
+                      )}
+                      <p className="font-serif text-xl md:text-2xl font-light italic leading-snug text-white">
+                        {t.quote}
+                      </p>
                     </div>
-                  )}
-                  <div className="flex items-center gap-3 pt-2">
-                    {t.photo_url ? (
-                      <img src={t.photo_url} alt={t.author_name} className="w-9 h-9 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 text-xs font-medium">
-                        {t.author_name.charAt(0)}
+
+                    <div className="relative flex items-center gap-3 pt-6">
+                      {t.photo_url ? (
+                        <img src={t.photo_url} alt={t.author_name} className="w-11 h-11 rounded-full object-cover ring-2 ring-white/15" />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white text-sm font-medium">
+                          {t.author_name.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white text-sm font-medium">{t.author_name}</p>
+                        <p className="text-stone-300 text-xs">{[t.author_title, t.country].filter(Boolean).join(' · ')}</p>
                       </div>
-                    )}
-                    <div>
-                      <p className="text-stone-900 text-sm font-medium">{t.author_name}</p>
-                      <p className="text-stone-400 text-xs">{[t.author_title, t.country].filter(Boolean).join(' · ')}</p>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 mt-10">
+                  <button
+                    type="button"
+                    onClick={() => setTestimonialSlide((currentPage - 1 + totalPages) % totalPages)}
+                    aria-label="Previous testimonials"
+                    className="w-9 h-9 rounded-full flex items-center justify-center border border-stone-300 text-stone-600 hover:border-stone-900 hover:bg-stone-900 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setTestimonialSlide(i)}
+                        aria-label={`Go to testimonials page ${i + 1}`}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === currentPage ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTestimonialSlide((currentPage + 1) % totalPages)}
+                    aria-label="Next testimonials"
+                    className="w-9 h-9 rounded-full flex items-center justify-center border border-stone-300 text-stone-600 hover:border-stone-900 hover:bg-stone-900 hover:text-white transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        );
+      })()}
 
       {/* ── PROJECT GALLERY (slider, whole/uncropped images) ─────────────── */}
       {galleryItems.length > 0 && (() => {

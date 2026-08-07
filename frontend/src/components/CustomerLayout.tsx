@@ -70,10 +70,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       ? <span className={`${className} inline-block bg-stone-200 rounded animate-pulse text-transparent select-none`}>Loading</span>
       : <span className={className}>{businessName}</span>;
 
-  const BrandLockup = ({ className, markSize = 32 }: { className: string; markSize?: number }) => (
-    <span className="inline-flex items-center gap-2.5">
+  const BrandLockup = ({ className, markSize = 32, markWidth }: { className: string; markSize?: number; markWidth?: number }) => (
+    <span className="inline-flex items-center gap-1.5">
       {logoUrl && (
-        <img src={logoUrl} alt="" className="flex-shrink-0 object-contain" style={{ height: markSize, width: markSize }} />
+        <img src={logoUrl} alt="" className="flex-shrink-0 object-contain" style={{ height: markSize, width: markWidth ?? markSize }} />
       )}
       <BrandName className={className} />
     </span>
@@ -147,11 +147,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className={`fixed top-0 left-0 right-0 z-40 bg-white transition-shadow duration-300 ${scrolled ? 'shadow-[0_1px_0_0_#e7e5e0]' : 'border-b border-stone-100'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-8">
+        <div className="max-w-7xl mx-auto px-6 h-[70px] flex items-center gap-8">
 
           {/* Brand */}
-          <Link to="/" className="flex-shrink-0">
-            <BrandLockup className="font-serif text-xl font-medium tracking-wide text-stone-900" markSize={46} />
+          <Link to="/" className="flex-shrink-0 inline-flex items-center -ml-3">
+            <BrandLockup className="font-serif text-xl font-medium tracking-wide text-[#85501b]" markSize={46} />
           </Link>
 
           {/* Desktop nav — centered */}
@@ -374,7 +374,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       </header>
 
       {/* Page content */}
-      <main className="flex-1 pt-16">{children}</main>
+      <main className="flex-1 pt-[70px]">{children}</main>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-stone-50 border-t border-stone-200 mt-24">

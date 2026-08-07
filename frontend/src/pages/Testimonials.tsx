@@ -285,7 +285,7 @@ export default function Testimonials() {
           <div>
             <h1 className="text-2xl font-bold text-cream-100">Testimonials</h1>
             <p className="text-dark-400 text-sm">
-              Buyer quotes shown in the "What International Buyers Say" section on your storefront homepage.
+              Buyer quotes shown in the "What Buyers Say" section on your storefront homepage.
             </p>
           </div>
         </div>

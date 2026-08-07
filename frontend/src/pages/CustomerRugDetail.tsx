@@ -466,7 +466,7 @@ export default function CustomerRugDetail() {
 
           {/* Right: Quote form */}
           <div className="lg:col-span-2">
-            <div className="sticky top-24 space-y-5">
+            <div className="sticky top-[102px] space-y-5">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />

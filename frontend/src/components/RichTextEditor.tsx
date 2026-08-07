@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import DOMPurify from 'dompurify';
 import {
   Bold, Italic, List, ListOrdered, Link as LinkIcon,
-  Heading2, Heading3, Undo, Redo, Quote,
+  Heading2, Heading3, Undo, Redo, Quote, Code2, X,
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -12,7 +14,17 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+// Matches what this editor's toolbar can actually produce, so anything pasted in renders
+// with the same storefront styling (.prose-content) as hand-formatted content — nothing
+// unstyled or structurally surprising slips through. b/i are included since pasted HTML
+// commonly uses them instead of strong/em; TipTap's schema normalizes them on parse.
+const PASTE_ALLOWED_TAGS = ['p', 'h2', 'h3', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote', 'a', 'br'];
+const PASTE_ALLOWED_ATTR = ['href', 'target', 'rel'];
+
 export default function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+  const [htmlPasteOpen, setHtmlPasteOpen] = useState(false);
+  const [htmlPasteValue, setHtmlPasteValue] = useState('');
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -32,6 +44,18 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
 
   const btnCls = (active: boolean) =>
     `p-1.5 rounded-lg transition-colors ${active ? 'bg-gold-600 text-white' : 'text-dark-300 hover:text-cream-200 hover:bg-dark-700'}`;
+
+  const handleInsertHtml = () => {
+    const clean = DOMPurify.sanitize(htmlPasteValue, {
+      ALLOWED_TAGS: PASTE_ALLOWED_TAGS,
+      ALLOWED_ATTR: PASTE_ALLOWED_ATTR,
+    });
+    // insertContent additionally filters through the editor's own schema (StarterKit + Link),
+    // so anything outside what this editor understands is dropped here too, not just above.
+    editor.chain().focus().insertContent(clean).run();
+    setHtmlPasteValue('');
+    setHtmlPasteOpen(false);
+  };
 
   return (
     <div className="border border-dark-600 rounded-lg overflow-hidden bg-dark-800">
@@ -77,7 +101,55 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
         <button type="button" onClick={() => editor.chain().focus().redo().run()} className={btnCls(false)} title="Redo">
           <Redo size={14} />
         </button>
+        <span className="w-px h-4 bg-dark-600 mx-1" />
+        <button
+          type="button"
+          onClick={() => setHtmlPasteOpen((v) => !v)}
+          className={btnCls(htmlPasteOpen)}
+          title="Paste HTML"
+        >
+          <Code2 size={14} />
+        </button>
       </div>
+
+      {htmlPasteOpen && (
+        <div className="px-3 py-2.5 border-b border-dark-700 bg-dark-900/50 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-dark-300 text-xs font-medium">Paste HTML source — inserted at the cursor, sanitized on insert.</p>
+            <button type="button" onClick={() => { setHtmlPasteOpen(false); setHtmlPasteValue(''); }} className="text-dark-400 hover:text-cream-200 transition-colors">
+              <X size={13} />
+            </button>
+          </div>
+          <textarea
+            value={htmlPasteValue}
+            onChange={(e) => setHtmlPasteValue(e.target.value)}
+            placeholder="<p>Paste raw HTML here…</p>"
+            rows={5}
+            className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-cream-100 text-xs font-mono placeholder-dark-500 focus:outline-none focus:border-gold-600/60 resize-y"
+          />
+          <p className="text-dark-500 text-xs">
+            Only these tags survive: p, h2, h3, strong/b, em/i, ul, ol, li, blockquote, a, br. Scripts, styles, and anything else are stripped.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleInsertHtml}
+              disabled={!htmlPasteValue.trim()}
+              className="bg-gold-600 hover:bg-gold-500 disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Insert HTML
+            </button>
+            <button
+              type="button"
+              onClick={() => { setHtmlPasteOpen(false); setHtmlPasteValue(''); }}
+              className="text-dark-400 hover:text-cream-200 text-xs px-3 py-1.5 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <EditorContent editor={editor} />
     </div>
   );
