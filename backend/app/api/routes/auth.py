@@ -3,6 +3,7 @@ import secrets
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, UploadFile, File, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
@@ -20,6 +21,7 @@ from app.schemas.schemas import (
     CustomerRegisterResponse, CustomerVerifyEmailRequest, RefreshResponse,
 )
 from app.services import email_service
+from app.services import oauth_providers
 
 router = APIRouter()
 
@@ -170,6 +172,8 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
             existing.phone = body.phone
         if body.company and not existing.company:
             existing.company = body.company
+        if body.account_type:
+            existing.account_type = body.account_type
         db.commit()
         db.refresh(existing)
         customer = existing
@@ -179,6 +183,7 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
             email=body.email,
             phone=body.phone,
             company=body.company,
+            account_type=body.account_type or "retail",
             hashed_password=hash_password(body.password),
             is_active=True,
         )
@@ -226,6 +231,87 @@ def customer_login(body: CustomerLoginRequest, response: Response, db: Session =
     token = create_access_token({"sub": str(customer.id), "type": "customer"})
     _set_refresh_cookie(response, create_refresh_token(db, "customer", customer.id))
     return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email)
+
+
+# ── Social login (Google / Facebook / LinkedIn) ───────────────────────────────
+
+@router.get("/auth/customer/oauth/providers")
+def oauth_configured_providers():
+    """Which social login buttons the storefront should actually show — providers
+    without a Client ID/Secret configured are omitted rather than shown broken."""
+    return {"providers": oauth_providers.configured_providers()}
+
+
+@router.get("/auth/customer/oauth/{provider}/start")
+def oauth_start(provider: str, return_to: Optional[str] = None):
+    if not oauth_providers.is_configured(provider):
+        raise HTTPException(status_code=503, detail=f"{provider.capitalize()} sign-in isn't configured yet.")
+    state = oauth_providers.start_state(return_to)
+    return RedirectResponse(oauth_providers.build_authorize_url(provider, state))
+
+
+@router.get("/auth/customer/oauth/{provider}/callback")
+def oauth_callback(
+    provider: str,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    frontend_error = f"{settings.FRONTEND_URL.rstrip('/')}/oauth-callback?error="
+
+    if error:
+        return RedirectResponse(f"{frontend_error}{error}")
+    if not code or not state:
+        return RedirectResponse(f"{frontend_error}missing_code")
+
+    return_to = oauth_providers.consume_state(state)
+    if return_to is None:
+        return RedirectResponse(f"{frontend_error}invalid_state")
+
+    try:
+        access_token = oauth_providers.exchange_code(provider, code)
+        identity = oauth_providers.fetch_identity(provider, access_token)
+    except Exception:
+        return RedirectResponse(f"{frontend_error}provider_error")
+
+    email = identity.get("email")
+    if not email:
+        return RedirectResponse(f"{frontend_error}no_email")
+
+    tenant = db.query(Tenant).first()
+    tenant_id = tenant.id if tenant else None
+
+    customer = db.query(Customer).filter(Customer.email == email, Customer.tenant_id == tenant_id).first()
+    if customer:
+        # Link this provider to an existing (possibly password- or guest-created) account
+        if not customer.oauth_provider:
+            customer.oauth_provider = provider
+            customer.oauth_id = identity.get("provider_user_id")
+        customer.is_verified = True
+        customer.is_active = True
+    else:
+        customer = Customer(
+            tenant_id=tenant_id,
+            name=identity.get("name") or email,
+            email=email,
+            oauth_provider=provider,
+            oauth_id=identity.get("provider_user_id"),
+            is_active=True,
+            is_verified=True,  # the provider already verified this email
+        )
+        db.add(customer)
+    db.commit()
+    db.refresh(customer)
+
+    token = create_access_token({"sub": str(customer.id), "type": "customer"})
+
+    redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/oauth-callback?token={token}&return_to={return_to}"
+    redirect_response = RedirectResponse(redirect_url)
+    # Cookies must be set on the response object actually returned — setting them on the
+    # injected `response` param has no effect once we return a different RedirectResponse.
+    _set_refresh_cookie(redirect_response, create_refresh_token(db, "customer", customer.id))
+    return redirect_response
 
 
 @router.post("/auth/refresh", response_model=RefreshResponse)
@@ -299,6 +385,12 @@ def update_tenant_settings(
         tenant.contact_address = body.contact_address
     if body.contact_hours is not None:
         tenant.contact_hours = body.contact_hours
+    if body.catalog_pdf_url is not None:
+        tenant.catalog_pdf_url = body.catalog_pdf_url
+    if body.certifications is not None:
+        tenant.certifications = body.certifications
+    if body.default_shipping_rate is not None:
+        tenant.default_shipping_rate = body.default_shipping_rate
     db.commit()
     db.refresh(tenant)
     cache_clear("tenant")
@@ -335,3 +427,59 @@ async def upload_tenant_favicon(
     cache_clear("tenant")
     cache_clear("settings")
     return TenantPublic.model_validate(tenant)
+
+
+ALLOWED_CATALOG_PDF_TYPES = {"application/pdf"}
+MAX_CATALOG_PDF_SIZE_MB = 25
+
+
+@router.post("/tenant/catalog-pdf", response_model=TenantPublic)
+async def upload_catalog_pdf(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    if file.content_type not in ALLOWED_CATALOG_PDF_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use PDF.")
+
+    contents = await file.read()
+    if len(contents) > MAX_CATALOG_PDF_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_CATALOG_PDF_SIZE_MB}MB allowed.")
+
+    filename = f"{uuid.uuid4().hex}.pdf"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant.catalog_pdf_url = f"/static/branding/{filename}"
+    db.commit()
+    db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")
+    return TenantPublic.model_validate(tenant)
+
+
+@router.post("/tenant/certification-image")
+async def upload_certification_image(
+    file: UploadFile = File(...),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    if file.content_type not in ALLOWED_FAVICON_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use PNG, JPEG, or SVG.")
+
+    contents = await file.read()
+    if len(contents) > MAX_FAVICON_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_FAVICON_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "png"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return {"url": f"/static/branding/{filename}"}

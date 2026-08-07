@@ -3,6 +3,7 @@ import { refreshAccessToken } from './authRefresh';
 import type {
   Material,
   RugCatalog,
+  RugImage,
   Customer,
   Quote,
   Order,
@@ -14,6 +15,10 @@ import type {
   EmailTemplate,
   ShowcaseVideo,
   WorkshopPhoto,
+  Testimonial,
+  ProjectGalleryItem,
+  NewsletterSubscriber,
+  PromoCode,
 } from '../types';
 
 const api = axios.create({
@@ -85,6 +90,20 @@ export const deleteRug = async (id: number): Promise<void> => {
   await api.delete(`/catalog/${id}`);
 };
 
+export const addRugImage = async (rugId: number, imageUrl: string, sortOrder: number): Promise<RugImage> => {
+  const { data } = await api.post<RugImage>(`/catalog/${rugId}/images`, { image_url: imageUrl, sort_order: sortOrder });
+  return data;
+};
+
+export const updateRugImageOrder = async (imageId: number, sortOrder: number): Promise<RugImage> => {
+  const { data } = await api.patch<RugImage>(`/catalog/images/${imageId}`, { sort_order: sortOrder });
+  return data;
+};
+
+export const deleteRugImage = async (imageId: number): Promise<void> => {
+  await api.delete(`/catalog/images/${imageId}`);
+};
+
 // ── Showcase Videos ──────────────────────────────────────────────────────────
 
 export const getShowcaseVideos = async (): Promise<ShowcaseVideo[]> => {
@@ -125,6 +144,65 @@ export const updateWorkshopPhoto = async (id: number, photo: Partial<WorkshopPho
 
 export const deleteWorkshopPhoto = async (id: number): Promise<void> => {
   await api.delete(`/workshop-photos/${id}`);
+};
+
+// ── Testimonials ──────────────────────────────────────────────────────────────
+
+export const getTestimonials = async (): Promise<Testimonial[]> => {
+  const { data } = await api.get<Testimonial[]>('/testimonials');
+  return data;
+};
+
+export const createTestimonial = async (t: Partial<Testimonial>): Promise<Testimonial> => {
+  const { data } = await api.post<Testimonial>('/testimonials', t);
+  return data;
+};
+
+export const updateTestimonial = async (id: number, t: Partial<Testimonial>): Promise<Testimonial> => {
+  const { data } = await api.put<Testimonial>(`/testimonials/${id}`, t);
+  return data;
+};
+
+export const deleteTestimonial = async (id: number): Promise<void> => {
+  await api.delete(`/testimonials/${id}`);
+};
+
+// ── Project Gallery ───────────────────────────────────────────────────────────
+
+export const getGalleryItems = async (): Promise<ProjectGalleryItem[]> => {
+  const { data } = await api.get<ProjectGalleryItem[]>('/gallery-items');
+  return data;
+};
+
+export const createGalleryItem = async (g: Partial<ProjectGalleryItem>): Promise<ProjectGalleryItem> => {
+  const { data } = await api.post<ProjectGalleryItem>('/gallery-items', g);
+  return data;
+};
+
+export const updateGalleryItem = async (id: number, g: Partial<ProjectGalleryItem>): Promise<ProjectGalleryItem> => {
+  const { data } = await api.put<ProjectGalleryItem>(`/gallery-items/${id}`, g);
+  return data;
+};
+
+export const deleteGalleryItem = async (id: number): Promise<void> => {
+  await api.delete(`/gallery-items/${id}`);
+};
+
+// ── Newsletter ────────────────────────────────────────────────────────────────
+
+export const getNewsletterSubscribers = async (): Promise<NewsletterSubscriber[]> => {
+  const { data } = await api.get<NewsletterSubscriber[]>('/newsletter-subscribers');
+  return data;
+};
+
+export const exportNewsletterSubscribers = async (): Promise<void> => {
+  const response = await api.get('/newsletter-subscribers/export', { responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'newsletter_subscribers.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -201,6 +279,11 @@ export const adjustQuotePrice = async (
   return data;
 };
 
+export const rejectQuote = async (quoteId: number, reason?: string): Promise<Quote> => {
+  const { data } = await api.patch<Quote>(`/quotes/${quoteId}/reject`, { reason: reason ?? null });
+  return data;
+};
+
 export const getOrder = async (id: number): Promise<Order> => {
   const { data } = await api.get<Order>(`/orders/${id}`);
   return data;
@@ -221,8 +304,10 @@ export const getOrderBreakdown = async (id: number): Promise<import('../types').
   return data;
 };
 
-export const updateOrderStatus = async (id: number, status: string): Promise<Order> => {
-  const { data } = await api.patch<Order>(`/orders/${id}/status`, null, { params: { status } });
+export const updateOrderStatus = async (id: number, status: string, shippingCost?: number): Promise<Order> => {
+  const params: Record<string, string | number> = { status };
+  if (shippingCost != null) params.shipping_cost = shippingCost;
+  const { data } = await api.patch<Order>(`/orders/${id}/status`, null, { params });
   return data;
 };
 
@@ -408,6 +493,12 @@ export const getPublicSettings = async (): Promise<{
   contact_phones: string[];
   contact_address: string | null;
   contact_hours: string | null;
+  currency: string;
+  base_currency: string;
+  exchange_rates: Record<string, number>;
+  catalog_pdf_url: string | null;
+  certifications: { label: string; image_url: string }[];
+  default_shipping_rate: number | null;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;
@@ -468,18 +559,34 @@ export const requestQuote = async (payload: QuoteRequestPayload, customerToken?:
   return data;
 };
 
-export interface CheckoutPayload {
+export interface CheckoutLineItem {
   rug_id: number;
   size_w: number;
   size_h: number;
   qty: number;
   rush_order: boolean;
+  shape?: string;
   notes?: string;
+}
+
+export interface CheckoutPayload {
+  items: CheckoutLineItem[];
   name: string;
   email: string;
   phone?: string;
   company?: string;
   shipping_address: string;
+  country: string;
+  promo_code?: string | null;
+}
+
+export interface CheckoutResponseItem {
+  quote_id: number;
+  rug_name: string;
+  size: string;
+  qty: number;
+  final_price: number;
+  price_currency: string;
 }
 
 export interface CheckoutResponse {
@@ -487,15 +594,16 @@ export interface CheckoutResponse {
   quote_id: number;
   rug_name: string;
   size: string;
-  size_w: number;
-  size_h: number;
+  size_w?: number;
+  size_h?: number;
   shape?: string;
   qty: number;
-  pre_gst_price: number | null;
-  gst_pct: number;
-  gst_amount: number | null;
   final_price: number;
+  subtotal?: number;
+  promo_code?: string | null;
+  discount_amount?: number;
   price_currency: string;
+  items: CheckoutResponseItem[];
   status: string;
   estimated_delivery: string;
   lead_time_days: number;
@@ -503,11 +611,33 @@ export interface CheckoutResponse {
   shipping_address: string;
 }
 
+export interface PromoValidateResponse {
+  valid: boolean;
+  code: string;
+  discount_type: 'percentage' | 'flat' | 'free_shipping';
+  discount_value: number | null;
+  discount_amount: number;
+  message: string;
+}
+
+export const validatePromoCode = async (code: string, subtotal: number, email?: string): Promise<PromoValidateResponse> => {
+  const { data } = await axios.post<PromoValidateResponse>('/api/customer/promo/validate', { code, subtotal, email });
+  return data;
+};
+
 export const customerCheckout = async (payload: CheckoutPayload, customerToken?: string | null): Promise<CheckoutResponse> => {
   const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
   const { data } = await axios.post<CheckoutResponse>('/api/customer/checkout', payload, { headers });
   return data;
 };
+
+export interface PaymentOrderItem {
+  rug_id: number;
+  rug_name: string;
+  qty: number;
+  final_price: number;
+  price_currency: string;
+}
 
 export interface PaymentOrderResponse {
   razorpay_order_id: string;
@@ -515,12 +645,11 @@ export interface PaymentOrderResponse {
   currency: string;
   key_id: string;
   final_price: number;
-  pre_gst_price: number | null;
-  gst_pct: number | null;
-  gst_amount: number | null;
+  subtotal?: number;
+  promo_code?: string | null;
+  discount_amount?: number;
   price_currency: string;
-  rug_name: string;
-  estimated_days: number;
+  items: PaymentOrderItem[];
 }
 
 export const createPaymentOrder = async (
@@ -572,6 +701,9 @@ export interface CustomerOrder {
   shipping_address: string | null;
   estimated_delivery: string | null;
   created_at: string | null;
+  item_count: number;
+  items: { quote_id: number; rug_name: string; qty: number; final_price: number | null; price_currency: string }[];
+  order_total: number | null;
 }
 
 export interface OrderBreakdownLine {
@@ -702,6 +834,27 @@ export const sendQuoteEmail = async (
   if (recipientEmail) params.recipient_email = recipientEmail;
   const { data } = await api.post(`/quotes/${quoteId}/send-email`, null, { params });
   return data;
+};
+
+// ── Promo Codes (admin) ─────────────────────────────────────────────────────
+
+export const getPromoCodes = async (): Promise<PromoCode[]> => {
+  const { data } = await api.get<PromoCode[]>('/promo-codes');
+  return data;
+};
+
+export const createPromoCode = async (payload: Partial<PromoCode>): Promise<PromoCode> => {
+  const { data } = await api.post<PromoCode>('/promo-codes', payload);
+  return data;
+};
+
+export const updatePromoCode = async (id: number, payload: Partial<PromoCode>): Promise<PromoCode> => {
+  const { data } = await api.put<PromoCode>(`/promo-codes/${id}`, payload);
+  return data;
+};
+
+export const deletePromoCode = async (id: number): Promise<void> => {
+  await api.delete(`/promo-codes/${id}`);
 };
 
 export default api;

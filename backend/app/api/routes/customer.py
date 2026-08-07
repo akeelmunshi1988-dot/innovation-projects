@@ -17,11 +17,12 @@ from pydantic import BaseModel
 import anthropic as _anthropic
 from app.services.vision_matcher import analyze_and_match, analyze_and_match_room
 from app.services.quote_engine import QuoteEngine
+from app.services.promo_engine import find_valid_promo, compute_discount, record_redemption, PromoError
 from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderStatusHistory, InventoryTransaction, Tenant
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services.invoice_generator import generate_invoice_pdf
@@ -145,6 +146,11 @@ async def replace_rug(
     h, w = room.shape[:2]
     pts_dst = np.array(corner_points[:4], dtype=np.float32)
 
+    # Match the rug's brightness/warmth to this exact room photo's floor lighting
+    # (sampled from the marked area) before warping — the single biggest lever for
+    # making the composite look placed rather than pasted on.
+    rug = room_composer.match_lighting(rug, room, pts_dst, strength=0.3)
+
     # Size the working canvas from the rug's own aspect ratio and from how
     # large it will actually appear in the room photo, instead of a fixed
     # 1200x800 box: a fixed box either squashed non-3:2 rug photos before
@@ -226,12 +232,24 @@ async def replace_rug(
 
     final = room_f.astype(np.uint8)
 
-    # Shadow just outside the rug boundary
-    shadow     = np.zeros_like(room)
+    # Two-layer drop shadow, masked to fall only outside the rug: a tight dark
+    # contact shadow right at the edge plus a wider soft ambient one — a single
+    # wide blur (the old approach) reads as a hazy vignette over the whole photo,
+    # including on top of the rug itself, rather than a shadow the rug is casting.
     shadow_pts = np.array(corner_points, dtype=np.int32)
-    cv2.fillConvexPoly(shadow, shadow_pts, (40, 40, 40))
-    shadow = cv2.GaussianBlur(shadow, (101, 101), 50)
-    final  = cv2.addWeighted(final, 1.0, shadow, 0.22, 0)
+    rug_mask_bin = (mask_f > 0.05).astype(np.float32)
+
+    contact = np.zeros((h, w), dtype=np.float32)
+    cv2.fillConvexPoly(contact, shadow_pts, 1.0)
+    contact = cv2.GaussianBlur(contact, (15, 15), 0) * 0.55
+
+    ambient = np.zeros((h, w), dtype=np.float32)
+    cv2.fillConvexPoly(ambient, shadow_pts, 1.0)
+    ambient = cv2.GaussianBlur(ambient, (81, 81), 35) * 0.25
+
+    shadow_alpha = np.clip(contact + ambient, 0, 1) * (1 - rug_mask_bin)
+    shadow_alpha_3 = np.stack([shadow_alpha] * 3, axis=2)
+    final = (final.astype(np.float32) * (1 - shadow_alpha_3)).clip(0, 255).astype(np.uint8)
 
     # Save result
     out_name = f"{uuid.uuid4()}.jpg"
@@ -270,6 +288,12 @@ async def get_public_settings():
             "contact_phones": (tenant.contact_phones or []) if tenant else [],
             "contact_address": tenant.contact_address if tenant else None,
             "contact_hours": tenant.contact_hours if tenant else None,
+            "currency": tenant.currency if tenant else "INR",
+            "base_currency": tenant.base_currency if tenant else "INR",
+            "exchange_rates": (tenant.exchange_rates or {}) if tenant else {},
+            "catalog_pdf_url": tenant.catalog_pdf_url if tenant else None,
+            "certifications": (tenant.certifications or []) if tenant else [],
+            "default_shipping_rate": tenant.default_shipping_rate if tenant else None,
         }
         cache_set("settings", result)
         return result
@@ -339,6 +363,95 @@ async def get_public_workshop_photos():
         db.close()
 
 
+@router.get("/customer/testimonials")
+async def get_public_testimonials():
+    """Public, unauthenticated buyer testimonials shown on the storefront homepage."""
+    cached = cache_get("testimonials")
+    if cached is not None:
+        return cached
+    from app.models.models import Testimonial
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Testimonial)
+            .filter(Testimonial.is_active == True)
+            .order_by(Testimonial.sort_order.asc(), Testimonial.id.asc())
+            .all()
+        )
+        result = [
+            {
+                "id": t.id,
+                "author_name": t.author_name,
+                "author_title": t.author_title,
+                "country": t.country,
+                "quote": t.quote,
+                "photo_url": t.photo_url,
+                "rating": t.rating,
+            }
+            for t in rows
+        ]
+        cache_set("testimonials", result)
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/customer/gallery-items")
+async def get_public_gallery_items():
+    """Public, unauthenticated project gallery shown on the storefront homepage."""
+    cached = cache_get("gallery_items")
+    if cached is not None:
+        return cached
+    from app.models.models import ProjectGalleryItem
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(ProjectGalleryItem)
+            .filter(ProjectGalleryItem.is_active == True)
+            .order_by(ProjectGalleryItem.sort_order.asc(), ProjectGalleryItem.id.asc())
+            .all()
+        )
+        result = [
+            {
+                "id": g.id,
+                "image_url": g.image_url,
+                "caption": g.caption,
+                "link_url": g.link_url,
+            }
+            for g in rows
+        ]
+        cache_set("gallery_items", result)
+        return result
+    finally:
+        db.close()
+
+
+class NewsletterSubscribeBody(BaseModel):
+    email: EmailStr
+    source: Optional[str] = None
+
+
+@router.post("/customer/newsletter-subscribe")
+async def subscribe_newsletter(body: NewsletterSubscribeBody):
+    """Public, unauthenticated newsletter capture — footer signup form."""
+    from app.models.models import NewsletterSubscriber
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        tenant_id = tenant.id if tenant else None
+        existing = (
+            db.query(NewsletterSubscriber)
+            .filter(NewsletterSubscriber.email == body.email, NewsletterSubscriber.tenant_id == tenant_id)
+            .first()
+        )
+        if not existing:
+            db.add(NewsletterSubscriber(email=body.email, source=body.source, tenant_id=tenant_id))
+            db.commit()
+        return {"message": "Subscribed"}
+    finally:
+        db.close()
+
+
 @router.get("/customer/catalog")
 async def get_public_catalog(sort: str = Query("newest")):
     cache_key = f"list:{sort}"
@@ -385,15 +498,20 @@ async def get_public_catalog(sort: str = Query("newest")):
 
 @router.get("/customer/catalog/{rug_id}")
 async def get_public_rug(rug_id: int):
+    cache_key = f"detail:{rug_id}"
+    cached = cache_get("catalog", cache_key)
+    if cached is not None:
+        return cached
     db = SessionLocal()
     try:
         r = db.query(RugCatalog).join(Material).filter(RugCatalog.id == rug_id).first()
         if not r:
             raise HTTPException(status_code=404, detail="Rug not found")
-        return {
+        result = {
             "id": r.id,
             "name": r.name,
             "description": r.description,
+            "about_content_html": r.about_content_html,
             "weave_type": r.weave_type,
             "pile_height": r.pile_height,
             "material": r.material.name,
@@ -404,8 +522,11 @@ async def get_public_rug(rug_id: int):
             "base_price_currency": r.base_price_currency,
             "lead_time_days": r.lead_time_days,
             "image_url": r.image_url,
+            "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
             "available": r.material.is_available,
         }
+        cache_set("catalog", result, cache_key)
+        return result
     finally:
         db.close()
 
@@ -438,7 +559,7 @@ async def estimate_rug_price(rug_id: int, body: EstimateRequest):
         )
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        return result
+        return _customer_safe_breakdown(result)
     finally:
         db.close()
 
@@ -670,129 +791,52 @@ async def request_quote(body: QuoteRequestBody, request: Request):
         db.close()
 
 
-# ── Customer AI Chat ─────────────────────────────────────────────────────────
+# ── Custom Rug Request ─────────────────────────────────────────────────────────
 
-class CustomerChatMessage(BaseModel):
-    role: str
-    content: str
+CUSTOM_REQUEST_UPLOAD_DIR = os.path.join(_BASE, "static", "custom-requests")
 
-# ── Customer Checkout ─────────────────────────────────────────────────────────
 
-class OrderDetailsBase(BaseModel):
-    rug_id: int
-    size_w: float = Field(..., gt=0, le=50)
-    size_h: float = Field(..., gt=0, le=50)
-    qty: int = Field(1, ge=1, le=10000)
-    rush_order: bool = False
-    shape: str = "rect"
-    notes: Optional[str] = Field(None, max_length=2000)
+@router.post("/customer/custom-rug-request/upload-image")
+async def upload_custom_rug_request_image(file: UploadFile = File(...)):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, WebP, or GIF.")
+    contents = await file.read()
+    if len(contents) > MAX_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="File too large. Max 10MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(CUSTOM_REQUEST_UPLOAD_DIR, exist_ok=True)
+    filepath = os.path.join(CUSTOM_REQUEST_UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return {"url": f"/static/custom-requests/{filename}"}
+
+
+class CustomRugRequestBody(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     email: EmailStr
     phone: Optional[str] = Field(None, max_length=20)
     company: Optional[str] = Field(None, max_length=200)
-    shipping_address: str = Field(..., min_length=5, max_length=1000)
+    room_type: Optional[str] = Field(None, max_length=100)
+    size_w: Optional[float] = Field(None, gt=0, le=50)
+    size_h: Optional[float] = Field(None, gt=0, le=50)
+    qty: int = Field(1, ge=1, le=10000)
+    material_preference: Optional[str] = Field(None, max_length=50)
+    budget_range: Optional[str] = Field(None, max_length=100)
+    notes: Optional[str] = Field(None, max_length=2000)
+    reference_image_urls: Optional[List[str]] = Field(None, max_length=3)
 
 
-@router.post("/customer/checkout/create-payment-order")
-async def create_payment_order(body: OrderDetailsBase):
-    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        raise HTTPException(status_code=503, detail="Payment gateway not configured.")
-    import razorpay as _rzp
+@router.post("/customer/custom-rug-request")
+async def submit_custom_rug_request(body: CustomRugRequestBody, request: Request):
     db = SessionLocal()
     try:
-        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
-        if not rug:
-            raise HTTPException(status_code=404, detail="Rug not found")
-        tid = rug.tenant_id
-        material = db.query(Material).filter(Material.id == rug.material_id).first()
-        if not material or not material.is_available:
-            raise HTTPException(status_code=400, detail="Material is not available")
-        total_sqm = body.size_w * body.size_h * body.qty
-        if material.stock_meters < total_sqm:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock. Available: {material.stock_meters:.1f} sqm, Required: {total_sqm:.1f} sqm",
-            )
-        engine = QuoteEngine(db, tenant_id=tid)
-        calc = engine.calculate_quote(
-            rug_id=body.rug_id,
-            size_w=body.size_w,
-            size_h=body.size_h,
-            material_id=rug.material_id,
-            qty=body.qty,
-            rush_order=body.rush_order,
-            shape=getattr(body, "shape", "rect") or "rect",
-        )
-        if "error" in calc:
-            raise HTTPException(status_code=400, detail=calc["error"])
+        tenant = db.query(Tenant).first()
+        tid = tenant.id if tenant else None
 
-        final_price = calc["final_price"]
-        currency = calc.get("price_currency") or "INR"
-        amount_smallest = int(round(final_price * 100))  # paise for INR
-
-        client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-        rzp_order = client.order.create({
-            "amount": amount_smallest,
-            "currency": currency,
-            "receipt": f"rcpt_{uuid.uuid4().hex[:16]}",
-            "payment_capture": 1,
-        })
-
-        lead_days = rug.lead_time_days or 21
-        if body.rush_order:
-            lead_days = max(7, lead_days // 2)
-
-        return {
-            "razorpay_order_id": rzp_order["id"],
-            "amount_paise": amount_smallest,
-            "currency": currency,
-            "key_id": settings.RAZORPAY_KEY_ID,
-            "final_price": final_price,
-            "pre_gst_price": calc.get("pre_gst_price"),
-            "gst_pct": calc.get("gst_pct"),
-            "gst_amount": calc.get("gst_amount"),
-            "price_currency": currency,
-            "rug_name": rug.name,
-            "estimated_days": lead_days,
-        }
-    finally:
-        db.close()
-
-
-class VerifyPaymentBody(OrderDetailsBase):
-    razorpay_payment_id: str
-    razorpay_order_id: str
-    razorpay_signature: str
-
-
-@router.post("/customer/checkout/verify-payment")
-async def verify_payment(body: VerifyPaymentBody, request: Request):
-    from datetime import datetime, timedelta
-    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        raise HTTPException(status_code=503, detail="Payment gateway not configured.")
-    import razorpay as _rzp
-    client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-    try:
-        client.utility.verify_payment_signature({
-            "razorpay_order_id": body.razorpay_order_id,
-            "razorpay_payment_id": body.razorpay_payment_id,
-            "razorpay_signature": body.razorpay_signature,
-        })
-    except Exception:
-        raise HTTPException(status_code=400, detail="Payment verification failed. Please contact support.")
-
-    db = SessionLocal()
-    try:
-        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
-        if not rug:
-            raise HTTPException(status_code=404, detail="Rug not found")
-        tid = rug.tenant_id
-        tenant = db.query(Tenant).filter(Tenant.id == tid).first()
-        material = db.query(Material).filter(Material.id == rug.material_id).first()
-        if not material or not material.is_available:
-            raise HTTPException(status_code=400, detail="Material unavailable")
-
-        # Prefer authenticated customer so orders appear in My Orders
+        # Prefer authenticated customer so the request appears in My Quotes
         customer = None
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
@@ -815,14 +859,164 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             db.add(customer)
             db.flush()
 
-        shape = getattr(body, "shape", "rect") or "rect"
-        engine = QuoteEngine(db, tenant_id=tid)
-        calc = engine.calculate_quote(
-            rug_id=body.rug_id, size_w=body.size_w, size_h=body.size_h,
-            material_id=rug.material_id, qty=body.qty, rush_order=body.rush_order,
-            shape=shape,
+        quote = Quote(
+            tenant_id=tid, customer_id=customer.id,
+            rug_catalog_id=None, material_id=None,
+            custom_size_w=body.size_w, custom_size_h=body.size_h,
+            qty=body.qty, final_price=None, status="draft",
+            notes=body.notes, is_custom_request=True,
+            room_type=body.room_type, material_preference=body.material_preference,
+            budget_range=body.budget_range, reference_image_urls=body.reference_image_urls,
         )
-        total_sqm = body.size_w * body.size_h * body.qty  # bounding box for stock deduction
+        db.add(quote)
+        db.commit()
+        db.refresh(quote)
+
+        try:
+            if tenant:
+                _notify_vendor_custom_rug_request(db, quote, tenant, customer)
+        except Exception:
+            pass
+
+        return {
+            "quote_id": quote.id,
+            "message": "Thanks — we've received your custom rug request. Our team will review it and send you a personalized quote within 24–48 hours.",
+        }
+    finally:
+        db.close()
+
+
+# ── Customer AI Chat ─────────────────────────────────────────────────────────
+
+class CustomerChatMessage(BaseModel):
+    role: str
+    content: str
+
+# ── Customer Checkout ─────────────────────────────────────────────────────────
+
+class CartItemBody(BaseModel):
+    rug_id: int
+    size_w: float = Field(..., gt=0, le=50)
+    size_h: float = Field(..., gt=0, le=50)
+    qty: int = Field(1, ge=1, le=10000)
+    rush_order: bool = False
+    shape: str = "rect"
+    notes: Optional[str] = Field(None, max_length=2000)
+
+
+class OrderDetailsBase(BaseModel):
+    items: List[CartItemBody] = Field(..., min_length=1)
+    name: str = Field(..., min_length=1, max_length=200)
+    email: EmailStr
+    phone: Optional[str] = Field(None, max_length=20)
+    company: Optional[str] = Field(None, max_length=200)
+    shipping_address: str = Field(..., min_length=5, max_length=1000)
+    country: str = Field("India", max_length=100)
+    promo_code: Optional[str] = Field(None, max_length=50)
+
+
+def _is_export_country(country: Optional[str]) -> bool:
+    """Anything other than India is treated as an export shipment — zero-rated
+    GST under LUT, invoiced as an export invoice."""
+    normalized = (country or "").strip().lower()
+    return normalized not in ("", "india", "in", "bharat")
+
+
+class PromoValidateBody(BaseModel):
+    code: str
+    subtotal: float = Field(..., ge=0)
+    email: Optional[EmailStr] = None
+
+
+@router.post("/customer/promo/validate")
+async def validate_promo_code(body: PromoValidateBody):
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        tenant_id = tenant.id if tenant else None
+        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+        customer = None
+        if body.email:
+            customer = db.query(Customer).filter(Customer.email == body.email, Customer.tenant_id == tenant_id).first()
+        try:
+            promo = find_valid_promo(db, tenant_id, body.code, body.subtotal, customer_id=customer.id if customer else None)
+        except PromoError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        discount_amount = compute_discount(promo, body.subtotal, shipping_cost)
+        message = (
+            "Free shipping will be applied at checkout." if promo.discount_type == "free_shipping"
+            else f"Promo code applied — you saved {discount_amount:.2f}."
+        )
+        return {
+            "valid": True,
+            "code": promo.code,
+            "discount_type": promo.discount_type,
+            "discount_value": promo.discount_value,
+            "discount_amount": discount_amount,
+            "message": message,
+        }
+    finally:
+        db.close()
+
+
+def _apply_promo(db: Session, tenant_id: Optional[int], promo_code: Optional[str], subtotal: float, customer_id: Optional[int], shipping_cost: float = 0.0):
+    """Re-validates the promo code server-side at order time — never trusts a
+    discount_amount computed by the client. Returns (promo_or_none, discount_amount)."""
+    if not promo_code:
+        return None, 0.0
+    try:
+        promo = find_valid_promo(db, tenant_id, promo_code, subtotal, customer_id=customer_id)
+    except PromoError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return promo, compute_discount(promo, subtotal, shipping_cost)
+
+
+def _price_cart_items(db: Session, tenant_id: Optional[int], items: List["CartItemBody"], is_export: bool = False) -> List[dict]:
+    """Validates stock + prices every cart line via QuoteEngine. Read-only — no DB mutation.
+    Raises HTTPException naming the offending rug on any error, so a bad line in a multi-item
+    cart doesn't produce a vague failure. is_export zero-rates GST (export under LUT)."""
+    engine = QuoteEngine(db, tenant_id=tenant_id)
+    gst_override = 0.0 if is_export else None
+    priced = []
+    for item in items:
+        rug = db.query(RugCatalog).filter(RugCatalog.id == item.rug_id).first()
+        if not rug:
+            raise HTTPException(status_code=404, detail=f"Rug {item.rug_id} not found")
+        material = db.query(Material).filter(Material.id == rug.material_id).first()
+        if not material or not material.is_available:
+            raise HTTPException(status_code=400, detail=f"Material for \"{rug.name}\" is not available")
+        total_sqm = item.size_w * item.size_h * item.qty
+        if material.stock_meters < total_sqm:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock for \"{rug.name}\". Available: {material.stock_meters:.1f} sqm, Required: {total_sqm:.1f} sqm",
+            )
+        shape = item.shape or "rect"
+        calc = engine.calculate_quote(
+            rug_id=item.rug_id, size_w=item.size_w, size_h=item.size_h,
+            material_id=rug.material_id, qty=item.qty, rush_order=item.rush_order, shape=shape,
+            gst_override=gst_override,
+        )
+        if "error" in calc:
+            raise HTTPException(status_code=400, detail=f"\"{rug.name}\": {calc['error']}")
+        priced.append({"item": item, "rug": rug, "material": material, "shape": shape, "calc": calc, "total_sqm": total_sqm})
+    return priced
+
+
+def _create_order_from_items(
+    db: Session, tenant_id: Optional[int], tenant: Optional[Tenant], customer: Customer,
+    priced_items: List[dict], shipping_address: str, payment_ref: Optional[str] = None,
+) -> tuple:
+    """Mutates the DB: atomically deducts stock and creates one Quote per cart line, then one
+    Order + one OrderItem per Quote. Order.quote_id points at the first item for backward
+    compatibility with single-item views. Caller is responsible for db.commit().
+    Returns (order, quotes_with_meta) — quotes_with_meta carries the per-item rug/size/lead-time
+    info the route needs for its response, without re-querying after commit."""
+    from datetime import datetime, timedelta
+
+    quotes_with_meta = []
+    for p in priced_items:
+        item, rug, material, shape, calc, total_sqm = p["item"], p["rug"], p["material"], p["shape"], p["calc"], p["total_sqm"]
 
         # Atomic check-and-deduct — prevents oversell under concurrent orders
         deducted = db.execute(
@@ -832,50 +1026,194 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
         )
         db.flush()
         if deducted.rowcount == 0:
-            raise HTTPException(status_code=400, detail="Insufficient stock — another order may have just reserved this material.")
+            raise HTTPException(status_code=400, detail=f"Insufficient stock for \"{rug.name}\" — another order may have just reserved this material.")
 
         quote = Quote(
-            tenant_id=tid, customer_id=customer.id, rug_catalog_id=body.rug_id,
-            material_id=rug.material_id, custom_size_w=body.size_w, custom_size_h=body.size_h,
-            rug_shape=shape,
-            qty=body.qty, base_price=calc.get("subtotal"), final_price=calc.get("final_price"),
+            tenant_id=tenant_id, customer_id=customer.id, rug_catalog_id=rug.id,
+            material_id=rug.material_id, custom_size_w=item.size_w, custom_size_h=item.size_h,
+            rug_shape=shape, qty=item.qty, base_price=calc.get("subtotal"), final_price=calc.get("final_price"),
             price_currency=calc.get("price_currency") or (tenant.base_currency if tenant else "INR"),
             margin_pct=calc.get("profit_margin_pct"), gst_pct=calc.get("gst_pct"),
-            rush_order=body.rush_order, status="accepted", notes=body.notes,
+            rush_order=item.rush_order, status="accepted", notes=item.notes,
         )
         db.add(quote)
         db.flush()
 
         lead_days = rug.lead_time_days or 21
-        if body.rush_order:
+        if item.rush_order:
             lead_days = max(7, lead_days // 2)
-        estimated_delivery = datetime.utcnow() + timedelta(days=lead_days)
+        size_display = f"⌀ {item.size_w}m" if shape == "circle" else f"{item.size_w}m × {item.size_h}m"
+        quotes_with_meta.append({"quote": quote, "rug": rug, "material": material, "total_sqm": total_sqm, "lead_days": lead_days, "size_display": size_display, "qty": item.qty})
 
-        order = Order(
-            tenant_id=tid, quote_id=quote.id, status="pending",
-            shipping_address=body.shipping_address,
-            estimated_delivery=estimated_delivery,
-        )
-        db.add(order)
-        db.flush()
+    max_lead_days = max((m["lead_days"] for m in quotes_with_meta), default=21)
+    estimated_delivery = datetime.utcnow() + timedelta(days=max_lead_days)
 
-        size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
+    first_quote = quotes_with_meta[0]["quote"]
+    order = Order(
+        tenant_id=tenant_id, quote_id=first_quote.id, status="pending",
+        shipping_address=shipping_address, estimated_delivery=estimated_delivery,
+    )
+    db.add(order)
+    db.flush()
+
+    ref_note = f" via Razorpay {payment_ref}" if payment_ref else ""
+    for m in quotes_with_meta:
+        db.add(OrderItem(order_id=order.id, quote_id=m["quote"].id))
         db.add(InventoryTransaction(
-            tenant_id=tid, material_id=material.id, qty_change=-total_sqm,
+            tenant_id=tenant_id, material_id=m["material"].id, qty_change=-m["total_sqm"],
             transaction_type="used",
-            notes=f"Order #{order.id} via Razorpay {body.razorpay_payment_id} — {rug.name} {size_display} ×{body.qty}",
+            notes=f"Order #{order.id}{ref_note} — {m['rug'].name} {m['size_display']} ×{m['qty']}",
         ))
-        db.commit()
+    db.flush()
 
+    return order, quotes_with_meta
+
+
+def _resolve_customer(db: Session, request: Request, tenant_id: Optional[int], body: OrderDetailsBase) -> Customer:
+    """Prefer the authenticated customer (so the order appears in their My Orders); fall back to
+    matching/creating by email for guest checkout."""
+    customer = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            from jose import jwt as _jwt
+            payload = _jwt.decode(auth_header.split(" ")[1], settings.JWT_SECRET, algorithms=["HS256"])
+            if payload.get("type") == "customer":
+                customer = db.query(Customer).filter(Customer.id == int(payload["sub"])).first()
+        except Exception:
+            pass
+    if not customer:
+        customer = db.query(Customer).filter(
+            Customer.email == body.email, Customer.tenant_id == tenant_id,
+        ).first()
+    if not customer:
+        customer = Customer(
+            tenant_id=tenant_id, name=body.name, email=body.email,
+            phone=body.phone, company=body.company,
+        )
+        db.add(customer)
+        db.flush()
+    # Keep the profile's country/export status in sync with the shipping destination
+    # actually used at checkout — this is what determines GST treatment and invoicing.
+    customer.country = body.country
+    customer.is_export_buyer = _is_export_country(body.country)
+    return customer
+
+
+@router.post("/customer/checkout/create-payment-order")
+async def create_payment_order(body: OrderDetailsBase):
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=503, detail="Payment gateway not configured.")
+    import razorpay as _rzp
+    db = SessionLocal()
+    try:
+        first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
+        tenant_id = first_rug.tenant_id if first_rug else None
+        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+        priced = _price_cart_items(db, tenant_id, body.items, is_export=_is_export_country(body.country))
+
+        currency = priced[0]["calc"].get("price_currency") or "INR"
+        total_final_price = sum(p["calc"]["final_price"] for p in priced)
+
+        existing_customer = db.query(Customer).filter(Customer.email == body.email, Customer.tenant_id == tenant_id).first()
+        promo, discount_amount = _apply_promo(
+            db, tenant_id, body.promo_code, total_final_price, existing_customer.id if existing_customer else None, shipping_cost,
+        )
+        payable = max(0.0, total_final_price + shipping_cost - discount_amount)
+        amount_smallest = int(round(payable * 100))  # paise for INR
+
+        client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        rzp_order = client.order.create({
+            "amount": amount_smallest,
+            "currency": currency,
+            "receipt": f"rcpt_{uuid.uuid4().hex[:16]}",
+            "payment_capture": 1,
+        })
+
+        items_summary = [
+            {
+                "rug_id": p["rug"].id, "rug_name": p["rug"].name, "qty": p["item"].qty,
+                "final_price": p["calc"]["final_price"], "price_currency": p["calc"].get("price_currency") or "INR",
+            }
+            for p in priced
+        ]
         return {
-            "order_id": order.id, "quote_id": quote.id, "rug_name": rug.name,
-            "size": size_display, "qty": body.qty,
-            "pre_gst_price": calc.get("pre_gst_price"),
-            "gst_pct": calc.get("gst_pct", 12.0), "gst_amount": calc.get("gst_amount"),
-            "final_price": quote.final_price, "price_currency": quote.price_currency,
+            "razorpay_order_id": rzp_order["id"],
+            "amount_paise": amount_smallest,
+            "currency": currency,
+            "key_id": settings.RAZORPAY_KEY_ID,
+            "final_price": payable,
+            "subtotal": total_final_price,
+            "shipping_cost": shipping_cost,
+            "promo_code": promo.code if promo else None,
+            "discount_amount": discount_amount,
+            "price_currency": currency,
+            "items": items_summary,
+        }
+    finally:
+        db.close()
+
+
+class VerifyPaymentBody(OrderDetailsBase):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+
+
+@router.post("/customer/checkout/verify-payment")
+async def verify_payment(body: VerifyPaymentBody, request: Request):
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=503, detail="Payment gateway not configured.")
+    import razorpay as _rzp
+    client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    try:
+        client.utility.verify_payment_signature({
+            "razorpay_order_id": body.razorpay_order_id,
+            "razorpay_payment_id": body.razorpay_payment_id,
+            "razorpay_signature": body.razorpay_signature,
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Payment verification failed. Please contact support.")
+
+    db = SessionLocal()
+    try:
+        first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
+        if not first_rug:
+            raise HTTPException(status_code=404, detail="Rug not found")
+        tid = first_rug.tenant_id
+        tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+
+        customer = _resolve_customer(db, request, tid, body)
+        priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
+        subtotal = sum(p["calc"]["final_price"] for p in priced)
+        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+        promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost)
+
+        order, items_meta = _create_order_from_items(db, tid, tenant, customer, priced, body.shipping_address, payment_ref=body.razorpay_payment_id)
+        order.shipping_cost = shipping_cost
+        if promo:
+            order.promo_code = promo.code
+            order.discount_amount = discount_amount
+            record_redemption(db, promo, discount_amount, customer.id, order.id)
+        db.commit()
+        return {
+            "order_id": order.id, "quote_id": items_meta[0]["quote"].id,
+            "rug_name": items_meta[0]["rug"].name, "size": items_meta[0]["size_display"], "qty": items_meta[0]["qty"],
+            "final_price": subtotal + shipping_cost - discount_amount,
+            "subtotal": subtotal,
+            "shipping_cost": shipping_cost,
+            "promo_code": promo.code if promo else None,
+            "discount_amount": discount_amount,
+            "price_currency": items_meta[0]["quote"].price_currency,
+            "items": [
+                {"quote_id": m["quote"].id, "rug_name": m["rug"].name, "size": m["size_display"], "qty": m["qty"], "final_price": m["quote"].final_price, "price_currency": m["quote"].price_currency}
+                for m in items_meta
+            ],
             "status": order.status,
-            "estimated_delivery": estimated_delivery.strftime("%Y-%m-%d"),
-            "lead_time_days": lead_days, "customer_name": customer.name,
+            "estimated_delivery": order.estimated_delivery.strftime("%Y-%m-%d"),
+            "lead_time_days": max(m["lead_days"] for m in items_meta),
+            "customer_name": customer.name,
             "shipping_address": body.shipping_address,
         }
     finally:
@@ -883,141 +1221,50 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
 
 
 class CheckoutBody(OrderDetailsBase):
-    pass  # inherits all validated fields from OrderDetailsBase
+    pass  # inherits all validated fields from OrderDetailsBase — COD / no-Razorpay fallback path
 
 
 @router.post("/customer/checkout")
 async def customer_checkout(body: CheckoutBody, request: Request):
-    from datetime import datetime, timedelta
     db = SessionLocal()
     try:
-        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
-        if not rug:
+        first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
+        if not first_rug:
             raise HTTPException(status_code=404, detail="Rug not found")
-
-        tid = rug.tenant_id
+        tid = first_rug.tenant_id
         tenant = db.query(Tenant).filter(Tenant.id == tid).first()
 
-        material = db.query(Material).filter(Material.id == rug.material_id).first()
-        if not material or not material.is_available:
-            raise HTTPException(status_code=400, detail="Material is not available")
+        customer = _resolve_customer(db, request, tid, body)
+        priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
+        subtotal = sum(p["calc"]["final_price"] for p in priced)
+        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+        promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost)
 
-        # Prefer authenticated customer so orders appear in My Orders
-        customer = None
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            try:
-                from jose import jwt as _jwt
-                payload = _jwt.decode(auth_header.split(" ")[1], settings.JWT_SECRET, algorithms=["HS256"])
-                if payload.get("type") == "customer":
-                    customer = db.query(Customer).filter(Customer.id == int(payload["sub"])).first()
-            except Exception:
-                pass
-        if not customer:
-            customer = db.query(Customer).filter(
-                Customer.email == body.email, Customer.tenant_id == tid,
-            ).first()
-        if not customer:
-            customer = Customer(
-                tenant_id=tid,
-                name=body.name,
-                email=body.email,
-                phone=body.phone,
-                company=body.company,
-            )
-            db.add(customer)
-            db.flush()
-
-        # Calculate price
-        shape = getattr(body, "shape", "rect") or "rect"
-        engine = QuoteEngine(db, tenant_id=tid)
-        calc = engine.calculate_quote(
-            rug_id=body.rug_id,
-            size_w=body.size_w,
-            size_h=body.size_h,
-            material_id=rug.material_id,
-            qty=body.qty,
-            rush_order=body.rush_order,
-            shape=shape,
-        )
-
-        total_sqm = body.size_w * body.size_h * body.qty  # bounding box for stock deduction
-
-        # Atomic check-and-deduct — prevents oversell under concurrent orders
-        deducted = db.execute(
-            sa_update(Material)
-            .where(Material.id == rug.material_id, Material.stock_meters >= total_sqm)
-            .values(stock_meters=Material.stock_meters - total_sqm)
-        )
-        db.flush()
-        if deducted.rowcount == 0:
-            raise HTTPException(status_code=400, detail="Insufficient stock — another order may have just reserved this material.")
-
-        # Create accepted quote — snapshot margin and GST at time of order
-        quote = Quote(
-            tenant_id=tid,
-            customer_id=customer.id,
-            rug_catalog_id=body.rug_id,
-            material_id=rug.material_id,
-            custom_size_w=body.size_w,
-            custom_size_h=body.size_h,
-            rug_shape=shape,
-            qty=body.qty,
-            base_price=calc.get("subtotal"),
-            final_price=calc.get("final_price"),
-            price_currency=calc.get("price_currency") or (tenant.base_currency if tenant else "INR"),
-            margin_pct=calc.get("profit_margin_pct"),
-            gst_pct=calc.get("gst_pct"),
-            rush_order=body.rush_order,
-            status="accepted",
-            notes=body.notes,
-        )
-        db.add(quote)
-        db.flush()
-
-        # Estimate delivery
-        lead_days = rug.lead_time_days or 21
-        if body.rush_order:
-            lead_days = max(7, lead_days // 2)
-        estimated_delivery = datetime.utcnow() + timedelta(days=lead_days)
-
-        order = Order(
-            tenant_id=tid,
-            quote_id=quote.id,
-            status="pending",
-            shipping_address=body.shipping_address,
-            estimated_delivery=estimated_delivery,
-        )
-        db.add(order)
-        db.flush()
-        size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
-        tx = InventoryTransaction(
-            tenant_id=tid,
-            material_id=material.id,
-            qty_change=-total_sqm,
-            transaction_type="used",
-            notes=f"Order #{order.id} — {rug.name} {size_display} ×{body.qty}",
-        )
-        db.add(tx)
+        order, items_meta = _create_order_from_items(db, tid, tenant, customer, priced, body.shipping_address)
+        order.shipping_cost = shipping_cost
+        if promo:
+            order.promo_code = promo.code
+            order.discount_amount = discount_amount
+            record_redemption(db, promo, discount_amount, customer.id, order.id)
         db.commit()
-
         return {
-            "order_id": order.id,
-            "quote_id": quote.id,
-            "rug_name": rug.name,
-            "size": size_display,
-            "size_w": body.size_w,
-            "size_h": body.size_h,
-            "shape": shape,
-            "qty": body.qty,
-            "pre_gst_price": calc.get("pre_gst_price"),
-            "gst_pct": calc.get("gst_pct", 12.0),
-            "gst_amount": calc.get("gst_amount"),
-            "final_price": quote.final_price,
-            "price_currency": quote.price_currency,
+            "order_id": order.id, "quote_id": items_meta[0]["quote"].id,
+            "rug_name": items_meta[0]["rug"].name, "size": items_meta[0]["size_display"],
+            "size_w": items_meta[0]["quote"].custom_size_w, "size_h": items_meta[0]["quote"].custom_size_h,
+            "shape": items_meta[0]["quote"].rug_shape, "qty": items_meta[0]["qty"],
+            "final_price": subtotal + shipping_cost - discount_amount,
+            "subtotal": subtotal,
+            "shipping_cost": shipping_cost,
+            "promo_code": promo.code if promo else None,
+            "discount_amount": discount_amount,
+            "price_currency": items_meta[0]["quote"].price_currency,
+            "items": [
+                {"quote_id": m["quote"].id, "rug_name": m["rug"].name, "size": m["size_display"], "qty": m["qty"], "final_price": m["quote"].final_price, "price_currency": m["quote"].price_currency}
+                for m in items_meta
+            ],
             "status": order.status,
-            "estimated_delivery": estimated_delivery.strftime("%Y-%m-%d"),
-            "lead_time_days": lead_days,
+            "estimated_delivery": order.estimated_delivery.strftime("%Y-%m-%d"),
+            "lead_time_days": max(m["lead_days"] for m in items_meta),
             "customer_name": customer.name,
             "shipping_address": body.shipping_address,
         }
@@ -1122,6 +1369,20 @@ async def get_customer_orders(
                     size_display = f"{size_w:g}m × {size_h:g}m"
             else:
                 size_display = "—"
+            # All line items on this order (multi-rug cart orders have >1; legacy/Buy-Now orders have exactly 1,
+            # backfilled by migrate_v14). Falls back to the primary quote if items are somehow missing.
+            line_quotes = [oi.quote for oi in o.items if oi.quote] or ([q] if q else [])
+            order_total_final_price = sum(lq.final_price for lq in line_quotes if lq.final_price is not None) or fp
+            items_summary = [
+                {
+                    "quote_id": lq.id,
+                    "rug_name": lq.rug_catalog.name if lq.rug_catalog else "Custom Order",
+                    "qty": lq.qty,
+                    "final_price": lq.final_price,
+                    "price_currency": lq.price_currency or "INR",
+                }
+                for lq in line_quotes
+            ]
             result.append({
                 "order_id": o.id,
                 "quote_id": q.id if q else None,
@@ -1149,6 +1410,9 @@ async def get_customer_orders(
                 "shipping_address": o.shipping_address,
                 "estimated_delivery": o.estimated_delivery.strftime("%Y-%m-%d") if o.estimated_delivery else None,
                 "created_at": o.created_at.strftime("%Y-%m-%d") if o.created_at else None,
+                "item_count": len(line_quotes),
+                "items": items_summary,
+                "order_total": order_total_final_price,
             })
         return {
             "total": total,
@@ -1179,12 +1443,17 @@ def _gst_split(tenant_state: Optional[str], customer_state: Optional[str], gst_p
 def _customer_safe_breakdown(result: dict) -> dict:
     """
     calculate_quote() is shared with staff-facing tools that legitimately need
-    to see margin/cost data — strip that out here rather than in the engine
+    to see margin/cost/MOQ data — strip that out here rather than in the engine
     itself, specifically for customer-facing responses. Removes the top-level
     fields and the bracketed margin/cost detail embedded in the first
     breakdown line's label (e.g. "... [40% margin on 1800.00/sqm material]").
+    MOQ shortfalls are a vendor concern (fulfillment decision), not something
+    to surface to the shopper — they stay visible to staff in the admin
+    order/quote views.
     """
-    safe = {k: v for k, v in result.items() if k not in ("material_cost_per_sqm", "profit_margin_pct")}
+    safe = {k: v for k, v in result.items() if k not in (
+        "material_cost_per_sqm", "profit_margin_pct", "moq_met", "moq_message",
+    )}
     breakdown = safe.get("breakdown")
     if breakdown:
         cleaned = []
@@ -1724,6 +1993,46 @@ def _notify_vendor_quote_request(db: Session, quote: Quote, tenant, customer: Cu
     email_service.send_email(to_email, subject, body_text, body_html, reply_to=customer.email)
 
 
+_MATERIAL_PREFERENCE_LABELS = {
+    "wool": "Wool", "silk": "Silk", "cotton": "Cotton", "synthetic": "Synthetic", "no_preference": "No preference",
+}
+
+
+def _notify_vendor_custom_rug_request(db: Session, quote: Quote, tenant, customer: Customer) -> None:
+    from app.services import email_service
+
+    to_email = email_service.vendor_recipient(tenant)
+    if not to_email:
+        return
+
+    size_str = (
+        f"{quote.custom_size_w}m × {quote.custom_size_h}m"
+        if quote.custom_size_w and quote.custom_size_h else "Not specified"
+    )
+    notes_line = f"Customer notes: {quote.notes}\n" if quote.notes else ""
+    images_line = f"Reference images: {', '.join(quote.reference_image_urls)}\n" if quote.reference_image_urls else ""
+    phone_line = f", {customer.phone}" if customer.phone else ""
+
+    subject, body_text, body_html = email_service.render_template(
+        db, quote.tenant_id, "vendor_custom_rug_request",
+        {
+            "tenant_name": tenant.name,
+            "customer_name": customer.name,
+            "customer_email": customer.email,
+            "customer_phone_line": phone_line,
+            "quote_id": quote.id,
+            "room_type": quote.room_type or "Not specified",
+            "size": size_str,
+            "qty": quote.qty,
+            "material_preference": _MATERIAL_PREFERENCE_LABELS.get(quote.material_preference or "", "Not specified"),
+            "budget_range": quote.budget_range or "Not specified",
+            "notes_line": notes_line,
+            "images_line": images_line,
+        },
+    )
+    email_service.send_email(to_email, subject, body_text, body_html, reply_to=customer.email)
+
+
 def _notify_vendor_review_request(db: Session, quote: Quote, tenant, customer: Customer, request_num: int) -> None:
     from app.services import email_service
 
@@ -1879,48 +2188,73 @@ def download_customer_invoice(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    quote = order.quote
-    if not quote or not quote.final_price or not quote.custom_size_w or not quote.custom_size_h:
-        raise HTTPException(status_code=422, detail="Order is missing required details to generate an invoice.")
+    # Multi-item cart orders have one OrderItem (and one Quote) per rug; legacy/Buy-Now
+    # orders have exactly one, backfilled by migrate_v14. Each quote gets its own invoice
+    # page using the existing single-item generator, unchanged — merged into one PDF below.
+    line_quotes = [oi.quote for oi in order.items if oi.quote] or ([order.quote] if order.quote else [])
+    if not line_quotes:
+        raise HTTPException(status_code=422, detail="Order has no line items to invoice.")
 
-    rug = quote.rug_catalog
-    if not rug:
-        raise HTTPException(status_code=422, detail="Order has no associated rug.")
-
-    tenant = db.query(Tenant).filter(Tenant.id == quote.tenant_id).first()
-    size_sqm = round(quote.custom_size_w * quote.custom_size_h, 4)
-    qty = quote.qty or 1
-    total_sqm = size_sqm * qty
+    tenant = db.query(Tenant).filter(Tenant.id == line_quotes[0].tenant_id).first()
     invoice_currency = tenant.currency if tenant else "INR"
-    rate_per_sqm = round(quote.final_price / total_sqm, 2) if total_sqm > 0 else 0.0
     size_unit = (tenant.default_size_unit if tenant else None) or "ft"
-    dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
-    size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
 
-    pdf_bytes = generate_invoice_pdf(
-        quote_id=quote.id,
-        invoice_type="proforma",
-        supplier_name=tenant.name if tenant else "LoomCraftRugs",
-        supplier_address=tenant.address if tenant else "India",
-        supplier_gstin=tenant.gstin if tenant else None,
-        supplier_state_code=tenant.state_code if tenant else None,
-        lut_number=tenant.lut_number if tenant else None,
-        buyer_name=current_customer.name,
-        buyer_company=current_customer.company,
-        buyer_address=current_customer.address,
-        buyer_gstin=current_customer.gstin,
-        buyer_state_code=current_customer.state_code,
-        is_export_buyer=current_customer.is_export_buyer or False,
-        rug_name=rug.name,
-        hsn_code=rug.hsn_code or "5703",
-        size_desc=size_desc,
-        size_dims_str=dims_str,
-        qty=qty,
-        rate_per_sqm=rate_per_sqm,
-        size_sqm=size_sqm,
-        currency=invoice_currency,
-        expected_delivery_days=quote.expected_delivery_days,
-    )
+    # This order has already been paid for — issue a real tax invoice (export invoice for
+    # foreign buyers), not a proforma. Proforma is a pre-sale, non-binding document with no
+    # GST/CGST/SGST/IGST breakdown, which isn't a valid record of a completed sale.
+    invoice_type = "export" if current_customer.is_export_buyer else "tax"
+
+    pdfs = []
+    for quote in line_quotes:
+        if not quote.final_price or not quote.custom_size_w or not quote.custom_size_h:
+            raise HTTPException(status_code=422, detail="Order is missing required details to generate an invoice.")
+        rug = quote.rug_catalog
+        if not rug:
+            raise HTTPException(status_code=422, detail="Order has no associated rug.")
+
+        size_sqm = round(quote.custom_size_w * quote.custom_size_h, 4)
+        qty = quote.qty or 1
+        total_sqm = size_sqm * qty
+        rate_per_sqm = round(quote.final_price / total_sqm, 2) if total_sqm > 0 else 0.0
+        dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
+        size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
+
+        pdfs.append(generate_invoice_pdf(
+            quote_id=quote.id,
+            invoice_type=invoice_type,
+            supplier_name=tenant.name if tenant else "LoomCraftRugs",
+            supplier_address=tenant.address if tenant else "India",
+            supplier_gstin=tenant.gstin if tenant else None,
+            supplier_state_code=tenant.state_code if tenant else None,
+            lut_number=tenant.lut_number if tenant else None,
+            buyer_name=current_customer.name,
+            buyer_company=current_customer.company,
+            buyer_address=current_customer.address,
+            buyer_gstin=current_customer.gstin,
+            buyer_state_code=current_customer.state_code,
+            is_export_buyer=current_customer.is_export_buyer or False,
+            rug_name=rug.name,
+            hsn_code=rug.hsn_code or "5703",
+            size_desc=size_desc,
+            size_dims_str=dims_str,
+            qty=qty,
+            rate_per_sqm=rate_per_sqm,
+            size_sqm=size_sqm,
+            currency=invoice_currency,
+            expected_delivery_days=quote.expected_delivery_days,
+        ))
+
+    if len(pdfs) == 1:
+        pdf_bytes = pdfs[0]
+    else:
+        from io import BytesIO
+        from pypdf import PdfWriter
+        writer = PdfWriter()
+        for p in pdfs:
+            writer.append(BytesIO(p))
+        merged = BytesIO()
+        writer.write(merged)
+        pdf_bytes = merged.getvalue()
 
     filename = f"invoice-order-{order_id:04d}.pdf"
     return Response(

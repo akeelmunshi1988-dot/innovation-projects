@@ -42,6 +42,7 @@ class Material(MaterialBase):
 class RugCatalogBase(BaseModel):
     name: str
     description: Optional[str] = None
+    about_content_html: Optional[str] = None
     sizes: List[str]
     base_price: float
     base_price_currency: Optional[str] = None
@@ -61,6 +62,7 @@ class RugCatalogCreate(RugCatalogBase):
 class RugCatalogUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    about_content_html: Optional[str] = None
     sizes: Optional[List[str]] = None
     base_price: Optional[float] = None
     base_price_currency: Optional[str] = None
@@ -73,9 +75,28 @@ class RugCatalogUpdate(BaseModel):
     hsn_code: Optional[str] = None
 
 
+class RugImage(BaseModel):
+    id: int
+    image_url: str
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class RugImageCreate(BaseModel):
+    image_url: str
+    sort_order: int = 0
+
+
+class RugImageUpdate(BaseModel):
+    sort_order: int
+
+
 class RugCatalog(RugCatalogBase):
     id: int
     material: Optional[Material] = None
+    images: List[RugImage] = []
 
     class Config:
         from_attributes = True
@@ -154,6 +175,7 @@ class CustomerBase(BaseModel):
     gstin: Optional[str] = None
     state_code: Optional[str] = None
     address: Optional[str] = None
+    country: Optional[str] = "India"
     is_export_buyer: bool = False
 
 
@@ -169,6 +191,7 @@ class CustomerUpdate(BaseModel):
     gstin: Optional[str] = None
     state_code: Optional[str] = None
     address: Optional[str] = None
+    country: Optional[str] = None
     is_export_buyer: Optional[bool] = None
 
 
@@ -200,6 +223,11 @@ class QuoteBase(BaseModel):
     notes: Optional[str] = None
     vendor_notes: Optional[str] = None
     customer_response_notes: Optional[str] = None
+    is_custom_request: bool = False
+    room_type: Optional[str] = None
+    material_preference: Optional[str] = None
+    budget_range: Optional[str] = None
+    reference_image_urls: Optional[List[str]] = None
 
 
 class QuoteCreate(QuoteBase):
@@ -226,6 +254,10 @@ class QuoteUpdate(BaseModel):
 
 class QuoteSendRequest(BaseModel):
     vendor_notes: Optional[str] = None
+
+
+class QuoteRejectRequest(BaseModel):
+    reason: Optional[str] = None
 
 
 class QuoteAdjustRequest(BaseModel):
@@ -302,15 +334,89 @@ class OrderUpdate(BaseModel):
     status: Optional[str] = None
     estimated_delivery: Optional[datetime] = None
     actual_delivery: Optional[datetime] = None
+    shipping_cost: Optional[float] = None
+
+
+class OrderItemSchema(BaseModel):
+    id: int
+    quote: Optional[Quote] = None
+
+    class Config:
+        from_attributes = True
 
 
 class Order(OrderBase):
     id: int
     created_at: datetime
+    promo_code: Optional[str] = None
+    discount_amount: Optional[float] = None
+    shipping_cost: Optional[float] = None
     quote: Optional[Quote] = None
+    items: List[OrderItemSchema] = []
 
     class Config:
         from_attributes = True
+
+
+# ── PromoCode ────────────────────────────────────────────────────────────────
+
+class PromoCodeBase(BaseModel):
+    code: str = Field(..., min_length=2, max_length=50)
+    discount_type: str  # 'percentage' | 'flat' | 'free_shipping'
+    discount_value: Optional[float] = None
+    min_order_value: Optional[float] = None
+    max_uses: Optional[int] = None
+    one_per_customer: bool = False
+    starts_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    is_active: bool = True
+
+    @field_validator("discount_type")
+    @classmethod
+    def valid_discount_type(cls, v):
+        if v not in ("percentage", "flat", "free_shipping"):
+            raise ValueError("discount_type must be 'percentage', 'flat', or 'free_shipping'")
+        return v
+
+
+class PromoCodeCreate(PromoCodeBase):
+    pass
+
+
+class PromoCodeUpdate(BaseModel):
+    code: Optional[str] = Field(None, min_length=2, max_length=50)
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_order_value: Optional[float] = None
+    max_uses: Optional[int] = None
+    one_per_customer: Optional[bool] = None
+    starts_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
+
+class PromoCode(PromoCodeBase):
+    id: int
+    used_count: int = 0
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PromoValidateRequest(BaseModel):
+    code: str
+    subtotal: float = Field(..., ge=0)
+    email: Optional[EmailStr] = None
+
+
+class PromoValidateResponse(BaseModel):
+    valid: bool
+    code: str
+    discount_type: str
+    discount_value: Optional[float] = None
+    discount_amount: float
+    message: str
 
 
 # ── InventoryTransaction ──────────────────────────────────────────────────────
@@ -363,6 +469,14 @@ class TenantPublic(BaseModel):
     contact_phones: List[str] = []
     contact_address: Optional[str] = None
     contact_hours: Optional[str] = None
+    catalog_pdf_url: Optional[str] = None
+    certifications: List[dict] = []
+    default_shipping_rate: Optional[float] = None
+
+    @field_validator('certifications', mode='before')
+    @classmethod
+    def _none_to_empty_certifications(cls, v):
+        return v or []
 
     @field_validator('contact_emails', 'contact_phones', mode='before')
     @classmethod
@@ -393,6 +507,9 @@ class TenantUpdateRequest(BaseModel):
     contact_phones: Optional[List[str]] = None
     contact_address: Optional[str] = None
     contact_hours: Optional[str] = Field(None, max_length=200)
+    catalog_pdf_url: Optional[str] = None
+    certifications: Optional[List[dict]] = None
+    default_shipping_rate: Optional[float] = Field(None, ge=0)
 
     @field_validator('contact_emails')
     @classmethod
@@ -416,8 +533,8 @@ class TenantUpdateRequest(BaseModel):
     @field_validator('default_size_unit')
     @classmethod
     def validate_default_size_unit(cls, v: Optional[str]) -> Optional[str]:
-        if v and v not in ('ft', 'cm'):
-            raise ValueError("default_size_unit must be 'ft' or 'cm'")
+        if v and v not in ('ft', 'cm', 'both'):
+            raise ValueError("default_size_unit must be 'ft', 'cm', or 'both'")
         return v
 
     @field_validator('gstin')
@@ -487,6 +604,7 @@ class CustomerRegisterRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=128)
     phone: Optional[str] = Field(None, max_length=20)
     company: Optional[str] = Field(None, max_length=200)
+    account_type: Optional[str] = Field("retail", max_length=20)  # "retail" | "trade"
 
 
 class CustomerLoginRequest(BaseModel):
@@ -622,6 +740,87 @@ class WorkshopPhotoUpdate(BaseModel):
 
 class WorkshopPhoto(WorkshopPhotoBase):
     id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ── Testimonials ───────────────────────────────────────────────────────────────
+
+class TestimonialBase(BaseModel):
+    author_name: str
+    author_title: Optional[str] = None
+    country: Optional[str] = None
+    quote: str
+    photo_url: Optional[str] = None
+    rating: Optional[int] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class TestimonialCreate(TestimonialBase):
+    pass
+
+
+class TestimonialUpdate(BaseModel):
+    author_name: Optional[str] = None
+    author_title: Optional[str] = None
+    country: Optional[str] = None
+    quote: Optional[str] = None
+    photo_url: Optional[str] = None
+    rating: Optional[int] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class Testimonial(TestimonialBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ── Project Gallery ────────────────────────────────────────────────────────────
+
+class ProjectGalleryItemBase(BaseModel):
+    image_url: str
+    caption: Optional[str] = None
+    link_url: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class ProjectGalleryItemCreate(ProjectGalleryItemBase):
+    pass
+
+
+class ProjectGalleryItemUpdate(BaseModel):
+    image_url: Optional[str] = None
+    caption: Optional[str] = None
+    link_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class ProjectGalleryItem(ProjectGalleryItemBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ── Newsletter ─────────────────────────────────────────────────────────────────
+
+class NewsletterSubscriberCreate(BaseModel):
+    email: str
+    source: Optional[str] = None
+
+
+class NewsletterSubscriber(BaseModel):
+    id: int
+    email: str
+    source: Optional[str] = None
+    subscribed_at: Optional[Any] = None
 
     class Config:
         from_attributes = True

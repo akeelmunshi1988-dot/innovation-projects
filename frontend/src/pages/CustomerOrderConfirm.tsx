@@ -1,14 +1,11 @@
-import { useEffect, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import {
   CheckCircle, Package, Truck, Clock, MapPin, ArrowRight, Search,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { getPublicSettings } from '../services/api';
 import type { CheckoutResponse } from '../services/api';
 import { fmtExact } from '../utils/currency';
-import { fmtDims } from '../utils/size';
 
 const STATUS_STEPS = [
   { key: 'pending',       label: 'Order Placed',   desc: 'Awaiting production confirmation' },
@@ -22,11 +19,6 @@ export default function CustomerOrderConfirm() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const order = location.state as CheckoutResponse | null;
-
-  const [sizeUnit, setSizeUnit] = useState('ft');
-  useEffect(() => {
-    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
-  }, []);
 
   const currency = order?.price_currency ?? 'INR';
   const fmt = (n: number) => fmtExact(n, currency);
@@ -76,48 +68,38 @@ export default function CustomerOrderConfirm() {
               {order.status.replace('_', ' ')}
             </span>
           </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm">
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Rug</p>
-              <p className="text-stone-900 font-medium">{order.rug_name}</p>
+          <div className="p-5 space-y-4">
+            <div className="space-y-3">
+              {(order.items && order.items.length > 0 ? order.items : [{ quote_id: order.quote_id, rug_name: order.rug_name, size: order.size, qty: order.qty, final_price: order.final_price, price_currency: order.price_currency }]).map((item) => (
+                <div key={item.quote_id} className="flex items-start justify-between gap-2 text-sm">
+                  <div>
+                    <p className="text-stone-900 font-medium">{item.rug_name}</p>
+                    <p className="text-stone-400 text-xs mt-0.5">{item.size} · {item.qty} piece{item.qty !== 1 ? 's' : ''}</p>
+                  </div>
+                  <p className="text-stone-700 flex-shrink-0">{fmtExact(item.final_price, item.price_currency)}</p>
+                </div>
+              ))}
             </div>
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Size</p>
-              <p className="text-stone-700">{fmtDims(order.size_w, order.size_h, sizeUnit, order.shape)}</p>
-            </div>
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Quantity</p>
-              <p className="text-stone-700">{order.qty} piece{order.qty !== 1 ? 's' : ''}</p>
-            </div>
-            {order.pre_gst_price != null && (
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm border-t border-stone-100 pt-4">
               <div>
-                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Pre-tax</p>
-                <p className="text-stone-700">{fmt(order.pre_gst_price)}</p>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Total (incl. Tax)</p>
+                <p className="text-stone-900 font-medium text-base">{fmt(order.final_price)}</p>
               </div>
-            )}
-            {order.gst_amount != null && (
               <div>
-                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">GST ({order.gst_pct?.toFixed(0)}%)</p>
-                <p className="text-stone-700">+{fmt(order.gst_amount)}</p>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Delivery Date</p>
+                <p className="text-stone-700 flex items-center gap-1">
+                  <Truck size={12} className="text-stone-400" />
+                  {order.estimated_delivery}
+                </p>
               </div>
-            )}
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Total (incl. GST)</p>
-              <p className="text-stone-900 font-medium text-base">{fmt(order.final_price)}</p>
-            </div>
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Delivery Date</p>
-              <p className="text-stone-700 flex items-center gap-1">
-                <Truck size={12} className="text-stone-400" />
-                {order.estimated_delivery}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Expected Delivery</p>
-              <p className="text-stone-700 flex items-center gap-1">
-                <Clock size={12} className="text-stone-400" />
-                ~{order.lead_time_days} days
-              </p>
+              <div>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Expected Delivery</p>
+                <p className="text-stone-700 flex items-center gap-1">
+                  <Clock size={12} className="text-stone-400" />
+                  ~{order.lead_time_days} days
+                </p>
+              </div>
             </div>
           </div>
           {order.shipping_address && (

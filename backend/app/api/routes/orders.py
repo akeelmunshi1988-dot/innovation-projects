@@ -106,6 +106,7 @@ def update_order(
 def update_order_status(
     order_id: int,
     status: str,
+    shipping_cost: Optional[float] = None,
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
@@ -119,6 +120,8 @@ def update_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
     old_status = order.status
     order.status = status
+    if shipping_cost is not None:
+        order.shipping_cost = shipping_cost
     if status != old_status:
         db.add(OrderStatusHistory(order_id=order.id, status=status))
     db.commit()

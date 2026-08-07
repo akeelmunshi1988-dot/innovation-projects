@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "LoomCraftRugs AI"
 
     FRONTEND_URL: str = "http://localhost:5173"
+    BACKEND_URL: str = "http://localhost:8000"  # used to build OAuth redirect_uri values registered with each provider
+
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    FACEBOOK_CLIENT_ID: Optional[str] = None
+    FACEBOOK_CLIENT_SECRET: Optional[str] = None
+    LINKEDIN_CLIENT_ID: Optional[str] = None
+    LINKEDIN_CLIENT_SECRET: Optional[str] = None
 
     class Config:
         env_file = ".env"

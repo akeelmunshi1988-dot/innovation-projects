@@ -10,8 +10,11 @@ from typing import List
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
-from app.models.models import RugCatalog, Material, StaffUser
-from app.schemas.schemas import RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema
+from app.models.models import RugCatalog, RugImage, Material, StaffUser
+from app.schemas.schemas import (
+    RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
+    RugImageCreate, RugImageUpdate, RugImage as RugImageSchema,
+)
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "rugs")
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
@@ -175,3 +178,68 @@ def delete_rug(
     db.commit()
     cache_clear("catalog")
     return {"message": "Rug deleted successfully"}
+
+
+# ── Rug gallery images ──────────────────────────────────────────────────────
+
+@router.post("/catalog/{rug_id}/images", response_model=RugImageSchema)
+def add_rug_image(
+    rug_id: int,
+    body: RugImageCreate,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    rug = db.query(RugCatalog).filter(
+        RugCatalog.id == rug_id,
+        RugCatalog.tenant_id == current_user.tenant_id,
+    ).first()
+    if not rug:
+        raise HTTPException(status_code=404, detail="Rug not found")
+    image = RugImage(rug_catalog_id=rug_id, image_url=body.image_url, sort_order=body.sort_order)
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    cache_clear("catalog")
+    return image
+
+
+@router.patch("/catalog/images/{image_id}", response_model=RugImageSchema)
+def update_rug_image(
+    image_id: int,
+    body: RugImageUpdate,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    image = (
+        db.query(RugImage)
+        .join(RugCatalog, RugImage.rug_catalog_id == RugCatalog.id)
+        .filter(RugImage.id == image_id, RugCatalog.tenant_id == current_user.tenant_id)
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image.sort_order = body.sort_order
+    db.commit()
+    db.refresh(image)
+    cache_clear("catalog")
+    return image
+
+
+@router.delete("/catalog/images/{image_id}")
+def delete_rug_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    image = (
+        db.query(RugImage)
+        .join(RugCatalog, RugImage.rug_catalog_id == RugCatalog.id)
+        .filter(RugImage.id == image_id, RugCatalog.tenant_id == current_user.tenant_id)
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    db.delete(image)
+    db.commit()
+    cache_clear("catalog")
+    return {"message": "Image deleted successfully"}

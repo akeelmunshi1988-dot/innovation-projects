@@ -29,10 +29,60 @@ export interface WorkshopPhoto {
   is_active: boolean;
 }
 
+export interface Testimonial {
+  id: number;
+  author_name: string;
+  author_title: string | null;
+  country: string | null;
+  quote: string;
+  photo_url: string | null;
+  rating: number | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface ProjectGalleryItem {
+  id: number;
+  image_url: string;
+  caption: string | null;
+  link_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface PromoCode {
+  id: number;
+  code: string;
+  discount_type: 'percentage' | 'flat' | 'free_shipping';
+  discount_value: number | null;
+  min_order_value: number | null;
+  max_uses: number | null;
+  one_per_customer: boolean;
+  starts_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  used_count: number;
+  created_at: string;
+}
+
+export interface NewsletterSubscriber {
+  id: number;
+  email: string;
+  source: string | null;
+  subscribed_at: string | null;
+}
+
+export interface RugImage {
+  id: number;
+  image_url: string;
+  sort_order: number;
+}
+
 export interface RugCatalog {
   id: number;
   name: string;
   description: string | null;
+  about_content_html: string | null;
   sizes: string[];
   base_price: number;
   base_price_currency: string | null;
@@ -44,6 +94,7 @@ export interface RugCatalog {
   profit_margin_pct: number | null;
   hsn_code: string | null;
   material?: Material;
+  images: RugImage[];
 }
 
 export interface PricingRule {
@@ -82,6 +133,7 @@ export interface Customer {
   gstin: string | null;
   state_code: string | null;
   address: string | null;
+  country: string | null;
   is_export_buyer: boolean;
   created_at: string;
 }
@@ -109,6 +161,16 @@ export interface Quote {
   customer?: Customer;
   rug_catalog?: RugCatalog;
   material?: Material;
+  is_custom_request: boolean;
+  room_type: string | null;
+  material_preference: string | null;
+  budget_range: string | null;
+  reference_image_urls: string[] | null;
+}
+
+export interface OrderItem {
+  id: number;
+  quote?: Quote;
 }
 
 export interface Order {
@@ -118,7 +180,11 @@ export interface Order {
   estimated_delivery: string | null;
   actual_delivery: string | null;
   created_at: string;
+  promo_code?: string | null;
+  discount_amount?: number | null;
+  shipping_cost?: number | null;
   quote?: Quote;
+  items?: OrderItem[];
 }
 
 export interface InventoryTransaction {

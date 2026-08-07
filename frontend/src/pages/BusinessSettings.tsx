@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign, Phone, X, Plus } from 'lucide-react';
+import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign, Phone, X, Plus, Upload, Award } from 'lucide-react';
 import axios from 'axios';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -66,6 +66,7 @@ export default function BusinessSettings() {
   const [rushPct, setRushPct] = useState(String(tenant.rush_surcharge_pct ?? 25));
   const [lfThreshold, setLfThreshold] = useState(String(tenant.large_format_threshold_sqm ?? 20));
   const [lfSurchargePct, setLfSurchargePct] = useState(String(tenant.large_format_surcharge_pct ?? 5));
+  const [shippingRate, setShippingRate] = useState(tenant.default_shipping_rate != null ? String(tenant.default_shipping_rate) : '');
 
   // GST & Tax
   const [gstin, setGstin] = useState(tenant.gstin ?? '');
@@ -87,6 +88,62 @@ export default function BusinessSettings() {
   const [contactHours, setContactHours] = useState(tenant.contact_hours ?? '');
   const [newContactEmail, setNewContactEmail] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
+
+  // Storefront: lookbook PDF + certification badges
+  const [catalogPdfUrl, setCatalogPdfUrl] = useState(tenant.catalog_pdf_url ?? null);
+  const [uploadingCatalogPdf, setUploadingCatalogPdf] = useState(false);
+  const [catalogPdfError, setCatalogPdfError] = useState('');
+  const catalogPdfInputRef = useRef<HTMLInputElement>(null);
+
+  const [certifications, setCertifications] = useState<{ label: string; image_url: string }[]>(tenant.certifications ?? []);
+  const [newCertLabel, setNewCertLabel] = useState('');
+  const [newCertImage, setNewCertImage] = useState('');
+  const [uploadingCertImage, setUploadingCertImage] = useState(false);
+  const [certError, setCertError] = useState('');
+  const certImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCatalogPdfUpload = async (file: File) => {
+    setUploadingCatalogPdf(true);
+    setCatalogPdfError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await axios.post('/api/tenant/catalog-pdf', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      updateTenant(data);
+      setCatalogPdfUrl(data.catalog_pdf_url);
+    } catch (err: any) {
+      setCatalogPdfError(err.response?.data?.detail || 'Upload failed.');
+    } finally {
+      setUploadingCatalogPdf(false);
+    }
+  };
+
+  const handleCertImageUpload = async (file: File) => {
+    setUploadingCertImage(true);
+    setCertError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await axios.post<{ url: string }>('/api/tenant/certification-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setNewCertImage(data.url);
+    } catch (err: any) {
+      setCertError(err.response?.data?.detail || 'Upload failed.');
+    } finally {
+      setUploadingCertImage(false);
+    }
+  };
+
+  const addCertification = () => {
+    if (!newCertLabel.trim() || !newCertImage) { setCertError('Add a badge image and label first.'); return; }
+    setCertifications((prev) => [...prev, { label: newCertLabel.trim(), image_url: newCertImage }]);
+    setNewCertLabel('');
+    setNewCertImage('');
+    setCertError('');
+  };
 
   const addContactEmail = () => {
     const v = newContactEmail.trim();
@@ -136,12 +193,13 @@ export default function BusinessSettings() {
     || vendorNotificationEmail !== (tenant.vendor_notification_email ?? '')
     || sizeUnit !== (tenant.default_size_unit ?? 'ft');
   const dirtyCurrency = currency !== tenant.currency || ratesChanged;
-  const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct;
+  const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct || (parseFloat(shippingRate) || 0) !== (tenant.default_shipping_rate ?? 0);
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '');
   const dirtyContact  = JSON.stringify(contactEmails) !== JSON.stringify(tenant.contact_emails ?? [])
     || JSON.stringify(contactPhones) !== JSON.stringify(tenant.contact_phones ?? [])
     || contactAddress !== (tenant.contact_address ?? '')
-    || contactHours !== (tenant.contact_hours ?? '');
+    || contactHours !== (tenant.contact_hours ?? '')
+    || JSON.stringify(certifications) !== JSON.stringify(tenant.certifications ?? []);
   const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
 
   const tabDirty: Record<Tab, boolean> = {
@@ -178,6 +236,7 @@ export default function BusinessSettings() {
         rush_surcharge_pct: parseFloat(rushPct),
         large_format_threshold_sqm: parseFloat(lfThreshold),
         large_format_surcharge_pct: parseFloat(lfSurchargePct),
+        default_shipping_rate: parseFloat(shippingRate) || 0,
         ai_assistant_customer_enabled: aiAssistantCustomerEnabled,
         ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
         vendor_notification_email: vendorNotificationEmail.trim() || undefined,
@@ -186,6 +245,7 @@ export default function BusinessSettings() {
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
         contact_hours: contactHours.trim() || undefined,
+        certifications,
       });
       updateTenant(data);
       setSaved(true);
@@ -320,10 +380,11 @@ export default function BusinessSettings() {
               <div>
                 <label className={labelCls}>Standard Size Unit</label>
                 <p className="text-dark-500 text-xs -mt-1">
-                  How rug standard sizes (e.g. 4x6) are displayed across the admin panel and storefront.
+                  How rug sizes are displayed across the admin panel and storefront. "Both" shows ft and cm together
+                  wherever a size is displayed; input fields (e.g. custom quote dimensions) still take a single value, in feet.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-2 max-w-xs">
+              <div className="grid grid-cols-3 gap-2 max-w-md">
                 {SIZE_UNITS.map((u) => (
                   <button
                     key={u.code}
@@ -605,6 +666,31 @@ export default function BusinessSettings() {
               )}
             </div>
 
+            {/* Shipping */}
+            <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3">
+              <div>
+                <p className={subLabelCls}>Default Shipping Rate</p>
+                <p className={hintCls + ' -mt-1'}>
+                  Shown to customers in the cart and checkout, and added to the amount charged. Leave at 0 for free shipping.
+                </p>
+              </div>
+              <div className="max-w-[200px] space-y-1.5">
+                <label className="text-dark-400 text-xs">Flat rate ({tenant.base_currency})</label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={shippingRate}
+                  onChange={(e) => setShippingRate(e.target.value)}
+                  placeholder="0.00"
+                  className={inputCls}
+                />
+              </div>
+              <p className={hintCls}>
+                {parseFloat(shippingRate) > 0
+                  ? `Every order adds ${shippingRate} ${tenant.base_currency} for shipping unless a free-shipping promo code is applied.`
+                  : 'Shipping is currently free for all orders.'}
+              </p>
+            </div>
+
             {/* Live preview card */}
             <div className="bg-dark-800 rounded-xl p-4 space-y-2 text-sm border border-dark-700">
               <p className="text-dark-400 text-xs uppercase tracking-wider font-medium">Live Preview — ₹500/sqm material, 25 sqm (rush)</p>
@@ -822,6 +908,94 @@ export default function BusinessSettings() {
                 placeholder="Mon–Sat, 9am–6pm"
                 className={inputCls}
               />
+            </div>
+
+            {/* Lookbook / Catalog PDF */}
+            <div className="space-y-1.5 pt-2 border-t border-dark-800">
+              <label className={labelCls}>Downloadable Lookbook / Catalog (PDF)</label>
+              <p className={hintCls + ' -mt-1 mb-1'}>Shown as a "Download Lookbook" link on your storefront homepage and footer.</p>
+              <div className="flex items-center gap-3">
+                {catalogPdfUrl && (
+                  <a href={catalogPdfUrl} target="_blank" rel="noreferrer" className="text-gold-400 text-xs underline truncate max-w-[200px]">
+                    Current file
+                  </a>
+                )}
+                <input
+                  ref={catalogPdfInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCatalogPdfUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => catalogPdfInputRef.current?.click()}
+                  disabled={uploadingCatalogPdf}
+                  className="text-xs bg-dark-800 hover:bg-dark-700 border border-dark-600 text-cream-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Upload size={12} /> {uploadingCatalogPdf ? 'Uploading…' : catalogPdfUrl ? 'Replace PDF' : 'Upload PDF (max 25MB)'}
+                </button>
+              </div>
+              {catalogPdfError && <p className="text-red-400 text-xs">{catalogPdfError}</p>}
+            </div>
+
+            {/* Certifications / badges */}
+            <div className="space-y-1.5 pt-2 border-t border-dark-800">
+              <label className={labelCls}>Certifications &amp; Badges</label>
+              <p className={hintCls + ' -mt-1 mb-1'}>Shown in the storefront footer (e.g. export quality, sustainability, GOTS).</p>
+
+              <div className="flex flex-wrap gap-3">
+                {certifications.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-dark-800 border border-dark-700 rounded-lg pl-2 pr-2.5 py-1.5">
+                    <img src={c.image_url} alt={c.label} className="w-6 h-6 object-contain rounded bg-dark-900" />
+                    <span className="text-cream-200 text-xs">{c.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCertifications((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-dark-500 hover:text-red-400 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {newCertImage ? (
+                  <img src={newCertImage} alt="Badge preview" className="w-9 h-9 object-contain rounded bg-dark-800 border border-dark-700" />
+                ) : (
+                  <input
+                    ref={certImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleCertImageUpload(e.target.files[0])}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => certImageInputRef.current?.click()}
+                  disabled={uploadingCertImage || !!newCertImage}
+                  className="text-xs bg-dark-800 hover:bg-dark-700 border border-dark-600 text-cream-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Upload size={12} /> {uploadingCertImage ? 'Uploading…' : 'Upload badge image'}
+                </button>
+                <input
+                  value={newCertLabel}
+                  onChange={(e) => setNewCertLabel(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCertification(); } }}
+                  placeholder="e.g. GOTS Certified"
+                  className={inputCls + ' max-w-[220px]'}
+                />
+                <button type="button" onClick={addCertification} className="btn-secondary flex items-center gap-1.5 px-4 text-sm whitespace-nowrap">
+                  <Award size={14} /> Add
+                </button>
+              </div>
+              {certError && <p className="text-red-400 text-xs">{certError}</p>}
             </div>
 
             <SaveBar />

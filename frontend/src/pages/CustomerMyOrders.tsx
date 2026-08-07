@@ -92,12 +92,14 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
       >
         <Package size={16} className="text-stone-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="font-serif text-base font-light text-stone-900 truncate">{order.rug_name}</p>
+          <p className="font-serif text-base font-light text-stone-900 truncate">
+            {order.rug_name}{order.item_count > 1 ? ` +${order.item_count - 1} more` : ''}
+          </p>
           <p className="text-stone-400 text-xs mt-0.5">Order #{order.order_id} · {order.created_at ?? '—'}</p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          {order.final_price != null && (
-            <span className="text-stone-900 font-medium text-sm">{fmt(order.final_price)}</span>
+          {(order.order_total ?? order.final_price) != null && (
+            <span className="text-stone-900 font-medium text-sm">{fmt((order.order_total ?? order.final_price)!)}</span>
           )}
           <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 border font-medium ${meta.color}`}>
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${meta.dot}`} />
@@ -110,7 +112,18 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
       {expanded && (
         <div className="border-t border-stone-100 px-5 py-5 space-y-4 bg-white">
 
-          {/* Specs grid */}
+          {order.item_count > 1 && (
+            <div className="border border-stone-100 bg-stone-50 divide-y divide-stone-100">
+              {order.items.map((it) => (
+                <div key={it.quote_id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="text-stone-700">{it.rug_name} × {it.qty}</span>
+                  {it.final_price != null && <span className="text-stone-900">{fmtExact(it.final_price, it.price_currency)}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Specs grid (first item) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4">
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
@@ -280,7 +293,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
                   </div>
                 ) : (
                   <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">GST ({bd.gst_pct.toFixed(0)}%)</span>
+                    <span className="text-stone-400">Tax ({bd.gst_pct.toFixed(0)}%)</span>
                     <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
                   </div>
                 )}
@@ -316,7 +329,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
                 )}
                 {order.gst_pct != null && order.gst_amount != null && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">GST ({order.gst_pct.toFixed(0)}%)</span>
+                    <span className="text-stone-400">Tax ({order.gst_pct.toFixed(0)}%)</span>
                     <span className="text-stone-700">+{fmt(order.gst_amount)}</span>
                   </div>
                 )}
@@ -326,7 +339,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
             {/* Total line — always shown */}
             {order.final_price != null && (
               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                <span className="text-stone-900">Total (incl. GST)</span>
+                <span className="text-stone-900">Total (incl. Tax)</span>
                 <span className="text-stone-900">{fmt(order.final_price)}</span>
               </div>
             )}

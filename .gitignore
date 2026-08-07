@@ -20,6 +20,7 @@ backend/.env
 # Backend generated output
 backend/outputs/
 backend/uploads/
+backend/logs/
 
 # Node
 node_modules/

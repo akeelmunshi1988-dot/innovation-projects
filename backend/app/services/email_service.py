@@ -57,6 +57,31 @@ DEFAULT_TEMPLATES = {
             "\nView and respond to your quote: {{quote_link}}\n\n– {{tenant_name}} Team"
         ),
     },
+    "quote_rejected": {
+        "name": "Quote Declined",
+        "subject": "Update on your quote — {{rug_name}} | {{tenant_name}}",
+        "body_html": """\
+<html><body style="font-family:Arial,sans-serif;color:#222;max-width:600px;margin:0 auto">
+<div style="background:#1c1c1b;padding:24px 32px;border-radius:12px 12px 0 0">
+  <h1 style="color:#fbbf24;margin:0;font-size:22px">{{tenant_name}}</h1>
+  <p style="color:#929290;margin:4px 0 0;font-size:13px">Update on your quote request</p>
+</div>
+<div style="background:#f9f9f9;padding:24px 32px;border:1px solid #e5e5e5;border-top:none">
+  <p>Dear <strong>{{customer_name}}</strong>,</p>
+  <p>Thank you for your interest in <strong>{{rug_name}}</strong>. Unfortunately, we're unable to move forward with this request at this time.</p>
+  {{reason_line_html}}
+  <p>We'd still love to help you find the right rug — browse our full collection or reach out to discuss alternatives.</p>
+  <p style="margin:24px 0"><a href="{{catalog_link}}" style="background:#d97706;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Browse Collection</a></p>
+  <p style="color:#888;font-size:12px;margin-top:24px">For any queries, reply to this email.<br>— {{tenant_name}} Team</p>
+</div>
+</body></html>""",
+        "body_text": (
+            "Dear {{customer_name}},\n\n"
+            "Thank you for your interest in {{rug_name}}. Unfortunately, we're unable to move forward with this request at this time.\n\n"
+            "{{reason_line_text}}"
+            "\nWe'd still love to help you find the right rug — browse our collection: {{catalog_link}}\n\n– {{tenant_name}} Team"
+        ),
+    },
     "invoice_email": {
         "name": "Invoice Email",
         "subject": "{{invoice_type_label}} – {{rug_name}} – {{tenant_name}}",
@@ -102,6 +127,25 @@ DEFAULT_TEMPLATES = {
             "Estimated price: {{price}}\n"
             "{{notes_line}}"
             "\nQuote #{{quote_id}} has been created as a draft. Log in to the admin panel to review and send it.\n\n"
+            "— {{tenant_name}} System"
+        ),
+    },
+    "vendor_custom_rug_request": {
+        "name": "New Custom Rug Request (to Vendor)",
+        "subject": "New custom rug request from {{customer_name}}",
+        "body_html": "",  # vendor notification is plaintext-only today
+        "body_text": (
+            "Hello {{tenant_name}} team,\n\n"
+            "{{customer_name}} ({{customer_email}}{{customer_phone_line}}) submitted a custom rug design request.\n\n"
+            "Room: {{room_type}}\n"
+            "Approximate size: {{size}}\n"
+            "Quantity: {{qty}}\n"
+            "Material preference: {{material_preference}}\n"
+            "Budget range: {{budget_range}}\n"
+            "{{notes_line}}"
+            "{{images_line}}"
+            "\nQuote #{{quote_id}} has been created as a draft with no price yet. Log in to the admin panel, review the brief, "
+            "set a price, and send it to the customer.\n\n"
             "— {{tenant_name}} System"
         ),
     },
@@ -229,7 +273,7 @@ def send_email(
         msg.attach(part)
 
     try:
-        with smtplib.SMTP(smtp_host, settings.SMTP_PORT) as smtp:
+        with smtplib.SMTP(smtp_host, settings.SMTP_PORT, timeout=10) as smtp:
             smtp.ehlo()
             smtp.starttls()
             smtp.login(smtp_user, smtp_pass)

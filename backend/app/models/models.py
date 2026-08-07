@@ -37,6 +37,9 @@ class Tenant(Base):
     contact_phones = Column(JSON, nullable=True)          # list[str]
     contact_address = Column(Text, nullable=True)         # workshop/visiting address — distinct from the GST registered address
     contact_hours = Column(String(200), nullable=True)    # e.g. "Mon-Sat, 9am-6pm"
+    catalog_pdf_url = Column(String(300), nullable=True)   # downloadable lookbook/catalog shown on storefront
+    certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
+    default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -85,6 +88,7 @@ class RugCatalog(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
     name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
+    about_content_html = Column(Text, nullable=True)  # admin-authored rich text for the catalog detail "About this rug" section — falls back to `description` (plain text) when empty
     sizes = Column(JSON, nullable=False)
     base_price = Column(Float, nullable=False)
     base_price_currency = Column(String(10), nullable=True)     # currency base_price was entered in
@@ -98,6 +102,19 @@ class RugCatalog(Base):
 
     material = relationship("Material", back_populates="rugs")
     quotes = relationship("Quote", back_populates="rug_catalog")
+    images = relationship("RugImage", back_populates="rug_catalog", order_by="RugImage.sort_order", cascade="all, delete-orphan")
+
+
+class RugImage(Base):
+    __tablename__ = "rug_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id"), nullable=False)
+    image_url = Column(String(300), nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    rug_catalog = relationship("RugCatalog", back_populates="images")
 
 
 class PricingRule(Base):
@@ -148,12 +165,16 @@ class Customer(Base):
     gstin = Column(String(20), nullable=True)
     state_code = Column(String(2), nullable=True)
     address = Column(Text, nullable=True)
+    country = Column(String(100), nullable=True, default="India")  # shipping country from checkout — drives is_export_buyer
     is_export_buyer = Column(Boolean, default=False)  # foreign buyer → export invoice
+    account_type = Column(String(20), default="retail")  # "retail" | "trade" (architects/hotels/retailers)
     hashed_password = Column(String(300), nullable=True)  # null = unregistered (portal-only after registration)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)  # email verified — required to log in once hashed_password is set
     verification_token = Column(String(100), nullable=True)
     verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    oauth_provider = Column(String(20), nullable=True)  # 'google' | 'facebook' | 'linkedin' — null for password/guest accounts
+    oauth_id = Column(String(200), nullable=True)        # provider's unique user id
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (UniqueConstraint("email", "tenant_id", name="uq_customer_email_tenant"),)
@@ -186,6 +207,11 @@ class Quote(Base):
     vendor_notes = Column(Text, nullable=True)            # message from vendor when sending/adjusting
     customer_response_notes = Column(Text, nullable=True) # customer reason when accepting/rejecting
     review_request_count = Column(Integer, default=0)     # how many times customer has requested re-review
+    is_custom_request = Column(Boolean, default=False)    # customer-submitted bespoke design brief, no catalog rug attached
+    room_type = Column(String(100), nullable=True)        # custom request: intended room/purpose
+    material_preference = Column(String(50), nullable=True)  # custom request: "wool"|"silk"|"cotton"|"synthetic"|"no_preference"
+    budget_range = Column(String(100), nullable=True)     # custom request: preset band, e.g. "₹50,000–₹1,00,000"
+    reference_image_urls = Column(JSON, nullable=True)    # custom request: list[str], up to 3 inspiration images
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     customer = relationship("Customer", back_populates="quotes")
@@ -199,14 +225,30 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
-    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=False)
+    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)  # first item's quote — back-compat pointer for single-item views
     status = Column(String(50), default="pending")
     shipping_address = Column(Text, nullable=True)
     estimated_delivery = Column(DateTime(timezone=True), nullable=True)
     actual_delivery = Column(DateTime(timezone=True), nullable=True)
+    promo_code = Column(String(50), nullable=True)
+    discount_amount = Column(Float, nullable=True)  # total discount applied across all items, in the order's price_currency
+    shipping_cost = Column(Float, nullable=True)  # snapshot of the shipping charge at checkout time; admin-editable afterward (e.g. on marking Shipped)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     quote = relationship("Quote", back_populates="order")
+    items = relationship("OrderItem", back_populates="order")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    order = relationship("Order", back_populates="items")
+    quote = relationship("Quote")
 
 
 class OrderStatusHistory(Base):
@@ -216,6 +258,38 @@ class OrderStatusHistory(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     status = Column(String(50), nullable=False)
     changed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    code = Column(String(50), nullable=False)  # stored uppercase; uniqueness enforced per-tenant in the route
+    discount_type = Column(String(20), nullable=False)  # 'percentage' | 'flat' | 'free_shipping'
+    discount_value = Column(Float, nullable=True)  # % (0-100) for percentage, currency amount for flat; unused for free_shipping
+    min_order_value = Column(Float, nullable=True)
+    max_uses = Column(Integer, nullable=True)  # total redemptions allowed across all customers; null = unlimited
+    one_per_customer = Column(Boolean, default=False)
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    redemptions = relationship("PromoRedemption", back_populates="promo_code", cascade="all, delete-orphan")
+
+
+class PromoRedemption(Base):
+    __tablename__ = "promo_redemptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    promo_code_id = Column(Integer, ForeignKey("promo_codes.id"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    discount_amount = Column(Float, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    promo_code = relationship("PromoCode", back_populates="redemptions")
 
 
 class InventoryTransaction(Base):
@@ -274,6 +348,47 @@ class WorkshopPhoto(Base):
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Testimonial(Base):
+    __tablename__ = "testimonials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    author_name = Column(String(150), nullable=False)
+    author_title = Column(String(150), nullable=True)  # e.g. "Interior Architect"
+    country = Column(String(100), nullable=True)
+    quote = Column(Text, nullable=False)
+    photo_url = Column(String(300), nullable=True)
+    rating = Column(Integer, nullable=True)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProjectGalleryItem(Base):
+    __tablename__ = "project_gallery_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    image_url = Column(String(300), nullable=False)
+    caption = Column(String(150), nullable=True)
+    link_url = Column(String(300), nullable=True)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class NewsletterSubscriber(Base):
+    __tablename__ = "newsletter_subscribers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    email = Column(String(200), nullable=False)
+    source = Column(String(50), nullable=True)  # e.g. "homepage_footer"
+    subscribed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("email", "tenant_id", name="uq_newsletter_email_tenant"),)
 
 
 class RefreshToken(Base):

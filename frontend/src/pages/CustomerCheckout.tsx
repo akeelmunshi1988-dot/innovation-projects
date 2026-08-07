@@ -2,20 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   ShoppingBag, MapPin, User, AlertTriangle, ChevronRight, Truck,
-  CheckCircle, X, LogIn, UserPlus, Eye, EyeOff,
+  CheckCircle, X, LogIn, UserPlus, Eye, EyeOff, Tag,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { createPaymentOrder, verifyPayment, getPublicSettings } from '../services/api';
-import type { CheckoutResponse } from '../services/api';
+import SocialLoginButtons from '../components/SocialLoginButtons';
+import { createPaymentOrder, verifyPayment, getPublicSettings, validatePromoCode } from '../services/api';
+import type { CheckoutResponse, PromoValidateResponse } from '../services/api';
 
-import { fmtExact, currencySymbol } from '../utils/currency';
+import { fmtExact } from '../utils/currency';
 import { fmtDims } from '../utils/size';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { useCart } from '../contexts/CartContext';
 
-interface CheckoutState {
+interface CheckoutItem {
   rug_id: number;
   rug_name: string;
+  image_url?: string | null;
   size_w: number;
   size_h: number;
   qty: number;
@@ -28,9 +32,63 @@ interface CheckoutState {
   gst_amount?: number;
   price_currency: string;
   estimated_days: number;
+}
+
+interface CheckoutState {
+  items: CheckoutItem[];
+  fromCart?: boolean;
   name?: string;
   email?: string;
   phone?: string;
+  promo_code?: string | null;
+  promo_discount_amount?: number;
+  promo_message?: string | null;
+}
+
+// "India" listed first (and selected by default) since that's the common case for this business.
+const COUNTRIES = [
+  'India',
+  'United States', 'United Kingdom', 'Canada', 'Australia', 'United Arab Emirates',
+  'Singapore', 'Germany', 'France', 'Italy', 'Netherlands', 'Switzerland', 'Spain',
+  'Saudi Arabia', 'Qatar', 'Japan', 'New Zealand', 'South Africa', 'Other',
+];
+
+// Maps the browser's IANA timezone (read silently — no permission prompt, unlike
+// navigator.geolocation) to one of the countries above, to preselect the checkout
+// dropdown. This is only a convenience default: the customer can always correct it,
+// and GST is calculated from whatever country is actually submitted, not this guess.
+const TIMEZONE_COUNTRY: Record<string, string> = {
+  'Asia/Kolkata': 'India', 'Asia/Calcutta': 'India',
+  'America/New_York': 'United States', 'America/Chicago': 'United States', 'America/Denver': 'United States',
+  'America/Los_Angeles': 'United States', 'America/Anchorage': 'United States', 'America/Phoenix': 'United States',
+  'Pacific/Honolulu': 'United States', 'America/Detroit': 'United States',
+  'Europe/London': 'United Kingdom',
+  'America/Toronto': 'Canada', 'America/Vancouver': 'Canada', 'America/Edmonton': 'Canada',
+  'America/Winnipeg': 'Canada', 'America/Halifax': 'Canada', 'America/St_Johns': 'Canada', 'America/Regina': 'Canada',
+  'Australia/Sydney': 'Australia', 'Australia/Melbourne': 'Australia', 'Australia/Brisbane': 'Australia',
+  'Australia/Perth': 'Australia', 'Australia/Adelaide': 'Australia', 'Australia/Darwin': 'Australia', 'Australia/Hobart': 'Australia',
+  'Asia/Dubai': 'United Arab Emirates',
+  'Asia/Singapore': 'Singapore',
+  'Europe/Berlin': 'Germany',
+  'Europe/Paris': 'France',
+  'Europe/Rome': 'Italy',
+  'Europe/Amsterdam': 'Netherlands',
+  'Europe/Zurich': 'Switzerland',
+  'Europe/Madrid': 'Spain',
+  'Asia/Riyadh': 'Saudi Arabia',
+  'Asia/Qatar': 'Qatar',
+  'Asia/Tokyo': 'Japan',
+  'Pacific/Auckland': 'New Zealand',
+  'Africa/Johannesburg': 'South Africa',
+};
+
+function detectCountry(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return TIMEZONE_COUNTRY[tz] ?? 'India';
+  } catch {
+    return 'India';
+  }
 }
 
 export default function CustomerCheckout() {
@@ -38,6 +96,8 @@ export default function CustomerCheckout() {
   const navigate = useNavigate();
   const state = location.state as CheckoutState | null;
   const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
+  const { displayPrice, displayCurrency, baseCurrency } = useCurrency();
+  const { clearCart } = useCart();
 
   const [form, setForm] = useState({
     name: state?.name ?? '',
@@ -49,6 +109,7 @@ export default function CustomerCheckout() {
     city: '',
     state_name: '',
     pincode: '',
+    country: detectCountry(),
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +128,13 @@ export default function CustomerCheckout() {
   const [authLoading, setAuthLoading] = useState(false);
   const [showAuthPwd, setShowAuthPwd] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
+  const [shippingRate, setShippingRate] = useState(0);
+
+  const [promoInput, setPromoInput] = useState('');
+  const [promoApplied, setPromoApplied] = useState<PromoValidateResponse | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoInitialized, setPromoInitialized] = useState(false);
 
   // Load Razorpay checkout script once
   useEffect(() => {
@@ -79,10 +147,26 @@ export default function CustomerCheckout() {
   }, []);
 
   useEffect(() => {
-    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+    getPublicSettings().then((data) => {
+      setSizeUnit(data.default_size_unit || 'ft');
+      setShippingRate(data.default_shipping_rate || 0);
+    }).catch(() => {});
   }, []);
 
-  if (!state) {
+  // Re-validate a promo code carried over from the Cart page (server is always the source of truth)
+  useEffect(() => {
+    if (promoInitialized) return;
+    setPromoInitialized(true);
+    if (!state?.promo_code || !state.items) return;
+    const exportOrder = form.country !== 'India';
+    const total = state.items.reduce((sum, i) => sum + (exportOrder ? (i.pre_gst_price ?? i.estimated_price) : i.estimated_price), 0);
+    validatePromoCode(state.promo_code, total, state.email)
+      .then(setPromoApplied)
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!state || !state.items || state.items.length === 0) {
     return (
       <CustomerLayout>
         <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
@@ -97,40 +181,73 @@ export default function CustomerCheckout() {
     );
   }
 
-  const currency = state.price_currency || 'INR';
-  const sym = currencySymbol(currency);
-  const fmt = (n: number) => fmtExact(n, currency);
-  const shape = state.shape ?? 'rect';
-  const area = shape === 'circle'
-    ? (Math.PI * (state.size_w / 2) ** 2).toFixed(2)
-    : shape === 'oval'
-    ? (Math.PI * (state.size_w / 2) * (state.size_h / 2)).toFixed(2)
-    : (state.size_w * state.size_h).toFixed(2);
-  const totalSqm = (parseFloat(area) * state.qty).toFixed(2);
-  const sizeLabel = fmtDims(state.size_w, state.size_h, sizeUnit, shape);
+  const items = state.items;
+  const currency = items[0].price_currency || 'INR';
+  const fmt = (n: number) => displayPrice(n, currency);
+  const showsConvertedEstimate = displayCurrency !== (currency || baseCurrency);
+  // GST is zero-rated for export shipments — the country dropdown decides this live,
+  // so the displayed total must track it even though `items` was priced at "Buy Now" /
+  // "Add to Cart" time (before the destination was known). The actual amount charged is
+  // always recalculated authoritatively server-side from `form.country` at submission —
+  // this just keeps what's shown on screen honest before that point.
+  const isExport = form.country !== 'India';
+  const itemDisplayPrice = (i: CheckoutItem) => (isExport ? (i.pre_gst_price ?? i.estimated_price) : i.estimated_price);
+  const grandTotal = items.reduce((sum, i) => sum + itemDisplayPrice(i), 0);
+  const preGstTotal = items.every((i) => i.pre_gst_price != null)
+    ? items.reduce((sum, i) => sum + (i.pre_gst_price || 0), 0) : null;
+  const gstTotal = isExport ? 0 : (items.every((i) => i.gst_amount != null)
+    ? items.reduce((sum, i) => sum + (i.gst_amount || 0), 0) : null);
+  const maxEstimatedDays = Math.max(...items.map((i) => i.estimated_days));
+  const itemSizeLabel = (i: CheckoutItem) => fmtDims(i.size_w, i.size_h, sizeUnit, i.shape ?? 'rect');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const discountAmount = promoApplied?.discount_amount ?? 0;
+  const payableTotal = Math.max(0, grandTotal + shippingRate - discountAmount);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setPromoLoading(true);
+    setPromoError(null);
+    try {
+      const result = await validatePromoCode(promoInput.trim(), grandTotal, customer?.email || form.email || undefined);
+      setPromoApplied(result);
+      setPromoInput('');
+    } catch (err: any) {
+      setPromoApplied(null);
+      setPromoError(err.response?.data?.detail ?? 'Could not apply this promo code.');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoApplied(null);
+    setPromoError(null);
   };
 
   const initiatePayment = async (name: string, email: string) => {
     const shipping_address = [
       form.address_line1, form.address_line2,
-      form.city, form.state_name, form.pincode,
+      form.city, form.state_name, form.pincode, form.country,
     ].filter(Boolean).join(', ');
 
     setSubmitting(true);
     setError(null);
     try {
       const orderPayload = {
-        rug_id: state.rug_id,
-        size_w: state.size_w, size_h: state.size_h,
-        qty: state.qty, rush_order: state.rush_order,
-        shape,
-        notes: state.notes, name, email,
+        items: items.map((i) => ({
+          rug_id: i.rug_id, size_w: i.size_w, size_h: i.size_h,
+          qty: i.qty, rush_order: i.rush_order, shape: i.shape ?? 'rect', notes: i.notes,
+        })),
+        name, email,
         phone: form.phone || undefined,
         company: form.company || undefined,
         shipping_address,
+        country: form.country,
+        promo_code: promoApplied?.code ?? null,
       };
 
       const paymentOrder = await createPaymentOrder(orderPayload, customerToken);
@@ -144,7 +261,7 @@ export default function CustomerCheckout() {
         amount: paymentOrder.amount_paise,
         currency: paymentOrder.currency,
         name: 'LoomCraftRugs',
-        description: paymentOrder.rug_name,
+        description: items.length === 1 ? items[0].rug_name : `${items.length} rugs`,
         order_id: paymentOrder.razorpay_order_id,
         prefill: { name, email, contact: form.phone || undefined },
         theme: { color: '#1c1917' },
@@ -154,6 +271,7 @@ export default function CustomerCheckout() {
               { ...orderPayload, ...response },
               customerToken,
             );
+            if (state.fromCart) clearCart();
             navigate(`/order/${result.order_id}`, { state: result });
           } catch (err: unknown) {
             const e = err as { response?: { data?: { detail?: string } } };
@@ -222,8 +340,6 @@ export default function CustomerCheckout() {
           <ChevronRight size={11} />
           <Link to="/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
           <ChevronRight size={11} />
-          <Link to={`/catalog/${state.rug_id}`} className="hover:text-stone-900 transition-colors">{state.rug_name}</Link>
-          <ChevronRight size={11} />
           <span className="text-stone-600">Checkout</span>
         </div>
 
@@ -239,69 +355,115 @@ export default function CustomerCheckout() {
           <div className="lg:col-span-2 space-y-4">
             <div className="border border-stone-200">
               <div className="px-5 py-4 border-b border-stone-100">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Order Summary</p>
+                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">
+                  Order Summary {items.length > 1 && `· ${items.length} items`}
+                </p>
               </div>
               <div className="p-5 space-y-4">
-                <div>
-                  <p className="font-serif text-lg font-light text-stone-900">{state.rug_name}</p>
-                  <p className="text-stone-400 text-sm mt-0.5">
-                    {sizeLabel} · {area} m² per piece
-                  </p>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">Quantity</span>
-                    <span className="text-stone-700">{state.qty} piece{state.qty !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">Total area</span>
-                    <span className="text-stone-700">{totalSqm} m²</span>
-                  </div>
-                  {state.rush_order && (
-                    <div className="flex justify-between">
-                      <span className="text-amber-600 text-xs">Rush</span>
-                      <span className="text-amber-600 text-xs">+25%</span>
+                {items.map((item, idx) => (
+                  <div key={idx} className={idx > 0 ? 'pt-4 border-t border-stone-100' : ''}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-serif text-lg font-light text-stone-900">{item.rug_name}</p>
+                        <p className="text-stone-400 text-sm mt-0.5">
+                          {itemSizeLabel(item)} · {item.qty} piece{item.qty !== 1 ? 's' : ''}{item.rush_order ? ' · Rush' : ''}
+                        </p>
+                        {item.notes && <p className="text-stone-400 text-xs mt-0.5">{item.notes}</p>}
+                      </div>
+                      <p className="text-stone-900 text-sm font-medium flex-shrink-0">{fmt(itemDisplayPrice(item))}</p>
                     </div>
-                  )}
-                  {state.pre_gst_price != null && (
+                  </div>
+                ))}
+
+                <div className="space-y-2 text-sm border-t border-stone-200 pt-4">
+                  {preGstTotal != null && (
                     <div className="flex justify-between">
                       <span className="text-stone-400">Pre-tax</span>
-                      <span className="text-stone-600">{fmt(state.pre_gst_price)}</span>
+                      <span className="text-stone-600">{fmt(preGstTotal)}</span>
                     </div>
                   )}
-                  {state.gst_amount != null && (
+                  {gstTotal != null && (
                     <div className="flex justify-between">
-                      <span className="text-stone-400">GST ({state.gst_pct?.toFixed(0)}%)</span>
-                      <span className="text-stone-600">+{fmt(state.gst_amount)}</span>
+                      <span className="text-stone-400">
+                        {isExport ? 'Tax (zero-rated — export)' : `Tax${items[0].gst_pct ? ` (${items[0].gst_pct.toFixed(0)}%)` : ''}`}
+                      </span>
+                      <span className="text-stone-600">{gstTotal > 0 ? `+${fmt(gstTotal)}` : fmt(0)}</span>
                     </div>
                   )}
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Shipping</span>
+                    <span className="text-stone-600">{shippingRate > 0 ? `+${fmt(shippingRate)}` : 'Free'}</span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-stone-400">Expected delivery</span>
                     <span className="text-stone-700 flex items-center gap-1">
                       <Truck size={12} className="text-stone-400" />
-                      ~{state.estimated_days} days
+                      ~{maxEstimatedDays} days
                     </span>
                   </div>
+                  {promoApplied && discountAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-green-600">Promo ({promoApplied.code})</span>
+                      <span className="text-green-600">−{fmt(discountAmount)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Promo code */}
+                <div className="space-y-2 pt-1">
+                  {promoApplied ? (
+                    <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 px-3 py-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CheckCircle size={13} className="text-green-600 flex-shrink-0" />
+                        <span className="text-green-800 text-xs font-medium truncate">{promoApplied.code} applied</span>
+                      </div>
+                      <button type="button" onClick={handleRemovePromo} className="text-green-700 hover:text-green-900 flex-shrink-0">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <div className="relative flex-1 min-w-0">
+                        <Tag size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-300" />
+                        <input
+                          value={promoInput}
+                          onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoError(null); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyPromo(); } }}
+                          placeholder="Promo code"
+                          className="w-full border border-stone-200 focus:border-stone-400 pl-8 pr-3 py-2 text-stone-900 placeholder-stone-300 text-xs uppercase focus:outline-none transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={promoLoading || !promoInput.trim()}
+                        className="px-3 border border-stone-300 hover:border-stone-900 disabled:opacity-40 text-stone-700 text-xs font-medium uppercase tracking-wider transition-colors flex-shrink-0"
+                      >
+                        {promoLoading ? <div className="w-3 h-3 border border-stone-400 border-t-transparent rounded-full animate-spin" /> : 'Apply'}
+                      </button>
+                    </div>
+                  )}
+                  {promoError && (
+                    <p className="text-red-500 text-xs flex items-center gap-1"><AlertTriangle size={11} /> {promoError}</p>
+                  )}
                 </div>
 
                 <div className="border-t border-stone-200 pt-4 flex justify-between items-center">
-                  <span className="text-stone-900 font-medium text-sm">Total (incl. GST)</span>
-                  <span className="text-stone-900 font-medium text-xl">{fmt(state.estimated_price)}</span>
+                  <span className="text-stone-900 font-medium text-sm">Total (incl. Tax & Shipping)</span>
+                  <span className="text-stone-900 font-medium text-xl">{fmt(payableTotal)}</span>
                 </div>
+
+                {showsConvertedEstimate && (
+                  <p className="text-stone-400 text-xs">
+                    Converted estimate — you'll be charged {fmtExact(payableTotal, currency)} ({currency}) via UPI/Bank Transfer.
+                  </p>
+                )}
 
                 <p className="text-stone-400 text-xs leading-relaxed">
                   Final price confirmed after production review. Payment via UPI/Bank Transfer.
                 </p>
               </div>
             </div>
-
-            {state.notes && (
-              <div className="border border-stone-200 p-5">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Special Requirements</p>
-                <p className="text-stone-600 text-sm leading-relaxed">{state.notes}</p>
-              </div>
-            )}
           </div>
 
           {/* Checkout form — right column */}
@@ -418,6 +580,25 @@ export default function CustomerCheckout() {
               </div>
               <div className="p-5 space-y-3">
                 <div>
+                  <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Country *</label>
+                  <select
+                    name="country"
+                    value={form.country}
+                    onChange={handleChange}
+                    required
+                    className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  {form.country !== 'India' && (
+                    <p className="text-stone-400 text-xs mt-1.5">
+                      International order — GST is not charged; import duties/taxes in your country, if any, are your responsibility.
+                    </p>
+                  )}
+                </div>
+                <div>
                   <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Flat / House No. / Building *</label>
                   <input
                     name="address_line1"
@@ -451,24 +632,28 @@ export default function CustomerCheckout() {
                     />
                   </div>
                   <div>
-                    <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">State *</label>
+                    <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
+                      {form.country === 'India' ? 'State *' : 'State / Province *'}
+                    </label>
                     <input
                       name="state_name"
                       value={form.state_name}
                       onChange={handleChange}
-                      placeholder="e.g. Maharashtra"
+                      placeholder={form.country === 'India' ? 'e.g. Maharashtra' : 'e.g. California'}
                       required
                       className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">PIN Code *</label>
+                  <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
+                    {form.country === 'India' ? 'PIN Code *' : 'PIN / ZIP Code *'}
+                  </label>
                   <input
                     name="pincode"
                     value={form.pincode}
                     onChange={handleChange}
-                    placeholder="e.g. 400001"
+                    placeholder={form.country === 'India' ? 'e.g. 400001' : 'e.g. 90001'}
                     required
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                   />
@@ -496,7 +681,7 @@ export default function CustomerCheckout() {
                   {submitting
                     ? 'Opening Payment…'
                     : (isCustomerAuthenticated || (form.name.trim() && form.email.trim()))
-                      ? `Pay ${sym}${fmt(state.estimated_price)}`
+                      ? `Pay ${fmt(payableTotal)}`
                       : 'Fill in your details above'}
                 </button>
 
@@ -625,6 +810,9 @@ export default function CustomerCheckout() {
                 )}
               </button>
             </form>
+            <div className="px-5 pb-5">
+              <SocialLoginButtons returnTo="/cart" />
+            </div>
           </div>
         </div>
       )}

@@ -12,6 +12,37 @@ export const CURRENCIES = [
   { code: 'GBP', label: 'British Pound (£)', symbol: '£' },
 ];
 
+// Maps a locale's region subtag (e.g. the "IN" in "en-IN") to one of the currencies
+// this app supports. Deliberately conservative — a region with no confident mapping
+// here falls through to the tenant's own configured default rather than guessing.
+const REGION_TO_CURRENCY: Record<string, string> = {
+  IN: 'INR',
+  GB: 'GBP',
+  // Eurozone
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR', BE: 'EUR', AT: 'EUR',
+  IE: 'EUR', PT: 'EUR', FI: 'EUR', GR: 'EUR', LU: 'EUR', SK: 'EUR', SI: 'EUR',
+  EE: 'EUR', LV: 'EUR', LT: 'EUR', CY: 'EUR', MT: 'EUR', HR: 'EUR',
+  // USD — US plus territories/countries that peg to or commonly price in USD
+  US: 'USD', PR: 'USD', EC: 'USD', PA: 'USD',
+};
+
+/**
+ * Best-effort currency guess from the browser's own locale info (navigator.languages) —
+ * no IP lookup, no third-party geolocation service, nothing that needs an API key.
+ * Returns null when the visitor's region isn't one we have a confident mapping for,
+ * so the caller can fall back to the tenant's configured default currency instead.
+ */
+export function detectCurrencyFromLocale(): string | null {
+  if (typeof navigator === 'undefined') return null;
+  const locales = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+  for (const loc of locales) {
+    if (!loc) continue;
+    const region = loc.split('-')[1]?.toUpperCase();
+    if (region && REGION_TO_CURRENCY[region]) return REGION_TO_CURRENCY[region];
+  }
+  return null;
+}
+
 export function fmt(n: number, currency = 'INR', fractions = 0): string {
   const locale = LOCALE_MAP[currency] ?? 'en-IN';
   return new Intl.NumberFormat(locale, {

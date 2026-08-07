@@ -4,15 +4,19 @@ import {
   ArrowLeft, BookOpen, Clock, Layers, Package, Ruler,
   DollarSign, Zap, CheckCircle, AlertTriangle, Edit2,
   Trash2, X, Calculator, ChevronRight, ShoppingCart,
-  TrendingUp, Star, RefreshCw,
+  TrendingUp, Star, RefreshCw, Upload, Image as ImageIcon,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
+import axios from 'axios';
 import {
   getRug, updateRug, deleteRug, calculateQuote, getQuotes,
+  addRugImage, updateRugImageOrder, deleteRugImage,
 } from '../services/api';
+import RichTextEditor from '../components/RichTextEditor';
 import type { RugCatalog, Quote, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant, CURRENCIES } from '../utils/currency';
-import { fmtSize, sizeAreaSqm, toMetres } from '../utils/size';
+import { fmtSize, sizeAreaSqm, toMetres, inputUnit } from '../utils/size';
 
 const MATERIAL_BADGE: Record<string, string> = {
   wool:      'bg-amber-900/40 text-amber-300 border border-amber-700/40',
@@ -61,6 +65,7 @@ export default function RugDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editAboutHtml, setEditAboutHtml] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editPile, setEditPile] = useState('');
   const [editWeave, setEditWeave] = useState('');
@@ -77,6 +82,10 @@ export default function RugDetail() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Gallery images
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -91,6 +100,7 @@ export default function RugDetail() {
       // seed edit form
       setEditName(rugData.name);
       setEditDesc(rugData.description ?? '');
+      setEditAboutHtml(rugData.about_content_html ?? '');
       setEditPrice(String(rugData.base_price));
       setEditPile(rugData.pile_height ?? '');
       setEditWeave(rugData.weave_type ?? '');
@@ -147,6 +157,7 @@ export default function RugDetail() {
       const updated = await updateRug(rug.id, {
         name: editName,
         description: editDesc || null,
+        about_content_html: editAboutHtml || null,
         base_price: parseFloat(editPrice),
         base_price_currency: editPriceCurrency || tenant.base_currency,
         pile_height: editPile || null,
@@ -176,6 +187,54 @@ export default function RugDetail() {
     } catch {
       setDeleteLoading(false);
       setDeleteConfirm(false);
+    }
+  };
+
+  // ── Gallery images ───────────────────────────────────────────────────────────
+  const handleGalleryImageUpload = async (file: File) => {
+    if (!rug) return;
+    setGalleryUploading(true);
+    setGalleryError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const nextOrder = rug.images.length > 0 ? Math.max(...rug.images.map((i) => i.sort_order)) + 1 : 0;
+      await addRugImage(rug.id, data.url, nextOrder);
+      await load();
+    } catch (err: any) {
+      setGalleryError(err.response?.data?.detail ?? 'Image upload failed.');
+    } finally {
+      setGalleryUploading(false);
+    }
+  };
+
+  const handleDeleteGalleryImage = async (imageId: number) => {
+    try {
+      await deleteRugImage(imageId);
+      await load();
+    } catch {
+      setGalleryError('Failed to delete image.');
+    }
+  };
+
+  const handleMoveGalleryImage = async (index: number, direction: 'up' | 'down') => {
+    if (!rug) return;
+    const images = [...rug.images].sort((a, b) => a.sort_order - b.sort_order);
+    const swapWith = direction === 'up' ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= images.length) return;
+    const a = images[index];
+    const b = images[swapWith];
+    try {
+      await Promise.all([
+        updateRugImageOrder(a.id, b.sort_order),
+        updateRugImageOrder(b.id, a.sort_order),
+      ]);
+      await load();
+    } catch {
+      setGalleryError('Failed to reorder images.');
     }
   };
 
@@ -336,6 +395,77 @@ export default function RugDetail() {
             </div>
           )}
 
+          {/* Gallery Images */}
+          <div className="bg-dark-900 border border-dark-700 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ImageIcon size={15} className="text-gold-400" />
+                <h2 className="text-cream-200 font-semibold text-sm uppercase tracking-wider">Gallery Images</h2>
+                <span className="text-dark-500 text-xs">({rug.images.length} additional)</span>
+              </div>
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 hover:bg-dark-700 border border-dark-600 rounded-lg text-dark-300 hover:text-cream-200 text-xs cursor-pointer transition-colors">
+                {galleryUploading ? (
+                  <div className="w-3.5 h-3.5 border border-gold-500/40 border-t-gold-500 rounded-full animate-spin" />
+                ) : (
+                  <Upload size={13} />
+                )}
+                Add Image
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  disabled={galleryUploading}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryImageUpload(f); e.target.value = ''; }}
+                />
+              </label>
+            </div>
+            <p className="text-dark-500 text-xs -mt-1">
+              The cover image (set below in Edit) always shows first. These are extra photos shown in the slider on the storefront.
+            </p>
+            {galleryError && (
+              <div className="flex items-center gap-2 text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg p-2.5">
+                <AlertTriangle size={13} /> {galleryError}
+              </div>
+            )}
+            {rug.images.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {[...rug.images].sort((a, b) => a.sort_order - b.sort_order).map((img, i, arr) => (
+                  <div key={img.id} className="relative group rounded-xl overflow-hidden bg-dark-800 border border-dark-700 aspect-square">
+                    <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-dark-950/0 group-hover:bg-dark-950/60 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveGalleryImage(i, 'up')}
+                        disabled={i === 0}
+                        className="p-1.5 rounded-lg bg-dark-900/80 text-cream-200 hover:text-gold-400 disabled:opacity-30 transition-colors"
+                        title="Move earlier"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveGalleryImage(i, 'down')}
+                        disabled={i === arr.length - 1}
+                        className="p-1.5 rounded-lg bg-dark-900/80 text-cream-200 hover:text-gold-400 disabled:opacity-30 transition-colors"
+                        title="Move later"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGalleryImage(img.id)}
+                        className="p-1.5 rounded-lg bg-dark-900/80 text-red-400 hover:text-red-300 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Available Sizes */}
           <div className="bg-dark-900 border border-dark-700 rounded-2xl p-5 space-y-3">
             <div className="flex items-center gap-2">
@@ -473,7 +603,7 @@ export default function RugDetail() {
               {/* Width × Height */}
               <div>
                 <label className="text-cream-400 text-xs uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                  <Ruler size={11} /> Dimensions ({tenant.default_size_unit})
+                  <Ruler size={11} /> Dimensions ({inputUnit(tenant.default_size_unit)})
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 space-y-0.5">
@@ -679,6 +809,17 @@ export default function RugDetail() {
                   rows={3}
                   className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm resize-none transition-colors"
                 />
+                <p className="text-dark-500 text-xs">Short plain-text summary — used for search and page meta description.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">About This Rug</label>
+                <RichTextEditor
+                  value={editAboutHtml}
+                  onChange={setEditAboutHtml}
+                  placeholder="Tell the story of this rug — craftsmanship, materials, inspiration…"
+                />
+                <p className="text-dark-500 text-xs">Rich content shown in the "About this rug" section on the storefront. Falls back to the plain description above when empty.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
