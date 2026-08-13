@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Filter, RefreshCw, Calendar, ChevronDown, Receipt, MapPin, AlertTriangle, Search, X } from 'lucide-react';
-import { getOrders, updateOrderStatus, getOrderBreakdown } from '../services/api';
+import { getOrders, updateOrderStatus, getOrderBreakdown, getCancelEligibility, cancelOrder } from '../services/api';
+import type { CancelEligibility } from '../services/api';
 import type { Order, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { fmtTenant } from '../utils/currency';
+import { fmtAs } from '../utils/currency';
+import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
 
 type Breakdown = QuoteCalculateResponse & {
   stored_final_price: number | null;
   price_currency: string;
+  customer_country: string | null;
   shipping_address: string | null;
   margin_locked: boolean;
   gst_locked: boolean;
@@ -39,7 +42,10 @@ const fmtDate = (s: string | null) =>
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
-  const fmt = (n: number, currency?: string | null) => fmtTenant(n, user!.tenant, currency);
+  // Order totals shown per-row use the currency implied by that customer's own country
+  // (falling back to the tenant's display currency when unmapped/unsupported).
+  const fmtForCustomer = (n: number, currency: string | null | undefined, country: string | null | undefined) =>
+    fmtAs(n, currency, currencyForCountry(country, user!.tenant.currency), user!.tenant);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +55,38 @@ const Orders: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [breakdowns, setBreakdowns] = useState<Record<number, Breakdown | 'loading' | 'error'>>({});
   const [shipPrompt, setShipPrompt] = useState<{ orderId: number; value: string } | null>(null);
+
+  // Cancel order + refund confirmation
+  const [cancelModal, setCancelModal] = useState<{ orderId: number; eligibility: CancelEligibility | 'loading' | 'error' } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
+  const openCancelModal = async (orderId: number) => {
+    setCancelError('');
+    setCancelModal({ orderId, eligibility: 'loading' });
+    try {
+      const eligibility = await getCancelEligibility(orderId);
+      setCancelModal({ orderId, eligibility });
+    } catch {
+      setCancelModal({ orderId, eligibility: 'error' });
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelModal) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const updated = await cancelOrder(cancelModal.orderId);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setCancelModal(null);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Failed to cancel order.';
+      setCancelError(msg);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -74,7 +112,7 @@ const Orders: React.FC = () => {
   const toggleExpand = (orderId: number) => {
     const next = expandedId === orderId ? null : orderId;
     setExpandedId(next);
-    if (next !== null && !breakdowns[next]) {
+    if (next !== null && (!breakdowns[next] || breakdowns[next] === 'error')) {
       setBreakdowns((prev) => ({ ...prev, [next]: 'loading' }));
       getOrderBreakdown(next)
         .then((data) => setBreakdowns((prev) => ({ ...prev, [next]: data })))
@@ -227,7 +265,7 @@ const Orders: React.FC = () => {
 
                   {orderTotal > 0 && (
                     <div className="text-gold-400 font-semibold text-sm flex-shrink-0">
-                      {fmt(orderTotal, quote?.price_currency)}
+                      {fmtForCustomer(orderTotal, quote?.price_currency, quote?.customer?.country)}
                     </div>
                   )}
 
@@ -246,7 +284,7 @@ const Orders: React.FC = () => {
                           <div key={it.id} className="flex items-center justify-between px-3 py-2 text-sm">
                             <span className="text-cream-200">{it.quote?.rug_catalog?.name ?? 'Custom Rug'} × {it.quote?.qty ?? 1}</span>
                             {it.quote?.final_price != null && (
-                              <span className="text-gold-400">{fmt(it.quote.final_price, it.quote.price_currency)}</span>
+                              <span className="text-gold-400">{fmtForCustomer(it.quote.final_price, it.quote.price_currency, it.quote.customer?.country)}</span>
                             )}
                           </div>
                         ))}
@@ -291,14 +329,14 @@ const Orders: React.FC = () => {
                           {order.shipping_cost != null && (
                             <div className="flex justify-between">
                               <span className="text-dark-400">Shipping cost</span>
-                              <span className="text-cream-200">{order.shipping_cost > 0 ? fmt(order.shipping_cost, quote?.price_currency) : 'Free'}</span>
+                              <span className="text-cream-200">{order.shipping_cost > 0 ? fmtForCustomer(order.shipping_cost, quote?.price_currency, quote?.customer?.country) : 'Free'}</span>
                             </div>
                           )}
                           {order.promo_code && (
                             <div className="flex justify-between">
                               <span className="text-dark-400">Promo applied</span>
                               <span className="text-green-400">
-                                {order.promo_code}{order.discount_amount ? ` (−${fmt(order.discount_amount, quote?.price_currency)})` : ''}
+                                {order.promo_code}{order.discount_amount ? ` (−${fmtForCustomer(order.discount_amount, quote?.price_currency, quote?.customer?.country)})` : ''}
                               </span>
                             </div>
                           )}
@@ -309,7 +347,7 @@ const Orders: React.FC = () => {
                       <div className="space-y-2">
                         <h4 className="text-cream-400 text-xs uppercase tracking-wider">Update Status</h4>
                         <div className="grid grid-cols-1 gap-1.5">
-                          {ALL_STATUSES.map((s) => (
+                          {ALL_STATUSES.filter((s) => s !== 'cancelled').map((s) => (
                             <button
                               key={s}
                               disabled={order.status === s || updatingId === order.id}
@@ -364,6 +402,31 @@ const Orders: React.FC = () => {
                             </div>
                           </div>
                         )}
+
+                        {/* Cancel order + refund */}
+                        {order.status === 'cancelled' ? (
+                          order.refund_id ? (
+                            <div className="bg-red-900/10 border border-red-700/30 rounded-lg p-3 text-xs space-y-1">
+                              <p className="text-red-300 font-semibold">
+                                Refunded {fmtForCustomer(order.refund_amount ?? 0, order.quote?.price_currency, order.quote?.customer?.country)}
+                              </p>
+                              <p className="text-dark-500">
+                                Razorpay status: {order.refund_status ?? 'processed'}
+                                {order.refunded_at && ` · ${fmtDate(order.refunded_at)}`}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-dark-500 text-xs">Cancelled — no online payment on file, nothing to refund.</p>
+                          )
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openCancelModal(order.id)}
+                            className="w-full text-sm px-3 py-2 rounded-lg border border-red-800/50 bg-red-950/20 text-red-400 hover:bg-red-900/30 transition-colors text-left"
+                          >
+                            Cancel Order
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -384,12 +447,24 @@ const Orders: React.FC = () => {
                         <div className="flex items-center gap-2 px-4 py-4 text-red-400 text-xs">
                           <AlertTriangle size={13} />
                           Could not load calculation — quote may be missing size or material data.
+                          <button
+                            onClick={() => {
+                              setBreakdowns((prev) => ({ ...prev, [order.id]: 'loading' }));
+                              getOrderBreakdown(order.id)
+                                .then((data) => setBreakdowns((prev) => ({ ...prev, [order.id]: data })))
+                                .catch(() => setBreakdowns((prev) => ({ ...prev, [order.id]: 'error' })));
+                            }}
+                            className="text-gold-400 hover:text-gold-300 underline ml-1"
+                          >
+                            Retry
+                          </button>
                         </div>
                       )}
 
                       {typeof bd === 'object' && (() => {
                         const currency = bd.price_currency || quote?.price_currency || 'INR';
-                        const fmtB = (n: number) => fmt(n, currency);
+                        const country = bd.customer_country ?? quote?.customer?.country;
+                        const fmtB = (n: number) => fmtForCustomer(n, currency, country);
                         return (
                           <div className="p-4 space-y-3">
                             {/* Rate info row */}
@@ -458,16 +533,20 @@ const Orders: React.FC = () => {
 
                             {/* Totals */}
                             <div className="border-t border-dark-600 pt-3 space-y-1.5">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-dark-400">Pre-tax total</span>
-                                <span className="text-cream-200">{fmtB(bd.pre_gst_price)}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-blue-400">GST ({bd.gst_pct.toFixed(0)}%)</span>
-                                <span className="text-blue-300">+{fmtB(bd.gst_amount)}</span>
-                              </div>
+                              {bd.gst_inclusive && (
+                                <>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-dark-400">Pre-tax total</span>
+                                    <span className="text-cream-200">{fmtB(bd.pre_gst_price)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-blue-400">GST ({bd.gst_pct.toFixed(0)}%)</span>
+                                    <span className="text-blue-300">+{fmtB(bd.gst_amount)}</span>
+                                  </div>
+                                </>
+                              )}
                               <div className="flex justify-between text-base font-bold pt-1 border-t border-dark-600">
-                                <span className="text-cream-100">Total (incl. GST)</span>
+                                <span className="text-cream-100">{bd.gst_inclusive ? 'Total (incl. GST)' : 'Total'}</span>
                                 <span className="text-gold-400">{fmtB(bd.final_price)}</span>
                               </div>
                               <div className="flex justify-between text-xs">
@@ -484,6 +563,94 @@ const Orders: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Cancel Order + Refund Confirmation Modal */}
+      {cancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-red-400" />
+                <h2 className="text-cream-100 font-semibold">Cancel Order #{cancelModal.orderId}</h2>
+              </div>
+              <button onClick={() => setCancelModal(null)} className="text-dark-400 hover:text-cream-300"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              {cancelModal.eligibility === 'loading' && (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-5 h-5 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {cancelModal.eligibility === 'error' && (
+                <p className="text-red-400 text-sm">Could not check cancellation eligibility. Please try again.</p>
+              )}
+              {cancelModal.eligibility !== 'loading' && cancelModal.eligibility !== 'error' && (() => {
+                const elig = cancelModal.eligibility as CancelEligibility;
+                if (!elig.eligible) {
+                  return (
+                    <div className="flex items-start gap-2 bg-red-900/20 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">
+                      <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+                      <span>
+                        This order was placed more than {elig.window_hours} hour{elig.window_hours === 1 ? '' : 's'} ago and is no longer eligible for cancellation from here.
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    {elig.has_payment ? (
+                      <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-2">
+                        <p className="text-cream-200 text-sm">
+                          This order was paid online. Cancelling will refund{' '}
+                          <span className="text-gold-400 font-semibold">
+                            {fmtAs(elig.refund_amount, elig.price_currency, elig.price_currency, user!.tenant)}
+                          </span>{' '}
+                          to the customer via Razorpay.
+                        </p>
+                        <p className="text-dark-500 text-xs">
+                          Refunds are processed instantly when possible, otherwise within 5–7 business days.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-dark-400 text-sm">
+                        No online payment is on file for this order — cancelling will just update its status, with nothing to refund.
+                      </p>
+                    )}
+                    <p className="text-dark-500 text-xs">
+                      {elig.hours_remaining < elig.window_hours
+                        ? `${elig.hours_remaining} hour${elig.hours_remaining === 1 ? '' : 's'} left in the cancellation window.`
+                        : ''}
+                    </p>
+                  </>
+                );
+              })()}
+              {cancelError && (
+                <div className="flex items-center gap-2 bg-red-900/20 border border-red-600/30 rounded-lg p-2.5 text-red-400 text-xs">
+                  <AlertTriangle size={13} /> {cancelError}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 px-5 pb-5">
+              <button onClick={() => setCancelModal(null)} className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 text-sm hover:bg-dark-700 transition-colors">
+                Keep Order
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={
+                  cancelling ||
+                  cancelModal.eligibility === 'loading' ||
+                  cancelModal.eligibility === 'error' ||
+                  !(cancelModal.eligibility as CancelEligibility).eligible
+                }
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {cancelling ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <AlertTriangle size={14} />}
+                {cancelling ? 'Cancelling…' : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

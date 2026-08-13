@@ -51,7 +51,14 @@ def _build_pdf(quote_id: int, invoice_type: str, db: Session, tenant_id: int):
     _to_rate   = 1.0 if invoice_currency == _base else (_rates.get(invoice_currency) or 1.0)
     final_price_display = round(quote.final_price * (_to_rate / _from_rate), 2)
 
-    rate_per_sqm = round(final_price_display / total_sqm, 2) if total_sqm > 0 else 0.0
+    # Split final_price back into taxable value + GST using the rate that was actually
+    # applied on this quote — this holds regardless of whether the tenant prices
+    # GST-inclusive or GST-exclusive, since final_price = pre_gst_price * (1 + gst_pct/100)
+    # in both cases.
+    gst_pct = quote.gst_pct if quote.gst_pct is not None else (tenant.default_gst_pct or 12.0)
+    pre_gst_price_display = round(final_price_display / (1 + gst_pct / 100), 2) if gst_pct else final_price_display
+    gst_amount_display = round(final_price_display - pre_gst_price_display, 2)
+
     size_unit = tenant.default_size_unit or "ft"
     dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
     size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
@@ -78,7 +85,9 @@ def _build_pdf(quote_id: int, invoice_type: str, db: Session, tenant_id: int):
         size_desc=size_desc,
         size_dims_str=dims_str,
         qty=qty,
-        rate_per_sqm=rate_per_sqm,
+        pre_gst_price=pre_gst_price_display,
+        gst_amount=gst_amount_display,
+        gst_pct=gst_pct,
         size_sqm=size_sqm,
         currency=tenant.currency or "INR",
         expected_delivery_days=quote.expected_delivery_days,

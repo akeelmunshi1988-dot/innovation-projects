@@ -208,21 +208,38 @@ export const exportNewsletterSubscribers = async (): Promise<void> => {
 // ── Quotes ────────────────────────────────────────────────────────────────────
 
 export interface QuoteFilters {
+  page?: number;
+  page_size?: number;
   status?: string;
   rush_order?: boolean;
+  is_custom_request?: boolean;
+  rug_catalog_id?: number;
   search?: string;
   date_from?: string;
   date_to?: string;
 }
 
-export const getQuotes = async (filters?: QuoteFilters): Promise<Quote[]> => {
-  const params: Record<string, string | boolean> = {};
-  if (filters?.status)                     params.status      = filters.status;
-  if (filters?.rush_order !== undefined)   params.rush_order  = filters.rush_order;
-  if (filters?.search)                     params.search      = filters.search;
-  if (filters?.date_from)                  params.date_from   = filters.date_from;
-  if (filters?.date_to)                    params.date_to     = filters.date_to;
-  const { data } = await api.get<Quote[]>('/quotes', { params });
+export interface QuotePaginatedResponse {
+  items: Quote[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  status_counts: Record<string, number>;
+}
+
+export const getQuotes = async (filters?: QuoteFilters): Promise<QuotePaginatedResponse> => {
+  const params: Record<string, string | number | boolean> = {};
+  if (filters?.page)                       params.page              = filters.page;
+  if (filters?.page_size)                  params.page_size         = filters.page_size;
+  if (filters?.status)                     params.status            = filters.status;
+  if (filters?.rush_order !== undefined)   params.rush_order        = filters.rush_order;
+  if (filters?.is_custom_request !== undefined) params.is_custom_request = filters.is_custom_request;
+  if (filters?.rug_catalog_id !== undefined) params.rug_catalog_id  = filters.rug_catalog_id;
+  if (filters?.search)                     params.search            = filters.search;
+  if (filters?.date_from)                  params.date_from         = filters.date_from;
+  if (filters?.date_to)                    params.date_to           = filters.date_to;
+  const { data } = await api.get<QuotePaginatedResponse>('/quotes', { params });
   return data;
 };
 
@@ -265,22 +282,67 @@ export const sendQuoteToCustomer = async (quoteId: number, vendorNotes?: string)
   return data;
 };
 
+export const previewQuoteAdjustment = async (
+  quoteId: number,
+  opts: {
+    materialId: number; marginPct?: number; manualDiscountPct?: number; shippingCost?: number;
+    customSizeW?: number; customSizeH?: number; rugShape?: string;
+  },
+): Promise<QuoteCalculateResponse> => {
+  const { data } = await api.post<QuoteCalculateResponse>(`/quotes/${quoteId}/adjust/preview`, {
+    material_id: opts.materialId,
+    margin_pct: opts.marginPct ?? null,
+    manual_discount_pct: opts.manualDiscountPct ?? null,
+    shipping_cost: opts.shippingCost ?? null,
+    custom_size_w: opts.customSizeW ?? null,
+    custom_size_h: opts.customSizeH ?? null,
+    rug_shape: opts.rugShape ?? null,
+  });
+  return data;
+};
+
 export const adjustQuotePrice = async (
   quoteId: number,
-  finalPrice: number,
-  vendorNotes?: string,
-  manualDiscountPct?: number,
+  opts: {
+    finalPrice?: number; materialId?: number; marginPct?: number; vendorNotes?: string; manualDiscountPct?: number; shippingCost?: number;
+    customSizeW?: number; customSizeH?: number; rugShape?: string;
+  },
 ): Promise<Quote> => {
   const { data } = await api.patch<Quote>(`/quotes/${quoteId}/adjust`, {
-    final_price: finalPrice,
-    vendor_notes: vendorNotes ?? null,
-    manual_discount_pct: manualDiscountPct ?? null,
+    final_price: opts.finalPrice ?? null,
+    material_id: opts.materialId ?? null,
+    margin_pct: opts.marginPct ?? null,
+    vendor_notes: opts.vendorNotes ?? null,
+    shipping_cost: opts.shippingCost ?? null,
+    manual_discount_pct: opts.manualDiscountPct ?? null,
+    custom_size_w: opts.customSizeW ?? null,
+    custom_size_h: opts.customSizeH ?? null,
+    rug_shape: opts.rugShape ?? null,
   });
+  return data;
+};
+
+export const uploadQuoteSampleImage = async (quoteId: number, file: File): Promise<{ url: string }> => {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<{ url: string }>(`/quotes/${quoteId}/sample-images/upload`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+export const setQuoteSampleImages = async (quoteId: number, imageUrls: string[]): Promise<Quote> => {
+  const { data } = await api.patch<Quote>(`/quotes/${quoteId}/sample-images`, { image_urls: imageUrls });
   return data;
 };
 
 export const rejectQuote = async (quoteId: number, reason?: string): Promise<Quote> => {
   const { data } = await api.patch<Quote>(`/quotes/${quoteId}/reject`, { reason: reason ?? null });
+  return data;
+};
+
+export const reviseQuote = async (quoteId: number): Promise<Quote> => {
+  const { data } = await api.post<Quote>(`/quotes/${quoteId}/revise`);
   return data;
 };
 
@@ -299,7 +361,7 @@ export const updateOrder = async (id: number, order: Partial<Order>): Promise<Or
   return data;
 };
 
-export const getOrderBreakdown = async (id: number): Promise<import('../types').QuoteCalculateResponse & { stored_final_price: number | null; price_currency: string; shipping_address: string | null; margin_locked: boolean; gst_locked: boolean }> => {
+export const getOrderBreakdown = async (id: number): Promise<import('../types').QuoteCalculateResponse & { stored_final_price: number | null; price_currency: string; customer_country: string | null; shipping_address: string | null; margin_locked: boolean; gst_locked: boolean }> => {
   const { data } = await api.get(`/orders/${id}/breakdown`);
   return data;
 };
@@ -308,6 +370,26 @@ export const updateOrderStatus = async (id: number, status: string, shippingCost
   const params: Record<string, string | number> = { status };
   if (shippingCost != null) params.shipping_cost = shippingCost;
   const { data } = await api.patch<Order>(`/orders/${id}/status`, null, { params });
+  return data;
+};
+
+export interface CancelEligibility {
+  eligible: boolean;
+  already_cancelled: boolean;
+  window_hours: number;
+  hours_remaining: number;
+  has_payment: boolean;
+  refund_amount: number;
+  price_currency: string;
+}
+
+export const getCancelEligibility = async (id: number): Promise<CancelEligibility> => {
+  const { data } = await api.get<CancelEligibility>(`/orders/${id}/cancel-eligibility`);
+  return data;
+};
+
+export const cancelOrder = async (id: number): Promise<Order> => {
+  const { data } = await api.post<Order>(`/orders/${id}/cancel`);
   return data;
 };
 
@@ -486,6 +568,7 @@ export const getPublicCatalog = async () => {
 
 export const getPublicSettings = async (): Promise<{
   ai_assistant_enabled: boolean;
+  ai_room_enhance_enabled: boolean;
   business_name: string | null;
   logo_url: string | null;
   default_size_unit: string;
@@ -502,6 +585,13 @@ export const getPublicSettings = async (): Promise<{
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;
+};
+
+/** Best-effort IP -> country guess for guests, used only to pick a default display
+ * currency (see CurrencyContext) — never authoritative for pricing/GST. */
+export const detectGuestCountry = async (): Promise<string | null> => {
+  const { data } = await axios.get<{ country: string | null }>('/api/customer/detect-country');
+  return data.country;
 };
 
 export interface RoomPreset {
@@ -603,6 +693,7 @@ export interface CheckoutResponse {
   promo_code?: string | null;
   discount_amount?: number;
   price_currency: string;
+  gst_inclusive?: boolean;
   items: CheckoutResponseItem[];
   status: string;
   estimated_delivery: string;
@@ -695,7 +786,9 @@ export interface CustomerOrder {
   pre_gst_price: number | null;
   gst_pct: number | null;
   gst_amount: number | null;
+  gst_inclusive: boolean;
   price_currency: string;
+  customer_country: string | null;
   rush_order: boolean;
   manual_discount_pct: number | null;
   shipping_address: string | null;
@@ -735,10 +828,12 @@ export interface OrderBreakdown {
   pre_gst_price: number;
   gst_pct: number;
   gst_amount: number;
+  gst_inclusive: boolean;
   gst_split: GstSplit;
   final_price: number;
   price_per_piece: number;
   price_currency: string;
+  customer_country: string | null;
   stored_final_price: number | null;
   breakdown: OrderBreakdownLine[];
 }

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { getPublicSettings } from '../services/api';
+import { getPublicSettings, detectGuestCountry } from '../services/api';
 import { fmt, getConversionRate, CURRENCIES, detectCurrencyFromLocale } from '../utils/currency';
+import { currencyForCountry } from '../utils/countries';
+import { useCustomerAuth } from './CustomerAuthContext';
 
 interface CurrencyContextValue {
   displayCurrency: string;
@@ -17,28 +19,57 @@ const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 const STORAGE_KEY = 'loomcraftrugs_display_currency';
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
+  const { customer, isCustomerAuthenticated } = useCustomerAuth();
   const [baseCurrency, setBaseCurrency] = useState('INR');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
-  // Priority: an explicit pick the visitor already made (persisted) > a confident guess
-  // from their browser locale (no IP lookup, no third-party service) > the tenant's own
-  // configured default, fetched below once settings load.
+  // Priority, highest first: an explicit pick the visitor already made (persisted) >
+  // a logged-in customer's own saved country (authoritative) > a guest's IP-geolocated
+  // country (best-effort) > a guess from their browser locale (no IP lookup) > the
+  // tenant's own configured default. Everything past the explicit pick is resolved
+  // asynchronously below; this initial value avoids a flash of the wrong currency
+  // before that resolves.
   const [displayCurrency, setDisplayCurrencyState] = useState<string>(
     () => localStorage.getItem(STORAGE_KEY) || detectCurrencyFromLocale() || 'INR'
   );
 
   useEffect(() => {
+    let cancelled = false;
     getPublicSettings()
-      .then((data) => {
+      .then(async (data) => {
+        if (cancelled) return;
         setBaseCurrency(data.base_currency || 'INR');
         setExchangeRates(data.exchange_rates || {});
-        // Only fall back to the tenant's display currency if the visitor hasn't picked one
-        // yet AND their browser locale didn't resolve to a currency we support.
-        if (!localStorage.getItem(STORAGE_KEY) && !detectCurrencyFromLocale()) {
-          setDisplayCurrencyState(data.currency || 'INR');
+
+        if (localStorage.getItem(STORAGE_KEY)) return; // visitor's own choice always wins
+        const tenantDefault = data.currency || 'INR';
+
+        if (isCustomerAuthenticated && customer?.country) {
+          setDisplayCurrencyState(currencyForCountry(customer.country, tenantDefault));
+          return;
+        }
+
+        if (!isCustomerAuthenticated) {
+          try {
+            const country = await detectGuestCountry();
+            if (cancelled) return;
+            if (country) {
+              setDisplayCurrencyState(currencyForCountry(country, tenantDefault));
+              return;
+            }
+          } catch {
+            // Geolocation is best-effort — fall through to the locale guess/tenant default below.
+          }
+        }
+
+        // No authoritative or geolocated country available — keep the browser-locale
+        // guess already used as the initial state, or fall back to the tenant default.
+        if (!detectCurrencyFromLocale()) {
+          setDisplayCurrencyState(tenantDefault);
         }
       })
       .catch(() => {});
-  }, []);
+    return () => { cancelled = true; };
+  }, [isCustomerAuthenticated, customer?.country]);
 
   const setDisplayCurrency = useCallback((code: string) => {
     localStorage.setItem(STORAGE_KEY, code);

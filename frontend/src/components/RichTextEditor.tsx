@@ -7,19 +7,13 @@ import {
   Bold, Italic, List, ListOrdered, Link as LinkIcon,
   Heading2, Heading3, Undo, Redo, Quote, Code2, X,
 } from 'lucide-react';
+import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
 }
-
-// Matches what this editor's toolbar can actually produce, so anything pasted in renders
-// with the same storefront styling (.prose-content) as hand-formatted content — nothing
-// unstyled or structurally surprising slips through. b/i are included since pasted HTML
-// commonly uses them instead of strong/em; TipTap's schema normalizes them on parse.
-const PASTE_ALLOWED_TAGS = ['p', 'h2', 'h3', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote', 'a', 'br'];
-const PASTE_ALLOWED_ATTR = ['href', 'target', 'rel'];
 
 export default function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
   const [htmlPasteOpen, setHtmlPasteOpen] = useState(false);
@@ -47,8 +41,8 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
 
   const handleInsertHtml = () => {
     const clean = DOMPurify.sanitize(htmlPasteValue, {
-      ALLOWED_TAGS: PASTE_ALLOWED_TAGS,
-      ALLOWED_ATTR: PASTE_ALLOWED_ATTR,
+      ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+      ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
     });
     // insertContent additionally filters through the editor's own schema (StarterKit + Link),
     // so anything outside what this editor understands is dropped here too, not just above.

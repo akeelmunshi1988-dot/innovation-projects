@@ -16,7 +16,7 @@ from app.models.models import (
 from app.services.quote_engine import QuoteEngine
 
 
-SYSTEM_PROMPT = """You are a knowledgeable rug manufacturing business assistant for LoomCraftRugs AI.
+SYSTEM_PROMPT_TEMPLATE = """You are a knowledgeable rug manufacturing business assistant for {business_name}.
 
 You ONLY answer based on real data from our business systems. Never make up prices, timelines, or availability — always call the appropriate tool to retrieve accurate information before answering.
 
@@ -187,15 +187,28 @@ TOOLS = [
 
 
 class AIAgent:
-    def __init__(self):
+    def __init__(self, tenant_id: Optional[int] = None):
         if not settings.ANTHROPIC_API_KEY:
             raise ValueError(
                 "ANTHROPIC_API_KEY is not set. Please add it to your .env file."
             )
         self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self.tenant_id = tenant_id
 
     def _get_db(self) -> Session:
         return SessionLocal()
+
+    def _get_business_name(self) -> str:
+        from app.models.models import Tenant
+        db = self._get_db()
+        try:
+            query = db.query(Tenant)
+            if self.tenant_id is not None:
+                query = query.filter(Tenant.id == self.tenant_id)
+            tenant = query.first()
+            return tenant.name if tenant else "our business"  # type: ignore[return-value]
+        finally:
+            db.close()
 
     def _tool_get_catalog(self, filter_available: bool = False) -> str:
         db = self._get_db()
@@ -256,7 +269,7 @@ class AIAgent:
     ) -> str:
         db = self._get_db()
         try:
-            engine = QuoteEngine(db)
+            engine = QuoteEngine(db, tenant_id=self.tenant_id)
             result = engine.calculate_quote(rug_id, size_w, size_h, material_id, qty, rush_order)
             return json.dumps(result, indent=2)
         finally:
@@ -441,6 +454,8 @@ class AIAgent:
         if not session_id:
             session_id = str(uuid.uuid4())
 
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(business_name=self._get_business_name())
+
         # Convert messages to Anthropic format
         anthropic_messages = []
         for msg in messages:
@@ -458,7 +473,7 @@ class AIAgent:
             response = self.client.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=4096,
-                system=SYSTEM_PROMPT,
+                system=system_prompt,
                 tools=TOOLS,
                 messages=anthropic_messages,
             )

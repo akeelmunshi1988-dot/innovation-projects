@@ -5,6 +5,7 @@ import { ChevronRight, CheckCircle, Upload, X, AlertTriangle, Send } from 'lucid
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { SIZE_UNITS, toMetres } from '../utils/size';
 
 const ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
@@ -15,8 +16,12 @@ const MATERIALS = [
   { value: 'cotton', label: 'Cotton' },
   { value: 'synthetic', label: 'Synthetic' },
   { value: 'no_preference', label: 'No preference' },
+  { value: 'other', label: 'Other' },
 ];
 
+// Canonical values submitted/stored — always in the tenant's base currency (INR),
+// so admin-side filtering/comparison stays consistent regardless of which currency
+// the customer viewed the form in. Only the displayed label is converted below.
 const BUDGET_BANDS = [
   'Under ₹25,000',
   '₹25,000 – ₹50,000',
@@ -25,12 +30,22 @@ const BUDGET_BANDS = [
   'Above ₹2,50,000',
   'Not sure yet',
 ];
+const BUDGET_THRESHOLDS = [25000, 50000, 100000, 250000];
+
+const DELIVERY_EXPECTATIONS = [
+  'No preference',
+  'ASAP / Rush',
+  'Within 4 weeks',
+  '1–2 months',
+  '2–3 months or more',
+];
 
 const MAX_IMAGES = 3;
 
 export default function CustomerCustomRugRequest() {
   const navigate = useNavigate();
   const { customer, isCustomerAuthenticated } = useCustomerAuth();
+  const { displayPrice, baseCurrency } = useCurrency();
 
   const [form, setForm] = useState({
     name: customer?.name ?? '',
@@ -42,7 +57,9 @@ export default function CustomerCustomRugRequest() {
     size_h: '',
     unit: 'ft',
     material_preference: 'no_preference',
+    material_other: '',
     budget_range: BUDGET_BANDS[0],
+    expected_delivery: DELIVERY_EXPECTATIONS[0],
     notes: '',
   });
   const [images, setImages] = useState<string[]>([]);
@@ -76,6 +93,8 @@ export default function CustomerCustomRugRequest() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
+    if (!form.size_w.trim() || !form.size_h.trim()) { setError('Approximate size is required.'); return; }
+    if (form.material_preference === 'other' && !form.material_other.trim()) { setError('Please specify the material you have in mind.'); return; }
     setSubmitting(true);
     setError('');
     try {
@@ -89,8 +108,9 @@ export default function CustomerCustomRugRequest() {
         room_type: form.room_type || undefined,
         size_w: sizeW,
         size_h: sizeH,
-        material_preference: form.material_preference,
+        material_preference: form.material_preference === 'other' ? form.material_other.trim() : form.material_preference,
         budget_range: form.budget_range,
+        expected_delivery: form.expected_delivery || undefined,
         notes: form.notes || undefined,
         reference_image_urls: images.length > 0 ? images : undefined,
       });
@@ -122,6 +142,19 @@ export default function CustomerCustomRugRequest() {
       </CustomerLayout>
     );
   }
+
+  // Labels shown to the customer are converted to their detected currency; the
+  // underlying values submitted/stored stay the canonical INR bands (BUDGET_BANDS)
+  // so admin-side data stays comparable across every request regardless of who's viewing it.
+  const [t0, t1, t2, t3] = BUDGET_THRESHOLDS.map((v) => displayPrice(v, baseCurrency));
+  const budgetBandLabels = [
+    `Under ${t0}`,
+    `${t0} – ${t1}`,
+    `${t1} – ${t2}`,
+    `${t2} – ${t3}`,
+    `Above ${t3}`,
+    'Not sure yet',
+  ];
 
   return (
     <CustomerLayout>
@@ -180,16 +213,16 @@ export default function CustomerCustomRugRequest() {
           </div>
 
           <div>
-            <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Approximate Size (optional)</label>
+            <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Approximate Size *</label>
             <div className="grid grid-cols-3 gap-3">
-              <input type="number" min="0" step="0.1" name="size_w" value={form.size_w} onChange={handleChange} placeholder="Width"
+              <input type="number" min="0" step="0.1" name="size_w" value={form.size_w} onChange={handleChange} required placeholder="Width"
                 className="border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors" />
-              <input type="number" min="0" step="0.1" name="size_h" value={form.size_h} onChange={handleChange} placeholder="Length"
+              <input type="number" min="0" step="0.1" name="size_h" value={form.size_h} onChange={handleChange} required placeholder="Length"
                 className="border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors" />
               <select name="unit" value={form.unit} onChange={handleChange}
                 className="border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
               >
-                {SIZE_UNITS.map((u) => <option key={u.code} value={u.code}>{u.label}</option>)}
+                {SIZE_UNITS.filter((u) => u.code !== 'both').map((u) => <option key={u.code} value={u.code}>{u.label}</option>)}
               </select>
             </div>
           </div>
@@ -201,6 +234,11 @@ export default function CustomerCustomRugRequest() {
             >
               {MATERIALS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
+            {form.material_preference === 'other' && (
+              <input name="material_other" value={form.material_other} onChange={handleChange} required
+                placeholder="Tell us the material you have in mind" maxLength={50}
+                className="mt-3 w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors" />
+            )}
           </div>
 
           <div>
@@ -208,7 +246,16 @@ export default function CustomerCustomRugRequest() {
             <select name="budget_range" value={form.budget_range} onChange={handleChange}
               className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
             >
-              {BUDGET_BANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+              {BUDGET_BANDS.map((b, i) => <option key={b} value={b}>{budgetBandLabels[i]}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Expected Delivery (optional)</label>
+            <select name="expected_delivery" value={form.expected_delivery} onChange={handleChange}
+              className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
+            >
+              {DELIVERY_EXPECTATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
 

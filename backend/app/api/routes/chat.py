@@ -17,7 +17,7 @@ async def chat(
     db: Session = Depends(get_db),
 ):
     try:
-        agent = AIAgent()
+        agent = AIAgent(tenant_id=current_user.tenant_id)  # type: ignore[arg-type]
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
 

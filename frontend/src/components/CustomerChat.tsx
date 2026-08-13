@@ -17,6 +17,7 @@ interface ChatAction {
   pre_gst_price?: number;
   gst_pct?: number;
   gst_amount?: number;
+  gst_inclusive?: boolean;
   price_currency?: string;
   estimated_days?: number;
 }
@@ -111,7 +112,7 @@ function ChatMarkdown({ content }: { content: string }) {
   );
 }
 
-export default function CustomerChat() {
+export default function CustomerChat({ businessName }: { businessName?: string | null }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -253,7 +254,7 @@ export default function CustomerChat() {
             {messages.length === 0 && !loading && (
               <div className="space-y-4">
                 <div className="bg-dark-800 rounded-xl rounded-bl-sm px-3 py-2.5 text-sm text-dark-200 space-y-2">
-                  <ChatMarkdown content={"Hi! I'm your **LoomCraftRugs AI** rug consultant.\n\nI can help you:\n- Choose the right rug for your space\n- Understand materials and weave types\n- Figure out the best size"} />
+                  <ChatMarkdown content={`Hi! I'm ${businessName ? `**${businessName}**'s` : 'your'} rug consultant.\n\nI can help you:\n- Choose the right rug for your space\n- Understand materials and weave types\n- Figure out the best size`} />
                   <div className="flex items-start gap-2 bg-gold-600/10 border border-gold-500/30 rounded-lg px-2.5 py-2">
                     <HelpCircle size={14} className="text-gold-400 flex-shrink-0 mt-0.5" />
                     <p className="text-gold-300 text-sm leading-relaxed font-medium">What can I help you with today?</p>
@@ -328,6 +329,7 @@ export default function CustomerChat() {
                                         pre_gst_price: msg.action!.pre_gst_price,
                                         gst_pct: msg.action!.gst_pct,
                                         gst_amount: msg.action!.gst_amount,
+                                        gst_inclusive: msg.action!.gst_inclusive,
                                         price_currency: msg.action!.price_currency ?? 'INR',
                                         estimated_days: msg.action!.estimated_days ?? 21,
                                       },

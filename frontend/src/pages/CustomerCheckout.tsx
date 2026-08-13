@@ -12,6 +12,7 @@ import type { CheckoutResponse, PromoValidateResponse } from '../services/api';
 
 import { fmtExact } from '../utils/currency';
 import { fmtDims } from '../utils/size';
+import { COUNTRIES, detectCountry } from '../utils/countries';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
@@ -30,6 +31,7 @@ interface CheckoutItem {
   pre_gst_price?: number;
   gst_pct?: number;
   gst_amount?: number;
+  gst_inclusive?: boolean;
   price_currency: string;
   estimated_days: number;
 }
@@ -43,52 +45,6 @@ interface CheckoutState {
   promo_code?: string | null;
   promo_discount_amount?: number;
   promo_message?: string | null;
-}
-
-// "India" listed first (and selected by default) since that's the common case for this business.
-const COUNTRIES = [
-  'India',
-  'United States', 'United Kingdom', 'Canada', 'Australia', 'United Arab Emirates',
-  'Singapore', 'Germany', 'France', 'Italy', 'Netherlands', 'Switzerland', 'Spain',
-  'Saudi Arabia', 'Qatar', 'Japan', 'New Zealand', 'South Africa', 'Other',
-];
-
-// Maps the browser's IANA timezone (read silently — no permission prompt, unlike
-// navigator.geolocation) to one of the countries above, to preselect the checkout
-// dropdown. This is only a convenience default: the customer can always correct it,
-// and GST is calculated from whatever country is actually submitted, not this guess.
-const TIMEZONE_COUNTRY: Record<string, string> = {
-  'Asia/Kolkata': 'India', 'Asia/Calcutta': 'India',
-  'America/New_York': 'United States', 'America/Chicago': 'United States', 'America/Denver': 'United States',
-  'America/Los_Angeles': 'United States', 'America/Anchorage': 'United States', 'America/Phoenix': 'United States',
-  'Pacific/Honolulu': 'United States', 'America/Detroit': 'United States',
-  'Europe/London': 'United Kingdom',
-  'America/Toronto': 'Canada', 'America/Vancouver': 'Canada', 'America/Edmonton': 'Canada',
-  'America/Winnipeg': 'Canada', 'America/Halifax': 'Canada', 'America/St_Johns': 'Canada', 'America/Regina': 'Canada',
-  'Australia/Sydney': 'Australia', 'Australia/Melbourne': 'Australia', 'Australia/Brisbane': 'Australia',
-  'Australia/Perth': 'Australia', 'Australia/Adelaide': 'Australia', 'Australia/Darwin': 'Australia', 'Australia/Hobart': 'Australia',
-  'Asia/Dubai': 'United Arab Emirates',
-  'Asia/Singapore': 'Singapore',
-  'Europe/Berlin': 'Germany',
-  'Europe/Paris': 'France',
-  'Europe/Rome': 'Italy',
-  'Europe/Amsterdam': 'Netherlands',
-  'Europe/Zurich': 'Switzerland',
-  'Europe/Madrid': 'Spain',
-  'Asia/Riyadh': 'Saudi Arabia',
-  'Asia/Qatar': 'Qatar',
-  'Asia/Tokyo': 'Japan',
-  'Pacific/Auckland': 'New Zealand',
-  'Africa/Johannesburg': 'South Africa',
-};
-
-function detectCountry(): string {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return TIMEZONE_COUNTRY[tz] ?? 'India';
-  } catch {
-    return 'India';
-  }
 }
 
 export default function CustomerCheckout() {
@@ -129,6 +85,7 @@ export default function CustomerCheckout() {
   const [showAuthPwd, setShowAuthPwd] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
   const [shippingRate, setShippingRate] = useState(0);
+  const [businessName, setBusinessName] = useState('Store');
 
   const [promoInput, setPromoInput] = useState('');
   const [promoApplied, setPromoApplied] = useState<PromoValidateResponse | null>(null);
@@ -150,6 +107,7 @@ export default function CustomerCheckout() {
     getPublicSettings().then((data) => {
       setSizeUnit(data.default_size_unit || 'ft');
       setShippingRate(data.default_shipping_rate || 0);
+      setBusinessName(data.business_name || 'Store');
     }).catch(() => {});
   }, []);
 
@@ -191,11 +149,12 @@ export default function CustomerCheckout() {
   // always recalculated authoritatively server-side from `form.country` at submission —
   // this just keeps what's shown on screen honest before that point.
   const isExport = form.country !== 'India';
+  const gstApplies = !isExport && items.every((i) => i.gst_inclusive === true);
   const itemDisplayPrice = (i: CheckoutItem) => (isExport ? (i.pre_gst_price ?? i.estimated_price) : i.estimated_price);
   const grandTotal = items.reduce((sum, i) => sum + itemDisplayPrice(i), 0);
-  const preGstTotal = items.every((i) => i.pre_gst_price != null)
+  const preGstTotal = (isExport || gstApplies) && items.every((i) => i.pre_gst_price != null)
     ? items.reduce((sum, i) => sum + (i.pre_gst_price || 0), 0) : null;
-  const gstTotal = isExport ? 0 : (items.every((i) => i.gst_amount != null)
+  const gstTotal = isExport ? 0 : (gstApplies && items.every((i) => i.gst_amount != null)
     ? items.reduce((sum, i) => sum + (i.gst_amount || 0), 0) : null);
   const maxEstimatedDays = Math.max(...items.map((i) => i.estimated_days));
   const itemSizeLabel = (i: CheckoutItem) => fmtDims(i.size_w, i.size_h, sizeUnit, i.shape ?? 'rect');
@@ -260,7 +219,7 @@ export default function CustomerCheckout() {
         key: paymentOrder.key_id,
         amount: paymentOrder.amount_paise,
         currency: paymentOrder.currency,
-        name: 'LoomCraftRugs',
+        name: businessName,
         description: items.length === 1 ? items[0].rug_name : `${items.length} rugs`,
         order_id: paymentOrder.razorpay_order_id,
         prefill: { name, email, contact: form.phone || undefined },
@@ -316,7 +275,7 @@ export default function CustomerCheckout() {
         email = user.email;
       } else {
         await customerRegister(
-          authForm.name, authForm.email, authForm.password,
+          authForm.name, authForm.email, authForm.password, form.country,
           authForm.phone || undefined, authForm.company || undefined,
         );
       }
@@ -449,7 +408,7 @@ export default function CustomerCheckout() {
                 </div>
 
                 <div className="border-t border-stone-200 pt-4 flex justify-between items-center">
-                  <span className="text-stone-900 font-medium text-sm">Total (incl. Tax & Shipping)</span>
+                  <span className="text-stone-900 font-medium text-sm">{gstApplies || isExport ? 'Total (incl. Tax & Shipping)' : 'Total (incl. Shipping)'}</span>
                   <span className="text-stone-900 font-medium text-xl">{fmt(payableTotal)}</span>
                 </div>
 

@@ -144,6 +144,7 @@ export interface Quote {
   rug_catalog_id: number | null;
   custom_size_w: number | null;
   custom_size_h: number | null;
+  rug_shape: string | null;
   material_id: number | null;
   qty: number;
   base_price: number | null;
@@ -166,6 +167,8 @@ export interface Quote {
   material_preference: string | null;
   budget_range: string | null;
   reference_image_urls: string[] | null;
+  vendor_sample_image_urls: string[] | null;
+  revised_from_quote_id: number | null;
 }
 
 export interface OrderItem {
@@ -176,13 +179,18 @@ export interface OrderItem {
 export interface Order {
   id: number;
   quote_id: number;
-  status: 'pending' | 'in_production' | 'quality_check' | 'shipped' | 'delivered';
+  status: 'pending' | 'in_production' | 'quality_check' | 'shipped' | 'delivered' | 'cancelled';
   estimated_delivery: string | null;
   actual_delivery: string | null;
   created_at: string;
   promo_code?: string | null;
   discount_amount?: number | null;
   shipping_cost?: number | null;
+  razorpay_payment_id?: string | null;
+  refund_id?: string | null;
+  refund_status?: string | null;
+  refund_amount?: number | null;
+  refunded_at?: string | null;
   quote?: Quote;
   items?: OrderItem[];
 }
@@ -204,6 +212,7 @@ export interface QuoteCalculateRequest {
   qty: number;
   rush_order: boolean;
   manual_discount_pct?: number;
+  shipping_cost?: number;
 }
 
 export interface QuoteBreakdownItem {
@@ -225,9 +234,11 @@ export interface QuoteCalculateResponse {
   manual_discount: number;
   rush_surcharge: number;
   size_surcharge: number;
+  shipping_cost: number;
   pre_gst_price: number;
   gst_pct: number;
   gst_amount: number;
+  gst_inclusive: boolean;
   final_price: number;
   price_per_piece: number;
   price_currency: string | null;

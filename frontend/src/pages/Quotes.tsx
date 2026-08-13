@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   FileText, RefreshCw, ChevronDown, CheckCircle, Send, XCircle, Clock,
-  AlertTriangle, Download, MessageCircle, Mail, X, LayoutList, Columns, Search, Pencil,
+  AlertTriangle, Download, MessageCircle, Mail, X, LayoutList, Columns, Search, Pencil, Upload, RotateCcw,
 } from 'lucide-react';
-import { getQuotes, updateQuote, downloadInvoice, sendQuoteEmail, sendQuoteToCustomer, adjustQuotePrice, rejectQuote } from '../services/api';
-import type { Quote } from '../types';
+import { getQuotes, getInventory, updateQuote, downloadInvoice, sendQuoteEmail, sendQuoteToCustomer, adjustQuotePrice, previewQuoteAdjustment, rejectQuote, reviseQuote, uploadQuoteSampleImage, setQuoteSampleImages } from '../services/api';
+import type { Quote, Material, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { fmtTenant } from '../utils/currency';
-import { fmtDims } from '../utils/size';
+import { fmtTenant, fmtAs } from '../utils/currency';
+import { currencyForCountry } from '../utils/countries';
+import { fmtDims, fmtDim, inputUnit, toMetres } from '../utils/size';
 
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   draft:    { label: 'Draft',    color: 'text-dark-400 bg-dark-800 border-dark-700',          icon: <Clock size={12} /> },
@@ -33,12 +34,12 @@ interface EmailModalState {
   type: 'proforma' | 'tax' | 'export';
 }
 
-function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) => string, sizeUnit: string): string {
+function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) => string, sizeUnit: string, businessName: string): string {
   const phone = q.customer?.phone?.replace(/\D/g, '') ?? '';
   const name = q.customer?.name ?? 'there';
   const rug = rugName(q);
   const size = q.custom_size_w && q.custom_size_h
-    ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit)
+    ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit, q.rug_shape || 'rect')
     : '';
   const price = q.final_price != null ? fmt(q.final_price, q.price_currency) : 'TBD';
   const msg = [
@@ -52,7 +53,7 @@ function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) =
     q.rush_order ? '⚡ Rush' : '',
     '',
     'This quote is valid for 15 days. Please confirm to proceed.',
-    '— LoomCraftRugs Team',
+    `— ${businessName} Team`,
   ].filter(Boolean).join('\n');
   const base = phone ? `https://wa.me/${phone}` : 'https://wa.me/';
   return `${base}?text=${encodeURIComponent(msg)}`;
@@ -61,18 +62,37 @@ function buildWhatsAppUrl(q: Quote, fmt: (n: number, currency?: string | null) =
 export default function Quotes() {
   const { user } = useAuth();
   const fmt = (n: number, currency?: string | null) => fmtTenant(n, user!.tenant, currency);
+  // Quote/order totals shown per-row use the currency implied by that customer's own
+  // country (falling back to the tenant's display currency when unmapped) rather than
+  // always showing the tenant's fixed currency.
+  const fmtForCustomer = (n: number, currency: string | null | undefined, country: string | null | undefined) =>
+    fmtAs(n, currency, currencyForCountry(country, user!.tenant.currency), user!.tenant);
   const sizeUnit = user!.tenant.default_size_unit ?? 'ft';
 
+  const PAGE_SIZE = 20;
+
+  // List view: server-paginated, appended to on scroll.
   const [quotes, setQuotes]         = useState<Quote[]>([]);
+  const [page, setPage]             = useState(1);
+  const [total, setTotal]           = useState(0);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({ all: 0, draft: 0, sent: 0, accepted: 0, rejected: 0 });
   const [loading, setLoading]       = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError]           = useState('');
+
+  // Pipeline view: needs every status loaded at once to group into columns —
+  // fetched separately from the paginated list, uncapped by the status tab.
+  const [pipelineQuotes, setPipelineQuotes] = useState<Quote[]>([]);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+
   const [filter, setFilter]         = useState<string>('all');
   const [updating, setUpdating]     = useState<number | null>(null);
   const [expanded, setExpanded]     = useState<number | null>(null);
   const [viewMode, setViewMode]     = useState<'list' | 'pipeline'>('list');
 
   // Filters
-  const [search, setSearch]         = useState('');
+  const [search, setSearch]           = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [rushOnly, setRushOnly]     = useState(false);
   const [customOnly, setCustomOnly] = useState(false);
   const [dateFrom, setDateFrom]     = useState('');
@@ -88,33 +108,132 @@ export default function Quotes() {
   const [sendingQuote, setSendingQuote] = useState(false);
 
   // Adjust price modal
-  const [adjustModal, setAdjustModal] = useState<{ quoteId: number; originalPrice: number; newPrice: string; discountPct: string; vendorNotes: string } | null>(null);
+  const [adjustModal, setAdjustModal] = useState<{
+    quoteId: number; originalPrice: number; newPrice: string; discountPct: string; vendorNotes: string;
+    isCustomRequest: boolean; materialId: string; marginPct: string; shippingCost: string;
+    rugLabel: string; sizeLabel: string; shape: string; sizeW: string; sizeH: string;
+    customerCountry: string | null | undefined;
+  } | null>(null);
   const [adjusting, setAdjusting]     = useState(false);
+  const [materials, setMaterials]     = useState<Material[]>([]);
+
+  // Material-based pricing preview — shown before the vendor commits to sending
+  // it to the customer. Any change to a pricing input invalidates it, forcing a
+  // fresh Calculate before Send to Customer is available again.
+  const [calcResult, setCalcResult]   = useState<QuoteCalculateResponse | null>(null);
+  const [calculating, setCalculating] = useState(false);
+  const [calcError, setCalcError]     = useState('');
+
+  useEffect(() => {
+    getInventory().then((data) => setMaterials(data.filter((m) => m.is_available))).catch(() => {});
+  }, []);
 
   // Reject modal
   const [rejectModal, setRejectModal] = useState<{ quoteId: number; reason: string } | null>(null);
   const [rejecting, setRejecting]     = useState(false);
 
-  const load = async () => {
-    setLoading(true);
+  // Debounce search — avoid firing a request per keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (append) setLoadingMore(true); else setLoading(true);
     setError('');
     try {
-      const data = await getQuotes();
-      setQuotes(data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      const data = await getQuotes({
+        page: pageNum,
+        page_size: PAGE_SIZE,
+        status: filter !== 'all' ? filter : undefined,
+        search: debouncedSearch || undefined,
+        rush_order: rushOnly || undefined,
+        is_custom_request: customOnly || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      });
+      setQuotes((qs) => (append ? [...qs, ...data.items] : data.items));
+      setTotal(data.total);
+      setStatusCounts(data.status_counts);
+      setPage(pageNum);
     } catch {
       setError('Failed to load quotes.');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false); else setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, debouncedSearch, rushOnly, customOnly, dateFrom, dateTo]);
 
-  useEffect(() => { load(); }, []);
+  const fetchPipeline = useCallback(async () => {
+    setPipelineLoading(true);
+    setError('');
+    try {
+      const data = await getQuotes({
+        page: 1,
+        page_size: 200, // pipeline groups every status into columns, so it needs everything at once
+        search: debouncedSearch || undefined,
+        rush_order: rushOnly || undefined,
+        is_custom_request: customOnly || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      });
+      setPipelineQuotes(data.items);
+      setTotal(data.total);
+      setStatusCounts(data.status_counts);
+    } catch {
+      setError('Failed to load quotes.');
+    } finally {
+      setPipelineLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, rushOnly, customOnly, dateFrom, dateTo]);
+
+  // Reset to page 1 / refetch whenever the active view or a filter changes
+  useEffect(() => {
+    if (viewMode === 'list') fetchPage(1, false);
+  }, [viewMode, fetchPage]);
+
+  useEffect(() => {
+    if (viewMode === 'pipeline') fetchPipeline();
+  }, [viewMode, fetchPipeline]);
+
+  // Infinite scroll — load the next page once the sentinel at the bottom of the
+  // list comes into view.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const hasMore = quotes.length < total;
+
+  useEffect(() => {
+    if (viewMode !== 'list') return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          fetchPage(page + 1, true);
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [viewMode, hasMore, loading, loadingMore, page, fetchPage]);
+
+  const load = () => (viewMode === 'pipeline' ? fetchPipeline() : fetchPage(1, false));
+
+  // Applies a mutated quote to whichever view(s) currently hold it, then
+  // reconciles counts/pagination from the server — status changes can move a
+  // quote out of the currently active status tab or pipeline column.
+  const applyQuoteUpdate = (updated: Quote) => {
+    setQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+    setPipelineQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+    if (viewMode === 'pipeline') fetchPipeline(); else fetchPage(1, false);
+  };
 
   const changeStatus = async (id: number, status: Quote['status']) => {
     setUpdating(id);
     try {
       const updated = await updateQuote(id, { status });
-      setQuotes((qs) => qs.map((q) => (q.id === id ? { ...q, ...updated } : q)));
+      applyQuoteUpdate(updated);
     } catch {
       // silently fail
     } finally {
@@ -151,7 +270,7 @@ export default function Quotes() {
     setSendingQuote(true);
     try {
       const updated = await sendQuoteToCustomer(sendModal.quoteId, sendModal.vendorNotes || undefined);
-      setQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+      applyQuoteUpdate(updated);
       setSendModal(null);
     } catch {
       // silently fail — user can retry
@@ -160,23 +279,126 @@ export default function Quotes() {
     }
   };
 
+  const handleSaveSampleImages = async (quoteId: number, imageUrls: string[]) => {
+    const updated = await setQuoteSampleImages(quoteId, imageUrls);
+    setQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+    setPipelineQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+  };
+
+  const [adjustError, setAdjustError] = useState('');
+
+  const closeAdjustModal = () => {
+    setAdjustModal(null);
+    setCalcResult(null);
+    setCalcError('');
+    setAdjustError('');
+  };
+
+  // Shared by Calculate and Send to Customer — parses/converts the material-form
+  // fields once so the two actions can't drift out of sync with each other.
+  const parseMaterialFormSize = () => {
+    if (!adjustModal) return null;
+    const unit = inputUnit(sizeUnit);
+    const w = parseFloat(adjustModal.sizeW);
+    if (isNaN(w) || w <= 0) return null;
+    const sizeWM = toMetres(w, unit);
+    let sizeHM: number;
+    if (adjustModal.shape !== 'circle') {
+      const h = parseFloat(adjustModal.sizeH);
+      if (isNaN(h) || h <= 0) return null;
+      sizeHM = toMetres(h, unit);
+    } else {
+      sizeHM = sizeWM;
+    }
+    return { sizeWM, sizeHM };
+  };
+
+  const handleCalculate = async () => {
+    if (!adjustModal || !adjustModal.materialId) return;
+    const size = parseMaterialFormSize();
+    if (!size) return;
+    const discountPct = adjustModal.discountPct ? parseFloat(adjustModal.discountPct) : undefined;
+    const shippingCost = adjustModal.shippingCost ? parseFloat(adjustModal.shippingCost) : undefined;
+
+    setCalcError('');
+    setCalculating(true);
+    try {
+      const result = await previewQuoteAdjustment(adjustModal.quoteId, {
+        materialId: Number(adjustModal.materialId),
+        marginPct: adjustModal.marginPct ? parseFloat(adjustModal.marginPct) : undefined,
+        manualDiscountPct: discountPct && discountPct > 0 ? discountPct : undefined,
+        shippingCost: shippingCost && shippingCost > 0 ? shippingCost : undefined,
+        customSizeW: size.sizeWM,
+        customSizeH: size.sizeHM,
+        rugShape: adjustModal.shape,
+      });
+      setCalcResult(result);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Failed to calculate.';
+      setCalcError(msg);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  // Auto-recalculate the material-based price shortly after the vendor stops
+  // editing — no explicit "Calculate" click needed. Each relevant field's
+  // onChange already clears calcResult immediately so stale numbers never
+  // linger on screen while this debounce is pending.
+  useEffect(() => {
+    if (!adjustModal || !adjustModal.isCustomRequest) return;
+    const t = setTimeout(() => { handleCalculate(); }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    adjustModal?.isCustomRequest,
+    adjustModal?.materialId,
+    adjustModal?.sizeW,
+    adjustModal?.sizeH,
+    adjustModal?.marginPct,
+    adjustModal?.discountPct,
+    adjustModal?.shippingCost,
+    adjustModal?.shape,
+  ]);
+
   const handleAdjustPrice = async () => {
     if (!adjustModal) return;
-    const price = parseFloat(adjustModal.newPrice);
-    if (isNaN(price) || price <= 0) return;
     const discountPct = adjustModal.discountPct ? parseFloat(adjustModal.discountPct) : undefined;
+    const shippingCost = adjustModal.shippingCost ? parseFloat(adjustModal.shippingCost) : undefined;
+    const useMaterial = adjustModal.isCustomRequest;
+
+    let sizeWM: number | undefined;
+    let sizeHM: number | undefined;
+    if (useMaterial) {
+      if (!adjustModal.materialId || !calcResult) return;
+      const size = parseMaterialFormSize();
+      if (!size) return;
+      sizeWM = size.sizeWM;
+      sizeHM = size.sizeHM;
+    } else {
+      const price = parseFloat(adjustModal.newPrice);
+      if (isNaN(price) || price <= 0) return;
+    }
+
+    setAdjustError('');
     setAdjusting(true);
     try {
-      const updated = await adjustQuotePrice(
-        adjustModal.quoteId,
-        price,
-        adjustModal.vendorNotes || undefined,
-        discountPct && discountPct > 0 ? discountPct : undefined,
-      );
-      setQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
-      setAdjustModal(null);
-    } catch {
-      // silently fail
+      const updated = await adjustQuotePrice(adjustModal.quoteId, {
+        finalPrice: useMaterial ? undefined : parseFloat(adjustModal.newPrice),
+        materialId: useMaterial ? Number(adjustModal.materialId) : undefined,
+        marginPct: useMaterial && adjustModal.marginPct ? parseFloat(adjustModal.marginPct) : undefined,
+        vendorNotes: adjustModal.vendorNotes || undefined,
+        manualDiscountPct: discountPct && discountPct > 0 ? discountPct : undefined,
+        shippingCost: shippingCost && shippingCost > 0 ? shippingCost : undefined,
+        customSizeW: sizeWM,
+        customSizeH: sizeHM,
+        rugShape: useMaterial ? adjustModal.shape : undefined,
+      });
+      applyQuoteUpdate(updated);
+      closeAdjustModal();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Failed to save.';
+      setAdjustError(msg);
     } finally {
       setAdjusting(false);
     }
@@ -187,7 +409,7 @@ export default function Quotes() {
     setRejecting(true);
     try {
       const updated = await rejectQuote(rejectModal.quoteId, rejectModal.reason.trim() || undefined);
-      setQuotes((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+      applyQuoteUpdate(updated);
       setRejectModal(null);
     } catch {
       // silently fail — user can retry
@@ -196,31 +418,29 @@ export default function Quotes() {
     }
   };
 
-  // Apply text/rush/date filters first (used by both views)
-  const baseFiltered = quotes
-    .filter((q) => {
-      if (!search) return true;
-      const term = search.toLowerCase();
-      return [
-        q.customer?.name ?? '',
-        q.customer?.company ?? '',
-        q.customer?.email ?? '',
-        rugName(q),
-        String(q.id),
-      ].some((v) => v.toLowerCase().includes(term));
-    })
-    .filter((q) => !rushOnly || q.rush_order)
-    .filter((q) => !customOnly || q.is_custom_request)
-    .filter((q) => !dateFrom || new Date(q.created_at) >= new Date(dateFrom))
-    .filter((q) => !dateTo   || new Date(q.created_at) <= new Date(dateTo + 'T23:59:59'));
+  const [revising, setRevising] = useState<number | null>(null);
 
-  // Status filter only applies in list view (pipeline columns handle status grouping)
-  const visible = filter === 'all' ? baseFiltered : baseFiltered.filter((q) => q.status === filter);
-
-  const counts: Record<string, number> = {
-    all: baseFiltered.length,
-    ...Object.fromEntries(STATUS_ORDER.map((s) => [s, baseFiltered.filter((q) => q.status === s).length])),
+  const handleReviseQuote = async (quoteId: number) => {
+    setRevising(quoteId);
+    setError('');
+    try {
+      const newQuote = await reviseQuote(quoteId);
+      if (viewMode === 'pipeline') await fetchPipeline(); else await fetchPage(1, false);
+      setExpanded(newQuote.id);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Failed to revise quote.';
+      setError(msg);
+    } finally {
+      setRevising(null);
+    }
   };
+
+  const visible = quotes;
+  const counts = statusCounts;
+  const revisedIntoMap: Record<number, number> = {};
+  quotes.forEach((q) => { if (q.revised_from_quote_id != null) revisedIntoMap[q.revised_from_quote_id] = q.id; });
+  pipelineQuotes.forEach((q) => { if (q.revised_from_quote_id != null) revisedIntoMap[q.revised_from_quote_id] = q.id; });
+  const displayedCount = viewMode === 'pipeline' ? pipelineQuotes.length : quotes.length;
 
   const activeFilterCount = [search, rushOnly, customOnly, dateFrom, dateTo].filter(Boolean).length;
   const clearFilters = () => { setSearch(''); setRushOnly(false); setCustomOnly(false); setDateFrom(''); setDateTo(''); };
@@ -232,7 +452,7 @@ export default function Quotes() {
         <div>
           <h1 className="text-2xl font-bold text-cream-100">Quotes</h1>
           <p className="text-dark-400 text-sm mt-0.5">
-            {baseFiltered.length} of {quotes.length} quotes
+            Showing {displayedCount} of {total} quote{total !== 1 ? 's' : ''}
             {activeFilterCount > 0 && <span className="text-gold-500"> · {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active</span>}
           </p>
         </div>
@@ -258,10 +478,10 @@ export default function Quotes() {
           </div>
           <button
             onClick={load}
-            disabled={loading}
+            disabled={viewMode === 'pipeline' ? pipelineLoading : loading}
             className="flex items-center gap-1.5 px-4 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700 rounded-xl text-dark-300 text-sm transition-colors"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={14} className={(viewMode === 'pipeline' ? pipelineLoading : loading) ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
       </div>
@@ -363,7 +583,7 @@ export default function Quotes() {
         </div>
       )}
 
-      {loading ? (
+      {(viewMode === 'pipeline' ? pipelineLoading : loading) ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-20 bg-dark-800 rounded-xl animate-pulse" />
@@ -371,14 +591,17 @@ export default function Quotes() {
         </div>
       ) : viewMode === 'pipeline' ? (
         <PipelineView
-          quotes={baseFiltered}
-          fmt={fmt}
+          quotes={pipelineQuotes}
+          fmtForCustomer={fmtForCustomer}
           sizeUnit={sizeUnit}
           updating={updating}
           onChangeStatus={changeStatus}
-          onWhatsApp={(q) => window.open(buildWhatsAppUrl(q, fmt, sizeUnit), '_blank')}
+          onWhatsApp={(q) => window.open(buildWhatsAppUrl(q, fmt, sizeUnit, user!.tenant.name), '_blank')}
           onEmail={openEmailModal}
           onDownload={downloadInvoice}
+          onRevise={handleReviseQuote}
+          revising={revising}
+          revisedIntoMap={revisedIntoMap}
         />
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-dark-500">
@@ -403,20 +626,56 @@ export default function Quotes() {
             <QuoteRow
               key={q.id}
               q={q}
-              fmt={fmt}
+              fmtForCustomer={fmtForCustomer}
               sizeUnit={sizeUnit}
               isOpen={expanded === q.id}
               updating={updating}
               onToggle={() => setExpanded(expanded === q.id ? null : q.id)}
               onChangeStatus={changeStatus}
-              onWhatsApp={() => window.open(buildWhatsAppUrl(q, fmt, sizeUnit), '_blank')}
+              onWhatsApp={() => window.open(buildWhatsAppUrl(q, fmt, sizeUnit, user!.tenant.name), '_blank')}
               onEmail={() => openEmailModal(q)}
               onDownload={downloadInvoice}
               onSend={() => setSendModal({ quoteId: q.id, vendorNotes: q.vendor_notes ?? '' })}
-              onAdjust={() => setAdjustModal({ quoteId: q.id, originalPrice: q.final_price ?? 0, newPrice: String(q.final_price ?? ''), discountPct: String((q as any).manual_discount_pct ?? ''), vendorNotes: q.vendor_notes ?? '' })}
+              onAdjust={() => { setCalcResult(null); setCalcError(''); setAdjustModal({
+                quoteId: q.id, originalPrice: q.final_price ?? 0, newPrice: String(q.final_price ?? ''),
+                discountPct: String((q as any).manual_discount_pct ?? ''), vendorNotes: q.vendor_notes ?? '',
+                isCustomRequest: !!q.is_custom_request,
+                materialId: q.material_id != null
+                  ? String(q.material_id)
+                  : (materials.find((m) => m.type === q.material_preference)?.id.toString() ?? ''),
+                marginPct: '',
+                shippingCost: String((q as any).shipping_cost ?? ''),
+                customerCountry: q.customer?.country,
+                rugLabel: rugName(q),
+                sizeLabel: [
+                  q.custom_size_w && q.custom_size_h ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit, q.rug_shape || 'rect') : null,
+                  q.qty > 1 ? `qty ${q.qty}` : null,
+                ].filter(Boolean).join(' · '),
+                shape: q.rug_shape || 'rect',
+                sizeW: q.custom_size_w != null ? fmtDim(q.custom_size_w, inputUnit(sizeUnit)) : '',
+                sizeH: q.custom_size_h != null ? fmtDim(q.custom_size_h, inputUnit(sizeUnit)) : '',
+              }); }}
               onReject={() => setRejectModal({ quoteId: q.id, reason: '' })}
+              onSaveSampleImages={handleSaveSampleImages}
+              onRevise={() => handleReviseQuote(q.id)}
+              revising={revising === q.id}
+              revisedIntoId={revisedIntoMap[q.id]}
             />
           ))}
+
+          {/* Infinite scroll sentinel — loading the next page fires when this scrolls into view */}
+          {hasMore && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-4">
+              {loadingMore && (
+                <div className="flex items-center gap-2 text-dark-500 text-xs">
+                  <RefreshCw size={13} className="animate-spin" /> Loading more quotes…
+                </div>
+              )}
+            </div>
+          )}
+          {!hasMore && quotes.length > 0 && (
+            <p className="text-center text-dark-600 text-xs py-3">All {total} quotes loaded</p>
+          )}
         </div>
       )}
 
@@ -467,63 +726,218 @@ export default function Quotes() {
           : null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
                 <div className="flex items-center gap-2">
                   <Pencil size={16} className="text-gold-400" />
                   <h2 className="text-cream-100 font-semibold">Adjust Quote Price</h2>
                 </div>
-                <button onClick={() => setAdjustModal(null)} className="text-dark-400 hover:text-cream-300"><X size={18} /></button>
+                <button onClick={closeAdjustModal} className="text-dark-400 hover:text-cream-300"><X size={18} /></button>
+              </div>
+              <div className="px-5 pt-4 -mb-1">
+                <p className="text-cream-200 text-sm font-medium">{adjustModal.rugLabel}</p>
+                {adjustModal.sizeLabel && <p className="text-dark-500 text-xs mt-0.5">{adjustModal.sizeLabel}</p>}
               </div>
               <div className="p-5 space-y-4">
-                {/* Discount % — computes new price automatically */}
-                <div>
-                  <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Discount % (optional)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.5"
-                      value={adjustModal.discountPct}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        const p = parseFloat(raw);
-                        const computed = (!isNaN(p) && p > 0 && adjustModal.originalPrice > 0)
-                          ? (adjustModal.originalPrice * (1 - p / 100)).toFixed(2)
-                          : adjustModal.newPrice;
-                        setAdjustModal({ ...adjustModal, discountPct: raw, newPrice: computed });
-                      }}
-                      placeholder="0"
-                      className="w-28 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
-                    />
-                    <span className="text-dark-400 text-sm">%</span>
-                    {discountedPrice !== null && (
-                      <span className="text-green-400 text-xs font-medium ml-1">
-                        → {fmt(discountedPrice, null)}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                {adjustModal.isCustomRequest ? (
+                  <>
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">
+                        Size ({inputUnit(sizeUnit)}) * {!adjustModal.sizeW && <span className="text-red-400 normal-case tracking-normal">— not on file yet, needed to price from material cost</span>}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={adjustModal.sizeW}
+                          onChange={(e) => { setAdjustModal({ ...adjustModal, sizeW: e.target.value }); setCalcResult(null); }}
+                          placeholder={adjustModal.shape === 'circle' ? 'Diameter' : 'Width'}
+                          className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                        />
+                        {adjustModal.shape !== 'circle' && (
+                          <>
+                            <span className="text-dark-500 text-xs flex-shrink-0">×</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={adjustModal.sizeH}
+                              onChange={(e) => { setAdjustModal({ ...adjustModal, sizeH: e.target.value }); setCalcResult(null); }}
+                              placeholder="Height"
+                              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Material *</label>
+                      <select
+                        value={adjustModal.materialId}
+                        onChange={(e) => { setAdjustModal({ ...adjustModal, materialId: e.target.value }); setCalcResult(null); }}
+                        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm focus:outline-none focus:border-gold-500"
+                      >
+                        <option value="">Select material…</option>
+                        {materials.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} — {fmt(m.cost_per_sqm, m.cost_currency)}/sqm
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-dark-600 text-xs mt-1">
+                        Price is calculated as margin over this material's cost, sized to the request's dimensions — same math as a catalog quote.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">
+                        Margin % (optional — defaults to your standard {user!.tenant.default_profit_margin_pct}%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={adjustModal.marginPct}
+                        onChange={(e) => { setAdjustModal({ ...adjustModal, marginPct: e.target.value }); setCalcResult(null); }}
+                        placeholder={String(user!.tenant.default_profit_margin_pct)}
+                        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Discount % (optional)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={adjustModal.discountPct}
+                          onChange={(e) => { setAdjustModal({ ...adjustModal, discountPct: e.target.value }); setCalcResult(null); }}
+                          placeholder="0"
+                          className="w-28 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                        />
+                        <span className="text-dark-400 text-sm">%</span>
+                      </div>
+                      <p className="text-dark-600 text-xs mt-1">Applied on top of the material-calculated price.</p>
+                    </div>
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Shipping Cost (optional)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={adjustModal.shippingCost}
+                        onChange={(e) => { setAdjustModal({ ...adjustModal, shippingCost: e.target.value }); setCalcResult(null); }}
+                        placeholder="0"
+                        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                      />
+                      <p className="text-dark-600 text-xs mt-1">Flat shipping charge added on top of the calculated price.</p>
+                    </div>
 
-                {/* Final price — can also be set directly */}
-                <div>
-                  <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Final Price *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={adjustModal.newPrice}
-                    onChange={(e) => setAdjustModal({ ...adjustModal, newPrice: e.target.value, discountPct: '' })}
-                    placeholder="0.00"
-                    className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
-                  />
-                  <p className="text-dark-600 text-xs mt-1">
-                    {adjustModal.originalPrice > 0
-                      ? <>Original: {fmt(adjustModal.originalPrice, null)} — enter discount % above or override price directly</>
-                      : 'No price set yet — enter the price you\'re quoting for this request'}
-                  </p>
-                </div>
+                    <div>
+                      {calculating && (
+                        <div className="flex items-center gap-2 text-dark-400 text-xs py-1">
+                          <div className="w-3.5 h-3.5 border-2 border-gold-400 border-t-transparent rounded-full animate-spin" /> Calculating…
+                        </div>
+                      )}
+                      {calcError && (
+                        <div className="flex items-center gap-2 bg-red-900/20 border border-red-600/30 rounded-lg p-2.5 text-red-400 text-xs mt-2">
+                          <AlertTriangle size={13} /> {calcError}
+                        </div>
+                      )}
+                      {calcResult && (
+                        <div className="bg-dark-800 border border-dark-600 rounded-xl p-3.5 mt-3 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs text-dark-400">
+                            <span>Subtotal ({calcResult.total_sqm.toFixed(2)} sqm × {fmtForCustomer(calcResult.base_price_per_sqm, calcResult.price_currency, adjustModal.customerCountry)}/sqm)</span>
+                            <span>{fmtForCustomer(calcResult.subtotal, calcResult.price_currency, adjustModal.customerCountry)}</span>
+                          </div>
+                          {calcResult.manual_discount > 0 && (
+                            <div className="flex items-center justify-between text-xs text-red-400">
+                              <span>Discount</span>
+                              <span>−{fmtForCustomer(calcResult.manual_discount, calcResult.price_currency, adjustModal.customerCountry)}</span>
+                            </div>
+                          )}
+                          {calcResult.rush_surcharge > 0 && (
+                            <div className="flex items-center justify-between text-xs text-dark-400">
+                              <span>Rush surcharge</span>
+                              <span>+{fmtForCustomer(calcResult.rush_surcharge, calcResult.price_currency, adjustModal.customerCountry)}</span>
+                            </div>
+                          )}
+                          {calcResult.gst_inclusive && (
+                            <div className="flex items-center justify-between text-xs text-dark-400">
+                              <span>GST ({calcResult.gst_pct.toFixed(0)}%, included)</span>
+                              <span>{fmtForCustomer(calcResult.gst_amount, calcResult.price_currency, adjustModal.customerCountry)}</span>
+                            </div>
+                          )}
+                          {calcResult.shipping_cost > 0 && (
+                            <div className="flex items-center justify-between text-xs text-dark-400">
+                              <span>Shipping</span>
+                              <span>+{fmtForCustomer(calcResult.shipping_cost, calcResult.price_currency, adjustModal.customerCountry)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-sm font-semibold text-cream-100 pt-1.5 border-t border-dark-700">
+                            <span>Final Price</span>
+                            <span>{fmtForCustomer(calcResult.final_price, calcResult.price_currency, adjustModal.customerCountry)}</span>
+                          </div>
+                          {!calcResult.material_available && (
+                            <p className="text-amber-400 text-xs pt-1">{calcResult.material_message}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Discount % — computes new price automatically */}
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Discount % (optional)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={adjustModal.discountPct}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const p = parseFloat(raw);
+                            const computed = (!isNaN(p) && p > 0 && adjustModal.originalPrice > 0)
+                              ? (adjustModal.originalPrice * (1 - p / 100)).toFixed(2)
+                              : adjustModal.newPrice;
+                            setAdjustModal({ ...adjustModal, discountPct: raw, newPrice: computed });
+                          }}
+                          placeholder="0"
+                          className="w-28 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                        />
+                        <span className="text-dark-400 text-sm">%</span>
+                        {discountedPrice !== null && (
+                          <span className="text-green-400 text-xs font-medium ml-1">
+                            → {fmtForCustomer(discountedPrice, null, adjustModal.customerCountry)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Final price — can also be set directly */}
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Final Price *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={adjustModal.newPrice}
+                        onChange={(e) => setAdjustModal({ ...adjustModal, newPrice: e.target.value, discountPct: '' })}
+                        placeholder="0.00"
+                        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                      />
+                      <p className="text-dark-600 text-xs mt-1">
+                        {adjustModal.originalPrice > 0
+                          ? <>Original: {fmtForCustomer(adjustModal.originalPrice, null, adjustModal.customerCountry)} — enter discount % above or override price directly</>
+                          : 'No price set yet — enter the price you\'re quoting for this request'}
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Reason / Note to Customer (optional)</label>
@@ -535,17 +949,28 @@ export default function Quotes() {
                     className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500 resize-none"
                   />
                 </div>
+                {adjustError && (
+                  <div className="flex items-center gap-2 bg-red-900/20 border border-red-600/30 rounded-lg p-2.5 text-red-400 text-xs">
+                    <AlertTriangle size={13} /> {adjustError}
+                  </div>
+                )}
                 <p className="text-dark-500 text-xs">Saving will set the quote status to <span className="text-blue-300">Sent</span> and notify the customer.</p>
               </div>
               <div className="flex gap-3 px-5 pb-5">
-                <button onClick={() => setAdjustModal(null)} className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 text-sm hover:bg-dark-700 transition-colors">Cancel</button>
+                <button onClick={closeAdjustModal} className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 text-sm hover:bg-dark-700 transition-colors">Cancel</button>
                 <button
                   onClick={handleAdjustPrice}
-                  disabled={adjusting || !adjustModal.newPrice || parseFloat(adjustModal.newPrice) <= 0}
+                  disabled={
+                    adjusting ||
+                    (adjustModal.isCustomRequest
+                      ? !calcResult
+                      : !adjustModal.newPrice || parseFloat(adjustModal.newPrice) <= 0)
+                  }
+                  title={adjustModal.isCustomRequest && !calcResult ? 'Waiting on the price calculation to finish' : undefined}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-semibold transition-colors disabled:opacity-50"
                 >
                   {adjusting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Pencil size={14} />}
-                  {adjusting ? 'Saving…' : 'Save & Send'}
+                  {adjusting ? 'Sending…' : (adjustModal.isCustomRequest ? 'Send to Customer' : 'Save & Send')}
                 </button>
               </div>
             </div>
@@ -683,7 +1108,7 @@ export default function Quotes() {
 
 interface QuoteRowProps {
   q: Quote;
-  fmt: (n: number, currency?: string | null) => string;
+  fmtForCustomer: (n: number, currency: string | null | undefined, country: string | null | undefined) => string;
   sizeUnit: string;
   isOpen: boolean;
   updating: number | null;
@@ -695,14 +1120,48 @@ interface QuoteRowProps {
   onSend: () => void;
   onAdjust: () => void;
   onReject: () => void;
+  onSaveSampleImages: (quoteId: number, imageUrls: string[]) => Promise<void>;
+  onRevise: () => void;
+  revising: boolean;
+  revisedIntoId?: number;
 }
 
-function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust, onReject }: QuoteRowProps) {
+const MAX_SAMPLE_IMAGES = 3;
+
+function QuoteRow({ q, fmtForCustomer, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust, onReject, onSaveSampleImages, onRevise, revising, revisedIntoId }: QuoteRowProps) {
   const meta = STATUS_META[q.status];
   const sqm  = q.custom_size_w && q.custom_size_h ? (q.custom_size_w * q.custom_size_h).toFixed(2) : null;
   const dims = q.custom_size_w && q.custom_size_h
-    ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit)
+    ? fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit, q.rug_shape || 'rect')
     : null;
+  const [uploadingSample, setUploadingSample] = useState(false);
+  const [sampleError, setSampleError] = useState('');
+  const sampleImages = q.vendor_sample_image_urls ?? [];
+
+  const handleSampleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setSampleError('');
+    setUploadingSample(true);
+    try {
+      const { url } = await uploadQuoteSampleImage(q.id, file);
+      await onSaveSampleImages(q.id, [...sampleImages, url]);
+    } catch (err: any) {
+      setSampleError(err.response?.data?.detail ?? 'Upload failed.');
+    } finally {
+      setUploadingSample(false);
+    }
+  };
+
+  const handleRemoveSampleImage = async (url: string) => {
+    setSampleError('');
+    try {
+      await onSaveSampleImages(q.id, sampleImages.filter((u) => u !== url));
+    } catch (err: any) {
+      setSampleError(err.response?.data?.detail ?? 'Failed to remove image.');
+    }
+  };
 
   return (
     <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
@@ -732,7 +1191,7 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
           </p>
         </div>
         <div className="text-right flex-shrink-0 hidden sm:block">
-          <p className="text-gold-400 font-bold text-sm">{q.final_price != null ? fmt(q.final_price, q.price_currency) : '—'}</p>
+          <p className="text-gold-400 font-bold text-sm">{q.final_price != null ? fmtForCustomer(q.final_price, q.price_currency, q.customer?.country) : '—'}</p>
           <p className="text-dark-500 text-xs">{new Date(q.created_at).toLocaleDateString()}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -765,8 +1224,8 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
             </div>
             <div>
               <p className="text-dark-300 text-xs uppercase tracking-wider mb-1">Pricing</p>
-              <p className="text-cream-200 font-medium">{q.final_price != null ? fmt(q.final_price, q.price_currency) : '—'}</p>
-              <p className="text-dark-400 text-xs">Base: {q.base_price != null ? fmt(q.base_price, q.price_currency) : '—'}</p>
+              <p className="text-cream-200 font-medium">{q.final_price != null ? fmtForCustomer(q.final_price, q.price_currency, q.customer?.country) : '—'}</p>
+              <p className="text-dark-400 text-xs">Base: {q.base_price != null ? fmtForCustomer(q.base_price, q.price_currency, q.customer?.country) : '—'}</p>
             </div>
           </div>
 
@@ -799,6 +1258,44 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
                   </div>
                 </div>
               )}
+
+              <div>
+                <p className="text-dark-400 text-xs mb-1.5">Sample images for customer</p>
+                <div className="flex gap-2 flex-wrap items-center">
+                  {sampleImages.map((url) => (
+                    <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-dark-700 group">
+                      <a href={url} target="_blank" rel="noreferrer" className="block w-full h-full">
+                        <img src={url} alt="Sample" className="w-full h-full object-cover" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSampleImage(url)}
+                        className="absolute top-0.5 right-0.5 bg-dark-950/80 hover:bg-red-900/80 text-dark-300 hover:text-red-300 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                  {sampleImages.length < MAX_SAMPLE_IMAGES && (
+                    <label className={`w-16 h-16 rounded-lg border border-dashed border-dark-600 flex items-center justify-center text-dark-500 hover:border-gold-600 hover:text-gold-500 transition-colors cursor-pointer ${uploadingSample ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {uploadingSample ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : (
+                        <Upload size={14} />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        disabled={uploadingSample}
+                        onChange={handleSampleFileChange}
+                      />
+                    </label>
+                  )}
+                </div>
+                {sampleError && <p className="text-red-400 text-xs mt-1">{sampleError}</p>}
+                <p className="text-dark-500 text-xs mt-1">Upload design samples to show the customer alongside this quote — up to {MAX_SAMPLE_IMAGES}.</p>
+              </div>
             </div>
           )}
 
@@ -826,23 +1323,48 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
           )}
 
           {/* Status actions — Sent/Accepted require a price to already be set (enforced
-              server-side too); Rejected opens a reason modal instead of firing directly. */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-dark-500 text-xs">Status:</span>
-            {STATUS_ORDER.filter((s) => s !== q.status && !((s === 'sent' || s === 'accepted') && q.final_price == null)).map((s) => (
-              <button
-                key={s}
-                onClick={() => (s === 'rejected' ? onReject() : onChangeStatus(q.id, s))}
-                disabled={updating === q.id}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${STATUS_META[s].color} hover:opacity-80`}
-              >
-                {updating === q.id ? (
-                  <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                ) : STATUS_META[s].icon}
-                {STATUS_META[s].label}
-              </button>
-            ))}
-          </div>
+              server-side too); Rejected opens a reason modal instead of firing directly.
+              Accepted quotes already have an order and can't be edited — no pills needed.
+              Rejected quotes can't be edited either — offer Revise & Resend instead. */}
+          {q.status !== 'accepted' && q.status !== 'rejected' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-dark-500 text-xs">Status:</span>
+              {STATUS_ORDER.filter((s) => s !== q.status && !((s === 'sent' || s === 'accepted') && q.final_price == null)).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => (s === 'rejected' ? onReject() : onChangeStatus(q.id, s))}
+                  disabled={updating === q.id}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${STATUS_META[s].color} hover:opacity-80`}
+                >
+                  {updating === q.id ? (
+                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                  ) : STATUS_META[s].icon}
+                  {s === 'accepted' ? 'Accept - Create Order' : s === 'rejected' ? 'Reject' : STATUS_META[s].label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {q.status === 'rejected' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {revisedIntoId != null ? (
+                <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-dark-600 text-dark-400">
+                  <RotateCcw size={11} /> Revised into Quote #{revisedIntoId}
+                </span>
+              ) : (
+                <button
+                  onClick={onRevise}
+                  disabled={revising}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-gold-700/40 bg-gold-900/20 text-gold-400 hover:bg-gold-900/40 transition-colors disabled:opacity-50"
+                >
+                  {revising ? (
+                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                  ) : <RotateCcw size={11} />}
+                  Revise & Resend
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Pricing actions — Adjust/Set Price is always available (not gated on final_price)
               so a fresh custom request with no price yet can actually be priced. */}
@@ -852,7 +1374,9 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
                 onClick={onAdjust}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-gold-700/40 bg-gold-900/20 text-gold-400 hover:bg-gold-900/40 transition-colors"
               >
-                <Pencil size={11} /> {q.final_price != null ? 'Adjust Price' : 'Set Price'}
+                <Pencil size={11} /> {q.is_custom_request
+                  ? (q.final_price != null ? 'Adjust Price and Material' : 'Set Price and Material')
+                  : (q.final_price != null ? 'Adjust Price' : 'Set Price')}
               </button>
 
               {q.final_price != null && (
@@ -924,13 +1448,16 @@ function QuoteRow({ q, fmt, sizeUnit, isOpen, updating, onToggle, onChangeStatus
 
 interface PipelineProps {
   quotes: Quote[];
-  fmt: (n: number, currency?: string | null) => string;
+  fmtForCustomer: (n: number, currency: string | null | undefined, country: string | null | undefined) => string;
   sizeUnit: string;
   updating: number | null;
   onChangeStatus: (id: number, status: Quote['status']) => void;
   onWhatsApp: (q: Quote) => void;
   onEmail: (q: Quote) => void;
   onDownload: (id: number, type: 'tax' | 'export' | 'proforma') => void;
+  onRevise: (id: number) => void;
+  revising: number | null;
+  revisedIntoMap: Record<number, number>;
 }
 
 const PIPELINE_COL_COLORS: Record<string, string> = {
@@ -954,7 +1481,7 @@ const NEXT_STATUS: Record<string, Quote['status'] | null> = {
   rejected: null,
 };
 
-function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhatsApp, onEmail, onDownload }: PipelineProps) {
+function PipelineView({ quotes, fmtForCustomer, sizeUnit, updating, onChangeStatus, onWhatsApp, onEmail, onDownload, onRevise, revising, revisedIntoMap }: PipelineProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-start">
       {STATUS_ORDER.map((status) => {
@@ -1003,7 +1530,7 @@ function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhats
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         {sqm && (
                           <span className="text-dark-500 text-[10px]">
-                            {fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit)}
+                            {fmtDims(q.custom_size_w, q.custom_size_h, sizeUnit, q.rug_shape || 'rect')}
                           </span>
                         )}
                         {q.rush_order && <span className="text-[10px] text-orange-400 font-semibold">Early</span>}
@@ -1012,7 +1539,7 @@ function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhats
 
                     {/* Price */}
                     {q.final_price != null && (
-                      <p className="text-gold-400 font-bold text-sm">{fmt(q.final_price, q.price_currency)}</p>
+                      <p className="text-gold-400 font-bold text-sm">{fmtForCustomer(q.final_price, q.price_currency, q.customer?.country)}</p>
                     )}
 
                     {/* Action buttons */}
@@ -1053,26 +1580,38 @@ function PipelineView({ quotes, fmt, sizeUnit, updating, onChangeStatus, onWhats
                         <button
                           onClick={() => onChangeStatus(q.id, nextStatus)}
                           disabled={updating === q.id}
-                          title={`Move to ${STATUS_META[nextStatus].label}`}
+                          title={nextStatus === 'accepted' ? 'Accept - Create Order' : `Move to ${STATUS_META[nextStatus].label}`}
                           className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors disabled:opacity-50 ml-auto ${STATUS_META[nextStatus].color} hover:opacity-80`}
                         >
                           {updating === q.id ? (
                             <div className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
                           ) : STATUS_META[nextStatus].icon}
-                          {STATUS_META[nextStatus].label}
+                          {nextStatus === 'accepted' ? 'Accept' : STATUS_META[nextStatus].label}
                         </button>
                       )}
 
-                      {/* Re-open rejected */}
+                      {/* Rejected quotes can't be edited — offer Revise & Resend instead */}
                       {status === 'rejected' && (
-                        <button
-                          onClick={() => onChangeStatus(q.id, 'draft')}
-                          disabled={updating === q.id}
-                          title="Re-open as Draft"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border border-dark-600 text-dark-400 hover:text-cream-300 transition-colors disabled:opacity-50 ml-auto"
-                        >
-                          <Clock size={10} /> Draft
-                        </button>
+                        revisedIntoMap[q.id] != null ? (
+                          <span
+                            title={`Revised into Quote #${revisedIntoMap[q.id]}`}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border border-dark-600 text-dark-400 ml-auto"
+                          >
+                            <RotateCcw size={10} /> Revised
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onRevise(q.id)}
+                            disabled={revising === q.id}
+                            title="Revise & Resend"
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border border-gold-700/40 bg-gold-900/20 text-gold-400 hover:bg-gold-900/40 transition-colors disabled:opacity-50 ml-auto"
+                          >
+                            {revising === q.id ? (
+                              <div className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
+                            ) : <RotateCcw size={10} />}
+                            Revise & Resend
+                          </button>
+                        )
                       )}
                     </div>
                   </div>

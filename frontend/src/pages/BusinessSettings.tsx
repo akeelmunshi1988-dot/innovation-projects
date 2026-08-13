@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign, Phone, X, Plus, Upload, Award } from 'lucide-react';
+import { Settings, Check, AlertTriangle, Building2, TrendingUp, FileText, User, Zap, Mail, DollarSign, Phone, X, Plus, Upload, Award, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -52,6 +52,9 @@ export default function BusinessSettings() {
   // General
   const [name, setName] = useState(tenant.name);
   const [currency, setCurrency] = useState(tenant.currency);
+  const [exchangeRatesAuto, setExchangeRatesAuto] = useState(tenant.exchange_rates_auto ?? true);
+  const [refreshingRates, setRefreshingRates] = useState(false);
+  const [refreshRatesError, setRefreshRatesError] = useState('');
   // exchangeRates: local edit state as Record<code, string> for input values
   const [exchangeRates, setExchangeRates] = useState<Record<string, string>>(
     () => Object.fromEntries(
@@ -67,12 +70,14 @@ export default function BusinessSettings() {
   const [lfThreshold, setLfThreshold] = useState(String(tenant.large_format_threshold_sqm ?? 20));
   const [lfSurchargePct, setLfSurchargePct] = useState(String(tenant.large_format_surcharge_pct ?? 5));
   const [shippingRate, setShippingRate] = useState(tenant.default_shipping_rate != null ? String(tenant.default_shipping_rate) : '');
+  const [cancellationWindowHours, setCancellationWindowHours] = useState(String(tenant.cancellation_window_hours ?? 24));
 
   // GST & Tax
   const [gstin, setGstin] = useState(tenant.gstin ?? '');
   const [stateCode, setStateCode] = useState(tenant.state_code ?? '');
   const [address, setAddress] = useState(tenant.address ?? '');
   const [lutNumber, setLutNumber] = useState(tenant.lut_number ?? '');
+  const [gstInclusive, setGstInclusive] = useState(tenant.gst_inclusive ?? false);
 
   // Features
   const [aiAssistantCustomerEnabled, setAiAssistantCustomerEnabled] = useState(tenant.ai_assistant_customer_enabled ?? true);
@@ -192,9 +197,9 @@ export default function BusinessSettings() {
     || aiAssistantVendorEnabled !== (tenant.ai_assistant_vendor_enabled ?? true)
     || vendorNotificationEmail !== (tenant.vendor_notification_email ?? '')
     || sizeUnit !== (tenant.default_size_unit ?? 'ft');
-  const dirtyCurrency = currency !== tenant.currency || ratesChanged;
-  const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct || (parseFloat(shippingRate) || 0) !== (tenant.default_shipping_rate ?? 0);
-  const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '');
+  const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true);
+  const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct || (parseFloat(shippingRate) || 0) !== (tenant.default_shipping_rate ?? 0) || (parseInt(cancellationWindowHours) || 0) !== (tenant.cancellation_window_hours ?? 24);
+  const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '') || gstInclusive !== (tenant.gst_inclusive ?? false);
   const dirtyContact  = JSON.stringify(contactEmails) !== JSON.stringify(tenant.contact_emails ?? [])
     || JSON.stringify(contactPhones) !== JSON.stringify(tenant.contact_phones ?? [])
     || contactAddress !== (tenant.contact_address ?? '')
@@ -218,7 +223,9 @@ export default function BusinessSettings() {
     setSaved(false);
     setError('');
     try {
-      // Build exchange_rates: positive numeric values only, keyed by currency code
+      // Build exchange_rates: positive numeric values only, keyed by currency code.
+      // Only sent when the vendor has opted out of automatic rates — otherwise the
+      // background job's live-fetched rates are left alone.
       const rates: Record<string, number> = {};
       foreignCurrencies.forEach((c) => {
         const val = parseFloat(exchangeRates[c.code] ?? '0');
@@ -227,16 +234,19 @@ export default function BusinessSettings() {
       const { data } = await axios.patch('/api/tenant/settings', {
         name: name.trim() || undefined,
         currency,
-        exchange_rates: rates,
+        exchange_rates_auto: exchangeRatesAuto,
+        ...(exchangeRatesAuto ? {} : { exchange_rates: rates }),
         gstin: gstin.trim() || undefined,
         state_code: stateCode.trim() || undefined,
         address: address.trim() || undefined,
         lut_number: lutNumber.trim() || undefined,
+        gst_inclusive: gstInclusive,
         default_profit_margin_pct: parseFloat(marginPct),
         rush_surcharge_pct: parseFloat(rushPct),
         large_format_threshold_sqm: parseFloat(lfThreshold),
         large_format_surcharge_pct: parseFloat(lfSurchargePct),
         default_shipping_rate: parseFloat(shippingRate) || 0,
+        cancellation_window_hours: parseInt(cancellationWindowHours) || 0,
         ai_assistant_customer_enabled: aiAssistantCustomerEnabled,
         ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
         vendor_notification_email: vendorNotificationEmail.trim() || undefined,
@@ -254,6 +264,22 @@ export default function BusinessSettings() {
       setError(err.response?.data?.detail || 'Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRefreshRates = async () => {
+    setRefreshingRates(true);
+    setRefreshRatesError('');
+    try {
+      const { data } = await axios.post('/api/tenant/refresh-exchange-rates');
+      updateTenant(data);
+      setExchangeRates(Object.fromEntries(
+        Object.entries(data.exchange_rates ?? {}).map(([k, v]) => [k, String(v)])
+      ));
+    } catch (err: any) {
+      setRefreshRatesError(err.response?.data?.detail || 'Could not refresh rates. Please try again.');
+    } finally {
+      setRefreshingRates(false);
     }
   };
 
@@ -524,7 +550,73 @@ export default function BusinessSettings() {
                 ))}
               </div>
 
-              {/* Exchange rates table — one row per non-base currency */}
+              {/* Auto-refresh toggle */}
+              <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                <div>
+                  <p className="text-cream-200 text-sm font-medium">Automatic Exchange Rates</p>
+                  <p className="text-dark-400 text-xs">
+                    {exchangeRatesAuto
+                      ? 'Rates refresh automatically once a day from live market data — no manual entry needed.'
+                      : 'You are managing exchange rates manually below.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExchangeRatesAuto((v) => !v)}
+                  className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
+                    exchangeRatesAuto ? 'bg-gold-600' : 'bg-dark-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                      exchangeRatesAuto ? 'left-6' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {exchangeRatesAuto && (
+                <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className={subLabelCls}>Live Rates</p>
+                      <p className={hintCls + ' -mt-1'}>
+                        {tenant.exchange_rates_updated_at
+                          ? `Last updated ${new Date(tenant.exchange_rates_updated_at).toLocaleString()}`
+                          : 'Not refreshed yet — click Refresh Now to fetch live rates.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRefreshRates}
+                      disabled={refreshingRates}
+                      className="flex items-center gap-1.5 text-xs font-medium text-gold-400 hover:text-gold-300 disabled:opacity-50 border border-dark-600 hover:border-gold-600/50 rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
+                    >
+                      <RefreshCw size={12} className={refreshingRates ? 'animate-spin' : ''} />
+                      {refreshingRates ? 'Refreshing…' : 'Refresh Now'}
+                    </button>
+                  </div>
+                  {refreshRatesError && (
+                    <p className="text-red-400 text-xs">{refreshRatesError}</p>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {foreignCurrencies.map((c) => {
+                      const rate = tenant.exchange_rates?.[c.code];
+                      return (
+                        <div key={c.code} className="bg-dark-900 rounded-lg px-3 py-2">
+                          <p className="text-dark-500 text-[10px] uppercase tracking-wider">1 {tenant.base_currency} =</p>
+                          <p className="text-cream-200 text-sm font-medium">
+                            {rate != null ? `${c.symbol}${rate}` : '—'}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Exchange rates table — one row per non-base currency (manual mode) */}
+              {!exchangeRatesAuto && (
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3">
                 <div>
                   <p className={subLabelCls}>Exchange Rates</p>
@@ -576,6 +668,7 @@ export default function BusinessSettings() {
                   );
                 })}
               </div>
+              )}
             </div>
 
             <SaveBar />
@@ -691,6 +784,31 @@ export default function BusinessSettings() {
               </p>
             </div>
 
+            {/* Cancellation window */}
+            <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3">
+              <div>
+                <p className={subLabelCls}>Order Cancellation Window</p>
+                <p className={hintCls + ' -mt-1'}>
+                  How long after an order is placed it can still be cancelled from the Orders page. Cancelling a paid order automatically refunds the customer via Razorpay.
+                </p>
+              </div>
+              <div className="max-w-[200px] space-y-1.5">
+                <label className="text-dark-400 text-xs">Window (hours)</label>
+                <input
+                  type="number" min="0" step="1"
+                  value={cancellationWindowHours}
+                  onChange={(e) => setCancellationWindowHours(e.target.value)}
+                  placeholder="24"
+                  className={inputCls}
+                />
+              </div>
+              <p className={hintCls}>
+                {parseFloat(cancellationWindowHours) > 0
+                  ? `Orders can be cancelled up to ${cancellationWindowHours} hour${parseFloat(cancellationWindowHours) === 1 ? '' : 's'} after being placed.`
+                  : 'Orders cannot be cancelled once placed.'}
+              </p>
+            </div>
+
             {/* Live preview card */}
             <div className="bg-dark-800 rounded-xl p-4 space-y-2 text-sm border border-dark-700">
               <p className="text-dark-400 text-xs uppercase tracking-wider font-medium">Live Preview — ₹500/sqm material, 25 sqm (rush)</p>
@@ -803,8 +921,40 @@ export default function BusinessSettings() {
               </p>
             </div>
 
+            <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+              <div>
+                <p className="text-cream-200 text-sm font-medium">Apply GST to Quotes &amp; Orders</p>
+                <p className="text-dark-400 text-xs">
+                  {gstInclusive
+                    ? 'GST is calculated and included in your selling price — tax is deducted from the price, not added on top.'
+                    : 'No GST is calculated, charged, or shown on quotes and orders (default).'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGstInclusive((v) => !v)}
+                className={`w-11 h-6 rounded-full transition-all duration-200 relative flex-shrink-0 ${
+                  gstInclusive ? 'bg-gold-600' : 'bg-dark-600'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                    gstInclusive ? 'left-6' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
             {/* Tax type preview */}
-            {stateCode && (
+            {stateCode && !gstInclusive && (
+              <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                <p className="text-dark-400 text-xs">
+                  GST is currently off — quotes, orders, and invoices will show 0% tax. Turn on
+                  "Apply GST to Quotes &amp; Orders" above to see the CGST/SGST/IGST breakdown here.
+                </p>
+              </div>
+            )}
+            {stateCode && gstInclusive && (
               <div className="bg-dark-800 rounded-xl p-4 border border-dark-700 space-y-2">
                 <p className="text-dark-400 text-xs uppercase tracking-wider font-medium">Invoice Tax Type</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">

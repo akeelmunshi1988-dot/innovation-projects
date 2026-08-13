@@ -150,8 +150,13 @@ def exchange_code(provider: str, code: str) -> str:
 
 
 def fetch_identity(provider: str, access_token: str) -> dict:
-    """Returns {"email": str, "name": str, "provider_user_id": str} — normalized
-    across providers so the callback route doesn't need to know their differences."""
+    """Returns {"email": str, "name": str, "provider_user_id": str, "email_verified": bool} —
+    normalized across providers so the callback route doesn't need to know their differences.
+
+    email_verified matters because the callback finds-or-links a Customer purely by email
+    match, including accounts that already have a password set — trusting an unverified
+    provider email there would let someone log into a victim's existing account without
+    knowing its password."""
     p = get_provider(provider)
     if provider == "facebook":
         resp = requests.get(
@@ -165,9 +170,29 @@ def fetch_identity(provider: str, access_token: str) -> dict:
     data = resp.json()
 
     if provider == "google":
-        return {"email": data.get("email"), "name": data.get("name") or data.get("email"), "provider_user_id": data["sub"]}
+        # Google's OIDC userinfo endpoint always includes this claim for the standard
+        # "Sign in with Google" flow — read it rather than assuming every returned email is verified.
+        return {
+            "email": data.get("email"),
+            "name": data.get("name") or data.get("email"),
+            "provider_user_id": data["sub"],
+            "email_verified": bool(data.get("email_verified")),
+        }
     if provider == "facebook":
-        return {"email": data.get("email"), "name": data.get("name"), "provider_user_id": data["id"]}
+        # Facebook's Graph API has no separate email_verified claim — it only ever
+        # populates the `email` field with a confirmed address, so presence implies verified.
+        return {
+            "email": data.get("email"),
+            "name": data.get("name"),
+            "provider_user_id": data["id"],
+            "email_verified": bool(data.get("email")),
+        }
     if provider == "linkedin":
-        return {"email": data.get("email"), "name": data.get("name") or data.get("email"), "provider_user_id": data["sub"]}
+        # LinkedIn's OpenID Connect userinfo endpoint follows the same OIDC claim as Google.
+        return {
+            "email": data.get("email"),
+            "name": data.get("name") or data.get("email"),
+            "provider_user_id": data["sub"],
+            "email_verified": bool(data.get("email_verified")),
+        }
     raise ValueError(f"Unknown OAuth provider: {provider}")

@@ -1,7 +1,8 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Scissors, Mail, Lock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getPublicSettings } from '../services/api';
 
 export default function Login() {
   const { login, isLoading } = useAuth();
@@ -12,6 +13,13 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState('Business');
+
+  useEffect(() => {
+    getPublicSettings()
+      .then((data) => setBusinessName(data.business_name || 'Business'))
+      .catch(() => {});
+  }, []);
 
   // Redirect to home if customer session is active — no admin access
   if (localStorage.getItem('loomcraftrugs_customer_token')) {
@@ -38,7 +46,7 @@ export default function Login() {
           <div className="w-14 h-14 bg-gold-600 rounded-2xl flex items-center justify-center mx-auto">
             <Scissors size={26} className="text-white" />
           </div>
-          <h1 className="text-cream-100 font-bold text-2xl">LoomCraftRugs AI</h1>
+          <h1 className="text-cream-100 font-bold text-2xl">{businessName}</h1>
           <p className="text-dark-400 text-sm">Sign in to your account</p>
         </div>
 

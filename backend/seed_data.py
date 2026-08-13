@@ -45,7 +45,7 @@ def seed():
 
     # ── Demo Tenant ────────────────────────────────────────────────────────────
     tenant = Tenant(
-        name="LoomCraft Demo",
+        name="DreamRugsCreation",
         slug="loomcraft-demo",
         gstin=None,
         base_currency="INR",

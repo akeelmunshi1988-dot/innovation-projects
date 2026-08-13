@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { refreshAccessToken } from '../services/authRefresh';
 
 const ERROR_MESSAGES: Record<string, string> = {
   access_denied: "Sign-in was cancelled.",
@@ -10,6 +11,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "This sign-in link expired. Please try again.",
   provider_error: "We couldn't reach the sign-in provider. Please try again.",
   no_email: "That account has no email address we can use — try a different sign-in method.",
+  email_not_verified: "That provider hasn't verified your email address yet. Please verify it with them, or sign in with email and password instead.",
 };
 
 export default function CustomerOAuthCallback() {
@@ -19,7 +21,6 @@ export default function CustomerOAuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = params.get('token');
     const errParam = params.get('error');
     const returnTo = params.get('return_to') || '/';
 
@@ -27,11 +28,15 @@ export default function CustomerOAuthCallback() {
       setError(ERROR_MESSAGES[errParam] ?? 'Something went wrong signing you in.');
       return;
     }
-    if (!token) {
-      setError('Something went wrong signing you in.');
-      return;
-    }
-    loginWithToken(token)
+    // The backend never puts the access token in this URL (that would land in browser
+    // history and server logs) — it only sets the httpOnly refresh cookie on the redirect
+    // that brought us here. Exchange that cookie for an access token the same way silent
+    // session resume does, then fetch the profile to finish logging in.
+    refreshAccessToken()
+      .then((token) => {
+        if (!token) throw new Error('no token');
+        return loginWithToken(token);
+      })
       .then(() => navigate(returnTo, { replace: true }))
       .catch(() => setError('Something went wrong signing you in.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps

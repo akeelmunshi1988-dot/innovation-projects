@@ -12,9 +12,6 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
-# GST rate for rugs (HSN 5701-5705) — 12%
-GST_RATE = 0.12
-
 # Indian state codes
 STATE_NAMES = {
     "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab",
@@ -90,7 +87,9 @@ def generate_invoice_pdf(
     hsn_code: str,
     size_desc: str,
     qty: int,
-    rate_per_sqm: float,
+    pre_gst_price: float,  # taxable value — the price BEFORE GST, in `currency`
+    gst_amount: float,     # GST portion of the total, in `currency`
+    gst_pct: float,        # GST rate applied to this quote (for CGST/SGST/IGST split labels)
     size_sqm: float,
     currency: str = "INR",
     expected_delivery_days: Optional[int] = None,
@@ -139,18 +138,19 @@ def generate_invoice_pdf(
 
     # Taxable value
     total_sqm = size_sqm * qty
-    taxable_value = round(rate_per_sqm * total_sqm, 2)
+    taxable_value = round(pre_gst_price, 2)
+    rate_per_sqm = round(pre_gst_price / total_sqm, 2) if total_sqm > 0 else 0.0
 
     if is_export or is_proforma:
         cgst = sgst = igst = 0.0
         tax_total = 0.0
     elif same_state:
-        cgst = round(taxable_value * (GST_RATE / 2), 2)
-        sgst = cgst
+        cgst = round(gst_amount / 2, 2)
+        sgst = round(gst_amount - cgst, 2)
         igst = 0.0
         tax_total = cgst + sgst
     else:
-        igst = round(taxable_value * GST_RATE, 2)
+        igst = round(gst_amount, 2)
         cgst = sgst = 0.0
         tax_total = igst
 
@@ -316,12 +316,12 @@ def generate_invoice_pdf(
         calc_rows.append([Paragraph("IGST (0% — export under LUT)", calc_line_muted),
                            Paragraph(f"{sym}0.00", calc_line_muted)])
     elif same_state:
-        calc_rows.append([Paragraph(f"CGST @ {GST_RATE*50:.0f}%", calc_line_muted),
+        calc_rows.append([Paragraph(f"CGST @ {gst_pct/2:.1f}%", calc_line_muted),
                            Paragraph(f"+{sym}{cgst:,.2f}", calc_line_muted)])
-        calc_rows.append([Paragraph(f"SGST @ {GST_RATE*50:.0f}%", calc_line_muted),
+        calc_rows.append([Paragraph(f"SGST @ {gst_pct/2:.1f}%", calc_line_muted),
                            Paragraph(f"+{sym}{sgst:,.2f}", calc_line_muted)])
     else:
-        calc_rows.append([Paragraph(f"IGST @ {GST_RATE*100:.0f}%", calc_line_muted),
+        calc_rows.append([Paragraph(f"IGST @ {gst_pct:.1f}%", calc_line_muted),
                            Paragraph(f"+{sym}{igst:,.2f}", calc_line_muted)])
 
     calc_table = Table(calc_rows, colWidths=["65%", "35%"])

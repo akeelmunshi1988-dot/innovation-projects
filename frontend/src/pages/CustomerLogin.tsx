@@ -5,6 +5,7 @@ import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import SocialLoginButtons from '../components/SocialLoginButtons';
+import { COUNTRIES, detectCountry } from '../utils/countries';
 
 type Mode = 'login' | 'register';
 
@@ -18,10 +19,10 @@ export default function CustomerLogin() {
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    name: '', email: '', password: '', phone: '', company: '',
+    name: '', email: '', password: '', phone: '', company: '', country: detectCountry(),
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -34,7 +35,8 @@ export default function CustomerLogin() {
         navigate('/my-quotes');
       } else {
         if (!form.name.trim()) { setError('Please enter your name.'); return; }
-        const result = await customerRegister(form.name, form.email, form.password, form.phone || undefined, form.company || undefined);
+        if (!form.country) { setError('Please select your country.'); return; }
+        const result = await customerRegister(form.name, form.email, form.password, form.country, form.phone || undefined, form.company || undefined);
         setRegisteredEmail(result.email);
       }
     } catch (err: any) {
@@ -178,6 +180,23 @@ export default function CustomerLogin() {
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                   />
                 </div>
+              </div>
+            )}
+
+            {mode === 'register' && (
+              <div>
+                <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Country *</label>
+                <select
+                  name="country"
+                  required
+                  value={form.country}
+                  onChange={handleChange}
+                  className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
             )}
 

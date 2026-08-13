@@ -25,6 +25,7 @@ _TTL_SECONDS = {
     "settings": 60,
     "tenant": 60,
     "dashboard_stats": 45,
+    "geo_country": 86400,  # IP -> country lookups; bounds calls to the free geolocation API
 }
 
 _caches: dict[str, TTLCache] = {

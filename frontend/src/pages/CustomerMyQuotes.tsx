@@ -8,7 +8,8 @@ import axios from 'axios';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { fmtExact } from '../utils/currency';
+import { fmtAs } from '../utils/currency';
+import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import type { GstSplit } from '../services/api';
@@ -25,6 +26,7 @@ interface CustomerQuote {
   pre_gst_price: number | null;
   gst_amount: number | null;
   price_currency: string;
+  customer_country?: string | null;
   rush_order: boolean;
   notes: string | null;
   vendor_notes: string | null;
@@ -38,9 +40,20 @@ interface CustomerQuote {
   size_w: number | null;
   size_h: number | null;
   gst_pct: number | null;
+  gst_inclusive?: boolean;
   gst_split?: GstSplit;
   lead_time_days: number | null;
+  is_custom_request?: boolean;
+  room_type?: string | null;
+  material_preference?: string | null;
+  budget_range?: string | null;
+  reference_image_urls?: string[] | null;
+  vendor_sample_image_urls?: string[] | null;
 }
+
+const MATERIAL_PREFERENCE_LABELS: Record<string, string> = {
+  wool: 'Wool', silk: 'Silk', cotton: 'Cotton', synthetic: 'Synthetic', no_preference: 'No preference',
+};
 
 const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
   draft:    { label: 'Under Review',          color: 'text-stone-400 border-stone-200 bg-stone-50',      dot: 'bg-stone-300' },
@@ -49,7 +62,7 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   rejected: { label: 'Rejected',              color: 'text-red-600 border-red-200 bg-red-50',             dot: 'bg-red-400' },
 };
 
-function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeUnit: string; onRefresh: () => void }) {
+function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: CustomerQuote; sizeUnit: string; tenantCurrency: { currency: string; base_currency: string; exchange_rates: Record<string, number> }; onRefresh: () => void }) {
   const { customerToken } = useCustomerAuth();
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(quote.status === 'sent');
@@ -86,7 +99,8 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
   };
 
   const currency = quote.price_currency || 'INR';
-  const fmt = (n: number) => fmtExact(n, currency);
+  const targetCurrency = currencyForCountry(quote.customer_country, tenantCurrency.currency);
+  const fmt = (n: number) => fmtAs(n, currency, targetCurrency, tenantCurrency);
   const meta = STATUS_META[quote.status] ?? STATUS_META.draft;
 
   const handleRespond = async (action: 'accept' | 'reject') => {
@@ -198,6 +212,53 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
             </div>
           </div>
 
+          {/* Custom rug request brief */}
+          {quote.is_custom_request && (
+            <div className="bg-stone-50 border border-stone-100 px-4 py-3 space-y-3">
+              <p className="text-stone-400 text-xs uppercase tracking-widest">Your Custom Request</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-stone-400 text-xs">Room</p>
+                  <p className="text-stone-800">{quote.room_type || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-stone-400 text-xs">Material preference</p>
+                  <p className="text-stone-800">{MATERIAL_PREFERENCE_LABELS[quote.material_preference ?? ''] ?? quote.material_preference ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-stone-400 text-xs">Budget range</p>
+                  <p className="text-stone-800">{quote.budget_range || '—'}</p>
+                </div>
+              </div>
+              {quote.reference_image_urls && quote.reference_image_urls.length > 0 && (
+                <div>
+                  <p className="text-stone-400 text-xs mb-1.5">Your inspiration images</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {quote.reference_image_urls.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer" className="block w-16 h-16 overflow-hidden border border-stone-200 hover:border-stone-400 transition-colors">
+                        <img src={url} alt="Your reference" className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vendor design samples */}
+          {quote.vendor_sample_image_urls && quote.vendor_sample_image_urls.length > 0 && (
+            <div className="bg-stone-50 border border-stone-100 px-4 py-3 space-y-1.5">
+              <p className="text-stone-400 text-xs uppercase tracking-widest mb-1.5">Design Samples From Us</p>
+              <div className="flex gap-2 flex-wrap">
+                {quote.vendor_sample_image_urls.map((url) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer" className="block w-20 h-20 overflow-hidden border border-stone-200 hover:border-stone-400 transition-colors">
+                    <img src={url} alt="Design sample" className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Price breakdown */}
           {quote.final_price != null && (
             <div className="border border-stone-100 bg-stone-50 px-4 py-3 space-y-1.5">
@@ -224,14 +285,14 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
                 </div>
               )}
 
-              {quote.pre_gst_price != null && (
+              {quote.gst_inclusive && quote.pre_gst_price != null && (
                 <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
                   <span className="text-stone-400">Pre-tax</span>
                   <span className="text-stone-700">{fmt(quote.pre_gst_price)}</span>
                 </div>
               )}
 
-              {quote.gst_pct != null && quote.gst_amount != null && (
+              {quote.gst_inclusive && quote.gst_pct != null && quote.gst_amount != null && (
                 quote.gst_split?.type === 'cgst_sgst' ? (
                   <>
                     <div className="flex justify-between text-xs">
@@ -257,7 +318,7 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
               )}
 
               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                <span className="text-stone-900">Total (incl. Tax)</span>
+                <span className="text-stone-900">{quote.gst_inclusive ? 'Total (incl. Tax)' : 'Total'}</span>
                 <span className="text-stone-900">{fmt(quote.final_price)}</span>
               </div>
             </div>
@@ -339,6 +400,7 @@ function QuoteCard({ quote, sizeUnit, onRefresh }: { quote: CustomerQuote; sizeU
                         rush_order: quote.rush_order, notes: quote.notes ?? undefined,
                         estimated_price: quote.final_price, pre_gst_price: quote.pre_gst_price ?? undefined,
                         gst_pct: quote.gst_pct ?? 0, gst_amount: quote.gst_amount ?? undefined,
+                        gst_inclusive: quote.gst_inclusive,
                         price_currency: quote.price_currency, estimated_days: quote.lead_time_days ?? 21,
                       }],
                     },
@@ -496,9 +558,13 @@ export default function CustomerMyQuotes() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sizeUnit, setSizeUnit] = useState('ft');
+  const [tenantCurrency, setTenantCurrency] = useState({ currency: 'INR', base_currency: 'INR', exchange_rates: {} as Record<string, number> });
 
   useEffect(() => {
-    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+    getPublicSettings().then((data) => {
+      setSizeUnit(data.default_size_unit || 'ft');
+      setTenantCurrency({ currency: data.currency, base_currency: data.base_currency, exchange_rates: data.exchange_rates || {} });
+    }).catch(() => {});
   }, []);
 
   interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
@@ -743,7 +809,7 @@ export default function CustomerMyQuotes() {
           )}
 
           {!loading && quotes.map((q: CustomerQuote) => (
-            <QuoteCard key={q.quote_id} quote={q} sizeUnit={sizeUnit} onRefresh={() => fetchPage(1, currentOpts(), false)} />
+            <QuoteCard key={q.quote_id} quote={q} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} onRefresh={() => fetchPage(1, currentOpts(), false)} />
           ))}
 
           {!loading && hasMore && (

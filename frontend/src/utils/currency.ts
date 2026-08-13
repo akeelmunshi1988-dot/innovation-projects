@@ -3,13 +3,33 @@ const LOCALE_MAP: Record<string, string> = {
   USD: 'en-US',
   EUR: 'de-DE',
   GBP: 'en-GB',
+  CAD: 'en-CA',
+  AUD: 'en-AU',
+  AED: 'ar-AE',
+  SGD: 'en-SG',
+  CHF: 'de-CH',
+  SAR: 'ar-SA',
+  QAR: 'ar-QA',
+  JPY: 'ja-JP',
+  NZD: 'en-NZ',
+  ZAR: 'en-ZA',
 };
 
 export const CURRENCIES = [
-  { code: 'INR', label: 'Indian Rupee (₹)', symbol: '₹' },
-  { code: 'USD', label: 'US Dollar ($)', symbol: '$' },
-  { code: 'EUR', label: 'Euro (€)', symbol: '€' },
-  { code: 'GBP', label: 'British Pound (£)', symbol: '£' },
+  { code: 'INR', label: 'Indian Rupee (₹)', symbol: '₹', country: 'India' },
+  { code: 'USD', label: 'US Dollar ($)', symbol: '$', country: 'United States' },
+  { code: 'EUR', label: 'Euro (€)', symbol: '€', country: 'Eurozone' },
+  { code: 'GBP', label: 'British Pound (£)', symbol: '£', country: 'United Kingdom' },
+  { code: 'CAD', label: 'Canadian Dollar (CA$)', symbol: 'CA$', country: 'Canada' },
+  { code: 'AUD', label: 'Australian Dollar (A$)', symbol: 'A$', country: 'Australia' },
+  { code: 'AED', label: 'UAE Dirham (AED)', symbol: 'AED', country: 'United Arab Emirates' },
+  { code: 'SGD', label: 'Singapore Dollar (S$)', symbol: 'S$', country: 'Singapore' },
+  { code: 'CHF', label: 'Swiss Franc (CHF)', symbol: 'CHF', country: 'Switzerland' },
+  { code: 'SAR', label: 'Saudi Riyal (SAR)', symbol: 'SAR', country: 'Saudi Arabia' },
+  { code: 'QAR', label: 'Qatari Riyal (QAR)', symbol: 'QAR', country: 'Qatar' },
+  { code: 'JPY', label: 'Japanese Yen (¥)', symbol: '¥', country: 'Japan' },
+  { code: 'NZD', label: 'New Zealand Dollar (NZ$)', symbol: 'NZ$', country: 'New Zealand' },
+  { code: 'ZAR', label: 'South African Rand (R)', symbol: 'R', country: 'South Africa' },
 ];
 
 // Maps a locale's region subtag (e.g. the "IN" in "en-IN") to one of the currencies
@@ -24,6 +44,16 @@ const REGION_TO_CURRENCY: Record<string, string> = {
   EE: 'EUR', LV: 'EUR', LT: 'EUR', CY: 'EUR', MT: 'EUR', HR: 'EUR',
   // USD — US plus territories/countries that peg to or commonly price in USD
   US: 'USD', PR: 'USD', EC: 'USD', PA: 'USD',
+  CA: 'CAD',
+  AU: 'AUD',
+  AE: 'AED',
+  SG: 'SGD',
+  CH: 'CHF',
+  SA: 'SAR',
+  QA: 'QAR',
+  JP: 'JPY',
+  NZ: 'NZD',
+  ZA: 'ZAR',
 };
 
 /**
@@ -113,4 +143,20 @@ export function fmtTenant(
   const from = itemCurrency ?? tenant.base_currency;
   const rate = getConversionRate(from, tenant.currency, tenant.base_currency, tenant.exchange_rates ?? {});
   return fmtExact(n * rate, tenant.currency);
+}
+
+/**
+ * Like fmtTenant, but converts to an arbitrary target currency instead of the
+ * tenant's own fixed display currency — used to show a quote/order in the
+ * currency implied by that customer's own country.
+ */
+export function fmtAs(
+  n: number,
+  itemCurrency: string | null | undefined,
+  targetCurrency: string,
+  tenant: Pick<TenantLike, 'base_currency' | 'exchange_rates'>,
+): string {
+  const from = itemCurrency ?? tenant.base_currency;
+  const rate = getConversionRate(from, targetCurrency, tenant.base_currency, tenant.exchange_rates ?? {});
+  return fmtExact(n * rate, targetCurrency);
 }

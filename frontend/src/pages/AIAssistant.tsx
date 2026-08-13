@@ -104,7 +104,7 @@ const AIAssistant: React.FC = () => {
               <Sparkles size={32} className="text-gold-400" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-cream-100 text-xl font-bold">LoomCraftRugs AI Assistant</h2>
+              <h2 className="text-cream-100 text-xl font-bold">{user?.tenant.name ?? 'Business'} AI Assistant</h2>
               <p className="text-dark-400 text-sm max-w-md">
                 Ask me anything about our rug catalog, pricing, material availability, or production timelines.
                 I query our live business database — no guessing.

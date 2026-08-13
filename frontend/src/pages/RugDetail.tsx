@@ -91,12 +91,12 @@ export default function RugDetail() {
     setLoading(true);
     setError(null);
     try {
-      const [rugData, allQuotes] = await Promise.all([
+      const [rugData, quotesPage] = await Promise.all([
         getRug(parseInt(id)),
-        getQuotes(),
+        getQuotes({ rug_catalog_id: parseInt(id), page_size: 200 }),
       ]);
       setRug(rugData);
-      setQuotes(allQuotes.filter((q) => q.rug_catalog_id === parseInt(id)));
+      setQuotes(quotesPage.items);
       // seed edit form
       setEditName(rugData.name);
       setEditDesc(rugData.description ?? '');

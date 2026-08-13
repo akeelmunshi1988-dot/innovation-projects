@@ -80,7 +80,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-dark-950">
-      <SEO title="Admin" description="LoomCraftRugs admin panel." noindex />
+      <SEO title="Admin" description={`${user?.tenant.name ?? 'Business'} admin panel.`} noindex />
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -214,7 +214,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </button>
           <div className="flex-1">
             <h2 className="text-cream-200 font-semibold text-sm">
-              {navItems.find((n) => n.path === location.pathname)?.label ?? 'LoomCraftRugs AI'}
+              {navItems.find((n) => n.path === location.pathname)?.label ?? user?.tenant.name ?? 'Admin'}
             </h2>
           </div>
           <div className="flex items-center gap-3">

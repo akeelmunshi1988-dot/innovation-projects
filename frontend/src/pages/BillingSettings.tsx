@@ -93,7 +93,7 @@ export default function BillingSettings() {
       const options = {
         key: data.key_id,
         subscription_id: data.subscription_id,
-        name: 'LoomCraftRugs AI',
+        name: user?.tenant.name ?? 'Business',
         description: data.description,
         image: '/favicon.ico',
         prefill: data.prefill,

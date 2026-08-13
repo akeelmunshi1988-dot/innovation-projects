@@ -210,6 +210,7 @@ class QuoteBase(BaseModel):
     rug_catalog_id: Optional[int] = None
     custom_size_w: Optional[float] = None
     custom_size_h: Optional[float] = None
+    rug_shape: Optional[str] = None
     material_id: Optional[int] = None
     qty: int = 1
     base_price: Optional[float] = None
@@ -218,6 +219,7 @@ class QuoteBase(BaseModel):
     margin_pct: Optional[float] = None
     gst_pct: Optional[float] = None
     manual_discount_pct: Optional[float] = None
+    shipping_cost: Optional[float] = None
     expected_delivery_days: Optional[int] = None
     status: str = "draft"
     notes: Optional[str] = None
@@ -228,6 +230,8 @@ class QuoteBase(BaseModel):
     material_preference: Optional[str] = None
     budget_range: Optional[str] = None
     reference_image_urls: Optional[List[str]] = None
+    vendor_sample_image_urls: Optional[List[str]] = None
+    revised_from_quote_id: Optional[int] = None
 
 
 class QuoteCreate(QuoteBase):
@@ -261,13 +265,29 @@ class QuoteRejectRequest(BaseModel):
 
 
 class QuoteAdjustRequest(BaseModel):
-    final_price: float
+    # Either final_price (manual) or material_id (calculated from margin over
+    # material cost — used for custom rug requests with no catalog rug) must be
+    # provided; enforced in the route, not here, since it's a cross-field rule.
+    final_price: Optional[float] = None
+    material_id: Optional[int] = None
+    margin_pct: Optional[float] = Field(None, ge=0, le=500)
     vendor_notes: Optional[str] = None
     manual_discount_pct: Optional[float] = None
+    shipping_cost: Optional[float] = None
+    # Lets the vendor fill in (or correct) a custom request's dimensions while
+    # pricing it — many custom requests arrive with no size on file yet, which
+    # otherwise blocks the material-cost calculation entirely.
+    custom_size_w: Optional[float] = None
+    custom_size_h: Optional[float] = None
+    rug_shape: Optional[str] = None
 
 
 class QuoteCustomerRespondRequest(BaseModel):
     customer_response_notes: Optional[str] = None
+
+
+class QuoteSampleImagesRequest(BaseModel):
+    image_urls: List[str] = Field(..., max_length=3)
 
 
 class Quote(QuoteBase):
@@ -280,6 +300,15 @@ class Quote(QuoteBase):
 
     class Config:
         from_attributes = True
+
+
+class QuotePaginatedResponse(BaseModel):
+    items: List[Quote]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+    status_counts: dict  # {"all": n, "draft": n, "sent": n, "accepted": n, "rejected": n} — same filters minus status
 
 
 class QuoteCalculateRequest(BaseModel):
@@ -303,9 +332,11 @@ class QuoteCalculateResponse(BaseModel):
     manual_discount: float = 0.0
     rush_surcharge: float
     size_surcharge: float
+    shipping_cost: float = 0.0
     pre_gst_price: float = 0.0
     gst_pct: float = 12.0
     gst_amount: float = 0.0
+    gst_inclusive: bool = False
     final_price: float
     price_per_piece: float
     price_currency: str = "INR"
@@ -351,6 +382,11 @@ class Order(OrderBase):
     promo_code: Optional[str] = None
     discount_amount: Optional[float] = None
     shipping_cost: Optional[float] = None
+    razorpay_payment_id: Optional[str] = None
+    refund_id: Optional[str] = None
+    refund_status: Optional[str] = None
+    refund_amount: Optional[float] = None
+    refunded_at: Optional[datetime] = None
     quote: Optional[Quote] = None
     items: List[OrderItemSchema] = []
 
@@ -453,6 +489,8 @@ class TenantPublic(BaseModel):
     currency: str
     base_currency: str = "INR"
     exchange_rates: dict = {}
+    exchange_rates_auto: bool = True
+    exchange_rates_updated_at: Optional[datetime] = None
     logo_url: Optional[str] = None
     plan: str
     plan_status: str = "trial"
@@ -461,6 +499,7 @@ class TenantPublic(BaseModel):
     rush_surcharge_pct: float = 25.0
     large_format_threshold_sqm: float = 20.0
     large_format_surcharge_pct: float = 5.0
+    gst_inclusive: bool = False
     ai_assistant_customer_enabled: bool = True
     ai_assistant_vendor_enabled: bool = True
     vendor_notification_email: Optional[str] = None
@@ -472,6 +511,7 @@ class TenantPublic(BaseModel):
     catalog_pdf_url: Optional[str] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
+    cancellation_window_hours: int = 24
 
     @field_validator('certifications', mode='before')
     @classmethod
@@ -491,6 +531,7 @@ class TenantUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     currency: Optional[str] = Field(None, min_length=3, max_length=3)
     exchange_rates: Optional[dict] = None
+    exchange_rates_auto: Optional[bool] = None
     gstin: Optional[str] = Field(None, max_length=15)
     state_code: Optional[str] = None
     address: Optional[str] = None
@@ -499,6 +540,7 @@ class TenantUpdateRequest(BaseModel):
     rush_surcharge_pct: Optional[float] = Field(None, ge=0, le=200)
     large_format_threshold_sqm: Optional[float] = Field(None, ge=1, le=500)
     large_format_surcharge_pct: Optional[float] = Field(None, ge=0, le=100)
+    gst_inclusive: Optional[bool] = None
     ai_assistant_customer_enabled: Optional[bool] = None
     ai_assistant_vendor_enabled: Optional[bool] = None
     vendor_notification_email: Optional[EmailStr] = None
@@ -510,6 +552,7 @@ class TenantUpdateRequest(BaseModel):
     catalog_pdf_url: Optional[str] = None
     certifications: Optional[List[dict]] = None
     default_shipping_rate: Optional[float] = Field(None, ge=0)
+    cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)
 
     @field_validator('contact_emails')
     @classmethod
@@ -602,6 +645,7 @@ class CustomerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=128)
+    country: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     company: Optional[str] = Field(None, max_length=200)
     account_type: Optional[str] = Field("retail", max_length=20)  # "retail" | "trade"
@@ -618,6 +662,7 @@ class CustomerTokenResponse(BaseModel):
     customer_id: int
     name: str
     email: str
+    country: Optional[str] = None
 
 
 class CustomerRegisterResponse(BaseModel):

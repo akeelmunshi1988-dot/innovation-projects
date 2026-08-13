@@ -283,13 +283,18 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Backend static files (admin-uploaded rug images)
+    # Backend static files (admin-uploaded rug images). nosniff is defense-in-depth on
+    # top of the backend's own upload validation (uploads are re-encoded to .jpg server
+    # side) — it stops the browser from ever executing a served file as HTML/script
+    # regardless of its extension.
     location /static/ {
         alias /var/www/loomcraft/innovation-projects/backend/static/;
+        add_header X-Content-Type-Options nosniff;
     }
 
     location /outputs/ {
         alias /var/www/loomcraft/innovation-projects/backend/outputs/;
+        add_header X-Content-Type-Options nosniff;
     }
 }
 ```

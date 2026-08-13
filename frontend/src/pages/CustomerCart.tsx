@@ -16,6 +16,7 @@ interface ItemEstimate {
   pre_gst_price: number;
   gst_pct: number;
   gst_amount: number;
+  gst_inclusive: boolean;
   price_currency: string;
   estimated_days: number;
   material_available: boolean;
@@ -61,9 +62,10 @@ export default function CustomerCart() {
 
   const validItems = items.filter((i) => estimates[i.id]?.final_price != null);
   const grandTotalBase = validItems.reduce((sum, i) => sum + (estimates[i.id]?.final_price || 0), 0);
-  const preGstTotal = validItems.every((i) => estimates[i.id]?.pre_gst_price != null)
+  const gstApplies = validItems.length > 0 && validItems.every((i) => estimates[i.id]?.gst_inclusive);
+  const preGstTotal = gstApplies
     ? validItems.reduce((sum, i) => sum + (estimates[i.id]?.pre_gst_price || 0), 0) : null;
-  const gstTotal = validItems.every((i) => estimates[i.id]?.gst_amount != null)
+  const gstTotal = gstApplies
     ? validItems.reduce((sum, i) => sum + (estimates[i.id]?.gst_amount || 0), 0) : null;
   const primaryCurrency = validItems[0] ? estimates[validItems[0].id]?.price_currency : undefined;
 
@@ -110,7 +112,7 @@ export default function CustomerCart() {
         size_w: item.size_w, size_h: item.size_h, qty: item.qty, rush_order: item.rush_order,
         shape: item.shape, notes: item.notes,
         estimated_price: est.final_price, pre_gst_price: est.pre_gst_price,
-        gst_pct: est.gst_pct, gst_amount: est.gst_amount,
+        gst_pct: est.gst_pct, gst_amount: est.gst_amount, gst_inclusive: est.gst_inclusive,
         price_currency: est.price_currency, estimated_days: est.estimated_days,
       };
     });
@@ -282,7 +284,7 @@ export default function CustomerCart() {
                 </div>
 
                 <div className="flex justify-between items-center border-t border-stone-200 pt-4">
-                  <span className="text-stone-900 font-medium text-sm">Total (incl. Tax & Shipping)</span>
+                  <span className="text-stone-900 font-medium text-sm">{gstApplies ? 'Total (incl. Tax & Shipping)' : 'Total (incl. Shipping)'}</span>
                   <span className="text-stone-900 font-medium text-xl">
                     {displayPrice(finalTotal, primaryCurrency)}
                   </span>
