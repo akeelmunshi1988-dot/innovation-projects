@@ -13,6 +13,8 @@ export interface TenantInfo {
   currency: string;
   base_currency: string;
   exchange_rates: Record<string, number>;
+  exchange_rates_auto: boolean;
+  exchange_rates_updated_at: string | null;
   logo_url: string | null;
   plan: string;
   plan_status: string;
@@ -21,6 +23,7 @@ export interface TenantInfo {
   rush_surcharge_pct: number;
   large_format_threshold_sqm: number;
   large_format_surcharge_pct: number;
+  gst_inclusive: boolean;
   ai_assistant_customer_enabled: boolean;
   ai_assistant_vendor_enabled: boolean;
   vendor_notification_email: string | null;
@@ -32,6 +35,7 @@ export interface TenantInfo {
   catalog_pdf_url: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
+  cancellation_window_hours: number;
 }
 
 export interface AuthUser {

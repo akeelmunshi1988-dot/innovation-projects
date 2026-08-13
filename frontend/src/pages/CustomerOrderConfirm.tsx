@@ -83,7 +83,7 @@ export default function CustomerOrderConfirm() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm border-t border-stone-100 pt-4">
               <div>
-                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">Total (incl. Tax)</p>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-1">{order.gst_inclusive ? 'Total (incl. Tax)' : 'Total'}</p>
                 <p className="text-stone-900 font-medium text-base">{fmt(order.final_price)}</p>
               </div>
               <div>

@@ -16,7 +16,7 @@ import requests as _requests
 from pydantic import BaseModel
 import anthropic as _anthropic
 from app.services.vision_matcher import analyze_and_match, analyze_and_match_room
-from app.services.quote_engine import QuoteEngine
+from app.services.quote_engine import QuoteEngine, build_manual_price_result
 from app.services.promo_engine import find_valid_promo, compute_discount, record_redemption, PromoError
 from app.core.config import settings
 from app.core.database import SessionLocal, get_db
@@ -25,6 +25,8 @@ from app.core.auth import get_current_customer
 from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
+from app.services import ai_realism
+from app.services import geo_ip
 from app.services.invoice_generator import generate_invoice_pdf
 from app.services.size_format import fmt_dims as _fmt_dims
 from app.schemas.schemas import QuoteCustomerRespondRequest
@@ -75,6 +77,7 @@ async def replace_rug(
     rug_id:    Optional[int]        = Form(None),
     corners:   str                  = Form(...),
     shape:     str                  = Form("rect"),
+    ai_enhance: bool                = Form(False),
 ):
     if rugImage is None and rug_id is None:
         raise HTTPException(status_code=400, detail="Provide either rugImage or rug_id.")
@@ -111,10 +114,15 @@ async def replace_rug(
         if rug is None:
             raise HTTPException(status_code=400, detail="Could not read rug image.")
 
-    # Auto-crop background padding so the rug pattern fills the full warp boundary.
-    # Sample the 4 corners to detect the background colour, then find the
-    # bounding box of content that differs from it.
-    def crop_to_content(img: np.ndarray) -> np.ndarray:
+    # Auto-crop background padding so the rug pattern fills the full warp boundary,
+    # and return a silhouette mask of the actual rug content alongside it. A plain
+    # bounding-box crop alone still leaves background-colour pixels wherever the
+    # rug isn't a perfect axis-aligned rectangle (fringe that's narrower than the
+    # body, a slightly rotated studio photo, an oval rug) — those leftover pixels
+    # (often black studio backdrops) then get warped straight onto the floor as
+    # dark wedges. The mask lets the compositor skip exactly those pixels instead
+    # of pasting the whole rectangle.
+    def crop_to_content(img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)
         corners = [gray[0, 0], gray[0, -1], gray[-1, 0], gray[-1, -1]]
         bg = float(np.median(corners))
@@ -122,13 +130,20 @@ async def replace_rug(
         diff = np.abs(gray - bg)
         thresh = 18.0  # tolerance — keeps subtle textures, removes plain bg
         content = (diff > thresh).astype(np.uint8) * 255
-        # Clean up noise
-        content = cv2.morphologyEx(content, cv2.MORPH_OPEN,
-                                   np.ones((5, 5), np.uint8))
-        coords = cv2.findNonZero(content)
-        if coords is None:
-            return img                        # can't detect content, return as-is
-        x, y, cw, ch = cv2.boundingRect(coords)
+        # Bridge small gaps (fine dark motifs on light rugs, thin fringe threads)
+        # so the silhouette is one solid blob instead of a speckled mask.
+        content = cv2.morphologyEx(content, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+        content = cv2.morphologyEx(content, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+
+        contours, _ = cv2.findContours(content, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return img, np.full(img.shape[:2], 255, dtype=np.uint8)  # can't detect content, use as-is
+        # Largest contour only — ignores stray noise/reflections detected elsewhere in the photo
+        largest = max(contours, key=cv2.contourArea)
+        silhouette = np.zeros_like(content)
+        cv2.drawContours(silhouette, [largest], -1, 255, thickness=cv2.FILLED)
+
+        x, y, cw, ch = cv2.boundingRect(largest)
         # Add 1 % padding so edges aren't clipped
         pad_x = max(1, int(cw * 0.01))
         pad_y = max(1, int(ch * 0.01))
@@ -136,12 +151,13 @@ async def replace_rug(
         cw = min(img.shape[1] - x, cw + 2 * pad_x)
         ch = min(img.shape[0] - y, ch + 2 * pad_y)
         cropped = img[y:y+ch, x:x+cw]
+        cropped_mask = silhouette[y:y+ch, x:x+cw]
         # Only use crop if it meaningfully reduces the image (> 3 % gain each axis)
         if cw < img.shape[1] * 0.97 or ch < img.shape[0] * 0.97:
-            return cropped
-        return img
+            return cropped, cropped_mask
+        return img, np.full(img.shape[:2], 255, dtype=np.uint8)
 
-    rug = crop_to_content(rug)
+    rug, rug_content_mask = crop_to_content(rug)
 
     h, w = room.shape[:2]
     pts_dst = np.array(corner_points[:4], dtype=np.float32)
@@ -179,10 +195,12 @@ async def replace_rug(
         y0 = (rh - side) // 2
         x0 = (rw - side) // 2
         rug = rug[y0:y0 + side, x0:x0 + side]
+        rug_content_mask = rug_content_mask[y0:y0 + side, x0:x0 + side]
 
         diameter = int(min(max(max(dst_w, dst_h) * 1.25, side), 2400))
         resize_interp = cv2.INTER_AREA if diameter < side else cv2.INTER_LANCZOS4
         rug = cv2.resize(rug, (diameter, diameter), interpolation=resize_interp)
+        rug_content_mask = cv2.resize(rug_content_mask, (diameter, diameter), interpolation=cv2.INTER_LINEAR)
         rug_width = rug_height = diameter
     else:
         src_h, src_w = rug.shape[:2]
@@ -197,6 +215,7 @@ async def replace_rug(
 
         resize_interp = cv2.INTER_AREA if rug_width < src_w else cv2.INTER_LANCZOS4
         rug = cv2.resize(rug, (rug_width, rug_height), interpolation=resize_interp)
+        rug_content_mask = cv2.resize(rug_content_mask, (rug_width, rug_height), interpolation=cv2.INTER_LINEAR)
 
     pts_src = np.array([
         [0,         0],
@@ -207,13 +226,17 @@ async def replace_rug(
     matrix     = cv2.getPerspectiveTransform(pts_src, pts_dst)
     warped_rug = cv2.warpPerspective(rug, matrix, (w, h), flags=cv2.INTER_LANCZOS4)
 
-    # Build flat mask in rug coordinate space then warp it
-    flat_mask = np.zeros((rug_height, rug_width), dtype=np.uint8)
+    # Build flat mask in rug coordinate space then warp it. Always intersect with
+    # the rug's own content silhouette so any leftover studio background (black,
+    # white, or otherwise) inside the crop rectangle is excluded rather than
+    # painted onto the floor.
     if shape == "circle":
+        flat_mask = np.zeros((rug_height, rug_width), dtype=np.uint8)
         cx, cy = rug_width // 2, rug_height // 2
         cv2.ellipse(flat_mask, (cx, cy), (cx - 10, cy - 10), 0, 0, 360, 255, -1)
+        flat_mask = cv2.min(flat_mask, rug_content_mask)
     else:
-        flat_mask[:] = 255
+        flat_mask = rug_content_mask
 
     mask = cv2.warpPerspective(flat_mask, matrix, (w, h))
     mask = cv2.GaussianBlur(mask, (31, 31), 15)
@@ -232,31 +255,22 @@ async def replace_rug(
 
     final = room_f.astype(np.uint8)
 
-    # Two-layer drop shadow, masked to fall only outside the rug: a tight dark
-    # contact shadow right at the edge plus a wider soft ambient one — a single
-    # wide blur (the old approach) reads as a hazy vignette over the whole photo,
-    # including on top of the rug itself, rather than a shadow the rug is casting.
-    shadow_pts = np.array(corner_points, dtype=np.int32)
-    rug_mask_bin = (mask_f > 0.05).astype(np.float32)
-
-    contact = np.zeros((h, w), dtype=np.float32)
-    cv2.fillConvexPoly(contact, shadow_pts, 1.0)
-    contact = cv2.GaussianBlur(contact, (15, 15), 0) * 0.55
-
-    ambient = np.zeros((h, w), dtype=np.float32)
-    cv2.fillConvexPoly(ambient, shadow_pts, 1.0)
-    ambient = cv2.GaussianBlur(ambient, (81, 81), 35) * 0.25
-
-    shadow_alpha = np.clip(contact + ambient, 0, 1) * (1 - rug_mask_bin)
-    shadow_alpha_3 = np.stack([shadow_alpha] * 3, axis=2)
-    final = (final.astype(np.float32) * (1 - shadow_alpha_3)).clip(0, 255).astype(np.uint8)
+    # Optional AI realism polish pass — only touches a thin band around the rug's
+    # edges (see ai_realism.py), so pattern/position from the warp above are
+    # unaffected. Falls back to the OpenCV composite on any failure.
+    ai_enhanced = False
+    if ai_enhance and settings.OPENAI_API_KEY:
+        enhanced = ai_realism.enhance_realism(final, corner_points)
+        if enhanced is not None:
+            final = enhanced
+            ai_enhanced = True
 
     # Save result
     out_name = f"{uuid.uuid4()}.jpg"
     out_path = os.path.join(OUTPUT_DIR, out_name)
     cv2.imwrite(out_path, final, [cv2.IMWRITE_JPEG_QUALITY, 95])
 
-    return {"imageUrl": f"/api/output/{out_name}"}
+    return {"imageUrl": f"/api/output/{out_name}", "aiEnhanced": ai_enhanced}
 
 
 @router.get("/output/{filename}")
@@ -281,6 +295,7 @@ async def get_public_settings():
         tenant = db.query(Tenant).first()
         result = {
             "ai_assistant_enabled": tenant.ai_assistant_customer_enabled if tenant else True,
+            "ai_room_enhance_enabled": bool(settings.OPENAI_API_KEY),
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
             "default_size_unit": tenant.default_size_unit if tenant else "ft",
@@ -299,6 +314,27 @@ async def get_public_settings():
         return result
     finally:
         db.close()
+
+
+@router.get("/customer/detect-country")
+async def detect_country(request: Request):
+    """Best-effort IP -> country guess for guests, used only to pick a sensible
+    default display currency before login/checkout (never authoritative for
+    pricing/GST — see geo_ip.py). Cached per-IP so repeat visits don't re-hit
+    the geolocation API."""
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else None
+    )
+    if not ip:
+        return {"country": None}
+
+    cached = cache_get("geo_country", ip)
+    if cached is not None:
+        return {"country": cached}
+
+    country = geo_ip.lookup_country(ip)
+    cache_set("geo_country", country, ip)
+    return {"country": country}
 
 
 @router.get("/customer/showcase-videos")
@@ -798,18 +834,28 @@ CUSTOM_REQUEST_UPLOAD_DIR = os.path.join(_BASE, "static", "custom-requests")
 
 @router.post("/customer/custom-rug-request/upload-image")
 async def upload_custom_rug_request_image(file: UploadFile = File(...)):
+    # This endpoint is deliberately unauthenticated (guests submit reference images
+    # before creating an account), so the upload itself must not be trusted at all:
+    # content_type is client-supplied and trivially spoofable, and a filename-derived
+    # extension would let an attacker store a browser-executable file (e.g. .html/.svg)
+    # under /static/. Decoding with OpenCV and always re-encoding to .jpg closes both
+    # holes — anything that isn't real raster image data is rejected outright, and the
+    # extension is never taken from client input.
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, WebP, or GIF.")
     contents = await file.read()
     if len(contents) > MAX_SIZE_BYTES:
         raise HTTPException(status_code=400, detail="File too large. Max 10MB allowed.")
 
-    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
-    filename = f"{uuid.uuid4().hex}.{ext}"
+    arr = np.frombuffer(contents, np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+
+    filename = f"{uuid.uuid4().hex}.jpg"
     os.makedirs(CUSTOM_REQUEST_UPLOAD_DIR, exist_ok=True)
     filepath = os.path.join(CUSTOM_REQUEST_UPLOAD_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(contents)
+    cv2.imwrite(filepath, img, [cv2.IMWRITE_JPEG_QUALITY, 92])
 
     return {"url": f"/static/custom-requests/{filename}"}
 
@@ -820,8 +866,8 @@ class CustomRugRequestBody(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     company: Optional[str] = Field(None, max_length=200)
     room_type: Optional[str] = Field(None, max_length=100)
-    size_w: Optional[float] = Field(None, gt=0, le=50)
-    size_h: Optional[float] = Field(None, gt=0, le=50)
+    size_w: float = Field(..., gt=0, le=50)
+    size_h: float = Field(..., gt=0, le=50)
     qty: int = Field(1, ge=1, le=10000)
     material_preference: Optional[str] = Field(None, max_length=50)
     budget_range: Optional[str] = Field(None, max_length=100)
@@ -1052,6 +1098,7 @@ def _create_order_from_items(
     order = Order(
         tenant_id=tenant_id, quote_id=first_quote.id, status="pending",
         shipping_address=shipping_address, estimated_delivery=estimated_delivery,
+        razorpay_payment_id=payment_ref,
     )
     db.add(order)
     db.flush()
@@ -1196,6 +1243,8 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             order.promo_code = promo.code
             order.discount_amount = discount_amount
             record_redemption(db, promo, discount_amount, customer.id, order.id)
+        order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
+        order.price_currency = items_meta[0]["quote"].price_currency
         db.commit()
         return {
             "order_id": order.id, "quote_id": items_meta[0]["quote"].id,
@@ -1206,6 +1255,7 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             "promo_code": promo.code if promo else None,
             "discount_amount": discount_amount,
             "price_currency": items_meta[0]["quote"].price_currency,
+            "gst_inclusive": bool(tenant.gst_inclusive) if tenant else False,
             "items": [
                 {"quote_id": m["quote"].id, "rug_name": m["rug"].name, "size": m["size_display"], "qty": m["qty"], "final_price": m["quote"].final_price, "price_currency": m["quote"].price_currency}
                 for m in items_meta
@@ -1246,6 +1296,8 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             order.promo_code = promo.code
             order.discount_amount = discount_amount
             record_redemption(db, promo, discount_amount, customer.id, order.id)
+        order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
+        order.price_currency = items_meta[0]["quote"].price_currency
         db.commit()
         return {
             "order_id": order.id, "quote_id": items_meta[0]["quote"].id,
@@ -1258,6 +1310,7 @@ async def customer_checkout(body: CheckoutBody, request: Request):
             "promo_code": promo.code if promo else None,
             "discount_amount": discount_amount,
             "price_currency": items_meta[0]["quote"].price_currency,
+            "gst_inclusive": bool(tenant.gst_inclusive) if tenant else False,
             "items": [
                 {"quote_id": m["quote"].id, "rug_name": m["rug"].name, "size": m["size_display"], "qty": m["qty"], "final_price": m["quote"].final_price, "price_currency": m["quote"].price_currency}
                 for m in items_meta
@@ -1332,6 +1385,7 @@ async def get_customer_orders(
             .limit(page_size)
             .all()
         )
+        tenant_cache: dict[int, "Tenant"] = {}
         result = []
         for o in orders:
             q = o.quote
@@ -1341,6 +1395,11 @@ async def get_customer_orders(
             gst = q.gst_pct if q else None
             pre_gst = round(fp / (1 + gst / 100), 2) if fp and gst else None
             gst_amount = round(fp - pre_gst, 2) if fp and pre_gst else None
+            tenant_id = q.tenant_id if q else None
+            if tenant_id is not None and tenant_id not in tenant_cache:
+                tenant_cache[tenant_id] = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            order_tenant = tenant_cache.get(tenant_id) if tenant_id is not None else None
+            gst_inclusive = bool(order_tenant.gst_inclusive) if order_tenant else False
             size_w = q.custom_size_w if q else None
             size_h = q.custom_size_h if q else None
             qty = q.qty if q else 1
@@ -1404,7 +1463,9 @@ async def get_customer_orders(
                 "pre_gst_price": pre_gst,
                 "gst_pct": gst,
                 "gst_amount": gst_amount,
+                "gst_inclusive": gst_inclusive,
                 "price_currency": q.price_currency if q else "INR",
+                "customer_country": q.customer.country if q and q.customer else None,
                 "rush_order": q.rush_order if q else False,
                 "manual_discount_pct": q.manual_discount_pct if q else None,
                 "shipping_address": o.shipping_address,
@@ -1483,31 +1544,47 @@ async def get_customer_order_breakdown(order_id: int, email: str):
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
         q = order.quote
-        if not q or not q.rug_catalog_id or not q.material_id or not q.custom_size_w or not q.custom_size_h:
-            raise HTTPException(status_code=422, detail="Order is missing required fields for calculation")
-        engine = QuoteEngine(db, tenant_id=None)
-        result = engine.calculate_quote(
-            rug_id=q.rug_catalog_id,
-            size_w=q.custom_size_w,
-            size_h=q.custom_size_h,
-            material_id=q.material_id,
-            qty=q.qty or 1,
-            rush_order=bool(q.rush_order),
-            margin_override=q.margin_pct,
-            gst_override=q.gst_pct,
-            manual_discount_pct=q.manual_discount_pct,
-            shape=q.rug_shape or "rect",
-        )
-        if "error" in result:
-            raise HTTPException(status_code=422, detail=result["error"])
+        if not q:
+            raise HTTPException(status_code=422, detail="Order has no associated quote")
+        tenant = db.query(Tenant).filter(Tenant.id == q.tenant_id).first()
+
+        if q.rug_catalog_id and q.material_id:
+            if not q.custom_size_w or not q.custom_size_h:
+                raise HTTPException(status_code=422, detail="Order is missing required fields for calculation")
+            engine = QuoteEngine(db, tenant_id=q.tenant_id)
+            result = engine.calculate_quote(
+                rug_id=q.rug_catalog_id,
+                size_w=q.custom_size_w,
+                size_h=q.custom_size_h,
+                material_id=q.material_id,
+                qty=q.qty or 1,
+                rush_order=bool(q.rush_order),
+                margin_override=q.margin_pct,
+                gst_override=q.gst_pct,
+                manual_discount_pct=q.manual_discount_pct,
+                shape=q.rug_shape or "rect",
+            )
+            if "error" in result:
+                raise HTTPException(status_code=422, detail=result["error"])
+        elif q.material_id:
+            # Custom rug request with a material assigned (via Adjust Price and Material) —
+            # no catalog rug, so price it via margin-over-material-cost instead.
+            engine = QuoteEngine(db, tenant_id=q.tenant_id)
+            result = engine.calculate_custom_quote(q, q.material_id, margin_override=q.margin_pct)
+            if "error" in result:
+                raise HTTPException(status_code=422, detail=result["error"])
+        else:
+            # Custom rug request priced with a flat vendor-typed number, no material
+            # assigned — no cost basis to recompute from at all.
+            result = build_manual_price_result(q, tenant)
         mat = q.material
         rug = q.rug_catalog
-        tenant = db.query(Tenant).filter(Tenant.id == q.tenant_id).first()
         cust = q.customer
         return {
             **_customer_safe_breakdown(result),
             "stored_final_price": q.final_price,
             "price_currency": q.price_currency or result.get("price_currency", "INR"),
+            "customer_country": cust.country if cust else None,
             "material_name": mat.name if mat else None,
             "rug_name": rug.name if rug else "Custom Order",
             "weave_type": rug.weave_type if rug else None,
@@ -1566,6 +1643,8 @@ async def customer_chat(body: CustomerChatRequest):
 
     db = SessionLocal()
     try:
+        tenant = db.query(Tenant).first()
+        business_name = tenant.name if tenant else "our studio"
         rugs = db.query(RugCatalog).join(Material).all()
         catalog_lines = [
             f"• ID {r.id} — {r.name}: material={r.material.name}, weave={r.weave_type or 'n/a'}, "
@@ -1577,7 +1656,7 @@ async def customer_chat(body: CustomerChatRequest):
     finally:
         db.close()
 
-    system_prompt = f"""You are a friendly rug design consultant for LoomCraftRugs AI, a custom rug manufacturing studio.
+    system_prompt = f"""You are a friendly rug design consultant for {business_name}, a custom rug manufacturing studio.
 Your role is to help customers choose the perfect rug and place their order seamlessly.
 
 Our current collection (use exact IDs when calling tools):
@@ -1750,6 +1829,7 @@ Rules:
                             "pre_gst_price":    calc.get("pre_gst_price"),
                             "gst_pct":          calc.get("gst_pct"),
                             "gst_amount":       calc.get("gst_amount"),
+                            "gst_inclusive":    calc.get("gst_inclusive"),
                             "price_currency":   calc.get("price_currency", "INR"),
                             "estimated_days":   lead_days,
                         })
@@ -1888,6 +1968,7 @@ def get_customer_quotes(
             "base_price": q.base_price,
             "final_price": q.final_price,
             "price_currency": q.price_currency or "INR",
+            "customer_country": q.customer.country if q.customer else None,
             "gst_pct": q.gst_pct,
             "gst_amount": round(
                 q.final_price - round(q.final_price / (1 + (q.gst_pct or 0) / 100), 2), 2
@@ -1895,6 +1976,7 @@ def get_customer_quotes(
             "pre_gst_price": round(
                 q.final_price / (1 + (q.gst_pct or 0) / 100), 2
             ) if q.final_price else None,
+            "gst_inclusive": bool(tenant.gst_inclusive) if tenant else False,
             "gst_split": _gst_split(
                 tenant.state_code if tenant else None,
                 q.customer.state_code if q.customer else None,
@@ -1910,6 +1992,12 @@ def get_customer_quotes(
             "order_id": q.order.id if q.order else None,
             "lead_time_days": rug.lead_time_days if rug else None,
             "review_request_count": int(q.review_request_count or 0),
+            "is_custom_request": bool(q.is_custom_request),
+            "room_type": q.room_type,
+            "material_preference": q.material_preference,
+            "budget_range": q.budget_range,
+            "reference_image_urls": q.reference_image_urls,
+            "vendor_sample_image_urls": q.vendor_sample_image_urls,
         })
     return {
         "total": total,
@@ -2091,11 +2179,16 @@ def accept_quote(
         if quote.rush_order:
             lead_days = max(7, lead_days // 2)
 
+    tenant = db.query(Tenant).filter(Tenant.id == quote.tenant_id).first()
+    shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
     order = Order(
         tenant_id=quote.tenant_id,
         quote_id=quote.id,
         status="pending",
         estimated_delivery=datetime.utcnow() + timedelta(days=lead_days),
+        shipping_cost=shipping_cost,
+        total_amount=round((quote.final_price or 0.0) + shipping_cost, 2),
+        price_currency=quote.price_currency,
     )
     db.add(order)
     db.commit()
@@ -2215,14 +2308,19 @@ def download_customer_invoice(
         size_sqm = round(quote.custom_size_w * quote.custom_size_h, 4)
         qty = quote.qty or 1
         total_sqm = size_sqm * qty
-        rate_per_sqm = round(quote.final_price / total_sqm, 2) if total_sqm > 0 else 0.0
+        # Split final_price back into taxable value + GST using the rate applied on this
+        # quote — holds under both GST-inclusive and GST-exclusive tenant pricing, since
+        # final_price = pre_gst_price * (1 + gst_pct/100) in both cases.
+        gst_pct = quote.gst_pct if quote.gst_pct is not None else ((tenant.default_gst_pct if tenant else None) or 12.0)
+        pre_gst_price = round(quote.final_price / (1 + gst_pct / 100), 2) if gst_pct else quote.final_price
+        gst_amount = round(quote.final_price - pre_gst_price, 2)
         dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
         size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
 
         pdfs.append(generate_invoice_pdf(
             quote_id=quote.id,
             invoice_type=invoice_type,
-            supplier_name=tenant.name if tenant else "LoomCraftRugs",
+            supplier_name=tenant.name if tenant else "DreamRugsCreation",
             supplier_address=tenant.address if tenant else "India",
             supplier_gstin=tenant.gstin if tenant else None,
             supplier_state_code=tenant.state_code if tenant else None,
@@ -2238,7 +2336,9 @@ def download_customer_invoice(
             size_desc=size_desc,
             size_dims_str=dims_str,
             qty=qty,
-            rate_per_sqm=rate_per_sqm,
+            pre_gst_price=pre_gst_price,
+            gst_amount=gst_amount,
+            gst_pct=gst_pct,
             size_sqm=size_sqm,
             currency=invoice_currency,
             expected_delivery_days=quote.expected_delivery_days,

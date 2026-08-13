@@ -33,10 +33,10 @@ interface CatalogRug {
 }
 
 const MATERIALS = [
-  { id: 'wool',      label: 'Wool',      desc: 'Warm, durable, naturally stain-resistant' },
-  { id: 'silk',      label: 'Silk',      desc: 'Lustrous, formal spaces, exceptional sheen' },
-  { id: 'cotton',    label: 'Cotton',    desc: 'Casual, easy-care, vibrant colours' },
-  { id: 'synthetic', label: 'Synthetic', desc: 'Stain-proof, outdoor, budget-friendly' },
+  { id: 'wool',      label: 'Wool',      desc: 'Warm, durable, naturally stain-resistant',   image: '/rugs/rug-beni-ourain.jpg' },
+  { id: 'silk',      label: 'Silk',      desc: 'Lustrous, formal spaces, exceptional sheen',  image: '/rugs/rug-tabriz.jpg' },
+  { id: 'cotton',    label: 'Cotton',    desc: 'Casual, easy-care, vibrant colours',           image: '/rugs/rug-geometric.jpg' },
+  { id: 'synthetic', label: 'Synthetic', desc: 'Stain-proof, outdoor, budget-friendly',        image: '/rugs/rug-outdoor.jpg' },
 ];
 
 const SHOW_HERO = true;
@@ -71,23 +71,6 @@ const WHY_LOOMCRAFT = [
 
 const TRUST_BAR = ['Handmade', 'Custom Sizes', 'Worldwide Shipping', 'Family Workshop', 'Sustainable Materials'];
 
-// Decorative warp/weft crosshatch — echoes the loom motif in the brand mark, used as a
-// faint background texture on the material cards rather than a literal illustration.
-function LoomMotif({ className }: { className?: string }) {
-  const lines = [8, 22, 36, 50, 64, 78, 92, 106, 120];
-  return (
-    <svg viewBox="0 0 128 128" className={className} aria-hidden="true">
-      {lines.map((v, i) => (
-        <line key={`v${i}`} x1={v} y1="0" x2={v} y2="128" stroke="currentColor" strokeWidth={i % 2 === 0 ? 1 : 0.5} />
-      ))}
-      {lines.map((h, i) => (
-        <line key={`h${i}`} x1="0" y1={h} x2="128" y2={h} stroke="currentColor" strokeWidth={i % 2 === 0 ? 1 : 0.5} />
-      ))}
-      <circle cx="64" cy="64" r="46" stroke="currentColor" strokeWidth="1" fill="none" />
-    </svg>
-  );
-}
-
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
   const [sort, setSort] = useState<'newest' | 'popular'>('newest');
@@ -96,6 +79,7 @@ export default function CustomerHome() {
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
   const [introIndex, setIntroIndex] = useState(0);
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
+  const [businessName, setBusinessName] = useState('');
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
@@ -125,7 +109,10 @@ export default function CustomerHome() {
 
   useEffect(() => {
     getPublicSettings()
-      .then((data) => setAiConsultantEnabled(data.ai_assistant_enabled))
+      .then((data) => {
+        setAiConsultantEnabled(data.ai_assistant_enabled);
+        setBusinessName(data.business_name || '');
+      })
       .catch(() => setAiConsultantEnabled(true));
   }, []);
 
@@ -324,10 +311,10 @@ export default function CustomerHome() {
         </section>
       )}
 
-      {/* ── WHY LOOMCRAFT ──────────────────────────────────────────────── */}
+      {/* ── WHY US ─────────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="mb-12 max-w-2xl">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Why LoomCraft</p>
+          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">{businessName ? `Why ${businessName}` : 'Why Choose Us'}</p>
           <h2 className="font-serif text-4xl font-light text-stone-900">Craftsmanship you can trust</h2>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-stone-200">
@@ -490,7 +477,12 @@ export default function CustomerHome() {
                 to={`/catalog?material=${m.id}`}
                 className="group relative overflow-hidden bg-white p-8 space-y-3 hover:bg-stone-50 transition-colors"
               >
-                <LoomMotif className="absolute -bottom-4 -right-4 w-32 h-32 text-stone-100 group-hover:text-stone-200 transition-colors pointer-events-none" />
+                <img
+                  src={m.image}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-15 transition-opacity duration-300 pointer-events-none"
+                />
                 <p className="relative font-serif text-2xl font-light text-stone-900">{m.label}</p>
                 <p className="relative text-stone-500 text-sm leading-relaxed">{m.desc}</p>
                 <p className="relative text-xs text-stone-400 group-hover:text-stone-900 transition-colors flex items-center gap-1.5 pt-2">

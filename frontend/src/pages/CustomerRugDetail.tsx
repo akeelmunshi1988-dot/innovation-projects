@@ -15,7 +15,9 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { fmtSize, feetToUnit, toMetres, inputUnit } from '../utils/size';
 import { getPublicSettings } from '../services/api';
+import { COUNTRIES, detectCountry } from '../utils/countries';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 
 
 interface RugDetail {
@@ -48,6 +50,7 @@ interface PriceResult {
   pre_gst_price: number;
   gst_pct: number;
   gst_amount: number;
+  gst_inclusive: boolean;
   material_available: boolean;
   estimated_days: number;
   standard_days: number;
@@ -103,7 +106,7 @@ export default function CustomerRugDetail() {
   // Auth modal (shown when unauthenticated user tries to submit)
   const [authModal, setAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authForm, setAuthForm] = useState({ name: '', email: '', password: '', phone: '', company: '' });
+  const [authForm, setAuthForm] = useState({ name: '', email: '', password: '', phone: '', company: '', country: detectCountry() });
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [showAuthPwd, setShowAuthPwd] = useState(false);
@@ -220,7 +223,7 @@ export default function CustomerRugDetail() {
         email = user.email;
       } else {
         await customerRegister(
-          authForm.name, authForm.email, authForm.password,
+          authForm.name, authForm.email, authForm.password, authForm.country,
           authForm.phone || undefined, authForm.company || undefined,
         );
       }
@@ -440,7 +443,10 @@ export default function CustomerRugDetail() {
                 {rug.about_content_html ? (
                   <div
                     className="prose-content"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html) }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
+                      ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                      ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                    }) }}
                   />
                 ) : (
                   <p className="text-stone-600 text-sm leading-relaxed">{rug.description}</p>
@@ -674,16 +680,20 @@ export default function CustomerRugDetail() {
                                 <span className="text-amber-600">+{displayPrice(priceResult.rush_surcharge, priceResult.price_currency)}</span>
                               </div>
                             )}
-                            <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
-                              <span className="text-stone-400">Pre-tax</span>
-                              <span className="text-stone-700">{displayPrice(priceResult.pre_gst_price, priceResult.price_currency)}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-stone-400">Tax ({priceResult.gst_pct?.toFixed(0)}%)</span>
-                              <span className="text-stone-700">+{displayPrice(priceResult.gst_amount, priceResult.price_currency)}</span>
-                            </div>
+                            {priceResult.gst_inclusive && (
+                              <>
+                                <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                                  <span className="text-stone-400">Pre-tax</span>
+                                  <span className="text-stone-700">{displayPrice(priceResult.pre_gst_price, priceResult.price_currency)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-stone-400">Tax ({priceResult.gst_pct?.toFixed(0)}%)</span>
+                                  <span className="text-stone-700">+{displayPrice(priceResult.gst_amount, priceResult.price_currency)}</span>
+                                </div>
+                              </>
+                            )}
                             <div className="flex justify-between text-sm font-medium pt-1 border-t border-stone-200">
-                              <span className="text-stone-900">Total (incl. Tax)</span>
+                              <span className="text-stone-900">{priceResult.gst_inclusive ? 'Total (incl. Tax)' : 'Total'}</span>
                               <span className="text-stone-900">{displayPrice(priceResult.final_price, priceResult.price_currency)}</span>
                             </div>
                             <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
@@ -715,6 +725,7 @@ export default function CustomerRugDetail() {
                                       estimated_price: priceResult.final_price,
                                       pre_gst_price: priceResult.pre_gst_price,
                                       gst_pct: priceResult.gst_pct, gst_amount: priceResult.gst_amount,
+                                      gst_inclusive: priceResult.gst_inclusive,
                                       price_currency: priceResult.price_currency ?? 'INR',
                                       estimated_days: priceResult.estimated_days,
                                     }],
@@ -842,6 +853,14 @@ export default function CustomerRugDetail() {
                     onChange={(e) => setAuthForm((f) => ({ ...f, company: e.target.value }))}
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                   />
+                  <select required value={authForm.country}
+                    onChange={(e) => setAuthForm((f) => ({ ...f, country: e.target.value }))}
+                    className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </>
               )}
 

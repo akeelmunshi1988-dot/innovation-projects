@@ -5,7 +5,8 @@ import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { getMyOrders, getCustomerOrderBreakdown, getCustomerOrderTimeline, getPublicSettings } from '../services/api';
 import type { CustomerOrder, OrderBreakdown, OrderTimelineEntry } from '../services/api';
-import { fmtExact } from '../utils/currency';
+import { fmtAs } from '../utils/currency';
+import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import axios from 'axios';
@@ -19,7 +20,7 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   cancelled:      { label: 'Cancelled',      color: 'text-red-600 border-red-200 bg-red-50',          dot: 'bg-red-400' },
 };
 
-function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerOrder; email: string; customerToken: string | null; sizeUnit: string }) {
+function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency }: { order: CustomerOrder; email: string; customerToken: string | null; sizeUnit: string; tenantCurrency: { currency: string; base_currency: string; exchange_rates: Record<string, number> } }) {
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null);
@@ -29,7 +30,8 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState(false);
   const currency = order.price_currency || 'INR';
-  const fmt = (n: number) => fmtExact(n, currency);
+  const targetCurrency = currencyForCountry(breakdown?.customer_country ?? order.customer_country, tenantCurrency.currency);
+  const fmt = (n: number) => fmtAs(n, currency, targetCurrency, tenantCurrency);
   const meta = STATUS_META[order.status] ?? { label: order.status, color: 'text-stone-500 border-stone-200 bg-stone-50', dot: 'bg-stone-300' };
 
   const handleExpand = async () => {
@@ -117,7 +119,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
               {order.items.map((it) => (
                 <div key={it.quote_id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <span className="text-stone-700">{it.rug_name} × {it.qty}</span>
-                  {it.final_price != null && <span className="text-stone-900">{fmtExact(it.final_price, it.price_currency)}</span>}
+                  {it.final_price != null && <span className="text-stone-900">{fmtAs(it.final_price, it.price_currency, targetCurrency, tenantCurrency)}</span>}
                 </div>
               ))}
             </div>
@@ -268,34 +270,38 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
                   );
                 })}
 
-                {/* Pre-tax subtotal */}
-                <div className="flex justify-between text-xs pt-1.5 border-t border-stone-200">
-                  <span className="text-stone-400">Pre-tax total</span>
-                  <span className="text-stone-700">{fmt(bd.pre_gst_price)}</span>
-                </div>
-
-                {/* GST — CGST+SGST for same-state, IGST for inter-state */}
-                {bd.gst_split?.type === 'cgst_sgst' ? (
+                {bd.gst_inclusive && (
                   <>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-stone-400">CGST ({bd.gst_split.cgst_pct?.toFixed(1)}%)</span>
-                      <span className="text-stone-700">+{fmt(bd.gst_amount / 2)}</span>
+                    {/* Pre-tax subtotal */}
+                    <div className="flex justify-between text-xs pt-1.5 border-t border-stone-200">
+                      <span className="text-stone-400">Pre-tax total</span>
+                      <span className="text-stone-700">{fmt(bd.pre_gst_price)}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-stone-400">SGST ({bd.gst_split.sgst_pct?.toFixed(1)}%)</span>
-                      <span className="text-stone-700">+{fmt(bd.gst_amount / 2)}</span>
-                    </div>
+
+                    {/* GST — CGST+SGST for same-state, IGST for inter-state */}
+                    {bd.gst_split?.type === 'cgst_sgst' ? (
+                      <>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-stone-400">CGST ({bd.gst_split.cgst_pct?.toFixed(1)}%)</span>
+                          <span className="text-stone-700">+{fmt(bd.gst_amount / 2)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-stone-400">SGST ({bd.gst_split.sgst_pct?.toFixed(1)}%)</span>
+                          <span className="text-stone-700">+{fmt(bd.gst_amount / 2)}</span>
+                        </div>
+                      </>
+                    ) : bd.gst_split?.type === 'igst' ? (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-stone-400">IGST ({bd.gst_split.igst_pct?.toFixed(0)}%)</span>
+                        <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-stone-400">Tax ({bd.gst_pct.toFixed(0)}%)</span>
+                        <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
+                      </div>
+                    )}
                   </>
-                ) : bd.gst_split?.type === 'igst' ? (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">IGST ({bd.gst_split.igst_pct?.toFixed(0)}%)</span>
-                    <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
-                  </div>
-                ) : (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">Tax ({bd.gst_pct.toFixed(0)}%)</span>
-                    <span className="text-stone-700">+{fmt(bd.gst_amount)}</span>
-                  </div>
                 )}
               </>
             )}
@@ -321,13 +327,13 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
                     <span className="text-amber-600">included</span>
                   </div>
                 )}
-                {order.pre_gst_price != null && (
+                {order.gst_inclusive && order.pre_gst_price != null && (
                   <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
                     <span className="text-stone-400">Pre-tax</span>
                     <span className="text-stone-700">{fmt(order.pre_gst_price)}</span>
                   </div>
                 )}
-                {order.gst_pct != null && order.gst_amount != null && (
+                {order.gst_inclusive && order.gst_pct != null && order.gst_amount != null && (
                   <div className="flex justify-between text-xs">
                     <span className="text-stone-400">Tax ({order.gst_pct.toFixed(0)}%)</span>
                     <span className="text-stone-700">+{fmt(order.gst_amount)}</span>
@@ -339,7 +345,7 @@ function OrderCard({ order, email, customerToken, sizeUnit }: { order: CustomerO
             {/* Total line — always shown */}
             {order.final_price != null && (
               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                <span className="text-stone-900">Total (incl. Tax)</span>
+                <span className="text-stone-900">{(bd?.gst_inclusive ?? order.gst_inclusive) ? 'Total (incl. Tax)' : 'Total'}</span>
                 <span className="text-stone-900">{fmt(order.final_price)}</span>
               </div>
             )}
@@ -411,9 +417,13 @@ export default function CustomerMyOrders() {
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
+  const [tenantCurrency, setTenantCurrency] = useState({ currency: 'INR', base_currency: 'INR', exchange_rates: {} as Record<string, number> });
 
   useEffect(() => {
-    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+    getPublicSettings().then((data) => {
+      setSizeUnit(data.default_size_unit || 'ft');
+      setTenantCurrency({ currency: data.currency, base_currency: data.base_currency, exchange_rates: data.exchange_rates || {} });
+    }).catch(() => {});
   }, []);
 
   interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
@@ -646,7 +656,7 @@ export default function CustomerMyOrders() {
               </div>
             )}
 
-            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} sizeUnit={sizeUnit} />)}
+            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} />)}
 
             {hasMore && (
               <button
@@ -734,7 +744,7 @@ export default function CustomerMyOrders() {
                 <p className="text-stone-400 text-sm">
                   Found <span className="text-stone-900 font-medium">{guestTotal}</span> order{guestTotal !== 1 ? 's' : ''} for {searchedEmail}
                 </p>
-                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} sizeUnit={sizeUnit} />)}
+                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} />)}
                 {guestHasMore && (
                   <button
                     onClick={handleGuestLoadMore}

@@ -6,11 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.models.models import RugCatalog, Material
+from app.models.models import RugCatalog, Material, Tenant
 from app.services.quote_engine import QuoteEngine
 
 
-VISION_SYSTEM_PROMPT = """You are an expert rug design analyst for LoomCraftRugs AI, a premium rug manufacturer.
+def _get_business_name(db: Session) -> str:
+    tenant = db.query(Tenant).first()
+    return tenant.name if tenant else "our business"  # type: ignore[return-value]
+
+
+VISION_SYSTEM_PROMPT_TEMPLATE = """You are an expert rug design analyst for {business_name}, a premium rug manufacturer.
 
 When shown an inspiration image (a room photo, a rug photo, a mood board, or any visual reference), analyze it and extract rug design attributes. Then match those attributes to the provided catalog and return the top 3 best matches with a clear explanation.
 
@@ -77,6 +82,7 @@ def analyze_and_match(
     try:
         catalog = _get_catalog_summary(db)
         image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+        vision_system_prompt = VISION_SYSTEM_PROMPT_TEMPLATE.format(business_name=_get_business_name(db))
 
         catalog_text = json.dumps(catalog, indent=2)
         user_message = f"""Here is an inspiration image from a customer.
@@ -95,7 +101,7 @@ Please analyze the inspiration image and return the top 3 matching rugs from our
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1500,
-            system=VISION_SYSTEM_PROMPT,
+            system=vision_system_prompt,
             messages=[
                 {
                     "role": "user",
@@ -123,7 +129,6 @@ Please analyze the inspiration image and return the top 3 matching rugs from our
         vision_result = json.loads(raw.strip())
 
         # Calculate real quotes for each match
-        engine = QuoteEngine(db)
         enriched_matches = []
 
         for match in vision_result.get("matches", [])[:3]:
@@ -132,6 +137,7 @@ Please analyze the inspiration image and return the top 3 matching rugs from our
             if not rug:
                 continue
 
+            engine = QuoteEngine(db, tenant_id=rug.tenant_id)
             quote = engine.calculate_quote(
                 rug_id=rug_id,
                 size_w=size_w,
@@ -176,7 +182,7 @@ Please analyze the inspiration image and return the top 3 matching rugs from our
 
 
 # Simplified system prompt for room matching — floor region is pre-computed
-ROOM_MATCH_SYSTEM_PROMPT = """You are an expert rug design analyst for LoomCraftRugs AI, a premium rug manufacturer.
+ROOM_MATCH_SYSTEM_PROMPT_TEMPLATE = """You are an expert rug design analyst for {business_name}, a premium rug manufacturer.
 
 You will be shown a photo of an interior room. Analyze the room's style, colors, and atmosphere, then match it to the provided rug catalog.
 
@@ -220,6 +226,7 @@ def analyze_and_match_room(
     try:
         catalog = _get_catalog_summary(db)
         catalog_text = json.dumps(catalog, indent=2)
+        room_match_system_prompt = ROOM_MATCH_SYSTEM_PROMPT_TEMPLATE.format(business_name=_get_business_name(db))
 
         user_message = f"""This is a photo of a {room_name} ({room_style}).
 
@@ -237,7 +244,7 @@ Analyze this room and recommend the top 3 rugs that would look best in this spac
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1500,
-            system=ROOM_MATCH_SYSTEM_PROMPT,
+            system=room_match_system_prompt,
             messages=[
                 {
                     "role": "user",
@@ -262,7 +269,6 @@ Analyze this room and recommend the top 3 rugs that would look best in this spac
                 raw = raw[4:]
         vision_result = json.loads(raw.strip())
 
-        engine = QuoteEngine(db)
         enriched_matches = []
 
         for match in vision_result.get("matches", [])[:3]:
@@ -271,6 +277,7 @@ Analyze this room and recommend the top 3 rugs that would look best in this spac
             if not rug:
                 continue
 
+            engine = QuoteEngine(db, tenant_id=rug.tenant_id)
             quote = engine.calculate_quote(
                 rug_id=rug_id,
                 size_w=size_w,

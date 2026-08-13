@@ -8,6 +8,7 @@ import { fmtSize, feetToUnit, toMetres, inputUnit } from "../utils/size";
 import { getPublicSettings } from "../services/api";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { useCart } from "../contexts/CartContext";
 
 type Point = [number, number];
 
@@ -59,6 +60,8 @@ export default function CustomerPortal() {
   const [searchParams] = useSearchParams();
   const { customer, isCustomerAuthenticated } = useCustomerAuth();
   const { displayPrice } = useCurrency();
+  const { addItem } = useCart();
+  const [addedToCart, setAddedToCart] = useState(false);
   const preselectedId = searchParams.get('rug_id') ? parseInt(searchParams.get('rug_id')!) : null;
   const didPreselect = useRef(false);
 
@@ -73,6 +76,9 @@ export default function CustomerPortal() {
   const [hoverIdx, setHoverIdx]         = useState<number | null>(null);
   const [hoverInside, setHoverInside]   = useState(false);
   const [rugShape, setRugShape]         = useState<'rect' | 'circle'>('rect');
+  const [aiEnhance, setAiEnhance]           = useState(false);
+  const [aiEnhanceAvailable, setAiEnhanceAvailable] = useState(false);
+  const [aiFallbackNotice, setAiFallbackNotice]     = useState(false);
   const wasDraggingRef      = useRef(false);
   const dragAllStartRef     = useRef<Point | null>(null);
   const latestPointsRef     = useRef<Point[]>([]);
@@ -97,7 +103,7 @@ export default function CustomerPortal() {
   const [quoteResult, setQuoteResult]         = useState<{ quote_id: number; final_price: number; lead_time_days: number } | null>(null);
 
   interface EstimateResult {
-    final_price: number; pre_gst_price: number; gst_pct: number; gst_amount: number;
+    final_price: number; pre_gst_price: number; gst_pct: number; gst_amount: number; gst_inclusive: boolean;
     subtotal: number; bulk_discount: number; rush_surcharge: number; size_surcharge: number;
     price_per_piece: number; size_sqm: number; total_sqm: number; price_currency: string;
     estimated_days: number; rush_available: boolean;
@@ -115,7 +121,10 @@ export default function CustomerPortal() {
   useEffect(() => {
     axios.get("/api/customer/catalog").then(({ data }) => setCatalog(data)).catch(() => {});
     loadDefaultRoom();
-    getPublicSettings().then((data) => setSizeUnit(data.default_size_unit || 'ft')).catch(() => {});
+    getPublicSettings().then((data) => {
+      setSizeUnit(data.default_size_unit || 'ft');
+      setAiEnhanceAvailable(!!data.ai_room_enhance_enabled);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -209,17 +218,19 @@ export default function CustomerPortal() {
 
   // Core generate — accepts pts/rug/file directly to avoid stale state
   const generateWith = async (pts: Point[], rug: CatalogRug, file: File) => {
-    setLoading(true); setError(""); setResultImage("");
+    setLoading(true); setError(""); setResultImage(""); setAiFallbackNotice(false);
     const formData = new FormData();
     formData.append("roomImage", file);
     formData.append("rug_id", String(rug.id));
     formData.append("corners", JSON.stringify(pts));
     formData.append("shape", rugShape);
+    formData.append("ai_enhance", String(aiEnhance && aiEnhanceAvailable));
     try {
       const { data } = await axios.post("/api/replace-rug", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setResultImage(data.imageUrl.replace("http://localhost:8000", ""));
+      if (aiEnhance && aiEnhanceAvailable && !data.aiEnhanced) setAiFallbackNotice(true);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Generation failed. Make sure backend is running.");
     } finally {
@@ -474,6 +485,7 @@ export default function CustomerPortal() {
             pre_gst_price: data.pre_gst_price,
             gst_pct: data.gst_pct,
             gst_amount: data.gst_amount,
+            gst_inclusive: data.gst_inclusive,
             price_currency: data.price_currency ?? 'INR',
             estimated_days: data.estimated_days,
           }],
@@ -485,6 +497,25 @@ export default function CustomerPortal() {
     } catch {
       navigate(`/catalog/${selectedRug.id}`);
     }
+  };
+
+  const handleAddToCart = () => {
+    if (!selectedRug) return;
+    const w = toMetres(parseFloat(quoteForm.size_w), sizeUnit);
+    const h = quoteForm.shape === 'circle' ? w : toMetres(parseFloat(quoteForm.size_h), sizeUnit);
+    if (!w || (!h && quoteForm.shape !== 'circle')) return;
+    addItem({
+      rug_id: selectedRug.id,
+      rug_name: selectedRug.name,
+      image_url: selectedRug.image_url,
+      size_w: w, size_h: h,
+      shape: quoteForm.shape,
+      qty: parseInt(quoteForm.qty) || 1,
+      rush_order: quoteForm.rush_order,
+      notes: quoteForm.notes || undefined,
+    });
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2500);
   };
 
   const handleQuoteChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -700,7 +731,9 @@ export default function CustomerPortal() {
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     {loading ? (
-                      <h2 className="text-stone-500 font-medium text-sm">Placing rug on floor…</h2>
+                      <h2 className="text-stone-500 font-medium text-sm">
+                        {aiEnhance && aiEnhanceAvailable ? "Enhancing realism with AI — a few extra seconds…" : "Placing rug on floor…"}
+                      </h2>
                     ) : customMode ? (
                       <>
                         <h2 className="text-stone-900 font-medium text-sm">
@@ -738,6 +771,16 @@ export default function CustomerPortal() {
                           >{label}</button>
                         ))}
                       </div>
+                    )}
+                    {!loading && aiEnhanceAvailable && (
+                      <button onClick={() => setAiEnhance(v => !v)}
+                        title="Blend the rug's shadow/lighting with AI for a more photorealistic result"
+                        className={`px-2.5 py-1.5 text-xs border transition-colors ${
+                          aiEnhance
+                            ? 'bg-stone-900 text-white border-stone-900'
+                            : 'text-stone-500 border-stone-200 hover:text-stone-900 hover:bg-stone-50'
+                        }`}
+                      >✨ AI Lighting</button>
                     )}
                     {!loading && customMode ? (
                       <>
@@ -802,7 +845,9 @@ export default function CustomerPortal() {
                     <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center">
                       <div className="text-center space-y-3">
                         <div className="w-8 h-8 border border-stone-400 border-t-stone-900 rounded-full animate-spin mx-auto" />
-                        <p className="text-stone-600 text-sm font-medium">Placing rug…</p>
+                        <p className="text-stone-600 text-sm font-medium">
+                          {aiEnhance && aiEnhanceAvailable ? "Enhancing realism with AI…" : "Placing rug…"}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -836,6 +881,16 @@ export default function CustomerPortal() {
                           >{label}</button>
                         ))}
                       </div>
+                      {aiEnhanceAvailable && (
+                        <button onClick={() => setAiEnhance(v => !v)}
+                          title="Blend the rug's shadow/lighting with AI for a more photorealistic result"
+                          className={`px-2.5 py-1 text-xs border transition-colors ${
+                            aiEnhance
+                              ? 'bg-stone-900 text-white border-stone-900'
+                              : 'text-stone-500 border-stone-200 hover:text-stone-900 hover:bg-white'
+                          }`}
+                        >✨ AI Lighting</button>
+                      )}
                       <button onClick={useDefaultMode}
                         className="px-3 py-1 border border-stone-200 hover:border-stone-400 text-stone-500 text-xs transition-colors"
                       >Use Default</button>
@@ -867,6 +922,13 @@ export default function CustomerPortal() {
         {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 p-4 text-red-600 text-sm text-center">{error}</div>
+        )}
+
+        {/* AI enhancement fallback notice — the OpenCV composite still succeeded */}
+        {aiFallbackNotice && !error && (
+          <div className="bg-amber-50 border border-amber-200 p-3 text-amber-700 text-xs text-center flex items-center justify-center gap-1.5">
+            <AlertTriangle size={12} className="flex-shrink-0" /> AI enhancement unavailable right now — showing the standard preview.
+          </div>
         )}
 
         {/* ── Rug selection grid — below canvas ── */}
@@ -1161,18 +1223,22 @@ export default function CustomerPortal() {
                                 </div>
                               )}
 
-                              <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
-                                <span className="text-stone-400">Pre-tax</span>
-                                <span className="text-stone-700">{displayPrice(estimate.pre_gst_price, estimate.price_currency)}</span>
-                              </div>
+                              {estimate.gst_inclusive && (
+                                <>
+                                  <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                                    <span className="text-stone-400">Pre-tax</span>
+                                    <span className="text-stone-700">{displayPrice(estimate.pre_gst_price, estimate.price_currency)}</span>
+                                  </div>
 
-                              <div className="flex justify-between text-xs">
-                                <span className="text-stone-400">Tax ({estimate.gst_pct.toFixed(0)}%)</span>
-                                <span className="text-stone-700">+{displayPrice(estimate.gst_amount, estimate.price_currency)}</span>
-                              </div>
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-stone-400">Tax ({estimate.gst_pct.toFixed(0)}%)</span>
+                                    <span className="text-stone-700">+{displayPrice(estimate.gst_amount, estimate.price_currency)}</span>
+                                  </div>
+                                </>
+                              )}
 
                               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                                <span className="text-stone-900">Total (incl. Tax)</span>
+                                <span className="text-stone-900">{estimate.gst_inclusive ? 'Total (incl. Tax)' : 'Total'}</span>
                                 <span className="text-stone-900">{displayPrice(estimate.final_price, estimate.price_currency)}</span>
                               </div>
 
@@ -1237,23 +1303,32 @@ export default function CustomerPortal() {
                         )}
 
                         <div className="flex gap-2">
-                          <button type="submit"
-                            disabled={quoteSubmitting || !quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h) || (!isCustomerAuthenticated && (!quoteForm.name || !quoteForm.email))}
+                          <button type="button"
+                            onClick={handleAddToCart}
+                            disabled={!quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h)}
                             className="flex-1 border border-stone-300 hover:border-stone-600 text-stone-700 hover:text-stone-900 disabled:opacity-40 text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
                           >
-                            {quoteSubmitting
-                              ? <><div className="w-4 h-4 border border-stone-400 border-t-stone-900 rounded-full animate-spin" /> Submitting…</>
-                              : <><Send size={13} /> Request Quote</>}
+                            {addedToCart
+                              ? <><CheckCircle size={13} className="text-green-600" /> Added</>
+                              : <><ShoppingBag size={13} /> Add to Cart</>}
                           </button>
                           <button type="button"
                             onClick={handlePlaceOrder}
                             disabled={!quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h)}
                             className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
                           >
-                            <ShoppingBag size={13} /> Place Order
+                            <Zap size={13} /> Buy Now
                           </button>
                         </div>
-                        <p className="text-stone-400 text-xs text-center">Quote is free · Order goes straight to checkout</p>
+                        <button type="submit"
+                          disabled={quoteSubmitting || !quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h) || (!isCustomerAuthenticated && (!quoteForm.name || !quoteForm.email))}
+                          className="w-full border border-stone-200 hover:border-stone-500 text-stone-500 hover:text-stone-900 disabled:opacity-40 text-xs font-medium tracking-widest uppercase py-3 transition-colors flex items-center justify-center gap-2"
+                        >
+                          {quoteSubmitting
+                            ? <><div className="w-4 h-4 border border-stone-400 border-t-stone-900 rounded-full animate-spin" /> Submitting…</>
+                            : <><Send size={13} /> Request a Quote Instead</>}
+                        </button>
+                        <p className="text-stone-400 text-xs text-center">Cart/Buy Now go straight to checkout · Quote is free, no commitment</p>
                       </div>
                     </form>
                   )}

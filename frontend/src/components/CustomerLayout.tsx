@@ -18,6 +18,7 @@ const FOOTER_LOGO_URL = '/static/branding/44203c3d28564ce58a5df25f86fb78f5.png';
 const NAV = [
   { path: '/', label: 'Home' },
   { path: '/catalog', label: 'Collection' },
+  { path: '/custom-rug-request', label: 'Request Custom Rug' },
   { path: '/visualizer', label: 'Visualizer' },
   { path: '/about', label: 'About Us' },
 ];
@@ -185,7 +186,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 <ChevronDown size={12} className={`transition-transform text-stone-400 ${currencyOpen ? 'rotate-180' : ''}`} />
               </button>
               {currencyOpen && (
-                <div className="absolute right-0 top-full mt-3 w-44 bg-white border border-stone-200 shadow-lg z-50 py-1">
+                <div className="absolute right-0 top-full mt-3 w-60 bg-white border border-stone-200 shadow-lg z-50 py-1">
                   {availableCurrencies.map((c) => (
                     <button
                       key={c.code}
@@ -194,7 +195,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                         displayCurrency === c.code ? 'text-stone-900 font-medium bg-stone-50' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
                       }`}
                     >
-                      <span>{c.code}</span>
+                      <span className="flex items-baseline gap-1.5">
+                        <span>{c.code}</span>
+                        <span className="text-stone-400 text-xs">{c.country}</span>
+                      </span>
                       <span className="text-stone-400">{c.symbol}</span>
                     </button>
                   ))}
@@ -492,7 +496,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </div>
       </footer>
 
-      {chatEnabled && <CustomerChat />}
+      {chatEnabled && <CustomerChat businessName={businessName} />}
     </div>
   );
 }

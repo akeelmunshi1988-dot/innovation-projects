@@ -17,6 +17,8 @@ class Tenant(Base):
     currency = Column(String(10), default="INR")          # display / invoice currency
     base_currency = Column(String(10), default="INR")     # immutable reference currency for all stored values
     exchange_rates = Column(JSON, nullable=True)          # {"USD": 0.012, "EUR": 0.011} — all relative to base_currency
+    exchange_rates_auto = Column(Boolean, default=True)   # True: refreshed automatically from live FX rates; False: vendor manages rates manually
+    exchange_rates_updated_at = Column(DateTime(timezone=True), nullable=True)  # when exchange_rates was last refreshed (auto or manual)
     logo_url = Column(String(300), nullable=True)
     plan = Column(String(50), default="starter")  # starter / growth / pro
     plan_status = Column(String(20), default="trial")  # trial / active / past_due / cancelled
@@ -27,6 +29,7 @@ class Tenant(Base):
     default_profit_margin_pct = Column(Float, default=40.0)
     rush_surcharge_pct = Column(Float, default=25.0)
     default_gst_pct = Column(Float, default=12.0)
+    gst_inclusive = Column(Boolean, default=False)  # True: GST applied, included in selling price; False: no GST calculated at all
     large_format_threshold_sqm = Column(Float, default=20.0)
     large_format_surcharge_pct = Column(Float, default=5.0)
     ai_assistant_customer_enabled = Column(Boolean, default=True)  # show AI chat widget to shoppers
@@ -40,6 +43,7 @@ class Tenant(Base):
     catalog_pdf_url = Column(String(300), nullable=True)   # downloadable lookbook/catalog shown on storefront
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
+    cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -201,6 +205,7 @@ class Quote(Base):
     margin_pct = Column(Float, nullable=True)             # effective margin % used when this quote was calculated
     gst_pct = Column(Float, nullable=True)                # GST % applied when this quote was calculated
     manual_discount_pct = Column(Float, nullable=True)    # vendor-set per-quote discount percentage
+    shipping_cost = Column(Float, nullable=True)          # vendor-set flat shipping charge added to a custom request's quoted price
     expected_delivery_days = Column(Integer, nullable=True)  # vendor-editable override of the engine's estimated_days
     status = Column(String(50), default="draft")
     notes = Column(Text, nullable=True)
@@ -211,13 +216,18 @@ class Quote(Base):
     room_type = Column(String(100), nullable=True)        # custom request: intended room/purpose
     material_preference = Column(String(50), nullable=True)  # custom request: "wool"|"silk"|"cotton"|"synthetic"|"no_preference"
     budget_range = Column(String(100), nullable=True)     # custom request: preset band, e.g. "₹50,000–₹1,00,000"
+    expected_delivery = Column(String(50), nullable=True)  # custom request: customer's preferred timeframe, e.g. "Within 4 weeks"
     reference_image_urls = Column(JSON, nullable=True)    # custom request: list[str], up to 3 inspiration images
+    vendor_sample_image_urls = Column(JSON, nullable=True)  # vendor-uploaded design samples sent back to the customer, list[str], up to 3
+    revised_from_quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)  # set when this quote was cloned from a rejected one via "Revise & Resend"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     customer = relationship("Customer", back_populates="quotes")
     rug_catalog = relationship("RugCatalog", back_populates="quotes")
     material = relationship("Material", back_populates="quotes")
     order = relationship("Order", back_populates="quote", uselist=False)
+    revised_from = relationship("Quote", remote_side=[id], back_populates="revisions")
+    revisions = relationship("Quote", back_populates="revised_from")
 
 
 class Order(Base):
@@ -233,6 +243,13 @@ class Order(Base):
     promo_code = Column(String(50), nullable=True)
     discount_amount = Column(Float, nullable=True)  # total discount applied across all items, in the order's price_currency
     shipping_cost = Column(Float, nullable=True)  # snapshot of the shipping charge at checkout time; admin-editable afterward (e.g. on marking Shipped)
+    total_amount = Column(Float, nullable=True)   # sum of every line item's final_price + shipping - discount, frozen at order-creation time — the source of truth for what was agreed/paid, independent of the linked quote(s) ever changing later
+    price_currency = Column(String(10), nullable=True)  # currency total_amount is denominated in
+    razorpay_payment_id = Column(String(100), nullable=True)  # captured at checkout — needed to issue a refund; null for COD/manual orders
+    refund_id = Column(String(100), nullable=True)        # Razorpay refund id, once a refund has been initiated
+    refund_status = Column(String(20), nullable=True)     # Razorpay's refund status (e.g. "processed", "pending", "failed")
+    refund_amount = Column(Float, nullable=True)          # amount actually refunded, in the order's price_currency
+    refunded_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     quote = relationship("Quote", back_populates="order")

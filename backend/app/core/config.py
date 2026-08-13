@@ -4,8 +4,9 @@ from typing import Optional
 
 class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None  # optional — enables the visualizer's "AI-enhanced lighting" polish pass
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
-    APP_NAME: str = "LoomCraftRugs AI"
+    APP_NAME: str = "DreamRugsCreation"
     DEBUG: bool = False
 
     JWT_SECRET: str = "loomcraft-dev-secret-change-in-production"
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM_EMAIL: Optional[str] = None
-    SMTP_FROM_NAME: str = "LoomCraftRugs AI"
+    SMTP_FROM_NAME: str = "DreamRugsCreation"
 
     FRONTEND_URL: str = "http://localhost:5173"
     BACKEND_URL: str = "http://localhost:8000"  # used to build OAuth redirect_uri values registered with each provider

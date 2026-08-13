@@ -6,6 +6,7 @@ export interface CustomerUser {
   customer_id: number;
   name: string;
   email: string;
+  country: string | null;
 }
 
 interface CustomerAuthContextValue {
@@ -13,7 +14,7 @@ interface CustomerAuthContextValue {
   customerToken: string | null;
   isLoadingCustomer: boolean;
   customerLogin: (email: string, password: string) => Promise<CustomerUser>;
-  customerRegister: (name: string, email: string, password: string, phone?: string, company?: string, accountType?: 'retail' | 'trade') => Promise<{ message: string; email: string }>;
+  customerRegister: (name: string, email: string, password: string, country: string, phone?: string, company?: string, accountType?: 'retail' | 'trade') => Promise<{ message: string; email: string }>;
   verifyCustomerEmail: (token: string) => Promise<CustomerUser>;
   loginWithToken: (token: string) => Promise<CustomerUser>;
   customerLogout: () => void;
@@ -47,7 +48,7 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     setIsLoadingCustomer(true);
     try {
       const { data } = await axios.post('/api/auth/customer/login', { email, password });
-      const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email };
+      const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email, country: data.country ?? null };
       _persist(data.access_token, user);
       return user;
     } finally {
@@ -55,10 +56,10 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const customerRegister = useCallback(async (name: string, email: string, password: string, phone?: string, company?: string, accountType?: 'retail' | 'trade'): Promise<{ message: string; email: string }> => {
+  const customerRegister = useCallback(async (name: string, email: string, password: string, country: string, phone?: string, company?: string, accountType?: 'retail' | 'trade'): Promise<{ message: string; email: string }> => {
     setIsLoadingCustomer(true);
     try {
-      const { data } = await axios.post('/api/auth/customer/register', { name, email, password, phone, company, account_type: accountType });
+      const { data } = await axios.post('/api/auth/customer/register', { name, email, password, country, phone, company, account_type: accountType });
       return { message: data.message, email: data.email };
     } finally {
       setIsLoadingCustomer(false);
@@ -69,7 +70,7 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     setIsLoadingCustomer(true);
     try {
       const { data } = await axios.post('/api/auth/customer/verify-email', { token });
-      const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email };
+      const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email, country: data.country ?? null };
       _persist(data.access_token, user);
       return user;
     } finally {
@@ -81,7 +82,7 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     setIsLoadingCustomer(true);
     try {
       const { data } = await axios.get('/api/auth/customer/me', { headers: { Authorization: `Bearer ${token}` } });
-      const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email };
+      const user: CustomerUser = { customer_id: data.customer_id, name: data.name, email: data.email, country: data.country ?? null };
       _persist(token, user);
       return user;
     } finally {
@@ -111,7 +112,7 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
       try {
         const { data } = await axios.get('/api/auth/customer/me', { headers: { Authorization: `Bearer ${newToken}` } });
         if (cancelled) return;
-        _persist(newToken, { customer_id: data.customer_id, name: data.name, email: data.email });
+        _persist(newToken, { customer_id: data.customer_id, name: data.name, email: data.email, country: data.country ?? null });
       } catch {
         // Refreshed token wasn't a customer session (or /customer/me failed) — leave logged out
       }

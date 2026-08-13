@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Scissors, ChevronDown } from 'lucide-react';
 import PricingGrid from '../components/PricingGrid';
+import { getPublicSettings } from '../services/api';
 
 const FAQ = [
   {
@@ -31,6 +32,14 @@ const FAQ = [
 ];
 
 export default function Pricing() {
+  const [businessName, setBusinessName] = useState('Business');
+
+  useEffect(() => {
+    getPublicSettings()
+      .then((data) => setBusinessName(data.business_name || 'Business'))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-dark-950">
       {/* Header */}
@@ -40,7 +49,7 @@ export default function Pricing() {
             <div className="w-8 h-8 bg-gold-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Scissors size={16} className="text-white" />
             </div>
-            <span className="text-cream-100 font-bold text-base">LoomCraftRugs AI</span>
+            <span className="text-cream-100 font-bold text-base">{businessName}</span>
           </Link>
           <div className="ml-auto flex items-center gap-4">
             <Link to="/admin/login" className="text-dark-400 hover:text-cream-200 text-sm transition-colors">
@@ -130,7 +139,7 @@ export default function Pricing() {
       {/* Footer */}
       <footer className="border-t border-dark-700 py-8 text-center">
         <p className="text-dark-600 text-xs">
-          © 2025 LoomCraftRugs AI ·{' '}
+          © 2025 {businessName} ·{' '}
           <Link to="/pricing" className="hover:text-dark-400 transition-colors">Pricing</Link>
         </p>
       </footer>

@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, UploadFile, File, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -22,6 +22,8 @@ from app.schemas.schemas import (
 )
 from app.services import email_service
 from app.services import oauth_providers
+from app.services.fx_rates import fetch_live_rates
+from app.api.routes.customer import _is_export_country
 
 router = APIRouter()
 
@@ -154,6 +156,7 @@ def customer_me(current_customer: Customer = Depends(get_current_customer)):
         "customer_id": current_customer.id,
         "name": current_customer.name,
         "email": current_customer.email,
+        "country": current_customer.country,
     }
 
 
@@ -174,6 +177,8 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
             existing.company = body.company
         if body.account_type:
             existing.account_type = body.account_type
+        existing.country = body.country
+        existing.is_export_buyer = _is_export_country(body.country)
         db.commit()
         db.refresh(existing)
         customer = existing
@@ -183,6 +188,8 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
             email=body.email,
             phone=body.phone,
             company=body.company,
+            country=body.country,
+            is_export_buyer=_is_export_country(body.country),
             account_type=body.account_type or "retail",
             hashed_password=hash_password(body.password),
             is_active=True,
@@ -217,7 +224,7 @@ def customer_verify_email(body: CustomerVerifyEmailRequest, response: Response, 
 
     token = create_access_token({"sub": str(customer.id), "type": "customer"})
     _set_refresh_cookie(response, create_refresh_token(db, "customer", customer.id))
-    return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email)
+    return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email, country=customer.country)
 
 
 @router.post("/auth/customer/login", response_model=CustomerTokenResponse)
@@ -230,7 +237,7 @@ def customer_login(body: CustomerLoginRequest, response: Response, db: Session =
 
     token = create_access_token({"sub": str(customer.id), "type": "customer"})
     _set_refresh_cookie(response, create_refresh_token(db, "customer", customer.id))
-    return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email)
+    return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email, country=customer.country)
 
 
 # ── Social login (Google / Facebook / LinkedIn) ───────────────────────────────
@@ -278,6 +285,11 @@ def oauth_callback(
     email = identity.get("email")
     if not email:
         return RedirectResponse(f"{frontend_error}no_email")
+    if not identity.get("email_verified"):
+        # Never trust an unverified provider email to find-or-link a Customer — this
+        # lookup is by email alone, including accounts that already have a password,
+        # so an unverified email would otherwise be a way into someone else's account.
+        return RedirectResponse(f"{frontend_error}email_not_verified")
 
     tenant = db.query(Tenant).first()
     tenant_id = tenant.id if tenant else None
@@ -304,10 +316,12 @@ def oauth_callback(
     db.commit()
     db.refresh(customer)
 
-    token = create_access_token({"sub": str(customer.id), "type": "customer"})
-
-    redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/oauth-callback?token={token}&return_to={return_to}"
+    redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/oauth-callback?return_to={return_to}"
     redirect_response = RedirectResponse(redirect_url)
+    # No access token is placed in the URL — a query-string JWT would land in browser
+    # history and server access logs. Instead only the httpOnly refresh cookie is set
+    # here; the frontend exchanges it for an access token via POST /auth/refresh, the
+    # same mechanism already used for silent session resume.
     # Cookies must be set on the response object actually returned — setting them on the
     # injected `response` param has no effect once we return a different RedirectResponse.
     _set_refresh_cookie(redirect_response, create_refresh_token(db, "customer", customer.id))
@@ -353,6 +367,9 @@ def update_tenant_settings(
             if not isinstance(rate, (int, float)) or rate <= 0:
                 raise HTTPException(status_code=422, detail=f"Rate for {code} must be a positive number.")
         tenant.exchange_rates = body.exchange_rates
+        tenant.exchange_rates_updated_at = datetime.now(timezone.utc)
+    if body.exchange_rates_auto is not None:
+        tenant.exchange_rates_auto = body.exchange_rates_auto
     if body.gstin is not None:
         tenant.gstin = body.gstin
     if body.default_profit_margin_pct is not None:
@@ -363,6 +380,8 @@ def update_tenant_settings(
         tenant.large_format_threshold_sqm = body.large_format_threshold_sqm
     if body.large_format_surcharge_pct is not None:
         tenant.large_format_surcharge_pct = body.large_format_surcharge_pct
+    if body.gst_inclusive is not None:
+        tenant.gst_inclusive = body.gst_inclusive
     if body.state_code is not None:
         tenant.state_code = body.state_code
     if body.address is not None:
@@ -391,10 +410,35 @@ def update_tenant_settings(
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:
         tenant.default_shipping_rate = body.default_shipping_rate
+    if body.cancellation_window_hours is not None:
+        tenant.cancellation_window_hours = body.cancellation_window_hours
     db.commit()
     db.refresh(tenant)
     cache_clear("tenant")
     cache_clear("settings")  # /customer/settings mirrors business_name/logo_url/contact fields from this same tenant row
+    return TenantPublic.model_validate(tenant)
+
+
+@router.post("/tenant/refresh-exchange-rates", response_model=TenantPublic)
+def refresh_tenant_exchange_rates(
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Manually triggers an immediate live FX rate refresh (the same refresh the
+    background job runs daily) — lets the vendor pull fresh rates on demand
+    instead of waiting for the next automatic cycle."""
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    rates = fetch_live_rates(tenant.base_currency or "INR")
+    if rates is None:
+        raise HTTPException(status_code=503, detail="Could not reach the exchange rate service. Please try again shortly.")
+    tenant.exchange_rates = rates
+    tenant.exchange_rates_updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")
     return TenantPublic.model_validate(tenant)
 
 

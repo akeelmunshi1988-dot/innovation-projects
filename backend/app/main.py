@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -8,9 +9,11 @@ from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
 from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes
+from app.models.models import Tenant
+from app.services.fx_rates import refresh_tenant_rates
 
 app = FastAPI(
-    title="LoomCraftRugs AI - Rug Manufacture System",
+    title="DreamRugsCreation - Rug Manufacture System",
     description="Custom rug manufacturing management system with AI assistant",
     version="2.0.0",
 )
@@ -66,9 +69,31 @@ os.makedirs(os.path.join(STATIC_DIR, "custom-requests"), exist_ok=True)
 app.mount("/static", CachedStaticFiles(directory=STATIC_DIR), name="static")
 
 
+_FX_REFRESH_INTERVAL_SECONDS = 24 * 60 * 60  # once a day — matches the source API's own update cadence
+
+
+async def _fx_refresh_loop():
+    """Keeps every tenant's exchange_rates in sync with live FX rates, so Business
+    Settings → Currency doesn't require the vendor to track rates manually. Runs
+    once at startup, then once every 24h for the life of the process. Tenants with
+    exchange_rates_auto=False are skipped (vendor has opted into manual control)."""
+    while True:
+        db = SessionLocal()
+        try:
+            for tenant in db.query(Tenant).filter(Tenant.exchange_rates_auto == True).all():  # noqa: E712
+                try:
+                    await asyncio.to_thread(refresh_tenant_rates, db, tenant)
+                except Exception as e:
+                    logger.warning("FX rate refresh failed for tenant %s: %s", tenant.id, e)
+        finally:
+            db.close()
+        await asyncio.sleep(_FX_REFRESH_INTERVAL_SECONDS)
+
+
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    asyncio.create_task(_fx_refresh_loop())
 
 
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
@@ -93,7 +118,7 @@ app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 
 @app.get("/")
 async def root():
-    return {"message": "LoomCraftRugs AI API is running", "docs": "/docs"}
+    return {"message": "DreamRugsCreation API is running", "docs": "/docs"}
 
 
 @app.get("/health")

@@ -177,12 +177,23 @@ class QuoteEngine:
                 "description": f"Rugs exceeding {large_format_threshold:.0f} sqm per piece: +{large_format_pct:.0f}% on subtotal",
             })
 
-        pre_gst_price = round(subtotal - bulk_discount - manual_discount + rush_surcharge + size_surcharge, 2)
+        computed_price = round(subtotal - bulk_discount - manual_discount + rush_surcharge + size_surcharge, 2)
 
-        # GST — use override if provided (preserves rate from when order was placed)
-        gst_pct = gst_override if gst_override is not None else ((tenant.default_gst_pct or 12.0) if tenant else 12.0)
-        gst_amount = round(pre_gst_price * gst_pct / 100, 2)
-        final_price = round(pre_gst_price + gst_amount, 2)
+        # GST — tenant.gst_inclusive is the single on/off switch for tax on quotes/orders.
+        # Off: no GST is calculated at all. On: the computed price already includes GST
+        # (back it out for the tax breakdown) rather than adding it on top.
+        gst_inclusive = bool(tenant.gst_inclusive) if tenant else False
+
+        if not gst_inclusive:
+            gst_pct = 0.0
+            pre_gst_price = computed_price
+            gst_amount = 0.0
+            final_price = computed_price
+        else:
+            gst_pct = gst_override if gst_override is not None else ((tenant.default_gst_pct or 12.0) if tenant else 12.0)
+            final_price = computed_price
+            pre_gst_price = round(final_price / (1 + gst_pct / 100), 2) if gst_pct else final_price
+            gst_amount = round(final_price - pre_gst_price, 2)
         price_per_piece = round(final_price / qty, 2) if qty > 0 else 0.0
 
         # Production timeline — use rush days only when rush is effective
@@ -199,11 +210,12 @@ class QuoteEngine:
             }
         ]
         breakdown.extend(pricing_rules_applied)
-        breakdown.append({
-            "label": f"GST ({gst_pct:.0f}%)",
-            "amount": gst_amount,
-            "description": f"Goods & Services Tax at {gst_pct:.0f}% on pre-tax total",
-        })
+        if gst_inclusive:
+            breakdown.append({
+                "label": f"GST ({gst_pct:.0f}%)",
+                "amount": 0.0,
+                "description": f"Included in the price above — GST portion is {gst_amount:.2f}",
+            })
 
         return {
             "shape": shape,
@@ -220,6 +232,7 @@ class QuoteEngine:
             "pre_gst_price": pre_gst_price,
             "gst_pct": gst_pct,
             "gst_amount": gst_amount,
+            "gst_inclusive": gst_inclusive,
             "final_price": final_price,
             "price_per_piece": price_per_piece,
             "price_currency": tenant.base_currency if tenant else "INR",
@@ -231,6 +244,174 @@ class QuoteEngine:
             "standard_days": standard_days,
             "rush_days": rush_candidate_days,
             "rush_available": rush_saves_time,
+            "breakdown": breakdown,
+        }
+
+    def calculate_custom_quote(
+        self,
+        quote,
+        material_id: int,
+        margin_override: Optional[float] = None,
+        size_w: Optional[float] = None,
+        size_h: Optional[float] = None,
+        discount_pct: Optional[float] = None,
+        shape: Optional[str] = None,
+        shipping_cost: Optional[float] = None,
+    ) -> dict:
+        """Prices a custom rug request (no catalog rug) once the vendor assigns a
+        material — same margin-over-material-cost math as calculate_quote(), sized
+        to the quote's own custom dimensions/qty/shape/rush flag/discount, but with
+        no RugCatalog to read weave_type from, so MOQ rules and the weave-specific
+        production timeline don't apply.
+
+        size_w/size_h/discount_pct/shape default to the quote's own persisted values
+        when omitted — callers that just want to preview an in-progress edit (not
+        yet saved to the quote) pass them explicitly instead."""
+        mat_query = self.db.query(Material).filter(Material.id == material_id)
+        if self.tenant_id is not None:
+            mat_query = mat_query.filter(Material.tenant_id == self.tenant_id)
+        material = mat_query.first()
+        if not material:
+            return {"error": f"Material ID {material_id} not found"}
+
+        size_w = size_w if size_w is not None else quote.custom_size_w
+        size_h = size_h if size_h is not None else quote.custom_size_h
+        if not size_w or not size_h:
+            return {"error": "Quote is missing size information"}
+        qty = quote.qty or 1
+        shape = shape or quote.rug_shape or "rect"
+        discount_pct = discount_pct if discount_pct is not None else quote.manual_discount_pct
+        shipping_cost = shipping_cost if shipping_cost is not None else (quote.shipping_cost or 0.0)
+
+        tenant = (
+            self.db.query(Tenant).filter(Tenant.id == self.tenant_id).first()
+            if self.tenant_id is not None else None
+        )
+        default_margin = (tenant.default_profit_margin_pct or 40.0) if tenant else 40.0  # type: ignore[operator]
+        tenant_rush_pct = (tenant.rush_surcharge_pct or 25.0) if tenant else 25.0  # type: ignore[operator]
+        margin_pct = margin_override if margin_override is not None else default_margin
+
+        if shape == "circle":
+            size_sqm = round(math.pi * (size_w / 2) ** 2, 4)
+        elif shape == "oval":
+            size_sqm = round(math.pi * (size_w / 2) * (size_h / 2), 4)
+        else:
+            size_sqm = round(size_w * size_h, 4)
+        total_sqm = round(size_sqm * qty, 4)
+        bounding_sqm = round(size_w * size_h * qty, 4)
+        required_sqm = round(bounding_sqm * 1.10, 4)
+
+        mat_cost_base = self._to_base(
+            float(material.cost_per_sqm),  # type: ignore[arg-type]
+            material.cost_currency or (tenant.base_currency if tenant else "INR"),
+            tenant,
+        )
+        effective_price_per_sqm = round(mat_cost_base * (1 + margin_pct / 100), 4)
+        base_price_per_sqm = round(effective_price_per_sqm, 2)
+        subtotal = round(effective_price_per_sqm * total_sqm, 2)
+
+        material_available = material.is_available and material.stock_meters >= required_sqm
+        if not material.is_available:
+            material_message = f"{material.name} is currently unavailable."
+        elif material.stock_meters < required_sqm:
+            material_message = (
+                f"Insufficient stock: need {required_sqm:.1f} sqm (incl. 10% waste), "
+                f"only {material.stock_meters:.1f} sqm available."
+            )
+        else:
+            material_message = f"Stock sufficient: {material.stock_meters:.1f} sqm available, need {required_sqm:.1f} sqm."
+
+        pricing_rules_applied = []
+        rush_surcharge = 0.0
+        if quote.rush_order:
+            rush_surcharge = round(subtotal * (tenant_rush_pct / 100), 2)
+            pricing_rules_applied.append({
+                "rule": f"Rush surcharge ({tenant_rush_pct:.0f}%)",
+                "type": "rush_fee",
+                "amount": rush_surcharge,
+                "description": f"Priority production: +{tenant_rush_pct:.0f}% on subtotal",
+            })
+
+        manual_discount = 0.0
+        if discount_pct:
+            manual_discount = round(subtotal * (discount_pct / 100), 2)
+            pricing_rules_applied.append({
+                "rule": f"Manual discount ({discount_pct:.1f}%)",
+                "type": "manual_discount",
+                "amount": -manual_discount,
+                "description": f"Vendor applied {discount_pct:.1f}% discount",
+            })
+
+        computed_price = round(subtotal - manual_discount + rush_surcharge, 2)
+
+        # GST — off: no tax calculated at all; on: computed_price already includes
+        # GST, back it out for the breakdown (matches calculate_quote()'s semantics).
+        gst_inclusive = bool(tenant.gst_inclusive) if tenant else False
+        if not gst_inclusive:
+            gst_pct = 0.0
+            pre_gst_price = computed_price
+            gst_amount = 0.0
+            final_price = computed_price
+        else:
+            gst_pct = (tenant.default_gst_pct or 12.0) if tenant else 12.0
+            final_price = computed_price
+            pre_gst_price = round(final_price / (1 + gst_pct / 100), 2) if gst_pct else final_price
+            gst_amount = round(final_price - pre_gst_price, 2)
+
+        # Shipping — a flat pass-through cost, added after GST rather than folded
+        # into the margin-priced subtotal (it isn't marked up or taxed like the
+        # rug itself).
+        final_price = round(final_price + shipping_cost, 2)
+
+        breakdown = [
+            {
+                "label": (
+                    f"Selling rate ({base_price_per_sqm:.2f}/sqm × {total_sqm:.2f} sqm {shape} area) "
+                    f"[{margin_pct:.0f}% margin on {float(material.cost_per_sqm):.2f}/sqm material]"  # type: ignore[arg-type]
+                ),
+                "amount": subtotal,
+            }
+        ]
+        breakdown.extend(pricing_rules_applied)
+        if gst_inclusive:
+            breakdown.append({
+                "label": f"GST ({gst_pct:.0f}%)",
+                "amount": 0.0,
+                "description": f"Included in the price above — GST portion is {gst_amount:.2f}",
+            })
+        if shipping_cost:
+            breakdown.append({
+                "rule": "Shipping",
+                "type": "shipping",
+                "amount": shipping_cost,
+                "description": "Flat shipping charge added to the quoted price",
+            })
+
+        return {
+            "shape": shape,
+            "size_sqm": size_sqm,
+            "total_sqm": total_sqm,
+            "base_price_per_sqm": base_price_per_sqm,
+            "material_cost_per_sqm": mat_cost_base,
+            "profit_margin_pct": margin_pct,
+            "subtotal": subtotal,
+            "bulk_discount": 0.0,
+            "manual_discount": manual_discount,
+            "rush_surcharge": rush_surcharge,
+            "size_surcharge": 0.0,
+            "shipping_cost": shipping_cost,
+            "pre_gst_price": pre_gst_price,
+            "gst_pct": gst_pct,
+            "gst_amount": gst_amount,
+            "gst_inclusive": gst_inclusive,
+            "final_price": final_price,
+            "price_per_piece": round(final_price / qty, 2) if qty > 0 else final_price,
+            "price_currency": tenant.base_currency if tenant else "INR",
+            "moq_met": True,
+            "moq_message": "Custom rug request — MOQ rules don't apply.",
+            "material_available": material_available,
+            "material_message": material_message,
+            "estimated_days": quote.expected_delivery_days or 21,
             "breakdown": breakdown,
         }
 
@@ -298,3 +479,68 @@ class QuoteEngine:
                 else f"Insufficient stock: {material.stock_meters:.1f} sqm available, {buffer_sqm:.1f} sqm needed."
             ),
         }
+
+
+def build_manual_price_result(quote, tenant) -> dict:
+    """Builds a calculate_quote()-shaped dict for quotes with no catalog rug/material —
+    custom rug requests, priced by the vendor typing in a flat final_price, plus any
+    catalog quote whose linked rug/material was later removed. There's no cost basis
+    (no material.cost_per_sqm, no margin) to recompute an itemized breakdown from, so
+    this just backs GST out of the stored final_price instead of pricing from scratch."""
+    final_price = quote.final_price or 0.0
+    gst_inclusive = bool(tenant.gst_inclusive) if tenant else False
+
+    if not gst_inclusive:
+        gst_pct = 0.0
+        pre_gst_price = final_price
+        gst_amount = 0.0
+    else:
+        gst_pct = quote.gst_pct if quote.gst_pct is not None else ((tenant.default_gst_pct or 12.0) if tenant else 12.0)
+        pre_gst_price = round(final_price / (1 + gst_pct / 100), 2) if gst_pct else final_price
+        gst_amount = round(final_price - pre_gst_price, 2)
+
+    size_w = quote.custom_size_w or 0.0
+    size_h = quote.custom_size_h or 0.0
+    qty = quote.qty or 1
+    size_sqm = round(size_w * size_h, 4) if size_w and size_h else 0.0
+    total_sqm = round(size_sqm * qty, 4)
+    base_price_per_sqm = round(pre_gst_price / total_sqm, 2) if total_sqm > 0 else 0.0
+
+    breakdown = [{
+        "label": "Custom Rug Request — Agreed Price",
+        "amount": pre_gst_price,
+        "description": "Manually priced by the vendor — no catalog rug/material to itemize.",
+    }]
+    if gst_inclusive:
+        breakdown.append({
+            "label": f"GST ({gst_pct:.0f}%)",
+            "amount": 0.0,
+            "description": f"Included in the price above — GST portion is {gst_amount:.2f}",
+        })
+
+    return {
+        "shape": quote.rug_shape or "rect",
+        "size_sqm": size_sqm,
+        "total_sqm": total_sqm,
+        "base_price_per_sqm": base_price_per_sqm,
+        "material_cost_per_sqm": 0.0,
+        "profit_margin_pct": 0.0,
+        "subtotal": pre_gst_price,
+        "bulk_discount": 0.0,
+        "manual_discount": 0.0,
+        "rush_surcharge": 0.0,
+        "size_surcharge": 0.0,
+        "pre_gst_price": pre_gst_price,
+        "gst_pct": gst_pct,
+        "gst_amount": gst_amount,
+        "gst_inclusive": gst_inclusive,
+        "final_price": final_price,
+        "price_per_piece": round(final_price / qty, 2) if qty > 0 else final_price,
+        "price_currency": quote.price_currency or (tenant.base_currency if tenant else "INR"),
+        "moq_met": True,
+        "moq_message": "Custom rug request — MOQ rules don't apply.",
+        "material_available": True,
+        "material_message": "Custom rug request — no catalog material to check stock for.",
+        "estimated_days": quote.expected_delivery_days or 21,
+        "breakdown": breakdown,
+    }

@@ -10,7 +10,7 @@ interface SEOProps {
   jsonLd?: Record<string, unknown>;
 }
 
-const SITE_NAME = 'LoomCraftRugs';
+const SITE_NAME = 'DreamRugsCreation';
 
 export default function SEO({ title, description, canonical, image, noindex, jsonLd }: SEOProps) {
   const fullTitle = `${title} | ${SITE_NAME}`;
