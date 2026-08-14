@@ -186,6 +186,41 @@ export default function BusinessSettings() {
     }
   };
 
+  // Storefront homepage hero background image ("Handcrafted Rugs. Made for Timeless Spaces.")
+  const [uploadingHeroImage, setUploadingHeroImage] = useState(false);
+  const [heroImageError, setHeroImageError] = useState('');
+  const heroImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleHeroImageUpload = async (file: File) => {
+    setUploadingHeroImage(true);
+    setHeroImageError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await axios.post('/api/tenant/hero-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      updateTenant(data);
+    } catch (err: any) {
+      setHeroImageError(err.response?.data?.detail || 'Hero image upload failed.');
+    } finally {
+      setUploadingHeroImage(false);
+    }
+  };
+
+  const handleHeroImageRemove = async () => {
+    setUploadingHeroImage(true);
+    setHeroImageError('');
+    try {
+      const { data } = await axios.patch('/api/tenant/settings', { hero_image_url: '' });
+      updateTenant(data);
+    } catch (err: any) {
+      setHeroImageError(err.response?.data?.detail || 'Could not remove hero image.');
+    } finally {
+      setUploadingHeroImage(false);
+    }
+  };
+
   const foreignCurrencies = CURRENCIES.filter((c) => c.code !== tenant.base_currency);
   const ratesChanged  = foreignCurrencies.some((c) => {
     const newVal = parseFloat(exchangeRates[c.code] ?? '0') || 0;
@@ -399,6 +434,51 @@ export default function BusinessSettings() {
                 {faviconError && <p className="text-red-400 text-xs">{faviconError}</p>}
                 <p className={hintCls}>Shown as the browser tab icon. PNG, ICO, or SVG.</p>
               </div>
+            </div>
+
+            {/* Homepage Hero Background Image */}
+            <div className="space-y-1.5">
+              <label className={labelCls}>Homepage Hero Background</label>
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-14 rounded-lg bg-dark-800 border border-dark-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {tenant.hero_image_url ? (
+                    <img src={tenant.hero_image_url} alt="Hero background" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-dark-600 text-xs">—</span>
+                  )}
+                </div>
+                <input
+                  ref={heroImageInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleHeroImageUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => heroImageInputRef.current?.click()}
+                  disabled={uploadingHeroImage}
+                  className="text-xs bg-dark-800 hover:bg-dark-700 border border-dark-600 text-cream-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {uploadingHeroImage ? 'Uploading…' : tenant.hero_image_url ? 'Replace image' : 'Upload image'}
+                </button>
+                {tenant.hero_image_url && (
+                  <button
+                    type="button"
+                    onClick={handleHeroImageRemove}
+                    disabled={uploadingHeroImage}
+                    className="text-xs text-dark-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {heroImageError && <p className="text-red-400 text-xs">{heroImageError}</p>}
+              <p className={hintCls}>Full-bleed background behind the "Handcrafted Rugs. Made for Timeless Spaces." headline on your storefront homepage. JPEG, PNG, or WebP, max 10MB. Falls back to a default image when unset.</p>
             </div>
 
             {/* Standard Size Unit */}

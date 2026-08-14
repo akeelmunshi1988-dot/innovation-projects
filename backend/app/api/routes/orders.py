@@ -8,8 +8,8 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.config import settings
-from app.models.models import Order, OrderStatusHistory, Quote, StaffUser, Customer, RugCatalog
-from app.schemas.schemas import OrderCreate, OrderUpdate, Order as OrderSchema
+from app.models.models import Order, OrderItem, OrderStatusHistory, Quote, StaffUser, Customer, RugCatalog
+from app.schemas.schemas import OrderCreate, OrderUpdate, OrderCombineRequest, Order as OrderSchema
 from app.services.quote_engine import QuoteEngine, build_manual_price_result
 
 logger = logging.getLogger(__name__)
@@ -144,6 +144,82 @@ def update_order_status(
     db.commit()
     db.refresh(order)
     return order
+
+
+@router.post("/orders/combine", response_model=OrderSchema)
+def combine_orders(
+    body: OrderCombineRequest,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Merges several separate orders — typically one-per-accepted-quote from a customer's
+    multi-rug custom request — into a single order with multiple line items, so the vendor
+    can ship and track them together. Restricted to orders still 'pending' (before
+    production/shipping starts) and belonging to the same customer (one shipment/address)."""
+    orders = (
+        db.query(Order)
+        .filter(Order.id.in_(body.order_ids), Order.tenant_id == current_user.tenant_id)
+        .all()
+    )
+    if len(orders) != len(set(body.order_ids)):
+        raise HTTPException(status_code=404, detail="One or more orders were not found.")
+
+    non_pending = [o.id for o in orders if o.status != "pending"]
+    if non_pending:
+        raise HTTPException(status_code=400, detail=f"Only pending orders can be combined. Not pending: {non_pending}")
+
+    def _order_customer_id(o: Order) -> Optional[int]:
+        if o.items:
+            return o.items[0].quote.customer_id if o.items[0].quote else None
+        return o.quote.customer_id if o.quote else None
+
+    customer_ids = {_order_customer_id(o) for o in orders}
+    if len(customer_ids) != 1 or None in customer_ids:
+        raise HTTPException(status_code=400, detail="Selected orders must all belong to the same customer.")
+
+    orders.sort(key=lambda o: o.id)
+    primary = orders[0]
+    other_ids = [o.id for o in orders[1:]]
+
+    # Orders created straight from a single accepted quote (quotes.py's accept-quote path)
+    # never got an OrderItem row — only Order.quote_id. Backfill one before merging so that
+    # quote isn't lost, putting every source order on the same OrderItem-based footing.
+    for o in orders:
+        if db.query(OrderItem).filter(OrderItem.order_id == o.id).count() == 0 and o.quote_id:
+            db.add(OrderItem(order_id=o.id, quote_id=o.quote_id))
+    db.flush()
+
+    # Bulk-reassign rather than go through the ORM relationship collections, which may
+    # already be cached/stale from the customer-id check above.
+    db.query(OrderItem).filter(OrderItem.order_id.in_(other_ids)).update(
+        {OrderItem.order_id: primary.id}, synchronize_session=False
+    )
+    db.query(OrderStatusHistory).filter(OrderStatusHistory.order_id.in_(other_ids)).update(
+        {OrderStatusHistory.order_id: primary.id}, synchronize_session=False
+    )
+    db.flush()
+
+    all_quotes = (
+        db.query(Quote)
+        .join(OrderItem, OrderItem.quote_id == Quote.id)
+        .filter(OrderItem.order_id == primary.id)
+        .all()
+    )
+    primary.total_amount = round(
+        sum(q.final_price or 0.0 for q in all_quotes) + (primary.shipping_cost or 0.0) - (primary.discount_amount or 0.0), 2
+    )
+    primary.estimated_delivery = max(
+        (o.estimated_delivery for o in orders if o.estimated_delivery), default=primary.estimated_delivery,
+    )
+
+    # OrderItem/OrderStatusHistory rows were already moved off these orders above, so
+    # deleting them now leaves no orphaned children regardless of FK cascade settings.
+    for o in orders[1:]:
+        db.delete(o)
+
+    db.commit()
+    db.refresh(primary)
+    return primary
 
 
 def _order_paid_amount(order: Order) -> float:

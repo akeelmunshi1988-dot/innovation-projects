@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Scissors, ChevronDown } from 'lucide-react';
 import PricingGrid from '../components/PricingGrid';
+import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
 
 const FAQ = [
@@ -42,6 +43,10 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-dark-950">
+      <SEO
+        title="Pricing"
+        description="Simple, INR-priced software for rug manufacturers — AI assistant, customer portal, and quote builder. UPI and card payments, GST invoicing, no USD billing."
+      />
       {/* Header */}
       <header className="sticky top-0 z-10 bg-dark-900/90 backdrop-blur border-b border-dark-700">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3">

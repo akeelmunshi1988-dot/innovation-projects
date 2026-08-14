@@ -7,14 +7,17 @@ interface SEOProps {
   canonical?: string;
   image?: string;
   noindex?: boolean;
-  jsonLd?: Record<string, unknown>;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 const SITE_NAME = 'DreamRugsCreation';
 
 export default function SEO({ title, description, canonical, image, noindex, jsonLd }: SEOProps) {
   const fullTitle = `${title} | ${SITE_NAME}`;
-  const url = canonical ?? (typeof window !== 'undefined' ? window.location.href : undefined);
+  // Default canonical is the path only — dropping query strings (filters, sort,
+  // tracking params) so paginated/filtered views of the same page don't register
+  // as separate, duplicate-content URLs to search engines.
+  const url = canonical ?? (typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : undefined);
 
   return (
     <Helmet>
@@ -41,9 +44,9 @@ export default function SEO({ title, description, canonical, image, noindex, jso
       <meta name="twitter:description" content={description} />
       {image && <meta name="twitter:image" content={image} />}
 
-      {jsonLd && (
-        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
-      )}
+      {jsonLd && (Array.isArray(jsonLd) ? jsonLd : [jsonLd]).map((block, i) => (
+        <script key={i} type="application/ld+json">{JSON.stringify(block)}</script>
+      ))}
     </Helmet>
   );
 }

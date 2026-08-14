@@ -19,6 +19,7 @@ interface ShowcaseVideo {
 
 interface CatalogRug {
   id: number;
+  slug: string;
   name: string;
   description: string;
   material: string;
@@ -44,7 +45,8 @@ const SHOW_FEATURED_RUGS = false;
 // "Our Craft" section: true = full-bleed background video, false = full-width static image
 // (uses the intro video's poster image, or falls back to the first workshop photo)
 const SHOW_CRAFT_VIDEO = true;
-// Curated full-bleed hero image (Pexels, "beige and brown rug with a leaf design" by Beyzanur K.)
+// Fallback full-bleed hero image (Pexels, "beige and brown rug with a leaf design" by Beyzanur K.),
+// used until the admin uploads a custom one under Business Settings → General.
 const HERO_IMAGE_URL = 'https://images.pexels.com/photos/28379848/pexels-photo-28379848.jpeg?auto=compress&cs=tinysrgb&w=1920';
 
 interface WorkshopPhoto {
@@ -80,6 +82,9 @@ export default function CustomerHome() {
   const [introIndex, setIntroIndex] = useState(0);
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [businessName, setBusinessName] = useState('');
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
+  const [contactInfo, setContactInfo] = useState<{ email: string | null; phone: string | null; address: string | null }>({ email: null, phone: null, address: null });
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
@@ -112,8 +117,15 @@ export default function CustomerHome() {
       .then((data) => {
         setAiConsultantEnabled(data.ai_assistant_enabled);
         setBusinessName(data.business_name || '');
+        setHeroImageUrl(data.hero_image_url || null);
+        setContactInfo({
+          email: data.contact_emails?.[0] ?? null,
+          phone: data.contact_phones?.[0] ?? null,
+          address: data.contact_address,
+        });
       })
-      .catch(() => setAiConsultantEnabled(true));
+      .catch(() => setAiConsultantEnabled(true))
+      .finally(() => setHeroImageLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -136,7 +148,27 @@ export default function CustomerHome() {
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
   const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
   const showCraftSection = SHOW_CRAFT_VIDEO ? Boolean(introVideo) : Boolean(craftImageUrl);
-  const heroImage = HERO_IMAGE_URL;
+  const heroImage = heroImageLoaded ? (heroImageUrl || HERO_IMAGE_URL) : null;
+
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'HomeAndConstructionBusiness',
+    name: businessName || 'DreamRugsCreation',
+    url: siteUrl,
+    image: heroImage,
+    ...(contactInfo.email || contactInfo.phone
+      ? {
+          contactPoint: {
+            '@type': 'ContactPoint',
+            contactType: 'customer service',
+            ...(contactInfo.email ? { email: contactInfo.email } : {}),
+            ...(contactInfo.phone ? { telephone: contactInfo.phone } : {}),
+          },
+        }
+      : {}),
+    ...(contactInfo.address ? { address: contactInfo.address } : {}),
+  };
 
   const openChat = (msg: string) => {
     window.dispatchEvent(new CustomEvent('loomcraftrugs:ask', { detail: { message: msg } }));
@@ -152,6 +184,8 @@ export default function CustomerHome() {
       <SEO
         title="Handcrafted Custom Rugs, Made to Order"
         description="Premium handcrafted rugs custom-made to your exact size, material, and design — wool, silk, cotton, and synthetic weaves from India's finest workshops. Visualize any rug in your room before you order."
+        image={heroImage ?? undefined}
+        jsonLd={organizationJsonLd}
       />
 
       {/* ── HERO (full-bleed cinematic image, text overlaid) ─────────────── */}
@@ -162,9 +196,13 @@ export default function CustomerHome() {
               src={heroImage}
               alt="Handcrafted rug"
               className="absolute inset-0 w-full h-full object-cover"
+              fetchPriority="high"
+              loading="eager"
             />
           ) : (
-            <div className="absolute inset-0 bg-stone-100" />
+            <div className="absolute inset-0 bg-stone-100 flex items-center justify-center">
+              <div className="w-10 h-10 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
+            </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 to-stone-900/25" />
 
@@ -284,6 +322,7 @@ export default function CustomerHome() {
                         src={introVideo.poster_url}
                         alt={introVideo.title}
                         className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
                       />
                     )}
                     <video
@@ -303,6 +342,7 @@ export default function CustomerHome() {
                     src={craftImageUrl!}
                     alt="Our Craft"
                     className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
                   />
                 )}
               </div>
@@ -391,7 +431,7 @@ export default function CustomerHome() {
             {featured.map((rug) => (
               <Link
                 key={rug.id}
-                to={`/catalog/${rug.id}`}
+                to={`/catalog/${rug.slug}`}
                 className="group block"
               >
                 {/* Image */}
@@ -401,6 +441,7 @@ export default function CustomerHome() {
                       src={rug.image_url}
                       alt={rug.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -450,6 +491,7 @@ export default function CustomerHome() {
                   src={p.image_url}
                   alt={p.caption}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  loading="lazy"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-stone-900/80 via-stone-900/10 to-transparent">
@@ -481,6 +523,7 @@ export default function CustomerHome() {
                   src={m.image}
                   alt=""
                   aria-hidden="true"
+                  loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-15 transition-opacity duration-300 pointer-events-none"
                 />
                 <p className="relative font-serif text-2xl font-light text-stone-900">{m.label}</p>
@@ -557,7 +600,7 @@ export default function CustomerHome() {
 
                     <div className="relative flex items-center gap-3 pt-6">
                       {t.photo_url ? (
-                        <img src={t.photo_url} alt={t.author_name} className="w-11 h-11 rounded-full object-cover ring-2 ring-white/15" />
+                        <img src={t.photo_url} alt={t.author_name} width={44} height={44} loading="lazy" className="w-11 h-11 rounded-full object-cover ring-2 ring-white/15" />
                       ) : (
                         <div className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white text-sm font-medium">
                           {t.author_name.charAt(0)}
@@ -618,6 +661,7 @@ export default function CustomerHome() {
               src={g.image_url}
               alt={g.caption ?? ''}
               className="w-full h-full object-contain"
+              loading="lazy"
             />
             {g.caption && (
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-900/60 via-transparent to-transparent flex items-end pointer-events-none">
@@ -774,6 +818,7 @@ function CraftVideoCard({ video }: { video: ShowcaseVideo }) {
         <img
           src={video.poster_url}
           alt={video.title}
+          loading="lazy"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
         />
       ) : (

@@ -22,6 +22,7 @@ import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitiz
 
 interface RugDetail {
   id: number;
+  slug: string;
   name: string;
   description: string | null;
   about_content_html: string | null;
@@ -75,7 +76,7 @@ interface QuoteForm {
 
 
 export default function CustomerRugDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
   const { displayPrice } = useCurrency();
@@ -112,13 +113,23 @@ export default function CustomerRugDetail() {
   const [showAuthPwd, setShowAuthPwd] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!slug) return;
     setActiveSlide(0);
-    axios.get(`/api/customer/catalog/${id}`)
-      .then(({ data }) => setRug(data))
+    setLoading(true);
+    setNotFound(false);
+    // `slug` also accepts a legacy numeric id (see backend get_public_rug) so old
+    // /catalog/<id> links still resolve — once loaded, canonicalize the address
+    // bar to the real slug URL so the visible URL and future shares use it.
+    axios.get(`/api/customer/catalog/${slug}`)
+      .then(({ data }) => {
+        setRug(data);
+        if (data.slug && data.slug !== slug) {
+          navigate(`/catalog/${data.slug}`, { replace: true });
+        }
+      })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [slug]);
 
   useEffect(() => {
     getPublicSettings()
@@ -127,14 +138,14 @@ export default function CustomerRugDetail() {
   }, []);
 
   useEffect(() => {
-    if (!id || !isCustomerAuthenticated || !customerToken) return;
-    axios.get(`/api/customer/quotes?rug_id=${id}`, {
+    if (!rug || !isCustomerAuthenticated || !customerToken) return;
+    axios.get(`/api/customer/quotes?rug_id=${rug.id}`, {
       headers: { Authorization: `Bearer ${customerToken}` },
     }).then(({ data }) => {
       const active = (data as any[]).find(q => q.status === 'sent' || q.status === 'draft');
       setActiveQuote(active ?? null);
     }).catch(() => {});
-  }, [id, isCustomerAuthenticated, customerToken]);
+  }, [rug, isCustomerAuthenticated, customerToken]);
 
   const effectiveSizeH = form.shape === 'circle' ? form.size_w : form.size_h;
   // form.size_w/size_h are entered in `sizeUnit`; quote pricing is denominated in metres.
@@ -249,6 +260,7 @@ export default function CustomerRugDetail() {
   if (notFound || !rug) {
     return (
       <CustomerLayout>
+        <SEO title="Rug Not Found" description="This rug is no longer available in our catalog." noindex />
         <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
           <Layers size={36} className="mx-auto text-stone-300" />
           <h2 className="font-serif text-2xl font-light text-stone-900">Rug not found</h2>
@@ -274,22 +286,33 @@ export default function CustomerRugDetail() {
           `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size, starting at ${sym}${rug.base_price_per_sqm}/m².`
         }
         image={rug.image_url ?? undefined}
-        jsonLd={{
-          '@context': 'https://schema.org',
-          '@type': 'Product',
-          name: rug.name,
-          description: rug.description ?? undefined,
-          image: rug.image_url ?? undefined,
-          material: rug.material,
-          offers: {
-            '@type': 'Offer',
-            price: rug.base_price_per_sqm,
-            priceCurrency: currency,
-            availability: rug.available
-              ? 'https://schema.org/InStock'
-              : 'https://schema.org/OutOfStock',
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: rug.name,
+            description: rug.description ?? undefined,
+            image: rug.image_url ?? undefined,
+            material: rug.material,
+            offers: {
+              '@type': 'Offer',
+              price: rug.base_price_per_sqm,
+              priceCurrency: currency,
+              availability: rug.available
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            },
           },
-        }}
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
+              { '@type': 'ListItem', position: 2, name: 'Collection', item: `${window.location.origin}/catalog` },
+              { '@type': 'ListItem', position: 3, name: rug.name, item: `${window.location.origin}/catalog/${rug.slug}` },
+            ],
+          },
+        ]}
       />
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
 
@@ -361,7 +384,7 @@ export default function CustomerRugDetail() {
               return (
                 <div className="space-y-2">
                   <div className="relative overflow-hidden bg-stone-100 group" style={{ aspectRatio: '4/3' }}>
-                    <img src={slides[current]} alt={`${rug.name} — view ${current + 1}`} className="w-full h-full object-cover" />
+                    <img src={slides[current]} alt={`${rug.name} — view ${current + 1}`} className="w-full h-full object-cover" fetchPriority="high" />
                     {slides.length > 1 && (
                       <>
                         <button
@@ -405,7 +428,7 @@ export default function CustomerRugDetail() {
                             i === current ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'
                           }`}
                         >
-                          <img src={src} alt="" className="w-full h-full object-cover" />
+                          <img src={src} alt="" loading="lazy" width={64} height={64} className="w-full h-full object-cover" />
                         </button>
                       ))}
                     </div>

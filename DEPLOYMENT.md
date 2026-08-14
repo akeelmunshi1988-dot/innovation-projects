@@ -81,6 +81,26 @@ npm run build
 # Output: frontend/dist/
 ```
 
+`npm run build` also runs `scripts/prerender.js`, which bakes route-specific
+`<title>`/meta/OG/JSON-LD into a static `.html` per public route (home, about,
+catalog, pricing, and one per published rug) so non-JS crawlers and link-preview
+bots see real metadata instead of the generic SPA shell — see the comment at the
+top of that script for why. It needs a reachable backend to look up rug
+names/images and your business name:
+
+```bash
+SITE_URL=https://yourdomain.com \
+PRERENDER_API_URL=http://127.0.0.1:8000 \
+npm run build
+```
+
+`SITE_URL` defaults to `https://dreamrugscreation.in`; `PRERENDER_API_URL` defaults to
+`http://127.0.0.1:8000` (a local dev backend running on this machine). If no
+backend is reachable at that URL, the per-rug and business-name pages are silently
+skipped (a warning is logged) and the rest of the build still succeeds — but note
+this means catalog page metadata goes stale as soon as rugs are added, edited, or
+removed, until the next `npm run build` + redeploy with a reachable backend.
+
 ---
 
 ## Phase 5 — Upload Files to Server (on your Mac)
@@ -258,7 +278,15 @@ server {
     index index.html;
 
     location / {
-        try_files $uri $uri/ /index.html;
+        # $uri.html before $uri/: the frontend build's prerender step (see
+        # frontend/scripts/prerender.js) writes route-specific meta as e.g.
+        # dist/catalog/42.html rather than dist/catalog/42/index.html — a *file*
+        # match, not a directory match. This matters because a directory match
+        # ($uri/) makes nginx 301-redirect bare URLs like /catalog/42 to
+        # /catalog/42/ before serving anything, and plenty of non-JS crawlers and
+        # link-preview bots (Bing, WhatsApp, LinkedIn, Slack) won't reliably follow
+        # that hop, which would defeat the point of prerendering their meta tags.
+        try_files $uri $uri.html $uri/ /index.html;
     }
 
     # API -> FastAPI backend

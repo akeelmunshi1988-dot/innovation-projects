@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
+import SEO from '../components/SEO';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { refreshAccessToken } from '../services/authRefresh';
 
@@ -44,6 +45,7 @@ export default function CustomerOAuthCallback() {
 
   return (
     <CustomerLayout>
+      <SEO title="Signing In" description="Completing sign-in." noindex />
       <div className="max-w-md mx-auto px-6 py-32 text-center space-y-4">
         {error ? (
           <>

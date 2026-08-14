@@ -80,6 +80,7 @@ export interface RugImage {
 
 export interface RugCatalog {
   id: number;
+  slug: string | null;
   name: string;
   description: string | null;
   about_content_html: string | null;
@@ -166,9 +167,11 @@ export interface Quote {
   room_type: string | null;
   material_preference: string | null;
   budget_range: string | null;
+  expected_delivery: string | null;
   reference_image_urls: string[] | null;
   vendor_sample_image_urls: string[] | null;
   revised_from_quote_id: number | null;
+  request_group_id: string | null;
 }
 
 export interface OrderItem {

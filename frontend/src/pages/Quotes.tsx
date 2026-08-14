@@ -626,6 +626,7 @@ export default function Quotes() {
             <QuoteRow
               key={q.id}
               q={q}
+              groupCount={q.request_group_id ? visible.filter((o) => o.request_group_id === q.request_group_id).length : 0}
               fmtForCustomer={fmtForCustomer}
               sizeUnit={sizeUnit}
               isOpen={expanded === q.id}
@@ -1108,6 +1109,7 @@ export default function Quotes() {
 
 interface QuoteRowProps {
   q: Quote;
+  groupCount: number;
   fmtForCustomer: (n: number, currency: string | null | undefined, country: string | null | undefined) => string;
   sizeUnit: string;
   isOpen: boolean;
@@ -1128,7 +1130,7 @@ interface QuoteRowProps {
 
 const MAX_SAMPLE_IMAGES = 3;
 
-function QuoteRow({ q, fmtForCustomer, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust, onReject, onSaveSampleImages, onRevise, revising, revisedIntoId }: QuoteRowProps) {
+function QuoteRow({ q, groupCount, fmtForCustomer, sizeUnit, isOpen, updating, onToggle, onChangeStatus, onWhatsApp, onEmail, onDownload, onSend, onAdjust, onReject, onSaveSampleImages, onRevise, revising, revisedIntoId }: QuoteRowProps) {
   const meta = STATUS_META[q.status];
   const sqm  = q.custom_size_w && q.custom_size_h ? (q.custom_size_w * q.custom_size_h).toFixed(2) : null;
   const dims = q.custom_size_w && q.custom_size_h
@@ -1231,7 +1233,17 @@ function QuoteRow({ q, fmtForCustomer, sizeUnit, isOpen, updating, onToggle, onC
 
           {q.is_custom_request && (
             <div className="bg-gold-900/10 border border-gold-700/30 rounded-lg px-3 py-3 space-y-3">
-              <p className="text-gold-400 text-xs uppercase tracking-wider font-semibold">Custom Rug Request Brief</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-gold-400 text-xs uppercase tracking-wider font-semibold">Custom Rug Request Brief</p>
+                {groupCount > 1 && (
+                  <span
+                    title="These quotes were submitted together — combine their orders once accepted via Orders → Combine into One Order"
+                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-300 border border-blue-700/40 uppercase tracking-wide"
+                  >
+                    Part of a {groupCount}-rug request
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                 <div>
                   <p className="text-dark-400 text-xs">Room</p>
@@ -1244,6 +1256,10 @@ function QuoteRow({ q, fmtForCustomer, sizeUnit, isOpen, updating, onToggle, onC
                 <div>
                   <p className="text-dark-400 text-xs">Budget range</p>
                   <p className="text-cream-200">{q.budget_range || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-dark-400 text-xs">Expected delivery</p>
+                  <p className="text-cream-200">{q.expected_delivery || '—'}</p>
                 </div>
               </div>
               {q.reference_image_urls && q.reference_image_urls.length > 0 && (
