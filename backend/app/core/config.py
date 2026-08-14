@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     BACKEND_URL: str = "http://localhost:8000"  # used to build OAuth redirect_uri values registered with each provider
 
+    # Gates the whole site (via nginx auth_request, see DEPLOYMENT.md) to
+    # visitors browsing from India unless they hold this key. Unset/empty
+    # disables the gate entirely — safe default, nothing is blocked unless
+    # this is explicitly configured.
+    INDIA_ACCESS_KEY: Optional[str] = None
+
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     FACEBOOK_CLIENT_ID: Optional[str] = None

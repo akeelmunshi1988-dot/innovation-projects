@@ -546,7 +546,7 @@ export default function CustomerHome() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
           {HOW.map((step) => (
-            <div key={step.n} className="space-y-4">
+            <div key={step.n} className="-m-6 p-6 space-y-4 rounded hover:bg-stone-50 transition-colors">
               <p className="font-serif text-5xl font-light text-stone-200">{step.n}</p>
               <h3 className="text-stone-900 font-medium text-base">{step.title}</h3>
               <p className="text-stone-500 text-sm leading-relaxed">{step.desc}</p>

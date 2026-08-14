@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingBag } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingBag, Phone, MapPin, MessageCircle } from 'lucide-react';
 import axios from 'axios';
 import CustomerChat from './CustomerChat';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
@@ -46,6 +46,9 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [catalogPdfUrl, setCatalogPdfUrl] = useState<string | null>(null);
   const [certifications, setCertifications] = useState<{ label: string; image_url: string }[]>([]);
+  const [contactEmails, setContactEmails] = useState<string[]>([]);
+  const [contactPhones, setContactPhones] = useState<string[]>([]);
+  const [contactAddress, setContactAddress] = useState<string | null>(null);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [showCookieBanner, setShowCookieBanner] = useState(false);
@@ -72,6 +75,9 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         applyBranding(data.business_name, data.logo_url);
         setCatalogPdfUrl(data.catalog_pdf_url);
         setCertifications(data.certifications || []);
+        setContactEmails(data.contact_emails ?? []);
+        setContactPhones(data.contact_phones ?? []);
+        setContactAddress(data.contact_address);
       })
       .catch(() => { setChatEnabled(true); setBusinessName('Store'); });
   }, []);
@@ -485,6 +491,38 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             )}
           </div>
         </div>
+
+        {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress) && (
+          <div className="border-t border-stone-200 py-8">
+            <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
+              {contactEmails.map((e) => (
+                <a key={e} href={`mailto:${e}`} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors">
+                  <Mail size={14} className="flex-shrink-0" /> {e}
+                </a>
+              ))}
+              {contactPhones.map((p) => (
+                <div key={p} className="flex items-center gap-3">
+                  <a href={`tel:${p}`} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors">
+                    <Phone size={14} className="flex-shrink-0" /> {p}
+                  </a>
+                  <a
+                    href={`https://wa.me/${p.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                  >
+                    <MessageCircle size={14} /> Chat
+                  </a>
+                </div>
+              ))}
+              {contactAddress && (
+                <p className="flex items-center gap-2 text-stone-500">
+                  <MapPin size={14} className="flex-shrink-0" /> {contactAddress}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {certifications.length > 0 && (
           <div className="border-t border-stone-200 py-8">
