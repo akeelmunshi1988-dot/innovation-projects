@@ -94,7 +94,7 @@ PRERENDER_API_URL=http://127.0.0.1:8000 \
 npm run build
 ```
 
-`SITE_URL` defaults to `https://loomcraftrugs.in`; `PRERENDER_API_URL` defaults to
+`SITE_URL` defaults to `https://dreamrugscreation.in`; `PRERENDER_API_URL` defaults to
 `http://127.0.0.1:8000` (a local dev backend running on this machine). If no
 backend is reachable at that URL, the per-rug and business-name pages are silently
 skipped (a warning is logged) and the rest of the build still succeeds — but note

@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
 const SITE_NAME = 'DreamRugsCreation';
-const SITE_URL = (process.env.SITE_URL || 'https://loomcraftrugs.in').replace(/\/$/, '');
+const SITE_URL = (process.env.SITE_URL || 'https://dreamrugscreation.in').replace(/\/$/, '');
 // Only needed to look up rug names/descriptions/images for /catalog/:id and the
 // business name for /about — points at the backend API, not the frontend.
 const API_URL = (process.env.PRERENDER_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');

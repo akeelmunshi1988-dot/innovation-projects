@@ -8,4 +8,4 @@ Disallow: /my-quotes
 Disallow: /login
 Disallow: /verify-email
 
-Sitemap: https://loomcraftrugs.in/sitemap.xml
+Sitemap: https://dreamrugscreation.in/sitemap.xml
