@@ -699,7 +699,7 @@ const Catalog: React.FC = () => {
               </button>
             </div>
 
-            <Link to={`/catalog/${rug.id}`} className="block">
+            <Link to={`/admin/catalog/${rug.id}`} className="block">
               {/* Image */}
               <div className="relative h-48 bg-dark-800 overflow-hidden">
                 {rug.image_url ? (

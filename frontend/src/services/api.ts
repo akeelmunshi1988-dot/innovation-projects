@@ -393,6 +393,11 @@ export const cancelOrder = async (id: number): Promise<Order> => {
   return data;
 };
 
+export const combineOrders = async (orderIds: number[]): Promise<Order> => {
+  const { data } = await api.post<Order>('/orders/combine', { order_ids: orderIds });
+  return data;
+};
+
 // ── Inventory ─────────────────────────────────────────────────────────────────
 
 export const getInventory = async (): Promise<Material[]> => {
@@ -571,6 +576,7 @@ export const getPublicSettings = async (): Promise<{
   ai_room_enhance_enabled: boolean;
   business_name: string | null;
   logo_url: string | null;
+  hero_image_url: string | null;
   default_size_unit: string;
   contact_emails: string[];
   contact_phones: string[];

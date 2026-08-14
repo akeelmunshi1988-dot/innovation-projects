@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Filter, RefreshCw, Calendar, ChevronDown, Receipt, MapPin, AlertTriangle, Search, X } from 'lucide-react';
-import { getOrders, updateOrderStatus, getOrderBreakdown, getCancelEligibility, cancelOrder } from '../services/api';
+import { getOrders, updateOrderStatus, getOrderBreakdown, getCancelEligibility, cancelOrder, combineOrders } from '../services/api';
 import type { CancelEligibility } from '../services/api';
 import type { Order, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,6 +60,35 @@ const Orders: React.FC = () => {
   const [cancelModal, setCancelModal] = useState<{ orderId: number; eligibility: CancelEligibility | 'loading' | 'error' } | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+
+  // Combine multiple pending orders (same customer) into one
+  const [selectedForCombine, setSelectedForCombine] = useState<number[]>([]);
+  const [combineModalOpen, setCombineModalOpen] = useState(false);
+  const [combining, setCombining] = useState(false);
+  const [combineError, setCombineError] = useState('');
+
+  const toggleCombineSelect = (orderId: number) => {
+    setSelectedForCombine((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]));
+  };
+
+  const handleConfirmCombine = async () => {
+    setCombining(true);
+    setCombineError('');
+    try {
+      const merged = await combineOrders(selectedForCombine);
+      setOrders((prev) => {
+        const withoutMerged = prev.filter((o) => !selectedForCombine.includes(o.id) || o.id === merged.id);
+        return withoutMerged.map((o) => (o.id === merged.id ? merged : o));
+      });
+      setSelectedForCombine([]);
+      setCombineModalOpen(false);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? 'Failed to combine orders.';
+      setCombineError(msg);
+    } finally {
+      setCombining(false);
+    }
+  };
 
   const openCancelModal = async (orderId: number) => {
     setCancelError('');
@@ -216,6 +245,25 @@ const Orders: React.FC = () => {
         ))}
       </div>
 
+      {/* Combine-orders action bar */}
+      {selectedForCombine.length > 0 && (
+        <div className="flex items-center justify-between gap-3 bg-gold-900/10 border border-gold-700/30 rounded-lg px-4 py-2.5 flex-wrap">
+          <p className="text-gold-300 text-sm">{selectedForCombine.length} order{selectedForCombine.length === 1 ? '' : 's'} selected</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelectedForCombine([])} className="text-dark-400 hover:text-cream-200 text-xs transition-colors">
+              Clear
+            </button>
+            <button
+              onClick={() => setCombineModalOpen(true)}
+              disabled={selectedForCombine.length < 2}
+              className="bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              Combine into One Order ({selectedForCombine.length})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Orders table */}
       {loading ? (
         <div className="flex justify-center py-16">
@@ -243,6 +291,16 @@ const Orders: React.FC = () => {
                   className="flex items-center gap-4 cursor-pointer"
                   onClick={() => toggleExpand(order.id)}
                 >
+                  {order.status === 'pending' && (
+                    <input
+                      type="checkbox"
+                      checked={selectedForCombine.includes(order.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleCombineSelect(order.id)}
+                      className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-gold-600 focus:ring-gold-600/50 flex-shrink-0"
+                      title="Select to combine with other pending orders"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-cream-100 font-semibold text-sm">Order #{order.id}</span>
@@ -653,6 +711,66 @@ const Orders: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Combine Orders Confirmation Modal */}
+      {combineModalOpen && (() => {
+        const selectedOrders = orders.filter((o) => selectedForCombine.includes(o.id));
+        const combinedTotal = selectedOrders.reduce((sum, o) => {
+          const t = o.items && o.items.length > 0
+            ? o.items.reduce((s, it) => s + (it.quote?.final_price ?? 0), 0)
+            : o.quote?.final_price ?? 0;
+          return sum + t;
+        }, 0);
+        const anyCurrency = selectedOrders[0]?.quote?.price_currency;
+        const anyCountry = selectedOrders[0]?.quote?.customer?.country;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag size={16} className="text-gold-400" />
+                  <h2 className="text-cream-100 font-semibold">Combine {selectedOrders.length} Orders</h2>
+                </div>
+                <button onClick={() => setCombineModalOpen(false)} className="text-dark-400 hover:text-cream-300"><X size={18} /></button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="bg-dark-800 border border-dark-700 rounded-lg divide-y divide-dark-700">
+                  {selectedOrders.map((o) => (
+                    <div key={o.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                      <span className="text-cream-200">
+                        Order #{o.id} — {o.quote?.rug_catalog?.name ?? 'Custom Rug'}{o.items && o.items.length > 1 ? ` +${o.items.length - 1} more` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-dark-400 text-sm">
+                  These will merge into a single order (kept as the lowest-numbered one), with one shipping charge and a combined total of{' '}
+                  <span className="text-gold-400 font-semibold">{fmtForCustomer(combinedTotal, anyCurrency, anyCountry)}</span>.
+                  The other order records will be removed.
+                </p>
+                {combineError && (
+                  <div className="flex items-center gap-2 bg-red-900/20 border border-red-600/30 rounded-lg p-2.5 text-red-400 text-xs">
+                    <AlertTriangle size={13} /> {combineError}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 px-5 pb-5">
+                <button onClick={() => setCombineModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 text-sm hover:bg-dark-700 transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCombine}
+                  disabled={combining}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                >
+                  {combining ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <ShoppingBag size={14} />}
+                  {combining ? 'Combining…' : 'Confirm Combine'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

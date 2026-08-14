@@ -298,6 +298,7 @@ async def get_public_settings():
             "ai_room_enhance_enabled": bool(settings.OPENAI_API_KEY),
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
+            "hero_image_url": tenant.hero_image_url if tenant else None,
             "default_size_unit": tenant.default_size_unit if tenant else "ft",
             "contact_emails": (tenant.contact_emails or []) if tenant else [],
             "contact_phones": (tenant.contact_phones or []) if tenant else [],
@@ -511,6 +512,7 @@ async def get_public_catalog(sort: str = Query("newest")):
         result = [
             {
                 "id": r.id,
+                "slug": r.slug,
                 "name": r.name,
                 "description": r.description,
                 "weave_type": r.weave_type,
@@ -532,19 +534,28 @@ async def get_public_catalog(sort: str = Query("newest")):
         db.close()
 
 
-@router.get("/customer/catalog/{rug_id}")
-async def get_public_rug(rug_id: int):
-    cache_key = f"detail:{rug_id}"
+@router.get("/customer/catalog/{rug_id_or_slug}")
+async def get_public_rug(rug_id_or_slug: str):
+    # Accepts either the numeric id (old/legacy links, e.g. already-shared or
+    # indexed URLs from before slugs existed) or the slug (current canonical
+    # URLs) — the frontend redirects the browser to the slug URL once it has
+    # the rug's data, this just needs to resolve either.
+    cache_key = f"detail:{rug_id_or_slug}"
     cached = cache_get("catalog", cache_key)
     if cached is not None:
         return cached
     db = SessionLocal()
     try:
-        r = db.query(RugCatalog).join(Material).filter(RugCatalog.id == rug_id).first()
+        q = db.query(RugCatalog).join(Material)
+        if rug_id_or_slug.isdigit():
+            r = q.filter(RugCatalog.id == int(rug_id_or_slug)).first()
+        else:
+            r = q.filter(RugCatalog.slug == rug_id_or_slug).first()
         if not r:
             raise HTTPException(status_code=404, detail="Rug not found")
         result = {
             "id": r.id,
+            "slug": r.slug,
             "name": r.name,
             "description": r.description,
             "about_content_html": r.about_content_html,
@@ -860,19 +871,24 @@ async def upload_custom_rug_request_image(file: UploadFile = File(...)):
     return {"url": f"/static/custom-requests/{filename}"}
 
 
-class CustomRugRequestBody(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    email: EmailStr
-    phone: Optional[str] = Field(None, max_length=20)
-    company: Optional[str] = Field(None, max_length=200)
+class CustomRugRequestItem(BaseModel):
     room_type: Optional[str] = Field(None, max_length=100)
     size_w: float = Field(..., gt=0, le=50)
     size_h: float = Field(..., gt=0, le=50)
     qty: int = Field(1, ge=1, le=10000)
     material_preference: Optional[str] = Field(None, max_length=50)
     budget_range: Optional[str] = Field(None, max_length=100)
-    notes: Optional[str] = Field(None, max_length=2000)
+    expected_delivery: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = Field(None, max_length=1500)
     reference_image_urls: Optional[List[str]] = Field(None, max_length=3)
+
+
+class CustomRugRequestBody(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    email: EmailStr
+    phone: Optional[str] = Field(None, max_length=20)
+    company: Optional[str] = Field(None, max_length=200)
+    items: List[CustomRugRequestItem] = Field(..., min_length=1, max_length=10)
 
 
 @router.post("/customer/custom-rug-request")
@@ -905,27 +921,39 @@ async def submit_custom_rug_request(body: CustomRugRequestBody, request: Request
             db.add(customer)
             db.flush()
 
-        quote = Quote(
-            tenant_id=tid, customer_id=customer.id,
-            rug_catalog_id=None, material_id=None,
-            custom_size_w=body.size_w, custom_size_h=body.size_h,
-            qty=body.qty, final_price=None, status="draft",
-            notes=body.notes, is_custom_request=True,
-            room_type=body.room_type, material_preference=body.material_preference,
-            budget_range=body.budget_range, reference_image_urls=body.reference_image_urls,
-        )
-        db.add(quote)
+        # Ties every rug in this submission together so the vendor can see they arrived
+        # as one request and later combine their resulting orders — only meaningful (and
+        # only set) when there's actually more than one rug in this submission.
+        group_id = uuid.uuid4().hex if len(body.items) > 1 else None
+
+        quotes = []
+        for item in body.items:
+            quote = Quote(
+                tenant_id=tid, customer_id=customer.id,
+                rug_catalog_id=None, material_id=None,
+                custom_size_w=item.size_w, custom_size_h=item.size_h,
+                qty=item.qty, final_price=None, status="draft",
+                notes=item.notes, is_custom_request=True,
+                room_type=item.room_type, material_preference=item.material_preference,
+                budget_range=item.budget_range, expected_delivery=item.expected_delivery,
+                reference_image_urls=item.reference_image_urls,
+                request_group_id=group_id,
+            )
+            db.add(quote)
+            quotes.append(quote)
         db.commit()
-        db.refresh(quote)
+        for quote in quotes:
+            db.refresh(quote)
 
         try:
             if tenant:
-                _notify_vendor_custom_rug_request(db, quote, tenant, customer)
+                for quote in quotes:
+                    _notify_vendor_custom_rug_request(db, quote, tenant, customer)
         except Exception:
             pass
 
         return {
-            "quote_id": quote.id,
+            "quote_ids": [q.id for q in quotes],
             "message": "Thanks — we've received your custom rug request. Our team will review it and send you a personalized quote within 24–48 hours.",
         }
     finally:

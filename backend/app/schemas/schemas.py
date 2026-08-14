@@ -95,6 +95,7 @@ class RugImageUpdate(BaseModel):
 
 class RugCatalog(RugCatalogBase):
     id: int
+    slug: Optional[str] = None
     material: Optional[Material] = None
     images: List[RugImage] = []
 
@@ -229,9 +230,11 @@ class QuoteBase(BaseModel):
     room_type: Optional[str] = None
     material_preference: Optional[str] = None
     budget_range: Optional[str] = None
+    expected_delivery: Optional[str] = None
     reference_image_urls: Optional[List[str]] = None
     vendor_sample_image_urls: Optional[List[str]] = None
     revised_from_quote_id: Optional[int] = None
+    request_group_id: Optional[str] = None
 
 
 class QuoteCreate(QuoteBase):
@@ -366,6 +369,10 @@ class OrderUpdate(BaseModel):
     estimated_delivery: Optional[datetime] = None
     actual_delivery: Optional[datetime] = None
     shipping_cost: Optional[float] = None
+
+
+class OrderCombineRequest(BaseModel):
+    order_ids: List[int] = Field(..., min_length=2, max_length=20)
 
 
 class OrderItemSchema(BaseModel):
@@ -509,6 +516,7 @@ class TenantPublic(BaseModel):
     contact_address: Optional[str] = None
     contact_hours: Optional[str] = None
     catalog_pdf_url: Optional[str] = None
+    hero_image_url: Optional[str] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
@@ -550,6 +558,7 @@ class TenantUpdateRequest(BaseModel):
     contact_address: Optional[str] = None
     contact_hours: Optional[str] = Field(None, max_length=200)
     catalog_pdf_url: Optional[str] = None
+    hero_image_url: Optional[str] = None
     certifications: Optional[List[dict]] = None
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)

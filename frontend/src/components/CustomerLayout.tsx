@@ -48,10 +48,20 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [certifications, setCertifications] = useState<{ label: string; image_url: string }[]>([]);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
+  const [showCookieBanner, setShowCookieBanner] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const { displayCurrency, setDisplayCurrency, availableCurrencies } = useCurrency();
   const { itemCount } = useCart();
+
+  useEffect(() => {
+    if (!localStorage.getItem('cookie_consent')) setShowCookieBanner(true);
+  }, []);
+
+  const handleCookieConsent = (choice: 'accepted' | 'declined') => {
+    localStorage.setItem('cookie_consent', choice);
+    setShowCookieBanner(false);
+  };
 
   useEffect(() => {
     getPublicSettings()
@@ -495,6 +505,30 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           </p>
         </div>
       </footer>
+
+      {showCookieBanner && (
+        <div className="fixed inset-x-0 bottom-0 z-50 bg-stone-900 border-t border-stone-700">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center gap-4">
+            <p className="flex-1 text-stone-300 text-sm text-center sm:text-left">
+              We use cookies to keep you signed in, remember your cart, and understand how the site is used.
+            </p>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <button
+                onClick={() => handleCookieConsent('declined')}
+                className="text-stone-400 hover:text-white text-sm transition-colors"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => handleCookieConsent('accepted')}
+                className="bg-white hover:bg-stone-200 text-stone-900 text-sm font-medium px-5 py-2 transition-colors"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {chatEnabled && <CustomerChat businessName={businessName} />}
     </div>

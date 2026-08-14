@@ -8,6 +8,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 
 interface CatalogRug {
   id: number;
+  slug: string;
   name: string;
   description: string;
   material: string;
@@ -74,6 +75,14 @@ export default function CustomerCatalog() {
       <SEO
         title="Rug Collection — Wool, Silk, Cotton & Synthetic"
         description="Browse our full collection of handcrafted rugs in wool, silk, cotton, and synthetic weaves. Every design available in custom sizes, made to order."
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
+            { '@type': 'ListItem', position: 2, name: 'Catalog', item: `${window.location.origin}/catalog` },
+          ],
+        }}
       />
       <div className="max-w-7xl mx-auto px-6">
 
@@ -181,7 +190,7 @@ export default function CustomerCatalog() {
               {filtered.map((rug) => (
                 <Link
                   key={rug.id}
-                  to={`/catalog/${rug.id}`}
+                  to={`/catalog/${rug.slug}`}
                   className="group block"
                 >
                   {/* Image */}
@@ -190,6 +199,7 @@ export default function CustomerCatalog() {
                       <img
                         src={rug.image_url}
                         alt={rug.name}
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                       />
                     ) : (

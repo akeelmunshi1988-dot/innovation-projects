@@ -143,12 +143,15 @@ async def sitemap():
     base_url = settings.FRONTEND_URL.rstrip("/")
     db = SessionLocal()
     try:
-        rug_ids = [r.id for r in db.query(RugCatalog.id).all()]
+        rug_slugs = [
+            r.slug or str(r.id)
+            for r in db.query(RugCatalog.id, RugCatalog.slug).all()
+        ]
     finally:
         db.close()
 
     urls = [f"{base_url}{path}" for path in STATIC_SITEMAP_ROUTES]
-    urls += [f"{base_url}/catalog/{rug_id}" for rug_id in rug_ids]
+    urls += [f"{base_url}/catalog/{slug}" for slug in rug_slugs]
 
     entries = "\n".join(f"  <url><loc>{url}</loc></url>" for url in urls)
     xml = (

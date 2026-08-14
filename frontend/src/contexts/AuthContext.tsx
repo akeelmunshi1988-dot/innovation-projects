@@ -33,6 +33,7 @@ export interface TenantInfo {
   contact_address: string | null;
   contact_hours: string | null;
   catalog_pdf_url: string | null;
+  hero_image_url: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
   cancellation_window_hours: number;

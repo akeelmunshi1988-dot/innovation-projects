@@ -406,6 +406,8 @@ def update_tenant_settings(
         tenant.contact_hours = body.contact_hours
     if body.catalog_pdf_url is not None:
         tenant.catalog_pdf_url = body.catalog_pdf_url
+    if body.hero_image_url is not None:
+        tenant.hero_image_url = body.hero_image_url or None
     if body.certifications is not None:
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:
@@ -500,6 +502,43 @@ async def upload_catalog_pdf(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     tenant.catalog_pdf_url = f"/static/branding/{filename}"
+    db.commit()
+    db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")
+    return TenantPublic.model_validate(tenant)
+
+
+ALLOWED_HERO_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_HERO_IMAGE_SIZE_MB = 10
+
+
+@router.post("/tenant/hero-image", response_model=TenantPublic)
+async def upload_hero_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Storefront homepage hero background image, shown behind the 'Handcrafted Rugs.
+    Made for Timeless Spaces.' headline. Falls back to a curated default when unset."""
+    if file.content_type not in ALLOWED_HERO_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
+
+    contents = await file.read()
+    if len(contents) > MAX_HERO_IMAGE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_HERO_IMAGE_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant.hero_image_url = f"/static/branding/{filename}"
     db.commit()
     db.refresh(tenant)
     cache_clear("tenant")

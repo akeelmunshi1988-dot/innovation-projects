@@ -10,6 +10,7 @@ from typing import List
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
+from app.core.slugify import unique_rug_slug
 from app.models.models import RugCatalog, RugImage, Material, StaffUser
 from app.schemas.schemas import (
     RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
@@ -133,7 +134,8 @@ def create_rug(
         raise HTTPException(status_code=404, detail="Material not found")
     data = rug.model_dump()
     data['base_price_currency'] = data.get('base_price_currency') or current_user.tenant.base_currency
-    db_rug = RugCatalog(**data, tenant_id=current_user.tenant_id)
+    slug = unique_rug_slug(db, rug.name, current_user.tenant_id)
+    db_rug = RugCatalog(**data, tenant_id=current_user.tenant_id, slug=slug)
     db.add(db_rug)
     db.commit()
     db.refresh(db_rug)

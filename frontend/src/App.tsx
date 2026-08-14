@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
@@ -12,40 +12,56 @@ function ScrollToTop() {
 }
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import AIAssistant from './pages/AIAssistant';
-import Catalog from './pages/Catalog';
-import QuoteBuilder from './pages/QuoteBuilder';
-import Orders from './pages/Orders';
-import Inventory from './pages/Inventory';
-import Customers from './pages/Customers';
-import CustomerPortal from './pages/CustomerPortal';
+
+// Storefront home is kept as an eager, non-lazy import — it's the highest-traffic
+// and most SEO-critical route, so it should never show a Suspense loading flash.
 import CustomerHome from './pages/CustomerHome';
-import AboutUs from './pages/AboutUs';
-import CustomerCatalog from './pages/CustomerCatalog';
-import CustomerRugDetail from './pages/CustomerRugDetail';
-import CustomerCheckout from './pages/CustomerCheckout';
-import CustomerCart from './pages/CustomerCart';
-import CustomerCustomRugRequest from './pages/CustomerCustomRugRequest';
-import CustomerOrderConfirm from './pages/CustomerOrderConfirm';
-import CustomerMyOrders from './pages/CustomerMyOrders';
-import CustomerLogin from './pages/CustomerLogin';
-import CustomerOAuthCallback from './pages/CustomerOAuthCallback';
-import VerifyEmail from './pages/VerifyEmail';
-import CustomerMyQuotes from './pages/CustomerMyQuotes';
-import RugDetail from './pages/RugDetail';
-import BillingSettings from './pages/BillingSettings';
-import BusinessSettings from './pages/BusinessSettings';
-import Pricing from './pages/Pricing';
-import Quotes from './pages/Quotes';
-import ShowcaseVideos from './pages/ShowcaseVideos';
-import WorkshopPhotos from './pages/WorkshopPhotos';
-import Testimonials from './pages/Testimonials';
-import ProjectGallery from './pages/ProjectGallery';
-import NewsletterSubscribers from './pages/NewsletterSubscribers';
-import PromoCodes from './pages/PromoCodes';
+
+// Everything else is route-split so a customer's first load doesn't pull in the
+// entire admin dashboard bundle (and vice versa) — shrinks initial JS materially,
+// which is a direct Core Web Vitals (LCP/INP) win.
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AIAssistant = lazy(() => import('./pages/AIAssistant'));
+const Catalog = lazy(() => import('./pages/Catalog'));
+const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'));
+const Orders = lazy(() => import('./pages/Orders'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Customers = lazy(() => import('./pages/Customers'));
+const CustomerPortal = lazy(() => import('./pages/CustomerPortal'));
+const AboutUs = lazy(() => import('./pages/AboutUs'));
+const CustomerCatalog = lazy(() => import('./pages/CustomerCatalog'));
+const CustomerRugDetail = lazy(() => import('./pages/CustomerRugDetail'));
+const CustomerCheckout = lazy(() => import('./pages/CustomerCheckout'));
+const CustomerCart = lazy(() => import('./pages/CustomerCart'));
+const CustomerCustomRugRequest = lazy(() => import('./pages/CustomerCustomRugRequest'));
+const CustomerOrderConfirm = lazy(() => import('./pages/CustomerOrderConfirm'));
+const CustomerMyOrders = lazy(() => import('./pages/CustomerMyOrders'));
+const CustomerLogin = lazy(() => import('./pages/CustomerLogin'));
+const CustomerOAuthCallback = lazy(() => import('./pages/CustomerOAuthCallback'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const CustomerMyQuotes = lazy(() => import('./pages/CustomerMyQuotes'));
+const RugDetail = lazy(() => import('./pages/RugDetail'));
+const BillingSettings = lazy(() => import('./pages/BillingSettings'));
+const BusinessSettings = lazy(() => import('./pages/BusinessSettings'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const Quotes = lazy(() => import('./pages/Quotes'));
+const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
+const WorkshopPhotos = lazy(() => import('./pages/WorkshopPhotos'));
+const Testimonials = lazy(() => import('./pages/Testimonials'));
+const ProjectGallery = lazy(() => import('./pages/ProjectGallery'));
+const NewsletterSubscribers = lazy(() => import('./pages/NewsletterSubscribers'));
+const PromoCodes = lazy(() => import('./pages/PromoCodes'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 import { FEATURE_FLAGS } from './config/featureFlags';
+
+function RouteFallback() {
+  return (
+    <div className="flex justify-center items-center h-64">
+      <div className="w-6 h-6 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -55,12 +71,13 @@ function App() {
       <CartProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Customer shop — root paths */}
           <Route path="/" element={<CustomerHome />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/catalog" element={<CustomerCatalog />} />
-          <Route path="/catalog/:id" element={<CustomerRugDetail />} />
+          <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/cart" element={<CustomerCart />} />
           <Route path="/custom-rug-request" element={<CustomerCustomRugRequest />} />
           <Route path="/checkout" element={<CustomerCheckout />} />
@@ -107,8 +124,9 @@ function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
       </CartProvider>
       </CurrencyProvider>

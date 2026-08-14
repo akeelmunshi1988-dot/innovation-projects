@@ -41,6 +41,7 @@ class Tenant(Base):
     contact_address = Column(Text, nullable=True)         # workshop/visiting address — distinct from the GST registered address
     contact_hours = Column(String(200), nullable=True)    # e.g. "Mon-Sat, 9am-6pm"
     catalog_pdf_url = Column(String(300), nullable=True)   # downloadable lookbook/catalog shown on storefront
+    hero_image_url = Column(String(500), nullable=True)    # storefront homepage hero background image; falls back to a curated default when unset
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
@@ -87,10 +88,12 @@ class Material(Base):
 
 class RugCatalog(Base):
     __tablename__ = "rug_catalog"
+    __table_args__ = (UniqueConstraint("slug", "tenant_id", name="uq_rug_slug_tenant"),)
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
     name = Column(String(150), nullable=False)
+    slug = Column(String(220), nullable=True, index=True)  # URL-friendly identifier for /catalog/<slug> — unique per tenant, see uq_rug_slug_tenant
     description = Column(Text, nullable=True)
     about_content_html = Column(Text, nullable=True)  # admin-authored rich text for the catalog detail "About this rug" section — falls back to `description` (plain text) when empty
     sizes = Column(JSON, nullable=False)
@@ -217,6 +220,7 @@ class Quote(Base):
     material_preference = Column(String(50), nullable=True)  # custom request: "wool"|"silk"|"cotton"|"synthetic"|"no_preference"
     budget_range = Column(String(100), nullable=True)     # custom request: preset band, e.g. "₹50,000–₹1,00,000"
     expected_delivery = Column(String(50), nullable=True)  # custom request: customer's preferred timeframe, e.g. "Within 4 weeks"
+    request_group_id = Column(String(36), nullable=True, index=True)  # ties together multiple Quotes submitted as one multi-rug custom request, so the vendor can later combine their resulting orders
     reference_image_urls = Column(JSON, nullable=True)    # custom request: list[str], up to 3 inspiration images
     vendor_sample_image_urls = Column(JSON, nullable=True)  # vendor-uploaded design samples sent back to the customer, list[str], up to 3
     revised_from_quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)  # set when this quote was cloned from a rejected one via "Revise & Resend"

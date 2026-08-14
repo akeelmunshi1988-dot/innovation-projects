@@ -14,6 +14,7 @@ type Point = [number, number];
 
 interface CatalogRug {
   id: number;
+  slug: string;
   name: string;
   description: string;
   material: string;
@@ -464,7 +465,7 @@ export default function CustomerPortal() {
     const h = quoteForm.shape === 'circle' ? w : toMetres(parseFloat(quoteForm.size_h), sizeUnit);
     const qty = parseInt(quoteForm.qty) || 1;
     if (!w || (!h && quoteForm.shape !== 'circle')) {
-      navigate(`/catalog/${selectedRug.id}`);
+      navigate(`/catalog/${selectedRug.slug}`);
       return;
     }
     try {
@@ -495,7 +496,7 @@ export default function CustomerPortal() {
         },
       });
     } catch {
-      navigate(`/catalog/${selectedRug.id}`);
+      navigate(`/catalog/${selectedRug.slug}`);
     }
   };
 
