@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
@@ -186,7 +186,17 @@ export default function AboutUs() {
             <p className="text-xs tracking-widest uppercase text-stone-400">Phone</p>
             {contactPhones.length > 0 ? (
               contactPhones.map((p) => (
-                <a key={p} href={`tel:${p}`} className="block text-stone-900 text-sm hover:text-stone-600 transition-colors">{p}</a>
+                <div key={p} className="flex items-center gap-3">
+                  <a href={`tel:${p}`} className="text-stone-900 text-sm hover:text-stone-600 transition-colors">{p}</a>
+                  <a
+                    href={`https://wa.me/${p.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
+                  >
+                    <MessageCircle size={13} /> WhatsApp
+                  </a>
+                </div>
               ))
             ) : (
               <p className="text-stone-400 text-sm italic">Coming soon</p>

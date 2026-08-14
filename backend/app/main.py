@@ -11,6 +11,8 @@ from app.core.logging_config import logger
 from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
+from app.services import geo_ip
+from app.core.cache import cache_get, cache_set
 
 app = FastAPI(
     title="DreamRugsCreation - Rug Manufacture System",
@@ -124,6 +126,54 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+ACCESS_GATE_COOKIE = "drc_access"
+
+
+@app.get("/internal/access-check")
+async def access_check(request: Request):
+    """
+    Used exclusively by nginx's `auth_request` directive (see DEPLOYMENT.md)
+    to gate the whole site — India-based visitors need INDIA_ACCESS_KEY,
+    everyone else passes through untouched. Not reachable from outside the
+    server (nginx's location for this is marked `internal`), and a no-op
+    (always 200) whenever INDIA_ACCESS_KEY isn't configured, so this is safe
+    to leave deployed without accidentally locking anyone out.
+
+    Country lookup reuses the same cached ip-api.com call as
+    /customer/detect-country (see geo_ip.py) — same free-tier budget, same
+    "never block on a failed lookup" philosophy: if we can't tell where a
+    visitor is from, we let them through rather than risk locking out real
+    traffic on a flaky third-party API call.
+    """
+    if not settings.INDIA_ACCESS_KEY:
+        return Response(status_code=200)
+
+    if request.cookies.get(ACCESS_GATE_COOKIE) == settings.INDIA_ACCESS_KEY:
+        return Response(status_code=200)
+
+    if request.query_params.get("key") == settings.INDIA_ACCESS_KEY:
+        response = Response(status_code=200)
+        response.set_cookie(
+            ACCESS_GATE_COOKIE, settings.INDIA_ACCESS_KEY,
+            max_age=60 * 60 * 24 * 30, httponly=True, secure=True, samesite="lax",
+        )
+        return response
+
+    ip = request.headers.get("x-real-ip") or (request.client.host if request.client else None)
+    if not ip:
+        return Response(status_code=200)
+
+    cached = cache_get("geo_country", ip)
+    country = cached if cached is not None else geo_ip.lookup_country(ip)
+    if cached is None:
+        cache_set("geo_country", country, ip)
+
+    if country != "India":
+        return Response(status_code=200)
+
+    return Response(status_code=403)
 
 
 STATIC_SITEMAP_ROUTES = ["/", "/about", "/catalog", "/visualizer"]

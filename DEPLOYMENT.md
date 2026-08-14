@@ -286,11 +286,17 @@ server {
         # /catalog/42/ before serving anything, and plenty of non-JS crawlers and
         # link-preview bots (Bing, WhatsApp, LinkedIn, Slack) won't reliably follow
         # that hop, which would defeat the point of prerendering their meta tags.
+        auth_request /internal/access-check;
+        auth_request_set $access_cookie $upstream_http_set_cookie;
+        add_header Set-Cookie $access_cookie always;
         try_files $uri $uri.html $uri/ /index.html;
     }
 
     # API -> FastAPI backend
     location /api/ {
+        auth_request /internal/access-check;
+        auth_request_set $access_cookie $upstream_http_set_cookie;
+        add_header Set-Cookie $access_cookie always;
         proxy_pass http://127.0.0.1:8001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -301,6 +307,21 @@ server {
         proxy_cache_bypass $http_upgrade;
         client_max_body_size 55M;
         proxy_read_timeout 120s;
+    }
+
+    # Internal-only: backs the auth_request calls above. `internal;` means
+    # nginx refuses this location for any request that didn't originate from
+    # an auth_request subrequest — it's not reachable directly from outside.
+    # See INDIA_ACCESS_KEY in the backend's .env / access_check() in
+    # app/main.py for what actually decides allow/block. No-op (never blocks
+    # anything) whenever INDIA_ACCESS_KEY isn't set.
+    location = /internal/access-check {
+        internal;
+        proxy_pass http://127.0.0.1:8001/internal/access-check$is_args$args;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
     }
 
     # Sitemap -> FastAPI backend (mounted unprefixed at /sitemap.xml, not under /api,
@@ -335,6 +356,37 @@ sudo nginx -t
 # Must print: configuration file test is successful
 sudo systemctl reload nginx
 ```
+
+`auth_request` needs to actually be compiled into nginx — Ubuntu's `nginx`
+apt package includes it by default, but worth confirming before relying on
+it:
+```bash
+nginx -V 2>&1 | grep -o with-http_auth_request_module
+# should print: with-http_auth_request_module
+```
+
+### Using the India access gate (optional)
+
+Off by default — nothing above blocks anything unless `INDIA_ACCESS_KEY` is
+set in the backend's `.env` (Phase 7). To turn it on:
+
+```bash
+# generate a real key
+openssl rand -hex 24
+# add it to /var/www/loomcraft/innovation-projects/backend/.env:
+#   INDIA_ACCESS_KEY=<the generated value>
+sudo systemctl restart loomcraft
+```
+
+Once set: visitors browsing from India get a 403 unless they hold the key —
+share `https://yourdomain.com/?key=<the value>` with whoever needs access.
+First load with a valid key sets a 30-day cookie, so it doesn't need to stay
+in the URL after that. Everyone browsing from outside India (including
+Googlebot, Bing, and link-preview bots) is unaffected either way.
+
+To turn it back off, clear `INDIA_ACCESS_KEY` in `.env` and restart the
+service — no nginx changes needed, the check endpoint itself just starts
+allowing everything again.
 
 ---
 
