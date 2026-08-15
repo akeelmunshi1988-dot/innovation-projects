@@ -1,5 +1,6 @@
 import math
 import re
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query, Request
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
@@ -22,7 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services import ai_realism
@@ -30,6 +31,7 @@ from app.services import geo_ip
 from app.services.invoice_generator import generate_invoice_pdf
 from app.services.size_format import fmt_dims as _fmt_dims
 from app.schemas.schemas import QuoteCustomerRespondRequest
+from app.core.logging_config import logger
 
 router = APIRouter()
 
@@ -1144,19 +1146,31 @@ def _create_order_from_items(
     return order, quotes_with_meta
 
 
-def _resolve_customer(db: Session, request: Request, tenant_id: Optional[int], body: OrderDetailsBase) -> Customer:
-    """Prefer the authenticated customer (so the order appears in their My Orders); fall back to
-    matching/creating by email for guest checkout."""
-    customer = None
+def _customer_id_from_auth_header(request: Request) -> Optional[int]:
+    """Best-effort: pulls the customer id out of a Bearer token, if present and valid.
+    Never raises — an absent/invalid/expired token just means "resolve as guest"."""
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         try:
             from jose import jwt as _jwt
             payload = _jwt.decode(auth_header.split(" ")[1], settings.JWT_SECRET, algorithms=["HS256"])
             if payload.get("type") == "customer":
-                customer = db.query(Customer).filter(Customer.id == int(payload["sub"])).first()
+                return int(payload["sub"])
         except Exception:
             pass
+    return None
+
+
+def _resolve_or_create_customer(
+    db: Session, tenant_id: Optional[int], body: OrderDetailsBase, customer_id_hint: Optional[int] = None,
+) -> Customer:
+    """Prefer the authenticated customer (so the order appears in their My Orders, and the
+    webhook recovery path — which has no live request/Bearer token — can still attribute the
+    order correctly via the id captured at create-payment-order time); fall back to
+    matching/creating by email for guest checkout."""
+    customer = None
+    if customer_id_hint is not None:
+        customer = db.query(Customer).filter(Customer.id == customer_id_hint).first()
     if not customer:
         customer = db.query(Customer).filter(
             Customer.email == body.email, Customer.tenant_id == tenant_id,
@@ -1175,11 +1189,16 @@ def _resolve_customer(db: Session, request: Request, tenant_id: Optional[int], b
     return customer
 
 
+def _resolve_customer(db: Session, request: Request, tenant_id: Optional[int], body: OrderDetailsBase) -> Customer:
+    return _resolve_or_create_customer(db, tenant_id, body, _customer_id_from_auth_header(request))
+
+
 @router.post("/customer/checkout/create-payment-order")
-async def create_payment_order(body: OrderDetailsBase):
+async def create_payment_order(body: OrderDetailsBase, request: Request):
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise HTTPException(status_code=503, detail="Payment gateway not configured.")
     import razorpay as _rzp
+    customer_id_hint = _customer_id_from_auth_header(request)
     db = SessionLocal()
     try:
         first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
@@ -1206,6 +1225,21 @@ async def create_payment_order(body: OrderDetailsBase):
             "payment_capture": 1,
         })
 
+        # Snapshot checkout intent *before* the customer pays — see PaymentAttempt's
+        # docstring. If /verify-payment never runs after Razorpay captures the
+        # payment (browser crash, lost connection, etc.), the webhook uses this row
+        # to reconstruct the order on its own rather than the payment vanishing with
+        # zero trace in our system.
+        db.add(PaymentAttempt(
+            tenant_id=tenant_id,
+            razorpay_order_id=rzp_order["id"],
+            customer_id_hint=customer_id_hint,
+            payload=body.model_dump(),
+            amount=payable,
+            currency=currency,
+        ))
+        db.commit()
+
         items_summary = [
             {
                 "rug_id": p["rug"].id, "rug_name": p["rug"].name, "qty": p["item"].qty,
@@ -1228,6 +1262,46 @@ async def create_payment_order(body: OrderDetailsBase):
         }
     finally:
         db.close()
+
+
+def _order_confirmation_from_existing(db: Session, order_id: int) -> dict:
+    """Builds a verify_payment-shaped response by reading back already-committed
+    rows — used only in the rare case where this payment was already turned into
+    an order by someone else (the webhook recovery path, or a concurrent retry)
+    before this request got to it. Best-effort on `lead_time_days`: uses the rug's
+    base lead time rather than recomputing rush-order adjustments, since that's a
+    display nicety here, not something safety-critical."""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    tenant = db.query(Tenant).filter(Tenant.id == order.tenant_id).first() if order else None
+    order_items = db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
+    quotes = [q for q in (db.query(Quote).filter(Quote.id == oi.quote_id).first() for oi in order_items) if q]
+    customer = db.query(Customer).filter(Customer.id == quotes[0].customer_id).first() if quotes else None
+    unit = (tenant.default_size_unit if tenant else None) or "ft"
+
+    def _item_payload(q: Quote) -> dict:
+        rug = db.query(RugCatalog).filter(RugCatalog.id == q.rug_catalog_id).first()
+        return {
+            "quote_id": q.id, "rug_name": rug.name if rug else None,
+            "size": _fmt_dims(q.custom_size_w, q.custom_size_h, unit, q.rug_shape or "rect"),
+            "qty": q.qty, "final_price": q.final_price, "price_currency": q.price_currency,
+        }
+
+    items = [_item_payload(q) for q in quotes]
+    first_rug = db.query(RugCatalog).filter(RugCatalog.id == quotes[0].rug_catalog_id).first() if quotes else None
+    return {
+        "order_id": order.id, "quote_id": quotes[0].id if quotes else None,
+        "rug_name": first_rug.name if first_rug else None,
+        "size": items[0]["size"] if items else None, "qty": quotes[0].qty if quotes else None,
+        "final_price": order.total_amount, "subtotal": sum(q.final_price for q in quotes),
+        "shipping_cost": order.shipping_cost, "promo_code": order.promo_code,
+        "discount_amount": order.discount_amount, "price_currency": order.price_currency,
+        "gst_inclusive": bool(tenant.gst_inclusive) if tenant else False,
+        "items": items, "status": order.status,
+        "estimated_delivery": order.estimated_delivery.strftime("%Y-%m-%d") if order.estimated_delivery else None,
+        "lead_time_days": max((first_rug.lead_time_days if first_rug else 21), 1),
+        "customer_name": customer.name if customer else None,
+        "shipping_address": order.shipping_address,
+    }
 
 
 class VerifyPaymentBody(OrderDetailsBase):
@@ -1253,27 +1327,65 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
 
     db = SessionLocal()
     try:
+        # Atomically claim this payment's attempt row, if one exists — guards
+        # against a race with the webhook recovery path (both this request and
+        # recover_order_from_payment_attempt reacting to the same successful
+        # charge at nearly the same moment). Whichever gets here first wins;
+        # losing the claim means the webhook already built the order, so return
+        # that instead of creating a duplicate.
+        claimed = db.execute(
+            sa_update(PaymentAttempt)
+            .where(PaymentAttempt.razorpay_order_id == body.razorpay_order_id, PaymentAttempt.status == "created")
+            .values(status="completing")
+        )
+        db.commit()
+        if claimed.rowcount == 0:
+            existing = db.query(PaymentAttempt).filter(PaymentAttempt.razorpay_order_id == body.razorpay_order_id).first()
+            if existing and existing.status == "completed" and existing.order_id:
+                return _order_confirmation_from_existing(db, existing.order_id)
+            # No attempt row at all (fine — this endpoint worked without one before
+            # PaymentAttempt existed) or a same-millisecond in-flight webhook we lost
+            # the race to; either way, fall through and create the order normally.
+
         first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
         if not first_rug:
             raise HTTPException(status_code=404, detail="Rug not found")
         tid = first_rug.tenant_id
         tenant = db.query(Tenant).filter(Tenant.id == tid).first()
 
-        customer = _resolve_customer(db, request, tid, body)
-        priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
-        subtotal = sum(p["calc"]["final_price"] for p in priced)
-        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
-        promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost)
+        try:
+            customer = _resolve_customer(db, request, tid, body)
+            priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
+            subtotal = sum(p["calc"]["final_price"] for p in priced)
+            shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+            promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost)
 
-        order, items_meta = _create_order_from_items(db, tid, tenant, customer, priced, body.shipping_address, payment_ref=body.razorpay_payment_id)
-        order.shipping_cost = shipping_cost
-        if promo:
-            order.promo_code = promo.code
-            order.discount_amount = discount_amount
-            record_redemption(db, promo, discount_amount, customer.id, order.id)
-        order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
-        order.price_currency = items_meta[0]["quote"].price_currency
-        db.commit()
+            order, items_meta = _create_order_from_items(db, tid, tenant, customer, priced, body.shipping_address, payment_ref=body.razorpay_payment_id)
+            order.shipping_cost = shipping_cost
+            if promo:
+                order.promo_code = promo.code
+                order.discount_amount = discount_amount
+                record_redemption(db, promo, discount_amount, customer.id, order.id)
+            order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
+            order.price_currency = items_meta[0]["quote"].price_currency
+            db.flush()
+            db.execute(
+                sa_update(PaymentAttempt)
+                .where(PaymentAttempt.razorpay_order_id == body.razorpay_order_id)
+                .values(status="completed", order_id=order.id, completed_at=datetime.utcnow())
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            # Release the claim so the webhook (or a client retry) can still recover
+            # this payment later instead of it being stuck unclaimable forever.
+            db.execute(
+                sa_update(PaymentAttempt)
+                .where(PaymentAttempt.razorpay_order_id == body.razorpay_order_id, PaymentAttempt.status == "completing")
+                .values(status="created")
+            )
+            db.commit()
+            raise
         return {
             "order_id": order.id, "quote_id": items_meta[0]["quote"].id,
             "rug_name": items_meta[0]["rug"].name, "size": items_meta[0]["size_display"], "qty": items_meta[0]["qty"],
@@ -1294,6 +1406,78 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             "customer_name": customer.name,
             "shipping_address": body.shipping_address,
         }
+    finally:
+        db.close()
+
+
+def recover_order_from_payment_attempt(razorpay_order_id: str, razorpay_payment_id: Optional[str]) -> Optional[int]:
+    """
+    Webhook safety net (called from the payment.captured handler in
+    api/routes/billing.py): if a browser never completed /verify-payment after
+    Razorpay captured a payment — crash, lost connection, a failed request —
+    this reconstructs the order from the snapshot taken in create-payment-order,
+    so the customer isn't charged with zero record of it in our system.
+
+    Idempotent and safe to call for events that aren't ours (e.g. a subscription
+    payment): it only acts if a matching, still-"created" PaymentAttempt exists.
+    Returns the recovered order's id, or None if there was nothing to do.
+    """
+    db = SessionLocal()
+    try:
+        # Same atomic-claim pattern as verify_payment, for the same reason: this
+        # and a concurrent /verify-payment call could both be reacting to the same
+        # charge. Whichever claims it first wins.
+        claimed = db.execute(
+            sa_update(PaymentAttempt)
+            .where(PaymentAttempt.razorpay_order_id == razorpay_order_id, PaymentAttempt.status == "created")
+            .values(status="completing")
+        )
+        db.commit()
+        if claimed.rowcount == 0:
+            return None  # already handled, in-flight elsewhere, or not one of ours
+
+        attempt = db.query(PaymentAttempt).filter(PaymentAttempt.razorpay_order_id == razorpay_order_id).first()
+        try:
+            body = OrderDetailsBase(**attempt.payload)
+            tenant = db.query(Tenant).filter(Tenant.id == attempt.tenant_id).first()
+            customer = _resolve_or_create_customer(db, attempt.tenant_id, body, attempt.customer_id_hint)
+
+            priced = _price_cart_items(db, attempt.tenant_id, body.items, is_export=customer.is_export_buyer)
+            subtotal = sum(p["calc"]["final_price"] for p in priced)
+            shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+            promo, discount_amount = _apply_promo(db, attempt.tenant_id, body.promo_code, subtotal, customer.id, shipping_cost)
+
+            order, _items_meta = _create_order_from_items(
+                db, attempt.tenant_id, tenant, customer, priced, body.shipping_address, payment_ref=razorpay_payment_id,
+            )
+            order.shipping_cost = shipping_cost
+            order.recovered_via_webhook = True
+            if promo:
+                order.promo_code = promo.code
+                order.discount_amount = discount_amount
+                record_redemption(db, promo, discount_amount, customer.id, order.id)
+            order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
+            order.price_currency = _items_meta[0]["quote"].price_currency
+
+            db.flush()
+            attempt.status = "completed"
+            attempt.order_id = order.id
+            attempt.completed_at = datetime.utcnow()
+            db.commit()
+            logger.info(f"Recovered order {order.id} via webhook for razorpay_order_id={razorpay_order_id} (browser never completed checkout)")
+            return order.id
+        except Exception:
+            db.rollback()
+            # Release the claim — a redelivered webhook or a late client retry can
+            # still recover this payment later instead of it being stuck forever.
+            db.execute(
+                sa_update(PaymentAttempt)
+                .where(PaymentAttempt.razorpay_order_id == razorpay_order_id, PaymentAttempt.status == "completing")
+                .values(status="created")
+            )
+            db.commit()
+            logger.exception(f"Failed to recover order from payment_attempt razorpay_order_id={razorpay_order_id}")
+            return None
     finally:
         db.close()
 

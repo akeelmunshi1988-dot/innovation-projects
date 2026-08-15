@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, JSON, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -83,6 +83,13 @@ class Material(Base):
     cost_currency = Column(String(10), nullable=True)     # currency cost_per_sqm was entered in
     is_available = Column(Boolean, default=True)
 
+    __table_args__ = (
+        # Admin inventory list + the dashboard's low-stock count both filter
+        # tenant_id together with a stock_meters threshold — see
+        # app/api/routes/inventory.py and app/api/routes/dashboard.py.
+        Index("ix_materials_tenant_stock", "tenant_id", "stock_meters"),
+    )
+
     rugs = relationship("RugCatalog", back_populates="material")
     quotes = relationship("Quote", back_populates="material")
     inventory_transactions = relationship("InventoryTransaction", back_populates="material")
@@ -93,7 +100,7 @@ class RugCatalog(Base):
     __table_args__ = (UniqueConstraint("slug", "tenant_id", name="uq_rug_slug_tenant"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     name = Column(String(150), nullable=False)
     slug = Column(String(220), nullable=True, index=True)  # URL-friendly identifier for /catalog/<slug> — unique per tenant, see uq_rug_slug_tenant
     description = Column(Text, nullable=True)
@@ -101,7 +108,7 @@ class RugCatalog(Base):
     sizes = Column(JSON, nullable=False)
     base_price = Column(Float, nullable=False)
     base_price_currency = Column(String(10), nullable=True)     # currency base_price was entered in
-    material_id = Column(Integer, ForeignKey("materials.id"), nullable=False)
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=False, index=True)
     pile_height = Column(String(50), nullable=True)
     weave_type = Column(String(100), nullable=True)
     lead_time_days = Column(Integer, default=21)
@@ -118,7 +125,7 @@ class RugImage(Base):
     __tablename__ = "rug_images"
 
     id = Column(Integer, primary_key=True, index=True)
-    rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id"), nullable=False)
+    rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id"), nullable=False, index=True)
     image_url = Column(String(300), nullable=False)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -166,7 +173,7 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     name = Column(String(150), nullable=False)
     email = Column(String(200), nullable=False)
     phone = Column(String(50), nullable=True)
@@ -198,8 +205,8 @@ class Quote(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
-    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
-    rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id"), nullable=True, index=True)
     custom_size_w = Column(Float, nullable=True)
     custom_size_h = Column(Float, nullable=True)
     rug_shape = Column(String(20), default="rect")  # rect | circle | oval
@@ -230,6 +237,17 @@ class Quote(Base):
     revised_from_quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)  # set when this quote was cloned from a rejected one via "Revise & Resend"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        # Dashboard/admin quote lists always filter tenant_id together with status,
+        # or with a created_at sort for "recent" views — see app/api/routes/dashboard.py
+        # and app/api/routes/quotes.py.
+        Index("ix_quotes_tenant_status", "tenant_id", "status"),
+        Index("ix_quotes_tenant_created", "tenant_id", "created_at"),
+        # Customer portal ("My Quotes" + the "action needed" badge count) filters
+        # customer_id together with status on every portal page load.
+        Index("ix_quotes_customer_status", "customer_id", "status"),
+    )
+
     customer = relationship("Customer", back_populates="quotes")
     rug_catalog = relationship("RugCatalog", back_populates="quotes")
     material = relationship("Material", back_populates="quotes")
@@ -243,7 +261,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
-    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)  # first item's quote — back-compat pointer for single-item views
+    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True, index=True)  # first item's quote — back-compat pointer for single-item views
     status = Column(String(50), default="pending")
     shipping_address = Column(Text, nullable=True)
     estimated_delivery = Column(DateTime(timezone=True), nullable=True)
@@ -258,18 +276,51 @@ class Order(Base):
     refund_status = Column(String(20), nullable=True)     # Razorpay's refund status (e.g. "processed", "pending", "failed")
     refund_amount = Column(Float, nullable=True)          # amount actually refunded, in the order's price_currency
     refunded_at = Column(DateTime(timezone=True), nullable=True)
+    recovered_via_webhook = Column(Boolean, default=False)  # True if created by the Razorpay webhook safety net (see PaymentAttempt) rather than the customer's browser completing checkout normally — same order, just worth knowing for support/audit
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # Admin order lists and the dashboard's status counts always filter tenant_id
+        # together with status, or sort by created_at — see app/api/routes/orders.py
+        # and app/api/routes/dashboard.py.
+        Index("ix_orders_tenant_status", "tenant_id", "status"),
+        Index("ix_orders_tenant_created", "tenant_id", "created_at"),
+    )
 
     quote = relationship("Quote", back_populates="order")
     items = relationship("OrderItem", back_populates="order")
+
+
+class PaymentAttempt(Base):
+    """
+    A snapshot of checkout intent, written the moment a Razorpay order is created —
+    *before* the customer pays — so a payment is never captured with zero trace of
+    it in our system. Normally closed out by /verify-payment right after checkout;
+    if that never happens (browser crash, lost connection, failed request after a
+    successful charge), the Razorpay webhook uses this row to reconstruct the order
+    on its own. See recover_order_from_payment_attempt() in api/routes/customer.py.
+    """
+    __tablename__ = "payment_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    razorpay_order_id = Column(String(100), nullable=False, unique=True, index=True)
+    customer_id_hint = Column(Integer, ForeignKey("customers.id"), nullable=True)  # set if checkout started while logged in
+    payload = Column(JSON, nullable=False)  # snapshot of OrderDetailsBase (items/name/email/shipping_address/etc.) — everything /verify-payment would otherwise only have from the live request
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), nullable=False)
+    status = Column(String(20), default="created")  # created -> completed | failed (see recover_order_from_payment_attempt for the "completing" transient lock state)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class OrderItem(Base):
     __tablename__ = "order_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     order = relationship("Order", back_populates="items")
@@ -283,6 +334,12 @@ class OrderStatusHistory(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     status = Column(String(50), nullable=False)
     changed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # Order-tracking timelines (customer + admin order detail) always filter by
+        # order_id and sort by changed_at — see app/api/routes/customer.py.
+        Index("ix_order_status_history_order_changed", "order_id", "changed_at"),
+    )
 
 
 class PromoCode(Base):
@@ -301,6 +358,12 @@ class PromoCode(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        # Every promo validation/checkout looks up code together with tenant_id —
+        # see app/services/promo_engine.py.
+        Index("ix_promo_codes_tenant_code", "tenant_id", "code"),
+    )
+
     redemptions = relationship("PromoRedemption", back_populates="promo_code", cascade="all, delete-orphan")
 
 
@@ -314,6 +377,12 @@ class PromoRedemption(Base):
     discount_amount = Column(Float, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        # The "one redemption per customer" check filters both together on every
+        # promo-code checkout attempt — see app/services/promo_engine.py.
+        Index("ix_promo_redemptions_code_customer", "promo_code_id", "customer_id"),
+    )
+
     promo_code = relationship("PromoCode", back_populates="redemptions")
 
 
@@ -322,7 +391,7 @@ class InventoryTransaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
-    material_id = Column(Integer, ForeignKey("materials.id"), nullable=False)
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=False, index=True)
     qty_change = Column(Float, nullable=False)
     transaction_type = Column(String(50), nullable=False)
     notes = Column(Text, nullable=True)
@@ -413,7 +482,12 @@ class NewsletterSubscriber(Base):
     source = Column(String(50), nullable=True)  # e.g. "homepage_footer"
     subscribed_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (UniqueConstraint("email", "tenant_id", name="uq_newsletter_email_tenant"),)
+    __table_args__ = (
+        UniqueConstraint("email", "tenant_id", name="uq_newsletter_email_tenant"),
+        # Admin subscriber list filters tenant_id and sorts by subscribed_at —
+        # see app/api/routes/newsletter.py. Unbounded growth (one row per signup).
+        Index("ix_newsletter_tenant_subscribed", "tenant_id", "subscribed_at"),
+    )
 
 
 class RefreshToken(Base):
@@ -427,3 +501,11 @@ class RefreshToken(Base):
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     replaced_by_id = Column(Integer, ForeignKey("refresh_tokens.id"), nullable=True)  # rotation chain
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # Theft-detection (a revoked token being replayed) looks up by user
+        # identity — see core/auth.py. This table only grows, one row per
+        # login/refresh, so it's worth indexing preventively even though today's
+        # traffic is modest.
+        Index("ix_refresh_tokens_user", "user_type", "user_id", "revoked_at"),
+    )

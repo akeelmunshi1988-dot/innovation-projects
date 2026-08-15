@@ -6,10 +6,13 @@ import hmac
 import hashlib
 import json
 
+from sqlalchemy import update as sa_update
+
 from app.core.database import get_db
 from app.core.auth import get_current_user
-from app.models.models import Tenant, StaffUser
+from app.models.models import Tenant, StaffUser, PaymentAttempt
 from app.core.config import settings
+from app.api.routes.customer import recover_order_from_payment_attempt
 
 router = APIRouter()
 
@@ -281,6 +284,31 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
             if tenant:
                 tenant.plan_status = "past_due"
                 db.commit()
+        elif event_type == "payment.failed":
+            # Not a subscription payment — check if it's a failed customer-order
+            # checkout payment instead. No-op if there's no matching PaymentAttempt
+            # (e.g. an unrelated payment.failed event).
+            pay_entity = event.get("payload", {}).get("payment", {}).get("entity", {})
+            order_id = pay_entity.get("order_id")
+            if order_id:
+                db.execute(
+                    sa_update(PaymentAttempt)
+                    .where(PaymentAttempt.razorpay_order_id == order_id, PaymentAttempt.status == "created")
+                    .values(status="failed")
+                )
+                db.commit()
+
+    elif event_type == "payment.captured":
+        # Order-checkout safety net (see PaymentAttempt / recover_order_from_payment_attempt):
+        # reconstructs the order if the customer's browser never completed the normal
+        # /verify-payment flow after this payment was captured. No-op for anything that
+        # isn't a checkout payment (e.g. a subscription charge, which is already handled
+        # above via subscription.charged) since it only acts on a matching PaymentAttempt.
+        pay_entity = event.get("payload", {}).get("payment", {}).get("entity", {})
+        order_id = pay_entity.get("order_id")
+        payment_id = pay_entity.get("id")
+        if order_id:
+            recover_order_from_payment_attempt(order_id, payment_id)
 
     return {"received": True}
 
