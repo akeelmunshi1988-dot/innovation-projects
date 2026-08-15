@@ -16,6 +16,7 @@ import { useCart } from '../contexts/CartContext';
 import { fmtSize, feetToUnit, toMetres, inputUnit } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import { COUNTRIES, detectCountry } from '../utils/countries';
+import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 
@@ -233,6 +234,8 @@ export default function CustomerRugDetail() {
         name = user.name;
         email = user.email;
       } else {
+        const policyError = passwordPolicyError(authForm.password);
+        if (policyError) { setAuthError(policyError); setAuthLoading(false); return; }
         await customerRegister(
           authForm.name, authForm.email, authForm.password, authForm.country,
           authForm.phone || undefined, authForm.company || undefined,
@@ -856,7 +859,8 @@ export default function CustomerRugDetail() {
                 className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
               />
               <div className="relative">
-                <input type={showAuthPwd ? 'text' : 'password'} placeholder="Password *" required value={authForm.password}
+                <input type={showAuthPwd ? 'text' : 'password'} placeholder="Password *" required
+                  minLength={authMode === 'register' ? 8 : 1} value={authForm.password}
                   onChange={(e) => setAuthForm((f) => ({ ...f, password: e.target.value }))}
                   className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 pr-10 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                 />
@@ -866,6 +870,9 @@ export default function CustomerRugDetail() {
                   {showAuthPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
+              {authMode === 'register' && (
+                <p className="text-stone-400 text-xs">{PASSWORD_POLICY_HINT}</p>
+              )}
               {authMode === 'register' && (
                 <>
                   <input type="tel" placeholder="Phone / WhatsApp" value={authForm.phone}

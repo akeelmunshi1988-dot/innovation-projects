@@ -6,6 +6,7 @@ import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import SocialLoginButtons from '../components/SocialLoginButtons';
 import { COUNTRIES, detectCountry } from '../utils/countries';
+import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 
 type Mode = 'login' | 'register';
 
@@ -36,6 +37,8 @@ export default function CustomerLogin() {
       } else {
         if (!form.name.trim()) { setError('Please enter your name.'); return; }
         if (!form.country) { setError('Please select your country.'); return; }
+        const policyError = passwordPolicyError(form.password);
+        if (policyError) { setError(policyError); return; }
         const result = await customerRegister(form.name, form.email, form.password, form.country, form.phone || undefined, form.company || undefined);
         setRegisteredEmail(result.email);
       }
@@ -144,7 +147,7 @@ export default function CustomerLogin() {
                   onChange={handleChange}
                   placeholder="••••••••"
                   required
-                  minLength={6}
+                  minLength={mode === 'register' ? 8 : 1}
                   className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 pr-10 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                 />
                 <button
@@ -155,6 +158,16 @@ export default function CustomerLogin() {
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              {mode === 'register' && (
+                <p className="text-stone-400 text-xs mt-1.5">{PASSWORD_POLICY_HINT}</p>
+              )}
+              {mode === 'login' && (
+                <div className="text-right mt-1.5">
+                  <Link to="/forgot-password" className="text-stone-400 hover:text-stone-700 text-xs transition-colors">
+                    Forgot password?
+                  </Link>
+                </div>
+              )}
             </div>
 
             {mode === 'register' && (

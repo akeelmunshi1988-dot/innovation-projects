@@ -61,6 +61,8 @@ class StaffUser(Base):
     full_name = Column(String(150), nullable=True)
     role = Column(String(20), default="staff")  # admin / staff
     is_active = Column(Boolean, default=True)
+    reset_token = Column(String(100), nullable=True)
+    reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (UniqueConstraint("email", "tenant_id", name="uq_staff_email_tenant"),)
@@ -180,6 +182,8 @@ class Customer(Base):
     is_verified = Column(Boolean, default=False)  # email verified — required to log in once hashed_password is set
     verification_token = Column(String(100), nullable=True)
     verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    reset_token = Column(String(100), nullable=True)
+    reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     oauth_provider = Column(String(20), nullable=True)  # 'google' | 'facebook' | 'linkedin' — null for password/guest accounts
     oauth_id = Column(String(200), nullable=True)        # provider's unique user id
     created_at = Column(DateTime(timezone=True), server_default=func.now())

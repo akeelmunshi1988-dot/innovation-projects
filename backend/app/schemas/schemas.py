@@ -3,6 +3,8 @@ from typing import Optional, List, Any
 from datetime import datetime
 import re
 
+from app.core.auth import validate_password_strength
+
 
 # ── Material ──────────────────────────────────────────────────────────────────
 
@@ -615,9 +617,14 @@ class RegisterRequest(BaseModel):
     slug: str = Field(..., min_length=2, max_length=50, pattern=r'^[a-z0-9-]+$')
     full_name: str = Field(..., min_length=1, max_length=200)
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
     currency: str = Field("USD", min_length=3, max_length=3)
     gstin: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def _strong_password(cls, v):
+        return validate_password_strength(v)
 
 
 class LoginRequest(BaseModel):
@@ -653,11 +660,16 @@ class MeResponse(BaseModel):
 class CustomerRegisterRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
     country: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     company: Optional[str] = Field(None, max_length=200)
     account_type: Optional[str] = Field("retail", max_length=20)  # "retail" | "trade"
+
+    @field_validator("password")
+    @classmethod
+    def _strong_password(cls, v):
+        return validate_password_strength(v)
 
 
 class CustomerLoginRequest(BaseModel):
@@ -681,6 +693,20 @@ class CustomerRegisterResponse(BaseModel):
 
 class CustomerVerifyEmailRequest(BaseModel):
     token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _strong_password(cls, v):
+        return validate_password_strength(v)
 
 
 # ── Email Templates ────────────────────────────────────────────────────────────
