@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Search, Clock, Layers, RefreshCw, Plus, Pencil, Trash2, X, AlertTriangle, Check, Upload, Link2, Image as ImageIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import axios from 'axios';
 import { getCatalog, createRug, updateRug, deleteRug, getInventory, addRugImage, updateRugImageOrder, deleteRugImage } from '../services/api';
-import type { RugCatalog, Material, RugImage } from '../types';
+import type { RugCatalog, Material, RugImage, CatalogSize } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant, CURRENCIES } from '../utils/currency';
-import { fmtSize } from '../utils/size';
 import CornerCropModal from '../components/CornerCropModal';
 import RichTextEditor from '../components/RichTextEditor';
+import SizesEditor from '../components/SizesEditor';
 
 const PILE_OPTIONS   = ['low', 'medium', 'high', 'flat'];
 const WEAVE_OPTIONS  = ['hand-knotted', 'hand-tufted', 'flatweave', 'machine-woven'];
@@ -40,13 +40,13 @@ type FormData = {
   weave_type: string;
   lead_time_days: string;
   image_url: string;
-  sizes_raw: string;
+  sizes: CatalogSize[];
 };
 
 const BLANK: FormData = {
   name: '', description: '', about_content_html: '', material_id: '', base_price: '', base_price_currency: '',
   pile_height: 'medium', weave_type: 'hand-knotted',
-  lead_time_days: '21', image_url: '', sizes_raw: '',
+  lead_time_days: '21', image_url: '', sizes: [],
 };
 
 function rugToForm(r: RugCatalog): FormData {
@@ -61,7 +61,7 @@ function rugToForm(r: RugCatalog): FormData {
     weave_type: r.weave_type ?? 'hand-knotted',
     lead_time_days: String(r.lead_time_days),
     image_url: r.image_url ?? '',
-    sizes_raw: r.sizes.join(', '),
+    sizes: r.sizes,
   };
 }
 
@@ -168,7 +168,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       weave_type:          form.weave_type || null,
       lead_time_days:      parseInt(form.lead_time_days) || 21,
       image_url:           form.image_url.trim() || null,
-      sizes:               form.sizes_raw.split(',').map((s) => s.trim()).filter(Boolean),
+      sizes:               form.sizes.filter((s) => s.ft.trim()).map((s) => ({ ft: s.ft.trim(), cm: s.cm?.trim() || null })),
     };
     try {
       const saved = editing
@@ -398,24 +398,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
           </div>
 
           {/* Sizes */}
-          <div className="space-y-1">
-            <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">
-              Available Sizes <span className="text-dark-500 normal-case font-normal">(comma-separated, in feet, e.g. 2x3, 4x6, 6x9)</span>
-            </label>
-            <input
-              value={form.sizes_raw}
-              onChange={(e) => set('sizes_raw', e.target.value)}
-              placeholder="2x3, 4x6, 5x8, 6x9, 8x10"
-              className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
-            />
-            {form.sizes_raw && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {form.sizes_raw.split(',').map((s) => s.trim()).filter(Boolean).map((s) => (
-                  <span key={s} className="text-xs bg-dark-700 text-dark-300 border border-dark-600 rounded px-2 py-0.5">{s}</span>
-                ))}
-              </div>
-            )}
-          </div>
+          <SizesEditor value={form.sizes} onChange={(sizes) => setForm((f) => ({ ...f, sizes }))} />
 
           {/* Image */}
           <div className="space-y-1.5">
@@ -765,8 +748,12 @@ const Catalog: React.FC = () => {
                   <p className="text-dark-300 text-xs mb-1.5 uppercase tracking-wider">Available Sizes</p>
                   <div className="flex flex-wrap gap-1.5">
                     {rug.sizes.map((size) => (
-                      <span key={size} className="bg-dark-800 text-dark-300 text-xs px-2 py-0.5 rounded border border-dark-700">
-                        {fmtSize(size, tenant.default_size_unit)}
+                      <span
+                        key={size.ft}
+                        className={`text-xs px-2 py-0.5 rounded border ${size.cm ? 'bg-dark-800 text-dark-300 border-dark-700' : 'bg-dark-800/50 text-dark-500 border-dark-700/60'}`}
+                        title={size.cm ? undefined : 'No cm value entered yet'}
+                      >
+                        {size.ft} ft{size.cm ? ` (${size.cm} cm)` : ''}
                       </span>
                     ))}
                   </div>

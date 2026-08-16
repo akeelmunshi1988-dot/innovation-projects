@@ -1,4 +1,5 @@
 import hashlib
+import re
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -23,6 +24,28 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
+
+
+PASSWORD_POLICY_DESCRIPTION = (
+    "Password must be at least 8 characters and include an uppercase letter, "
+    "a lowercase letter, a number, and a symbol."
+)
+
+
+def validate_password_strength(password: str) -> str:
+    """Enforced everywhere a user *sets* a password (register, reset) — never on
+    login, since that would lock out accounts created before this policy existed.
+    Raises ValueError (Pydantic field_validators turn that into a 422) rather than
+    returning a bool, so every call site gets the same message for free."""
+    if (
+        len(password) < 8
+        or not re.search(r"[A-Z]", password)
+        or not re.search(r"[a-z]", password)
+        or not re.search(r"[0-9]", password)
+        or not re.search(r"[^A-Za-z0-9]", password)
+    ):
+        raise ValueError(PASSWORD_POLICY_DESCRIPTION)
+    return password
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

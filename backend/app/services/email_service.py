@@ -174,6 +174,56 @@ DEFAULT_TEMPLATES = {
             "– {{tenant_name}} Team"
         ),
     },
+    "customer_password_reset": {
+        "name": "Customer Password Reset",
+        "subject": "Reset your password — {{tenant_name}}",
+        "body_html": """\
+<html><body style="font-family:Arial,sans-serif;color:#222;max-width:600px;margin:0 auto">
+<div style="background:#1c1c1b;padding:24px 32px;border-radius:12px 12px 0 0">
+  <h1 style="color:#fbbf24;margin:0;font-size:22px">{{tenant_name}}</h1>
+  <p style="color:#929290;margin:4px 0 0;font-size:13px">Password reset request</p>
+</div>
+<div style="background:#f9f9f9;padding:24px 32px;border:1px solid #e5e5e5;border-top:none">
+  <p>Dear <strong>{{customer_name}}</strong>,</p>
+  <p>We received a request to reset your {{tenant_name}} account password. Click below to choose a new one:</p>
+  <p style="margin:24px 0"><a href="{{reset_link}}" style="background:#d97706;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reset Password</a></p>
+  <p style="color:#888;font-size:12px">Or copy this link into your browser:<br>{{reset_link}}</p>
+  <p style="color:#888;font-size:12px;margin-top:24px">This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.<br>— {{tenant_name}} Team</p>
+</div>
+</body></html>""",
+        "body_text": (
+            "Dear {{customer_name}},\n\n"
+            "We received a request to reset your {{tenant_name}} account password. Visit the link below to choose a new one:\n\n"
+            "{{reset_link}}\n\n"
+            "This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.\n\n"
+            "– {{tenant_name}} Team"
+        ),
+    },
+    "staff_password_reset": {
+        "name": "Staff Password Reset",
+        "subject": "Reset your password — {{tenant_name}}",
+        "body_html": """\
+<html><body style="font-family:Arial,sans-serif;color:#222;max-width:600px;margin:0 auto">
+<div style="background:#1c1c1b;padding:24px 32px;border-radius:12px 12px 0 0">
+  <h1 style="color:#fbbf24;margin:0;font-size:22px">{{tenant_name}}</h1>
+  <p style="color:#929290;margin:4px 0 0;font-size:13px">Password reset request</p>
+</div>
+<div style="background:#f9f9f9;padding:24px 32px;border:1px solid #e5e5e5;border-top:none">
+  <p>Dear <strong>{{staff_name}}</strong>,</p>
+  <p>We received a request to reset your {{tenant_name}} staff account password. Click below to choose a new one:</p>
+  <p style="margin:24px 0"><a href="{{reset_link}}" style="background:#d97706;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reset Password</a></p>
+  <p style="color:#888;font-size:12px">Or copy this link into your browser:<br>{{reset_link}}</p>
+  <p style="color:#888;font-size:12px;margin-top:24px">This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.<br>— {{tenant_name}} Team</p>
+</div>
+</body></html>""",
+        "body_text": (
+            "Dear {{staff_name}},\n\n"
+            "We received a request to reset your {{tenant_name}} staff account password. Visit the link below to choose a new one:\n\n"
+            "{{reset_link}}\n\n"
+            "This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.\n\n"
+            "– {{tenant_name}} Team"
+        ),
+    },
 }
 
 

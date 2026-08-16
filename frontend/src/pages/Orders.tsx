@@ -650,9 +650,7 @@ const Orders: React.FC = () => {
                   return (
                     <div className="flex items-start gap-2 bg-red-900/20 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">
                       <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
-                      <span>
-                        This order was placed more than {elig.window_hours} hour{elig.window_hours === 1 ? '' : 's'} ago and is no longer eligible for cancellation from here.
-                      </span>
+                      <span>{elig.reason}</span>
                     </div>
                   );
                 }
@@ -661,7 +659,12 @@ const Orders: React.FC = () => {
                     {elig.has_payment ? (
                       <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-2">
                         <p className="text-cream-200 text-sm">
-                          This order was paid online. Cancelling will refund{' '}
+                          This order was paid online. Cancelling while the order is{' '}
+                          <span className="text-cream-100 font-medium">{elig.status.replace('_', ' ')}</span> refunds{' '}
+                          <span className="text-gold-400 font-semibold">
+                            {Math.round(elig.refund_pct * 100)}%
+                          </span>{' '}
+                          per policy —{' '}
                           <span className="text-gold-400 font-semibold">
                             {fmtAs(elig.refund_amount, elig.price_currency, elig.price_currency, user!.tenant)}
                           </span>{' '}
@@ -676,11 +679,6 @@ const Orders: React.FC = () => {
                         No online payment is on file for this order — cancelling will just update its status, with nothing to refund.
                       </p>
                     )}
-                    <p className="text-dark-500 text-xs">
-                      {elig.hours_remaining < elig.window_hours
-                        ? `${elig.hours_remaining} hour${elig.hours_remaining === 1 ? '' : 's'} left in the cancellation window.`
-                        : ''}
-                    </p>
                   </>
                 );
               })()}

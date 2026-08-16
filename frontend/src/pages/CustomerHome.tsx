@@ -6,7 +6,7 @@ import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { getPublicSettings } from '../services/api';
-import type { Testimonial, ProjectGalleryItem } from '../types';
+import type { Testimonial, ProjectGalleryItem, CatalogSize } from '../types';
 
 interface ShowcaseVideo {
   id: number;
@@ -29,7 +29,7 @@ interface CatalogRug {
   image_url: string | null;
   base_price_per_sqm: number;
   lead_time_days: number;
-  sizes: string[];
+  sizes: CatalogSize[];
   available: boolean;
 }
 
