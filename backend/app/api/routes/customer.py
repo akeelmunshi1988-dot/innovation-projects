@@ -32,6 +32,7 @@ from app.services.invoice_generator import generate_invoice_pdf
 from app.services.size_format import fmt_dims as _fmt_dims
 from app.schemas.schemas import QuoteCustomerRespondRequest
 from app.core.logging_config import logger
+from app.api.routes.orders import _cancel_order_and_refund, _cancellation_eligibility_payload
 
 router = APIRouter()
 
@@ -1843,6 +1844,60 @@ async def get_customer_order_timeline(order_id: int, email: str):
         db.close()
 
 
+def _customer_owned_order(db: Session, order_id: int, current_customer: Customer) -> Order:
+    """Looks up order_id, scoped to every Customer record sharing the authenticated
+    customer's email (handles duplicate records from tenant-scoped vs auth-scoped
+    customer creation — same pattern as get_customer_orders/get_customer_order_timeline).
+    404s rather than 403s on a mismatch, so this doesn't confirm an order id's
+    existence to someone who doesn't own it."""
+    same_email_ids = [
+        c.id for c in db.query(Customer).filter(Customer.email == current_customer.email).all()
+    ]
+    order = (
+        db.query(Order)
+        .join(Quote, Order.quote_id == Quote.id)
+        .filter(Order.id == order_id, Quote.customer_id.in_(same_email_ids))
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return order
+
+
+@router.get("/customer/orders/{order_id}/cancel-eligibility")
+def get_customer_cancel_eligibility(
+    order_id: int,
+    current_customer: Customer = Depends(get_current_customer),
+    db: Session = Depends(get_db),
+):
+    """Lets the customer portal show/gray the Cancel button and preview the refund
+    amount before committing — the actual cancel endpoint re-checks everything
+    itself. Same standard refund policy as the admin side (see orders.py)."""
+    order = _customer_owned_order(db, order_id, current_customer)
+    tenant = db.query(Tenant).filter(Tenant.id == order.tenant_id).first()
+    return _cancellation_eligibility_payload(order, tenant)
+
+
+@router.post("/customer/orders/{order_id}/cancel")
+def cancel_customer_order(
+    order_id: int,
+    current_customer: Customer = Depends(get_current_customer),
+    db: Session = Depends(get_db),
+):
+    """Customer self-service cancellation — same standard refund policy and same
+    Razorpay refund logic as the admin-side cancel (see _cancel_order_and_refund in
+    orders.py), just scoped to the caller's own order instead of tenant-wide."""
+    order = _customer_owned_order(db, order_id, current_customer)
+    order = _cancel_order_and_refund(db, order)
+    return {
+        "order_id": order.id,
+        "status": order.status,
+        "refund_amount": order.refund_amount,
+        "refund_status": order.refund_status,
+        "price_currency": order.price_currency,
+    }
+
+
 class CustomerChatRequest(BaseModel):
     messages: List[CustomerChatMessage]
     session_id: Optional[str] = None
@@ -1861,7 +1916,7 @@ async def customer_chat(body: CustomerChatRequest):
         catalog_lines = [
             f"• ID {r.id} — {r.name}: material={r.material.name}, weave={r.weave_type or 'n/a'}, "
             f"pile={r.pile_height or 'n/a'}, base_price={r.base_price}/sqm, "
-            f"lead_time={r.lead_time_days}d, sizes={', '.join(r.sizes) or 'custom'}. {r.description or ''}"
+            f"lead_time={r.lead_time_days}d, sizes={', '.join(s['ft'] + ' ft' for s in r.sizes) or 'custom'}. {r.description or ''}"
             for r in rugs
         ]
         catalog_text = "\n".join(catalog_lines)
@@ -2391,20 +2446,39 @@ def accept_quote(
         if quote.rush_order:
             lead_days = max(7, lead_days // 2)
 
-    tenant = db.query(Tenant).filter(Tenant.id == quote.tenant_id).first()
-    shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+    # quote.final_price is already the final, agreed total the customer saw and
+    # accepted (shipping is baked in when it came from the calculator; it's the
+    # vendor's own number when typed flat) — don't add shipping on top of it again.
+    # quote.shipping_cost is kept only as an informational breakdown line.
+    subtotal = quote.final_price or 0.0
+    shipping_cost = quote.shipping_cost or 0.0
+
+    discount_amount = 0.0
+    promo = None
+    if body.promo_code:
+        try:
+            promo = find_valid_promo(db, quote.tenant_id, body.promo_code, subtotal, customer_id=current_customer.id)
+        except PromoError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        discount_amount = compute_discount(promo, subtotal, shipping_cost)
+
     order = Order(
         tenant_id=quote.tenant_id,
         quote_id=quote.id,
         status="pending",
         estimated_delivery=datetime.utcnow() + timedelta(days=lead_days),
         shipping_cost=shipping_cost,
-        total_amount=round((quote.final_price or 0.0) + shipping_cost, 2),
+        promo_code=promo.code if promo else None,
+        discount_amount=discount_amount or None,
+        total_amount=round(subtotal - discount_amount, 2),
         price_currency=quote.price_currency,
     )
     db.add(order)
     db.commit()
     db.refresh(order)
+    if promo:
+        record_redemption(db, promo, discount_amount, current_customer.id, order.id)
+        db.commit()
     return {
         "message": "Quote accepted. Your order has been placed.",
         "order_id": order.id,

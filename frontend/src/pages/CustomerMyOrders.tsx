@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw, Layers } from 'lucide-react';
+import { Search, Package, Truck, Clock, MapPin, AlertTriangle, ChevronDown, ChevronUp, Download, LogIn, RefreshCw, Layers, X, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { getMyOrders, getCustomerOrderBreakdown, getCustomerOrderTimeline, getPublicSettings } from '../services/api';
-import type { CustomerOrder, OrderBreakdown, OrderTimelineEntry } from '../services/api';
+import { getMyOrders, getCustomerOrderBreakdown, getCustomerOrderTimeline, getPublicSettings, getCustomerCancelEligibility, cancelCustomerOrder } from '../services/api';
+import type { CustomerOrder, OrderBreakdown, OrderTimelineEntry, CancelEligibility } from '../services/api';
 import { fmtAs } from '../utils/currency';
 import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
@@ -20,7 +20,9 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   cancelled:      { label: 'Cancelled',      color: 'text-red-600 border-red-200 bg-red-50',          dot: 'bg-red-400' },
 };
 
-function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency }: { order: CustomerOrder; email: string; customerToken: string | null; sizeUnit: string; tenantCurrency: { currency: string; base_currency: string; exchange_rates: Record<string, number> } }) {
+const CANCELLABLE_STATUSES = new Set(['pending', 'in_production']);
+
+function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency, onCancelled }: { order: CustomerOrder; email: string; customerToken: string | null; sizeUnit: string; tenantCurrency: { currency: string; base_currency: string; exchange_rates: Record<string, number> }; onCancelled: (orderId: number) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [breakdown, setBreakdown] = useState<OrderBreakdown | null>(null);
@@ -29,6 +31,9 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency }: { 
   const [timeline, setTimeline] = useState<OrderTimelineEntry[] | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState(false);
+  const [cancelModal, setCancelModal] = useState<CancelEligibility | 'loading' | 'error' | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
   const currency = order.price_currency || 'INR';
   const targetCurrency = currencyForCountry(breakdown?.customer_country ?? order.customer_country, tenantCurrency.currency);
   const fmt = (n: number) => fmtAs(n, currency, targetCurrency, tenantCurrency);
@@ -81,6 +86,31 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency }: { 
       // silently fail
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const openCancelModal = async () => {
+    setCancelModal('loading');
+    setCancelError('');
+    try {
+      const elig = await getCustomerCancelEligibility(order.order_id, customerToken);
+      setCancelModal(elig);
+    } catch {
+      setCancelModal('error');
+    }
+  };
+
+  const confirmCancel = async () => {
+    setCancelling(true);
+    setCancelError('');
+    try {
+      await cancelCustomerOrder(order.order_id, customerToken);
+      setCancelModal(null);
+      onCancelled(order.order_id);
+    } catch (err: any) {
+      setCancelError(err.response?.data?.detail || 'Something went wrong. Please try again.');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -370,17 +400,106 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency }: { 
           )}
 
           {customerToken && (
-            <button
-              onClick={downloadInvoice}
-              disabled={downloading}
-              className="flex items-center gap-2 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs font-medium px-4 py-2 transition-colors disabled:opacity-50 uppercase tracking-wider"
-            >
-              {downloading
-                ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
-                : <Download size={13} />}
-              Download Invoice
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={downloadInvoice}
+                disabled={downloading}
+                className="flex items-center gap-2 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs font-medium px-4 py-2 transition-colors disabled:opacity-50 uppercase tracking-wider"
+              >
+                {downloading
+                  ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+                  : <Download size={13} />}
+                Download Invoice
+              </button>
+              {CANCELLABLE_STATUSES.has(order.status) && (
+                <button
+                  onClick={openCancelModal}
+                  className="flex items-center gap-2 border border-red-200 hover:border-red-400 text-red-500 hover:text-red-700 text-xs font-medium px-4 py-2 transition-colors uppercase tracking-wider"
+                >
+                  <XCircle size={13} />
+                  Cancel Order
+                </button>
+              )}
+            </div>
           )}
+        </div>
+      )}
+
+      {/* Cancel confirmation modal */}
+      {cancelModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+              <h3 className="font-serif text-lg font-light text-stone-900 flex items-center gap-2">
+                <AlertTriangle size={16} className="text-red-500" /> Cancel Order #{order.order_id}
+              </h3>
+              <button
+                onClick={() => setCancelModal(null)}
+                className="text-stone-400 hover:text-stone-900 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-5 space-y-4">
+              {cancelModal === 'loading' && (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-5 h-5 border-2 border-stone-300 border-t-stone-800 rounded-full animate-spin" />
+                </div>
+              )}
+              {cancelModal === 'error' && (
+                <p className="text-red-500 text-sm">Could not check cancellation eligibility. Please try again.</p>
+              )}
+              {cancelModal !== 'loading' && cancelModal !== 'error' && (
+                !cancelModal.eligible ? (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 p-3 text-red-600 text-sm">
+                    <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" /> <span>{cancelModal.reason}</span>
+                  </div>
+                ) : (
+                  <div className="bg-stone-50 border border-stone-200 p-4 space-y-2">
+                    {cancelModal.has_payment ? (
+                      <p className="text-stone-700 text-sm">
+                        This order was paid online. Cancelling now refunds{' '}
+                        <span className="text-stone-900 font-semibold">{Math.round(cancelModal.refund_pct * 100)}%</span> per policy —{' '}
+                        <span className="text-stone-900 font-semibold">
+                          {fmtAs(cancelModal.refund_amount, cancelModal.price_currency, cancelModal.price_currency, tenantCurrency)}
+                        </span>{' '}
+                        back to your original payment method via Razorpay.
+                      </p>
+                    ) : (
+                      <p className="text-stone-500 text-sm">
+                        No online payment is on file for this order — cancelling will just update its status.
+                      </p>
+                    )}
+                    <p className="text-stone-400 text-xs">
+                      Refunds are processed instantly when possible, otherwise within 5–7 business days.
+                    </p>
+                  </div>
+                )
+              )}
+              {cancelError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 p-2.5 text-red-600 text-xs">
+                  <AlertTriangle size={13} /> {cancelError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 px-5 pb-5">
+              <button
+                onClick={() => setCancelModal(null)}
+                className="flex-1 py-2.5 border border-stone-200 text-stone-600 text-sm hover:bg-stone-50 transition-colors"
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={confirmCancel}
+                disabled={cancelling || cancelModal === 'loading' || cancelModal === 'error' || !cancelModal.eligible}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {cancelling ? <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" /> : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -656,7 +775,7 @@ export default function CustomerMyOrders() {
               </div>
             )}
 
-            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} />)}
+            {orders.map(o => <OrderCard key={o.order_id} order={o} email={customer.email} customerToken={customerToken} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} onCancelled={(orderId) => setOrders(prev => prev.map(x => x.order_id === orderId ? { ...x, status: 'cancelled' } : x))} />)}
 
             {hasMore && (
               <button
@@ -744,7 +863,7 @@ export default function CustomerMyOrders() {
                 <p className="text-stone-400 text-sm">
                   Found <span className="text-stone-900 font-medium">{guestTotal}</span> order{guestTotal !== 1 ? 's' : ''} for {searchedEmail}
                 </p>
-                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} />)}
+                {guestOrders.map(o => <OrderCard key={o.order_id} order={o} email={searchedEmail} customerToken={null} sizeUnit={sizeUnit} tenantCurrency={tenantCurrency} onCancelled={() => {}} />)}
                 {guestHasMore && (
                   <button
                     onClick={handleGuestLoadMore}

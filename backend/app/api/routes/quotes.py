@@ -315,15 +315,17 @@ def update_quote(
             lead_days = (rug.lead_time_days if rug else 21) or 21
             if quote.rush_order:
                 lead_days = max(7, lead_days // 2)
-        tenant = current_user.tenant
-        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+        # quote.final_price is already the final total sent to the customer
+        # (shipping is baked in when calculator-priced, or is the vendor's own
+        # flat number) — don't add shipping again. shipping_cost is kept only
+        # as an informational breakdown line, same as the customer accept path.
         order = Order(
             tenant_id=quote.tenant_id,
             quote_id=quote.id,
             status="pending",
             estimated_delivery=datetime.utcnow() + timedelta(days=lead_days),
-            shipping_cost=shipping_cost,
-            total_amount=round((quote.final_price or 0.0) + shipping_cost, 2),
+            shipping_cost=quote.shipping_cost or 0.0,
+            total_amount=round(quote.final_price or 0.0, 2),
             price_currency=quote.price_currency,
         )
         db.add(order)

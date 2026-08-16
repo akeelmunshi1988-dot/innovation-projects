@@ -41,11 +41,19 @@ class Material(MaterialBase):
 
 # ── RugCatalog ────────────────────────────────────────────────────────────────
 
+class RugSize(BaseModel):
+    """A vendor-entered standard size. `cm` is a plain optional field the vendor
+    types themselves on the catalog form — never computed from `ft`. A size with
+    no `cm` just isn't offered in cm mode on the customer-facing site."""
+    ft: str
+    cm: Optional[str] = None
+
+
 class RugCatalogBase(BaseModel):
     name: str
     description: Optional[str] = None
     about_content_html: Optional[str] = None
-    sizes: List[str]
+    sizes: List[RugSize]
     base_price: float
     base_price_currency: Optional[str] = None
     material_id: int
@@ -65,7 +73,7 @@ class RugCatalogUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     about_content_html: Optional[str] = None
-    sizes: Optional[List[str]] = None
+    sizes: Optional[List[RugSize]] = None
     base_price: Optional[float] = None
     base_price_currency: Optional[str] = None
     material_id: Optional[int] = None
@@ -289,6 +297,7 @@ class QuoteAdjustRequest(BaseModel):
 
 class QuoteCustomerRespondRequest(BaseModel):
     customer_response_notes: Optional[str] = None
+    promo_code: Optional[str] = None
 
 
 class QuoteSampleImagesRequest(BaseModel):

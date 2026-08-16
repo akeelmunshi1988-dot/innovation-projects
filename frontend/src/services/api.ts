@@ -376,15 +376,40 @@ export const updateOrderStatus = async (id: number, status: string, shippingCost
 export interface CancelEligibility {
   eligible: boolean;
   already_cancelled: boolean;
-  window_hours: number;
-  hours_remaining: number;
+  status: string;
+  refund_pct: number;
   has_payment: boolean;
   refund_amount: number;
   price_currency: string;
+  reason: string | null;
 }
 
 export const getCancelEligibility = async (id: number): Promise<CancelEligibility> => {
   const { data } = await api.get<CancelEligibility>(`/orders/${id}/cancel-eligibility`);
+  return data;
+};
+
+export interface CustomerCancelResult {
+  order_id: number;
+  status: string;
+  refund_amount: number | null;
+  refund_status: string | null;
+  price_currency: string | null;
+}
+
+export const getCustomerCancelEligibility = async (
+  id: number, customerToken?: string | null,
+): Promise<CancelEligibility> => {
+  const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
+  const { data } = await api.get<CancelEligibility>(`/customer/orders/${id}/cancel-eligibility`, { headers });
+  return data;
+};
+
+export const cancelCustomerOrder = async (
+  id: number, customerToken?: string | null,
+): Promise<CustomerCancelResult> => {
+  const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
+  const { data } = await api.post<CustomerCancelResult>(`/customer/orders/${id}/cancel`, {}, { headers });
   return data;
 };
 

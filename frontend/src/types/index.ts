@@ -78,13 +78,22 @@ export interface RugImage {
   sort_order: number;
 }
 
+/** A vendor-entered catalog "standard size" — see frontend/src/utils/size.ts for
+ * the display/parsing helpers built around this shape. `cm` is optional and never
+ * auto-computed from `ft`: it's exactly what the vendor typed on the catalog form,
+ * or absent. */
+export interface CatalogSize {
+  ft: string;
+  cm?: string | null;
+}
+
 export interface RugCatalog {
   id: number;
   slug: string | null;
   name: string;
   description: string | null;
   about_content_html: string | null;
-  sizes: string[];
+  sizes: CatalogSize[];
   base_price: number;
   base_price_currency: string | null;
   material_id: number;

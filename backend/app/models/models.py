@@ -105,7 +105,7 @@ class RugCatalog(Base):
     slug = Column(String(220), nullable=True, index=True)  # URL-friendly identifier for /catalog/<slug> — unique per tenant, see uq_rug_slug_tenant
     description = Column(Text, nullable=True)
     about_content_html = Column(Text, nullable=True)  # admin-authored rich text for the catalog detail "About this rug" section — falls back to `description` (plain text) when empty
-    sizes = Column(JSON, nullable=False)
+    sizes = Column(JSON, nullable=False)  # list[{"ft": str, "cm": str | None}] — cm is vendor-entered, never computed from ft (see schemas.RugSize)
     base_price = Column(Float, nullable=False)
     base_price_currency = Column(String(10), nullable=True)     # currency base_price was entered in
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=False, index=True)
