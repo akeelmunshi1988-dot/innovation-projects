@@ -19,6 +19,7 @@ from app.schemas.schemas import (
     RegisterRequest, LoginRequest, TokenResponse, MeResponse, TenantPublic, TenantUpdateRequest,
     CustomerRegisterRequest, CustomerLoginRequest, CustomerTokenResponse,
     CustomerRegisterResponse, CustomerVerifyEmailRequest, RefreshResponse,
+    ForgotPasswordRequest, ResetPasswordRequest,
 )
 from app.services import email_service
 from app.services import oauth_providers
@@ -43,6 +44,7 @@ def _set_refresh_cookie(response: Response, raw_token: str) -> None:
     )
 
 VERIFICATION_TOKEN_TTL_HOURS = 24
+RESET_TOKEN_TTL_HOURS = 1
 
 BRANDING_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "branding")
 ALLOWED_FAVICON_TYPES = {"image/png", "image/x-icon", "image/vnd.microsoft.icon", "image/svg+xml", "image/jpeg"}
@@ -132,6 +134,39 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
         role=user.role,
         tenant=TenantPublic.model_validate(user.tenant),
     )
+
+
+@router.post("/auth/forgot-password")
+def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(StaffUser).filter(StaffUser.email == body.email, StaffUser.is_active == True).first()
+    if user:
+        token = secrets.token_urlsafe(32)
+        user.reset_token = token
+        user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
+        reset_link = f"{settings.FRONTEND_URL}/admin/reset-password/{token}"
+        subject, body_text, body_html = email_service.render_template(
+            db, user.tenant_id, "staff_password_reset",
+            {"staff_name": user.full_name or user.email, "tenant_name": user.tenant.name, "reset_link": reset_link},
+        )
+        email_service.send_email(user.email, subject, body_text, body_html)
+        db.commit()
+    # Same response whether or not the email exists — don't reveal account existence.
+    return {"message": "If an account exists with that email, a password reset link has been sent."}
+
+
+@router.post("/auth/reset-password")
+def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(StaffUser).filter(StaffUser.reset_token == body.token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or already-used reset link.")
+    if not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="This reset link has expired. Please request a new one.")
+
+    user.hashed_password = hash_password(body.new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    db.commit()
+    return {"message": "Password updated. You can now sign in with your new password."}
 
 
 @router.get("/auth/me", response_model=MeResponse)
@@ -238,6 +273,42 @@ def customer_login(body: CustomerLoginRequest, response: Response, db: Session =
     token = create_access_token({"sub": str(customer.id), "type": "customer"})
     _set_refresh_cookie(response, create_refresh_token(db, "customer", customer.id))
     return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email, country=customer.country)
+
+
+@router.post("/auth/customer/forgot-password")
+def customer_forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    customer = db.query(Customer).filter(Customer.email == body.email, Customer.is_active == True).first()
+    # hashed_password is null for portal-only/guest records (never registered with a
+    # password) and for OAuth-only accounts — nothing to reset in either case.
+    if customer and customer.hashed_password:
+        token = secrets.token_urlsafe(32)
+        customer.reset_token = token
+        customer.reset_token_expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
+        tenant = db.query(Tenant).filter(Tenant.id == customer.tenant_id).first() or db.query(Tenant).first()
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{token}"
+        subject, body_text, body_html = email_service.render_template(
+            db, customer.tenant_id, "customer_password_reset",
+            {"customer_name": customer.name, "tenant_name": tenant.name if tenant else "", "reset_link": reset_link},
+        )
+        email_service.send_email(customer.email, subject, body_text, body_html)
+        db.commit()
+    # Same response whether or not the email exists / has a password — don't reveal account state.
+    return {"message": "If an account exists with that email, a password reset link has been sent."}
+
+
+@router.post("/auth/customer/reset-password")
+def customer_reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    customer = db.query(Customer).filter(Customer.reset_token == body.token).first()
+    if not customer:
+        raise HTTPException(status_code=400, detail="Invalid or already-used reset link.")
+    if not customer.reset_token_expires_at or customer.reset_token_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="This reset link has expired. Please request a new one.")
+
+    customer.hashed_password = hash_password(body.new_password)
+    customer.reset_token = None
+    customer.reset_token_expires_at = None
+    db.commit()
+    return {"message": "Password updated. You can now sign in with your new password."}
 
 
 # ── Social login (Google / Facebook / LinkedIn) ───────────────────────────────

@@ -8,7 +8,7 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.config import settings
-from app.models.models import Order, OrderItem, OrderStatusHistory, Quote, StaffUser, Customer, RugCatalog
+from app.models.models import Order, OrderItem, OrderStatusHistory, Quote, StaffUser, Customer, RugCatalog, Tenant
 from app.schemas.schemas import OrderCreate, OrderUpdate, OrderCombineRequest, Order as OrderSchema
 from app.services.quote_engine import QuoteEngine, build_manual_price_result
 
@@ -223,7 +223,7 @@ def combine_orders(
 
 
 def _order_paid_amount(order: Order) -> float:
-    """Total actually charged for this order — used as the refund amount. Prefers the
+    """Total actually charged for this order — used as the refund basis. Prefers the
     total_amount snapshot frozen at order-creation time (immune to the linked quote(s)
     being revised/re-priced later); falls back to a live recompute from the linked
     quotes for orders created before that snapshot existed."""
@@ -233,6 +233,91 @@ def _order_paid_amount(order: Order) -> float:
     subtotal = sum(lq.final_price for lq in line_quotes if lq.final_price is not None)
     total = subtotal + (order.shipping_cost or 0.0) - (order.discount_amount or 0.0)
     return max(0.0, round(total, 2))
+
+
+# Standard cancellation refund policy: the refund % depends on how far production has
+# progressed, not on how much time has passed since ordering. Materials/labor are
+# already committed once an order moves to "in_production", so only a partial refund
+# applies from that point; once quality_check/shipped/delivered, the order is no
+# longer cancellable through this flow at all. Shared by both the admin
+# (POST /orders/{id}/cancel) and customer (POST /customer/orders/{id}/cancel) routes
+# so there's exactly one policy, not two that could drift apart.
+CANCELLATION_REFUND_POLICY = {
+    "pending": 1.0,
+    "in_production": 0.5,
+}
+
+
+def _cancellation_terms(order: Order) -> dict:
+    """Returns {eligible, refund_pct, reason}. reason is None when eligible, otherwise
+    a customer/staff-facing explanation of why it isn't."""
+    if order.status == "cancelled":
+        return {"eligible": False, "refund_pct": 0.0, "reason": "This order is already cancelled."}
+    refund_pct = CANCELLATION_REFUND_POLICY.get(order.status)
+    if refund_pct is None:
+        return {
+            "eligible": False, "refund_pct": 0.0,
+            "reason": f"Orders that have reached \"{order.status.replace('_', ' ')}\" are no longer eligible for cancellation.",
+        }
+    return {"eligible": True, "refund_pct": refund_pct, "reason": None}
+
+
+def _cancellation_eligibility_payload(order: Order, tenant: Optional[Tenant] = None) -> dict:
+    """Shared response shape for both cancel-eligibility endpoints."""
+    terms = _cancellation_terms(order)
+    paid = _order_paid_amount(order) if order.razorpay_payment_id else 0.0
+    return {
+        "eligible": terms["eligible"],
+        "already_cancelled": order.status == "cancelled",
+        "status": order.status,
+        "refund_pct": terms["refund_pct"],
+        "has_payment": bool(order.razorpay_payment_id),
+        "refund_amount": round(paid * terms["refund_pct"], 2),
+        "price_currency": (order.quote.price_currency if order.quote else None) or (tenant.base_currency if tenant else "INR"),
+        "reason": terms["reason"],
+    }
+
+
+def _cancel_order_and_refund(db: Session, order: Order) -> Order:
+    """Cancels `order`, issuing a Razorpay refund per CANCELLATION_REFUND_POLICY if it
+    was paid for online. Enforces the policy server-side regardless of what the UI
+    already showed — never trusts the client on eligibility or amount. Shared by the
+    admin and customer cancel routes; callers are responsible for authorizing that the
+    caller may act on this specific order before calling this."""
+    terms = _cancellation_terms(order)
+    if not terms["eligible"]:
+        raise HTTPException(status_code=400, detail=terms["reason"])
+
+    if order.razorpay_payment_id:
+        paid = _order_paid_amount(order)
+        amount = round(paid * terms["refund_pct"], 2)
+        if amount > 0:
+            if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+                raise HTTPException(status_code=503, detail="Payment gateway not configured — cannot process refund.")
+            import razorpay
+            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+            try:
+                refund = client.payment.refund(order.razorpay_payment_id, {
+                    "amount": int(round(amount * 100)),
+                    "speed": "optimum",
+                    "notes": {
+                        "order_id": str(order.id),
+                        "reason": f"Order cancelled while \"{order.status}\" — {terms['refund_pct'] * 100:.0f}% refund per policy",
+                    },
+                })
+            except Exception as e:
+                logger.warning("Razorpay refund failed for order %s: %s", order.id, e)
+                raise HTTPException(status_code=502, detail=f"Refund could not be processed: {e}")
+            order.refund_id = refund.get("id")
+            order.refund_status = refund.get("status") or "processed"
+            order.refund_amount = amount
+            order.refunded_at = datetime.now(timezone.utc)
+
+    order.status = "cancelled"
+    db.add(OrderStatusHistory(order_id=order.id, status="cancelled"))
+    db.commit()
+    db.refresh(order)
+    return order
 
 
 @router.get("/orders/{order_id}/cancel-eligibility")
@@ -249,25 +334,7 @@ def get_cancel_eligibility(
     ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-
-    tenant = current_user.tenant
-    window_hours = (tenant.cancellation_window_hours or 24) if tenant else 24
-    created_at = order.created_at
-    if created_at and created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
-    age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600 if created_at else 0.0
-    within_window = age_hours <= window_hours
-
-    already_cancelled = order.status == "cancelled"
-    return {
-        "eligible": within_window and not already_cancelled,
-        "already_cancelled": already_cancelled,
-        "window_hours": window_hours,
-        "hours_remaining": max(0.0, round(window_hours - age_hours, 1)) if not already_cancelled else 0.0,
-        "has_payment": bool(order.razorpay_payment_id),
-        "refund_amount": _order_paid_amount(order) if order.razorpay_payment_id else 0.0,
-        "price_currency": (order.quote.price_currency if order.quote else None) or (tenant.base_currency if tenant else "INR"),
-    }
+    return _cancellation_eligibility_payload(order, current_user.tenant)
 
 
 @router.post("/orders/{order_id}/cancel", response_model=OrderSchema)
@@ -276,56 +343,13 @@ def cancel_order(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    """Cancels an order, refunding the full amount via Razorpay if it was paid for
-    online. Enforces the tenant's cancellation window server-side regardless of what
-    the UI already showed — never trusts the client on eligibility or amount."""
     order = db.query(Order).filter(
         Order.id == order_id,
         Order.tenant_id == current_user.tenant_id,
     ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    if order.status == "cancelled":
-        raise HTTPException(status_code=400, detail="Order is already cancelled")
-
-    tenant = current_user.tenant
-    window_hours = (tenant.cancellation_window_hours or 24) if tenant else 24
-    created_at = order.created_at
-    if created_at and created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
-    age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600 if created_at else 0.0
-    if age_hours > window_hours:
-        raise HTTPException(
-            status_code=400,
-            detail=f"This order was placed more than {window_hours} hours ago and is no longer eligible for cancellation.",
-        )
-
-    if order.razorpay_payment_id:
-        amount = _order_paid_amount(order)
-        if amount > 0:
-            if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-                raise HTTPException(status_code=503, detail="Payment gateway not configured — cannot process refund.")
-            import razorpay
-            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-            try:
-                refund = client.payment.refund(order.razorpay_payment_id, {
-                    "amount": int(round(amount * 100)),
-                    "speed": "optimum",
-                    "notes": {"order_id": str(order.id), "reason": "Order cancelled by vendor"},
-                })
-            except Exception as e:
-                logger.warning("Razorpay refund failed for order %s: %s", order.id, e)
-                raise HTTPException(status_code=502, detail=f"Refund could not be processed: {e}")
-            order.refund_id = refund.get("id")
-            order.refund_status = refund.get("status") or "processed"
-            order.refund_amount = amount
-            order.refunded_at = datetime.now(timezone.utc)
-
-    order.status = "cancelled"
-    db.add(OrderStatusHistory(order_id=order.id, status="cancelled"))
-    db.commit()
-    db.refresh(order)
-    return order
+    return _cancel_order_and_refund(db, order)
 
 
 @router.get("/orders/{order_id}/breakdown")

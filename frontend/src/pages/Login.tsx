@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { Scissors, Mail, Lock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPublicSettings } from '../services/api';
@@ -78,6 +78,11 @@ export default function Login() {
               placeholder="••••••••"
               className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-cream-100 placeholder-dark-500 focus:outline-none focus:border-gold-600 transition-colors text-sm"
             />
+            <div className="text-right">
+              <Link to="/admin/forgot-password" className="text-dark-400 hover:text-gold-400 text-xs transition-colors">
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           {error && (

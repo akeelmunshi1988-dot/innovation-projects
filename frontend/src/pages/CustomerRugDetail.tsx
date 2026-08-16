@@ -13,11 +13,13 @@ import SocialLoginButtons from '../components/SocialLoginButtons';
 import { fmtExact, currencySymbol } from '../utils/currency';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
-import { fmtSize, feetToUnit, toMetres, inputUnit } from '../utils/size';
+import { fmtSize, catalogSizeDims, toMetres, inputUnit } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import { COUNTRIES, detectCountry } from '../utils/countries';
+import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
+import type { CatalogSize } from '../types';
 
 
 interface RugDetail {
@@ -31,7 +33,7 @@ interface RugDetail {
   material: string;
   material_type: string;
   material_color: string;
-  sizes: string[];
+  sizes: CatalogSize[];
   base_price_per_sqm: number;
   base_price_currency: string | null;
   lead_time_days: number;
@@ -233,6 +235,8 @@ export default function CustomerRugDetail() {
         name = user.name;
         email = user.email;
       } else {
+        const policyError = passwordPolicyError(authForm.password);
+        if (policyError) { setAuthError(policyError); setAuthLoading(false); return; }
         await customerRegister(
           authForm.name, authForm.email, authForm.password, authForm.country,
           authForm.phone || undefined, authForm.company || undefined,
@@ -518,22 +522,23 @@ export default function CustomerRugDetail() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="p-5 space-y-4">
-                    {/* Standard Sizes */}
-                    {rug.sizes.length > 0 && (
+                    {/* Standard Sizes — only sizes with a value in the current unit are
+                        offered; a size missing a vendor-entered cm value simply isn't
+                        shown when browsing in cm, rather than falling back to a computed
+                        conversion (see utils/size.ts). */}
+                    {rug.sizes.filter((size) => catalogSizeDims(size, inputUnit(sizeUnit))).length > 0 && (
                       <div className="space-y-2">
                         <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Standard Sizes</p>
                         <div className="flex flex-wrap gap-1.5">
                           {rug.sizes.map((size) => {
-                            const parts = size.split('x').map(Number);
-                            const dispW = parts.length === 2 ? String(feetToUnit(parts[0], sizeUnit)) : '';
-                            const dispH = parts.length === 2 ? String(feetToUnit(parts[1], sizeUnit)) : '';
+                            const dims = catalogSizeDims(size, inputUnit(sizeUnit));
+                            if (!dims) return null;
+                            const dispW = String(dims[0]);
+                            const dispH = String(dims[1]);
                             const isSelected = form.size_w === dispW && form.size_h === dispH;
                             return (
-                              <button key={size} type="button"
-                                onClick={() => {
-                                  if (parts.length === 2)
-                                    setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
-                                }}
+                              <button key={size.ft} type="button"
+                                onClick={() => setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }))}
                                 className={`border px-3 py-1.5 text-xs transition-colors ${
                                   isSelected
                                     ? 'bg-stone-900 border-stone-900 text-white'
@@ -856,7 +861,8 @@ export default function CustomerRugDetail() {
                 className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
               />
               <div className="relative">
-                <input type={showAuthPwd ? 'text' : 'password'} placeholder="Password *" required value={authForm.password}
+                <input type={showAuthPwd ? 'text' : 'password'} placeholder="Password *" required
+                  minLength={authMode === 'register' ? 8 : 1} value={authForm.password}
                   onChange={(e) => setAuthForm((f) => ({ ...f, password: e.target.value }))}
                   className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 pr-10 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                 />
@@ -866,6 +872,9 @@ export default function CustomerRugDetail() {
                   {showAuthPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
+              {authMode === 'register' && (
+                <p className="text-stone-400 text-xs">{PASSWORD_POLICY_HINT}</p>
+              )}
               {authMode === 'register' && (
                 <>
                   <input type="tel" placeholder="Phone / WhatsApp" value={authForm.phone}

@@ -4,6 +4,8 @@ export const SIZE_UNITS = [
   { code: 'both', label: 'Both (ft & cm)' },
 ];
 
+import type { CatalogSize } from '../types';
+
 const FT_TO_CM = 30.48;
 
 function parseSize(size: string): [number, number] | null {
@@ -24,28 +26,40 @@ export function inputUnit(unit: string): 'ft' | 'cm' {
 }
 
 /**
- * `size` is stored canonically in feet, e.g. "4x6". Formats for display in the
- * given unit — sizes are never converted at rest, only at render time.
+ * Formats a catalog size for display in the given unit. Returns `null` when
+ * `unit` is "cm" and the vendor hasn't entered a cm value for this size —
+ * callers should skip/hide that size in cm mode rather than fall back to a
+ * computed conversion (see CatalogSize's docstring for why).
  */
-export function fmtSize(size: string, unit: string = 'ft'): string {
-  const parsed = parseSize(size);
-  if (!parsed) return size;
-  const [w, h] = parsed;
-  const cm = `${Math.round(w * FT_TO_CM)}x${Math.round(h * FT_TO_CM)} cm`;
-  if (unit === 'both') return `${size} ft (${cm})`;
-  if (unit === 'cm') return cm;
-  return `${size} ft`;
+export function fmtSize(size: CatalogSize, unit: string = 'ft'): string | null {
+  if (unit === 'cm') return size.cm ? `${size.cm} cm` : null;
+  if (unit === 'both') return size.cm ? `${size.ft} ft (${size.cm} cm)` : `${size.ft} ft`;
+  return `${size.ft} ft`;
 }
 
-/** Area in square metres for a feet-denominated stored size string. */
-export function sizeAreaSqm(size: string): number | null {
-  const parsed = parseSize(size);
+/** Area in square metres for a catalog size — always computed from the required
+ * `ft` field, regardless of display unit, since that's the canonical stored
+ * dimension pricing is based on (a vendor-entered `cm` label is cosmetic only). */
+export function catalogSizeAreaSqm(size: CatalogSize): number | null {
+  const parsed = parseSize(size.ft);
   if (!parsed) return null;
   const [w, h] = parsed;
   return ((w * FT_TO_CM) / 100) * ((h * FT_TO_CM) / 100);
 }
 
-/** Converts a feet-denominated catalog dimension into the given display unit. */
+/**
+ * Parses the stored width/height for a catalog size in the given unit, reading
+ * the vendor-entered value verbatim (no conversion) — e.g. for populating a
+ * quote form when a customer clicks a preset size button. Returns null if that
+ * unit isn't available for this size (cm not entered).
+ */
+export function catalogSizeDims(size: CatalogSize, unit: 'ft' | 'cm'): [number, number] | null {
+  if (unit === 'cm') return size.cm ? parseSize(size.cm) : null;
+  return parseSize(size.ft);
+}
+
+/** Converts a feet-denominated *custom* (non-catalog) dimension into the given
+ * display unit — for room-measurement inputs, not vendor-entered catalog sizes. */
 export function feetToUnit(valueFt: number, unit: string): number {
   return unit === 'cm' ? Math.round(valueFt * FT_TO_CM) : valueFt;
 }

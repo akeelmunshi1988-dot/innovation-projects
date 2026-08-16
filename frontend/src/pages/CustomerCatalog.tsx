@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Layers, X } from 'lucide-react';
+import type { CatalogSize } from '../types';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -18,7 +19,7 @@ interface CatalogRug {
   image_url: string | null;
   base_price_per_sqm: number;
   lead_time_days: number;
-  sizes: string[];
+  sizes: CatalogSize[];
   available: boolean;
 }
 

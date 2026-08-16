@@ -4,8 +4,9 @@ import axios from "axios";
 import { RefreshCw, Download, Zap, Maximize2, X, Search, CheckCircle2, Send, CheckCircle, AlertTriangle, ShoppingBag, Calculator } from "lucide-react";
 import CustomerLayout from "../components/CustomerLayout";
 import SEO from "../components/SEO";
-import { fmtSize, feetToUnit, toMetres, inputUnit } from "../utils/size";
+import { fmtSize, catalogSizeDims, toMetres, inputUnit } from "../utils/size";
 import { getPublicSettings } from "../services/api";
+import type { CatalogSize } from "../types";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { useCart } from "../contexts/CartContext";
@@ -23,7 +24,7 @@ interface CatalogRug {
   image_url: string | null;
   available: boolean;
   base_price_per_sqm: number;
-  sizes: string[];
+  sizes: CatalogSize[];
   lead_time_days: number;
 }
 
@@ -1057,18 +1058,21 @@ export default function CustomerPortal() {
                           </div>
                         </div>
 
-                        {/* Size quick-select */}
-                        {selectedRug.sizes?.length > 0 && (
+                        {/* Size quick-select — only sizes with a value in the current unit
+                            are offered; a size missing a vendor-entered cm value isn't
+                            shown when browsing in cm (see utils/size.ts). */}
+                        {selectedRug.sizes?.filter((s) => catalogSizeDims(s, inputUnit(sizeUnit))).length > 0 && (
                           <div className="space-y-2">
                             <p className="text-xs uppercase tracking-widest text-stone-400">Standard Sizes</p>
                             <div className="flex flex-wrap gap-1.5">
                               {selectedRug.sizes.map((s) => {
-                                const [w, h] = s.split("x").map((v) => parseFloat(v.trim()));
-                                const dispW = String(feetToUnit(w, sizeUnit));
-                                const dispH = String(feetToUnit(h, sizeUnit));
+                                const dims = catalogSizeDims(s, inputUnit(sizeUnit));
+                                if (!dims) return null;
+                                const dispW = String(dims[0]);
+                                const dispH = String(dims[1]);
                                 const isActive = quoteForm.size_w === dispW && quoteForm.size_h === dispH;
                                 return (
-                                  <button key={s} type="button"
+                                  <button key={s.ft} type="button"
                                     onClick={() => setQuoteForm((f) => ({ ...f, size_w: dispW, size_h: dispH }))}
                                     className={`px-3 py-1 text-xs border transition-colors ${
                                       isActive

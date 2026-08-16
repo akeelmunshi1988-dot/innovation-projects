@@ -38,6 +38,10 @@ const CustomerCustomRugRequest = lazy(() => import('./pages/CustomerCustomRugReq
 const CustomerOrderConfirm = lazy(() => import('./pages/CustomerOrderConfirm'));
 const CustomerMyOrders = lazy(() => import('./pages/CustomerMyOrders'));
 const CustomerLogin = lazy(() => import('./pages/CustomerLogin'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const CustomerForgotPassword = lazy(() => import('./pages/CustomerForgotPassword'));
+const CustomerResetPassword = lazy(() => import('./pages/CustomerResetPassword'));
 const CustomerOAuthCallback = lazy(() => import('./pages/CustomerOAuthCallback'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const CustomerMyQuotes = lazy(() => import('./pages/CustomerMyQuotes'));
@@ -85,12 +89,16 @@ function App() {
           <Route path="/my-orders" element={<CustomerMyOrders />} />
           <Route path="/my-quotes" element={<CustomerMyQuotes />} />
           <Route path="/login" element={<CustomerLogin />} />
+          <Route path="/forgot-password" element={<CustomerForgotPassword />} />
+          <Route path="/reset-password/:token" element={<CustomerResetPassword />} />
           <Route path="/oauth-callback" element={<CustomerOAuthCallback />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/visualizer" element={<CustomerPortal />} />
 
           {/* Admin login + pricing (public) */}
           <Route path="/admin/login" element={<Login />} />
+          <Route path="/admin/forgot-password" element={<ForgotPassword />} />
+          <Route path="/admin/reset-password/:token" element={<ResetPassword />} />
           <Route path="/pricing" element={<Pricing />} />
 
           {/* Protected admin routes */}

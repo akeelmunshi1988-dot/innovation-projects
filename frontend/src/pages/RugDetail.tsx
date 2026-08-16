@@ -13,10 +13,12 @@ import {
   addRugImage, updateRugImageOrder, deleteRugImage,
 } from '../services/api';
 import RichTextEditor from '../components/RichTextEditor';
+import SizesEditor from '../components/SizesEditor';
 import type { RugCatalog, Quote, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant, CURRENCIES } from '../utils/currency';
-import { fmtSize, sizeAreaSqm, toMetres, inputUnit } from '../utils/size';
+import { catalogSizeAreaSqm, toMetres, inputUnit } from '../utils/size';
+import type { CatalogSize } from '../types';
 
 const MATERIAL_BADGE: Record<string, string> = {
   wool:      'bg-amber-900/40 text-amber-300 border border-amber-700/40',
@@ -71,7 +73,7 @@ export default function RugDetail() {
   const [editWeave, setEditWeave] = useState('');
   const [editLead, setEditLead] = useState('');
   const [editImage, setEditImage] = useState('');
-  const [editSizes, setEditSizes] = useState('');
+  const [editSizes, setEditSizes] = useState<CatalogSize[]>([]);
   const [editMargin, setEditMargin] = useState('');
   const [editHsn, setEditHsn] = useState('');
   const [editPriceCurrency, setEditPriceCurrency] = useState('');
@@ -106,7 +108,7 @@ export default function RugDetail() {
       setEditWeave(rugData.weave_type ?? '');
       setEditLead(String(rugData.lead_time_days));
       setEditImage(rugData.image_url ?? '');
-      setEditSizes(rugData.sizes.join(', '));
+      setEditSizes(rugData.sizes);
       setEditMargin(rugData.profit_margin_pct != null ? String(rugData.profit_margin_pct) : '');
       setEditHsn(rugData.hsn_code ?? '5703');
       setEditPriceCurrency(rugData.base_price_currency ?? tenant.base_currency);
@@ -153,7 +155,7 @@ export default function RugDetail() {
     setEditLoading(true);
     setEditError(null);
     try {
-      const sizes = editSizes.split(',').map((s) => s.trim()).filter(Boolean);
+      const sizes = editSizes.filter((s) => s.ft.trim()).map((s) => ({ ft: s.ft.trim(), cm: s.cm?.trim() || null }));
       const updated = await updateRug(rug.id, {
         name: editName,
         description: editDesc || null,
@@ -478,12 +480,15 @@ export default function RugDetail() {
             <div className="flex flex-wrap gap-2">
               {rug.sizes.map((size) => (
                 <div
-                  key={size}
+                  key={size.ft}
                   className="group relative bg-dark-800 hover:bg-dark-750 border border-dark-600 hover:border-gold-600/40 rounded-xl px-4 py-2.5 transition-all cursor-default"
+                  title={size.cm ? undefined : 'No cm value entered yet'}
                 >
-                  <p className="text-cream-200 font-semibold text-sm">{fmtSize(size, tenant.default_size_unit)}</p>
+                  <p className="text-cream-200 font-semibold text-sm">
+                    {size.ft} ft{size.cm ? ` (${size.cm} cm)` : ''}
+                  </p>
                   {(() => {
-                    const area = sizeAreaSqm(size);
+                    const area = catalogSizeAreaSqm(size);
                     if (area) {
                       return <p className="text-dark-500 text-xs">{area.toFixed(1)} m²</p>;
                     }
@@ -927,16 +932,7 @@ export default function RugDetail() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                  Sizes (comma-separated, in feet, e.g. 2x3, 4x6, 6x9)
-                </label>
-                <input
-                  value={editSizes}
-                  onChange={(e) => setEditSizes(e.target.value)}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                />
-              </div>
+              <SizesEditor value={editSizes} onChange={setEditSizes} />
 
               <div className="space-y-1.5">
                 <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">Image URL</label>

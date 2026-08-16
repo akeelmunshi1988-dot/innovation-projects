@@ -18,7 +18,7 @@ const FOOTER_LOGO_URL = '/static/branding/44203c3d28564ce58a5df25f86fb78f5.png';
 const NAV = [
   { path: '/', label: 'Home' },
   { path: '/catalog', label: 'Collection' },
-  { path: '/custom-rug-request', label: 'Request Custom Rug' },
+  { path: '/custom-rug-request', label: 'Custom Rug' },
   { path: '/visualizer', label: 'Visualizer' },
   { path: '/about', label: 'About Us' },
 ];
