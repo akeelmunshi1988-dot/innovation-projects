@@ -1,12 +1,15 @@
 """
-Optional realism polish pass for the room visualizer.
+Optional realism/quality polish pass for the room visualizer.
 
 Takes an already-composited room+rug image (produced by the OpenCV
-perspective warp in customer.py) and asks an image-edit model to blend the
-rug's contact shadow / ambient occlusion in more naturally. The edit mask is
+perspective warp in customer.py) and asks an image-edit model to improve the
+photographic quality right where the rug meets the floor — contact shadow,
+ambient occlusion, and a natural (not pasted-on) edge blend. The edit mask is
 built from the same corner points used for the warp so the model can only
 touch a thin band around the rug's edges — it can never see enough of the
-rug itself, or the rest of the room, to alter them.
+rug itself, or the rest of the room, to alter them. This is deliberate: it
+trades a smaller area of AI freedom for a guarantee that the rug being sold
+is never redrawn.
 """
 
 import io
@@ -82,10 +85,12 @@ def enhance_realism(composite_bgr: np.ndarray, corner_points: list) -> np.ndarra
             image=("composite.png", io.BytesIO(image_png.tobytes()), "image/png"),
             mask=("mask.png", io.BytesIO(mask_png.tobytes()), "image/png"),
             prompt=(
-                "Photorealistic interior photo. Blend the rug naturally into the floor: add a soft, "
-                "realistic contact shadow and ambient occlusion right at its edges, matching the room's "
-                "existing light direction and color temperature. Do not alter the rug's pattern, color, "
-                "size, or position, and do not change anything else in the room."
+                "Improve the photo quality right at the rug's edges so it looks like a real photograph of "
+                "a rug sitting on this floor, not a cutout pasted on top. Add a soft, realistic contact "
+                "shadow and ambient occlusion where the rug meets the floor, matching the room's existing "
+                "light direction, color temperature, and grain/noise level. Blend the rug's fiber edge into "
+                "the floor naturally — no hard outline, no visible seam. Do not alter the rug's pattern, "
+                "color, size, or position, and do not change anything else in the room."
             ),
             size="auto",
             timeout=20,

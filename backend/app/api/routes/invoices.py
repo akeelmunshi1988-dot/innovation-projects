@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.models import StaffUser, Quote, Tenant, Customer
 from app.services.invoice_generator import generate_invoice_pdf
-from app.services.size_format import fmt_dims as _fmt_dims
+from app.services.size_format import email_dims_display as _fmt_dims
 from app.services import email_service
 
 router = APIRouter()
@@ -59,8 +59,9 @@ def _build_pdf(quote_id: int, invoice_type: str, db: Session, tenant_id: int):
     pre_gst_price_display = round(final_price_display / (1 + gst_pct / 100), 2) if gst_pct else final_price_display
     gst_amount_display = round(final_price_display - pre_gst_price_display, 2)
 
-    size_unit = tenant.default_size_unit or "ft"
-    dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
+    # Always both units on the invoice document itself, regardless of the tenant's
+    # on-site display-unit preference — the recipient may not share that preference.
+    dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, quote.rug_shape or "rect", rug)
     size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
 
     is_export = invoice_type == "export" or bool(customer and customer.is_export_buyer)
@@ -130,10 +131,7 @@ def send_quote_email(
     _SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}
     currency_sym = _SYMBOLS.get(tenant.currency or "INR", tenant.currency or "$")
     rug_name = quote.rug_catalog.name if quote.rug_catalog else f"Rug #{quote.rug_catalog_id}"
-    size_str = (
-        _fmt_dims(quote.custom_size_w, quote.custom_size_h, tenant.default_size_unit or "ft", quote.rug_shape or "rect")
-        if quote.custom_size_w else "custom size"
-    )
+    size_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, quote.rug_shape or "rect", quote.rug_catalog)
     price_str = f"{currency_sym}{final_price_display:,.2f}" if quote.final_price else "TBD"
     type_label = {"proforma": "Proforma Invoice", "tax": "Tax Invoice", "export": "Export Invoice"}.get(effective_type, "Invoice")
     disclaimer = (
