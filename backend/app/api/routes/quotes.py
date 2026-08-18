@@ -28,6 +28,7 @@ from app.schemas.schemas import (
 )
 from app.services.quote_engine import QuoteEngine
 from app.services import email_service
+from app.services.size_format import email_dims_display
 
 SAMPLE_IMAGE_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "quote-samples")
 SAMPLE_IMAGE_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
@@ -35,13 +36,6 @@ SAMPLE_IMAGE_MAX_SIZE_BYTES = 10 * 1024 * 1024
 
 
 _SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}
-
-
-def _fmt_dim(value_m: float, unit: str) -> str:
-    """Formats a metres-denominated dimension in the tenant's chosen display unit."""
-    if unit == "cm":
-        return str(round(value_m * 100))
-    return f"{value_m / 0.3048:g}"
 
 
 def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", customer: "Customer") -> None:
@@ -55,10 +49,7 @@ def _send_quote_notification(db: Session, quote: Quote, tenant: "Tenant", custom
 
     rug_name: str = str(quote.rug_catalog.name) if quote.rug_catalog else "Custom Rug Order"
 
-    size_unit = tenant.default_size_unit or "ft"
-    w = quote.custom_size_w
-    h = quote.custom_size_h
-    size_str = f"{_fmt_dim(w, size_unit)}x{_fmt_dim(h, size_unit)} {size_unit}" if w is not None and h is not None else "custom size"
+    size_str = email_dims_display(quote.custom_size_w, quote.custom_size_h, quote.rug_shape or "rect", quote.rug_catalog)
 
     fp = quote.final_price
     price_str = f"{sym}{fp:,.2f}" if fp is not None else "to be confirmed"

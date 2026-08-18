@@ -29,7 +29,7 @@ from app.services import room_composer
 from app.services import ai_realism
 from app.services import geo_ip
 from app.services.invoice_generator import generate_invoice_pdf
-from app.services.size_format import fmt_dims as _fmt_dims
+from app.services.size_format import fmt_dims as _fmt_dims, email_dims_display
 from app.schemas.schemas import QuoteCustomerRespondRequest
 from app.core.logging_config import logger
 from app.api.routes.orders import _cancel_order_and_refund, _cancellation_eligibility_payload
@@ -819,7 +819,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
         db.commit()
         db.refresh(quote)
 
-        size_display = f"⌀ {body.size_w}m" if shape == "circle" else f"{body.size_w}m × {body.size_h}m"
+        size_display = email_dims_display(quote.custom_size_w, quote.custom_size_h, shape, rug)
 
         # Notify vendor by email (best-effort)
         try:
@@ -2361,7 +2361,7 @@ def _notify_vendor_custom_rug_request(db: Session, quote: Quote, tenant, custome
         return
 
     size_str = (
-        f"{quote.custom_size_w}m × {quote.custom_size_h}m"
+        email_dims_display(quote.custom_size_w, quote.custom_size_h, quote.rug_shape or "rect")
         if quote.custom_size_w and quote.custom_size_h else "Not specified"
     )
     notes_line = f"Customer notes: {quote.notes}\n" if quote.notes else ""
@@ -2396,7 +2396,7 @@ def _notify_vendor_review_request(db: Session, quote: Quote, tenant, customer: C
         return
 
     rug_name = str(quote.rug_catalog.name) if quote.rug_catalog else f"Quote #{quote.id}"
-    size_str = f"{quote.custom_size_w}m × {quote.custom_size_h}m" if quote.custom_size_w else "custom size"
+    size_str = email_dims_display(quote.custom_size_w, quote.custom_size_h, quote.rug_shape or "rect", quote.rug_catalog)
 
     subject, body_text, body_html = email_service.render_template(
         db, quote.tenant_id, "vendor_review_request",
@@ -2576,7 +2576,6 @@ def download_customer_invoice(
 
     tenant = db.query(Tenant).filter(Tenant.id == line_quotes[0].tenant_id).first()
     invoice_currency = tenant.currency if tenant else "INR"
-    size_unit = (tenant.default_size_unit if tenant else None) or "ft"
 
     # This order has already been paid for — issue a real tax invoice (export invoice for
     # foreign buyers), not a proforma. Proforma is a pre-sale, non-binding document with no
@@ -2600,7 +2599,9 @@ def download_customer_invoice(
         gst_pct = quote.gst_pct if quote.gst_pct is not None else ((tenant.default_gst_pct if tenant else None) or 12.0)
         pre_gst_price = round(quote.final_price / (1 + gst_pct / 100), 2) if gst_pct else quote.final_price
         gst_amount = round(quote.final_price - pre_gst_price, 2)
-        dims_str = _fmt_dims(quote.custom_size_w, quote.custom_size_h, size_unit, quote.rug_shape or "rect")
+        # Always both units on the invoice document itself, regardless of the tenant's
+        # on-site display-unit preference — the recipient may not share that preference.
+        dims_str = email_dims_display(quote.custom_size_w, quote.custom_size_h, quote.rug_shape or "rect", rug)
         size_desc = f"{dims_str} ({size_sqm:.2f}m²)"
 
         pdfs.append(generate_invoice_pdf(
