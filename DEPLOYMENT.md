@@ -1,4 +1,4 @@
-# LoomCraft AI — Deployment Guide (Hostinger KVM 2)
+# DreamRugsCreation — Deployment Guide (Hostinger KVM 2)
 
 ## Prerequisites
 - Hostinger KVM 2 VPS with Ubuntu 22.04
@@ -31,12 +31,12 @@ Run these on the VPS as root:
 apt update && apt upgrade -y
 
 # Create a non-root user
-adduser loomcraft
-usermod -aG sudo loomcraft
+adduser dreamrugscreation
+usermod -aG sudo dreamrugscreation
 
 # Set up app directories (as root, no sudo needed)
-mkdir -p /var/www/loomcraft/innovation-projects/backend /var/www/loomcraft/innovation-projects/frontend
-chown -R loomcraft:loomcraft /var/www/loomcraft
+mkdir -p /var/www/dreamrugscreation/innovation-projects/backend /var/www/dreamrugscreation/innovation-projects/frontend
+chown -R dreamrugscreation:dreamrugscreation /var/www/dreamrugscreation
 
 # Basic firewall
 ufw allow OpenSSH
@@ -110,15 +110,15 @@ removed, until the next `npm run build` + redeploy with a reachable backend.
 rsync -avz --exclude '__pycache__' --exclude '*.pyc' \
   --exclude 'venv' --exclude '.env' \
   /Applications/RugManufactureCustomApp/backend/ \
-  root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/
+  root@YOUR_SERVER_IP:/var/www/dreamrugscreation/innovation-projects/backend/
 
 # Upload built frontend
 rsync -avz /Applications/RugManufactureCustomApp/frontend/dist/ \
-  root@YOUR_SERVER_IP:/var/www/loomcraft/frontend/
+  root@YOUR_SERVER_IP:/var/www/dreamrugscreation/frontend/
 
 # Upload public assets (rug images, icons etc.)
 rsync -avz /Applications/RugManufactureCustomApp/frontend/public/ \
-  root@YOUR_SERVER_IP:/var/www/loomcraft/frontend/
+  root@YOUR_SERVER_IP:/var/www/dreamrugscreation/frontend/
 ```
 
 ---
@@ -126,7 +126,7 @@ rsync -avz /Applications/RugManufactureCustomApp/frontend/public/ \
 ## Phase 6 — Set Up Python Virtual Environment (on VPS)
 
 ```bash
-cd /var/www/loomcraft/innovation-projects/backend
+cd /var/www/dreamrugscreation/innovation-projects/backend
 
 # Create virtual environment
 python3 -m venv venv
@@ -143,20 +143,20 @@ deactivate
 ## Phase 7 — Create Production .env (on VPS)
 
 ```bash
-nano /var/www/loomcraft/innovation-projects/backend/.env
+nano /var/www/dreamrugscreation/innovation-projects/backend/.env
 ```
 
 Paste and fill in your values (use your **rotated** Anthropic key — the one that was previously committed in `backend/.env.example` should be treated as compromised and never used again):
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-api03-YOUR-KEY-HERE
-DATABASE_URL=sqlite:////var/www/loomcraft/innovation-projects/backend/rug_manufacture.db
+DATABASE_URL=sqlite:////var/www/dreamrugscreation/innovation-projects/backend/rug_manufacture.db
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-gmail@gmail.com
 SMTP_PASSWORD=your-16-char-gmail-app-password
 SMTP_FROM_EMAIL=your-gmail@gmail.com
-SMTP_FROM_NAME=LoomCraft AI
+SMTP_FROM_NAME=DreamRugsCreation
 JWT_SECRET=REPLACE_WITH_RANDOM_STRING
 FRONTEND_URL=https://yourdomain.com
 ```
@@ -172,7 +172,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 Secure the file:
 
 ```bash
-chmod 600 /var/www/loomcraft/innovation-projects/backend/.env
+chmod 600 /var/www/dreamrugscreation/innovation-projects/backend/.env
 ```
 
 > **Gmail App Password:** Google Account → Security → 2-Step Verification (enable) → App Passwords → create one for "Mail". Use the 16-character code as SMTP_PASSWORD.
@@ -182,7 +182,7 @@ chmod 600 /var/www/loomcraft/innovation-projects/backend/.env
 ## Phase 8 — Seed the Database (on VPS)
 
 ```bash
-cd /var/www/loomcraft/innovation-projects/backend
+cd /var/www/dreamrugscreation/innovation-projects/backend
 source venv/bin/activate
 python3 seed_data.py
 python3 seed_showcase_videos.py
@@ -190,7 +190,7 @@ deactivate
 ```
 
 This creates:
-- Admin login: `admin@loomcraft.demo` / `demo1234`
+- Admin login: `admin@dreamrugscreation.demo` / `demo1234`
 - 6 materials, 8 rugs, 3 customers, 3 quotes, 1 order
 - 5 homepage showcase videos (2 rotating in the hero slot, 3 in the "Behind the Craft" grid) — requires the video/poster files under `backend/static/showcase/` to already be synced (Phase 5)
 
@@ -198,7 +198,7 @@ This creates:
 
 > **Migrating your existing local data instead of seeding fresh:** if you'd rather bring over your local `backend/rug_manufacture.db` (real quotes/customers) instead of starting with demo data, `scp` it to the server in place of running `seed_data.py`, then run the migration scripts once to add columns added after that db was first created:
 > ```bash
-> cd /var/www/loomcraft/innovation-projects/backend && source venv/bin/activate
+> cd /var/www/dreamrugscreation/innovation-projects/backend && source venv/bin/activate
 > python3 migrate_v2_customer_auth.py
 > python3 migrate_v3_manual_discount.py
 > python3 migrate_v4_verification_and_delivery.py
@@ -218,22 +218,22 @@ This creates:
 ## Phase 9 — Create systemd Service (on VPS)
 
 ```bash
-sudo nano /etc/systemd/system/loomcraft.service
+sudo nano /etc/systemd/system/dreamrugscreation.service
 ```
 
 Paste:
 
 ```ini
 [Unit]
-Description=LoomCraft AI - FastAPI Backend
+Description=DreamRugsCreation - FastAPI Backend
 After=network.target
 
 [Service]
-User=loomcraft
-Group=loomcraft
-WorkingDirectory=/var/www/loomcraft/innovation-projects/backend
-EnvironmentFile=/var/www/loomcraft/innovation-projects/backend/.env
-ExecStart=/var/www/loomcraft/innovation-projects/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+User=dreamrugscreation
+Group=dreamrugscreation
+WorkingDirectory=/var/www/dreamrugscreation/innovation-projects/backend
+EnvironmentFile=/var/www/dreamrugscreation/innovation-projects/backend/.env
+ExecStart=/var/www/dreamrugscreation/innovation-projects/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -247,11 +247,11 @@ Enable and start:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable loomcraft
-sudo systemctl start loomcraft
+sudo systemctl enable dreamrugscreation
+sudo systemctl start dreamrugscreation
 
 # Verify it is running
-sudo systemctl status loomcraft
+sudo systemctl status dreamrugscreation
 curl http://127.0.0.1:8001/health
 # Should return: {"status":"healthy"}
 ```
@@ -263,7 +263,7 @@ curl http://127.0.0.1:8001/health
 > First, point your domain's **A record** to your server IP in hPanel → Domains → DNS.
 
 ```bash
-sudo nano /etc/nginx/sites-available/loomcraft
+sudo nano /etc/nginx/sites-available/dreamrugscreation
 ```
 
 Paste (replace `yourdomain.com`):
@@ -274,7 +274,7 @@ server {
     server_name yourdomain.com www.yourdomain.com;
 
     # React frontend
-    root /var/www/loomcraft/frontend;
+    root /var/www/dreamrugscreation/frontend;
     index index.html;
 
     location / {
@@ -337,12 +337,12 @@ server {
     # side) — it stops the browser from ever executing a served file as HTML/script
     # regardless of its extension.
     location /static/ {
-        alias /var/www/loomcraft/innovation-projects/backend/static/;
+        alias /var/www/dreamrugscreation/innovation-projects/backend/static/;
         add_header X-Content-Type-Options nosniff;
     }
 
     location /outputs/ {
-        alias /var/www/loomcraft/innovation-projects/backend/outputs/;
+        alias /var/www/dreamrugscreation/innovation-projects/backend/outputs/;
         add_header X-Content-Type-Options nosniff;
     }
 }
@@ -351,7 +351,7 @@ server {
 Enable and test:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/loomcraft /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/dreamrugscreation /etc/nginx/sites-enabled/
 sudo nginx -t
 # Must print: configuration file test is successful
 sudo systemctl reload nginx
@@ -373,9 +373,9 @@ set in the backend's `.env` (Phase 7). To turn it on:
 ```bash
 # generate a real key
 openssl rand -hex 24
-# add it to /var/www/loomcraft/innovation-projects/backend/.env:
+# add it to /var/www/dreamrugscreation/innovation-projects/backend/.env:
 #   INDIA_ACCESS_KEY=<the generated value>
-sudo systemctl restart loomcraft
+sudo systemctl restart dreamrugscreation
 ```
 
 Once set: visitors browsing from India get a 403 unless they hold the key —
@@ -418,7 +418,7 @@ curl https://yourdomain.com/api/customer/catalog | python3 -m json.tool | head -
 # Admin login
 curl -s -X POST https://yourdomain.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@loomcraft.demo","password":"demo1234"}'
+  -d '{"email":"admin@dreamrugscreation.demo","password":"demo1234"}'
 ```
 
 Open `https://yourdomain.com` in browser — app should load fully.
@@ -469,35 +469,35 @@ the origin until the year-long `max-age` expires.
 
 ### View live backend logs
 ```bash
-sudo journalctl -u loomcraft -f
+sudo journalctl -u dreamrugscreation -f
 ```
 
 ### Restart backend
 ```bash
-sudo systemctl restart loomcraft
+sudo systemctl restart dreamrugscreation
 ```
 
 ### Deploy frontend update (from Mac)
 ```bash
 cd /Applications/RugManufactureCustomApp/frontend
 npm run build
-rsync -avz frontend/dist/ root@YOUR_SERVER_IP:/var/www/loomcraft/frontend/
+rsync -avz frontend/dist/ root@YOUR_SERVER_IP:/var/www/dreamrugscreation/frontend/
 ```
 
 ### Deploy backend update (from Mac)
 ```bash
 rsync -avz --exclude '__pycache__' --exclude '*.pyc' --exclude 'venv' --exclude '.env' \
   /Applications/RugManufactureCustomApp/backend/ \
-  root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/
+  root@YOUR_SERVER_IP:/var/www/dreamrugscreation/innovation-projects/backend/
 
-ssh root@YOUR_SERVER_IP "sudo systemctl restart loomcraft"
+ssh root@YOUR_SERVER_IP "sudo systemctl restart dreamrugscreation"
 ```
 
 ### Backup the database
 ```bash
 # From Mac
-scp root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/rug_manufacture.db \
-  ~/Desktop/loomcraft-backup-$(date +%Y%m%d).db
+scp root@YOUR_SERVER_IP:/var/www/dreamrugscreation/innovation-projects/backend/rug_manufacture.db \
+  ~/Desktop/dreamrugscreation-backup-$(date +%Y%m%d).db
 ```
 
 ---
@@ -506,11 +506,11 @@ scp root@YOUR_SERVER_IP:/var/www/loomcraft/innovation-projects/backend/rug_manuf
 
 | Problem | Command to diagnose |
 |---|---|
-| Backend not responding | `sudo systemctl status loomcraft` |
-| nginx 502 Bad Gateway | `sudo journalctl -u loomcraft -n 50` |
+| Backend not responding | `sudo systemctl status dreamrugscreation` |
+| nginx 502 Bad Gateway | `sudo journalctl -u dreamrugscreation -n 50` |
 | nginx config error | `sudo nginx -t` |
 | SSL not working | `sudo certbot certificates` |
-| Permission error on uploads | `sudo chown -R loomcraft:loomcraft /var/www/loomcraft/innovation-projects/backend/uploads` |
+| Permission error on uploads | `sudo chown -R dreamrugscreation:dreamrugscreation /var/www/dreamrugscreation/innovation-projects/backend/uploads` |
 
 ---
 
