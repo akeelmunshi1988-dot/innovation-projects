@@ -101,7 +101,8 @@ async def replace_rug(
     if rug_id is not None:
         db = SessionLocal()
         try:
-            rug_record = db.query(RugCatalog).filter(RugCatalog.id == rug_id).first()
+            tenant = db.query(Tenant).first()
+            rug_record = db.query(RugCatalog).filter(RugCatalog.id == rug_id, RugCatalog.tenant_id == (tenant.id if tenant else None)).first()
             if not rug_record:
                 raise HTTPException(status_code=404, detail="Rug not found in catalog.")
             if not rug_record.image_url:
@@ -350,9 +351,10 @@ async def get_public_showcase_videos():
     from app.models.models import ShowcaseVideo
     db = SessionLocal()
     try:
+        tenant = db.query(Tenant).first()
         videos = (
             db.query(ShowcaseVideo)
-            .filter(ShowcaseVideo.is_active == True)
+            .filter(ShowcaseVideo.is_active == True, ShowcaseVideo.tenant_id == (tenant.id if tenant else None))
             .order_by(ShowcaseVideo.sort_order.asc(), ShowcaseVideo.id.asc())
             .all()
         )
@@ -382,9 +384,10 @@ async def get_public_workshop_photos():
     from app.models.models import WorkshopPhoto
     db = SessionLocal()
     try:
+        tenant = db.query(Tenant).first()
         photos = (
             db.query(WorkshopPhoto)
-            .filter(WorkshopPhoto.is_active == True)
+            .filter(WorkshopPhoto.is_active == True, WorkshopPhoto.tenant_id == (tenant.id if tenant else None))
             .order_by(WorkshopPhoto.sort_order.asc(), WorkshopPhoto.id.asc())
             .all()
         )
@@ -412,9 +415,10 @@ async def get_public_testimonials():
     from app.models.models import Testimonial
     db = SessionLocal()
     try:
+        tenant = db.query(Tenant).first()
         rows = (
             db.query(Testimonial)
-            .filter(Testimonial.is_active == True)
+            .filter(Testimonial.is_active == True, Testimonial.tenant_id == (tenant.id if tenant else None))
             .order_by(Testimonial.sort_order.asc(), Testimonial.id.asc())
             .all()
         )
@@ -445,9 +449,10 @@ async def get_public_gallery_items():
     from app.models.models import ProjectGalleryItem
     db = SessionLocal()
     try:
+        tenant = db.query(Tenant).first()
         rows = (
             db.query(ProjectGalleryItem)
-            .filter(ProjectGalleryItem.is_active == True)
+            .filter(ProjectGalleryItem.is_active == True, ProjectGalleryItem.tenant_id == (tenant.id if tenant else None))
             .order_by(ProjectGalleryItem.sort_order.asc(), ProjectGalleryItem.id.asc())
             .all()
         )
@@ -501,7 +506,8 @@ async def get_public_catalog(sort: str = Query("newest")):
     from sqlalchemy import func as sqlfunc
     db = SessionLocal()
     try:
-        q = db.query(RugCatalog).join(Material)
+        tenant = db.query(Tenant).first()
+        q = db.query(RugCatalog).join(Material).filter(RugCatalog.tenant_id == (tenant.id if tenant else None))
         if sort == "popular":
             from app.models.models import Quote as QuoteModel
             q = (
@@ -549,7 +555,8 @@ async def get_public_rug(rug_id_or_slug: str):
         return cached
     db = SessionLocal()
     try:
-        q = db.query(RugCatalog).join(Material)
+        tenant = db.query(Tenant).first()
+        q = db.query(RugCatalog).join(Material).filter(RugCatalog.tenant_id == (tenant.id if tenant else None))
         if rug_id_or_slug.isdigit():
             r = q.filter(RugCatalog.id == int(rug_id_or_slug)).first()
         else:
@@ -593,10 +600,10 @@ class EstimateRequest(BaseModel):
 async def estimate_rug_price(rug_id: int, body: EstimateRequest):
     db = SessionLocal()
     try:
-        rug = db.query(RugCatalog).filter(RugCatalog.id == rug_id).first()
+        tenant = db.query(Tenant).first()
+        rug = db.query(RugCatalog).filter(RugCatalog.id == rug_id, RugCatalog.tenant_id == (tenant.id if tenant else None)).first()
         if not rug:
             raise HTTPException(status_code=404, detail="Rug not found")
-        tenant = db.query(Tenant).filter(Tenant.id == rug.tenant_id).first() if rug.tenant_id else None
         engine = QuoteEngine(db, tenant_id=rug.tenant_id)
         result = engine.calculate_quote(
             rug_id=rug.id,
@@ -722,12 +729,11 @@ class QuoteRequestBody(BaseModel):
 async def request_quote(body: QuoteRequestBody, request: Request):
     db = SessionLocal()
     try:
-        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id).first()
+        tenant = db.query(Tenant).first()
+        tid = tenant.id if tenant else None
+        rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id, RugCatalog.tenant_id == tid).first()
         if not rug:
             raise HTTPException(status_code=404, detail="Rug not found")
-
-        tid = rug.tenant_id
-        tenant = db.query(Tenant).filter(Tenant.id == tid).first()
 
         # Prefer authenticated customer so quotes appear in My Quotes
         customer = None
@@ -1056,7 +1062,7 @@ def _price_cart_items(db: Session, tenant_id: Optional[int], items: List["CartIt
     gst_override = 0.0 if is_export else None
     priced = []
     for item in items:
-        rug = db.query(RugCatalog).filter(RugCatalog.id == item.rug_id).first()
+        rug = db.query(RugCatalog).filter(RugCatalog.id == item.rug_id, RugCatalog.tenant_id == tenant_id).first()
         if not rug:
             raise HTTPException(status_code=404, detail=f"Rug {item.rug_id} not found")
         material = db.query(Material).filter(Material.id == rug.material_id).first()
@@ -1202,9 +1208,8 @@ async def create_payment_order(body: OrderDetailsBase, request: Request):
     customer_id_hint = _customer_id_from_auth_header(request)
     db = SessionLocal()
     try:
-        first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
-        tenant_id = first_rug.tenant_id if first_rug else None
-        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+        tenant = db.query(Tenant).first()
+        tenant_id = tenant.id if tenant else None
         shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
         priced = _price_cart_items(db, tenant_id, body.items, is_export=_is_export_country(body.country))
 
@@ -1348,11 +1353,8 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             # PaymentAttempt existed) or a same-millisecond in-flight webhook we lost
             # the race to; either way, fall through and create the order normally.
 
-        first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
-        if not first_rug:
-            raise HTTPException(status_code=404, detail="Rug not found")
-        tid = first_rug.tenant_id
-        tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+        tenant = db.query(Tenant).first()
+        tid = tenant.id if tenant else None
 
         try:
             customer = _resolve_customer(db, request, tid, body)
@@ -1491,11 +1493,8 @@ class CheckoutBody(OrderDetailsBase):
 async def customer_checkout(body: CheckoutBody, request: Request):
     db = SessionLocal()
     try:
-        first_rug = db.query(RugCatalog).filter(RugCatalog.id == body.items[0].rug_id).first()
-        if not first_rug:
-            raise HTTPException(status_code=404, detail="Rug not found")
-        tid = first_rug.tenant_id
-        tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+        tenant = db.query(Tenant).first()
+        tid = tenant.id if tenant else None
 
         customer = _resolve_customer(db, request, tid, body)
         priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
