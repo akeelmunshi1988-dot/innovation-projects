@@ -197,7 +197,9 @@ def customer_me(current_customer: Customer = Depends(get_current_customer)):
 
 @router.post("/auth/customer/register", response_model=CustomerRegisterResponse, status_code=201)
 def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_db)):
-    existing = db.query(Customer).filter(Customer.email == body.email).first()
+    tenant = db.query(Tenant).first()
+    tenant_id = tenant.id if tenant else None
+    existing = db.query(Customer).filter(Customer.email == body.email, Customer.tenant_id == tenant_id).first()
     if existing:
         if existing.hashed_password:
             raise HTTPException(status_code=400, detail="An account with this email already exists. Please log in.")
@@ -219,6 +221,7 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
         customer = existing
     else:
         customer = Customer(
+            tenant_id=tenant_id,
             name=body.name,
             email=body.email,
             phone=body.phone,
