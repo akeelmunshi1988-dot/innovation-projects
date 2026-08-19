@@ -937,6 +937,22 @@ export default function Quotes() {
                           : 'No price set yet — enter the price you\'re quoting for this request'}
                       </p>
                     </div>
+
+                    {/* Shipping Cost — informational breakdown line only; the Final Price above
+                        is treated as the true total, so this doesn't get added on top of it. */}
+                    <div>
+                      <label className="block text-dark-300 text-xs uppercase tracking-wider mb-1.5">Shipping Cost (optional)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={adjustModal.shippingCost}
+                        onChange={(e) => setAdjustModal({ ...adjustModal, shippingCost: e.target.value })}
+                        placeholder="0"
+                        className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-500"
+                      />
+                      <p className="text-dark-600 text-xs mt-1">Shown to the customer as a breakdown line — already included in the Final Price above, not added on top of it.</p>
+                    </div>
                   </>
                 )}
 
