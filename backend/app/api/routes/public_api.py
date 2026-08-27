@@ -9,22 +9,29 @@ Every write here reuses the exact same helper functions the admin panel and
 storefront routes call (create_rug_row, create_material_row, etc.), so a
 partner-created row can never behave differently from one a human created.
 """
+import os
+import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_api_client
 from app.core.database import get_db
-from app.models.models import ApiClient, RugCatalog, Material, Customer, Tenant
+from app.models.models import ApiClient, RugCatalog, Material, Customer, Tenant, RugImage
 from app.schemas.schemas import (
     PublicCatalogCreate, RugCatalog as RugCatalogSchema,
     PublicMaterialCreate, Material as MaterialSchema,
     PublicRestockRequest,
     PublicQuoteCreate,
     PublicOrderCreate,
+    PublicRugImageCreate, PublicRugImageUpdate, RugImage as RugImageSchema,
 )
-from app.api.routes.catalog import create_rug_row
+from app.api.routes.catalog import (
+    create_rug_row, UPLOAD_DIR, ALLOWED_TYPES, MAX_SIZE_MB,
+    add_rug_image_row, update_rug_image_row, delete_rug_image_row, get_tenant_rug_image,
+)
 from app.api.routes.inventory import create_material_row, restock_material_row
 from app.services.quote_engine import QuoteEngine
 from app.models.models import Quote
@@ -48,6 +55,31 @@ def _resolve_or_create_customer_public(
     return customer
 
 
+@router.post("/v1/catalog/upload-image")
+async def public_upload_rug_image(
+    file: UploadFile = File(...),
+    client: ApiClient = Depends(get_api_client),
+):
+    """Same validation/storage as the admin panel's /catalog/upload-image —
+    returns a URL to pass as image_url when creating or updating a rug."""
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
+
+    contents = await file.read()
+    if len(contents) > MAX_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    filepath = os.path.join(UPLOAD_DIR, filename)
+
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return JSONResponse({"url": f"/static/rugs/{filename}"})
+
+
 @router.post("/v1/catalog", response_model=RugCatalogSchema)
 def public_create_catalog(
     body: PublicCatalogCreate,
@@ -55,6 +87,49 @@ def public_create_catalog(
     client: ApiClient = Depends(get_api_client),
 ):
     return create_rug_row(db, body.model_dump(), client.tenant_id)
+
+
+@router.post("/v1/catalog/{rug_id}/images", response_model=RugImageSchema)
+def public_add_rug_image(
+    rug_id: int,
+    body: PublicRugImageCreate,
+    db: Session = Depends(get_db),
+    client: ApiClient = Depends(get_api_client),
+):
+    """Adds a gallery photo to an existing rug — get image_url from
+    POST /v1/catalog/upload-image first. Distinct from the rug's own
+    image_url (the cover photo, set at creation) — this is the extra
+    gallery shown on the rug detail page."""
+    rug = db.query(RugCatalog).filter(RugCatalog.id == rug_id, RugCatalog.tenant_id == client.tenant_id).first()
+    if not rug:
+        raise HTTPException(status_code=404, detail="Rug not found")
+    return add_rug_image_row(db, rug_id, body.image_url, body.sort_order)
+
+
+@router.patch("/v1/catalog/images/{image_id}", response_model=RugImageSchema)
+def public_update_rug_image(
+    image_id: int,
+    body: PublicRugImageUpdate,
+    db: Session = Depends(get_db),
+    client: ApiClient = Depends(get_api_client),
+):
+    image = get_tenant_rug_image(db, image_id, client.tenant_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return update_rug_image_row(db, image, body.sort_order)
+
+
+@router.delete("/v1/catalog/images/{image_id}")
+def public_delete_rug_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    client: ApiClient = Depends(get_api_client),
+):
+    image = get_tenant_rug_image(db, image_id, client.tenant_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    delete_rug_image_row(db, image)
+    return {"message": "Image deleted successfully"}
 
 
 @router.post("/v1/materials", response_model=MaterialSchema)

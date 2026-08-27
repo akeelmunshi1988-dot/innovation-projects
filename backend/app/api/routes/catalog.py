@@ -6,7 +6,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
@@ -199,6 +199,44 @@ def delete_rug(
 
 # ── Rug gallery images ──────────────────────────────────────────────────────
 
+def add_rug_image_row(db: Session, rug_id: int, image_url: str, sort_order: int = 0) -> RugImage:
+    """Shared by POST /catalog/{rug_id}/images and the public API
+    (app/api/routes/public_api.py) so both paths add a gallery image identically.
+    Caller must have already verified the rug belongs to the right tenant."""
+    image = RugImage(rug_catalog_id=rug_id, image_url=image_url, sort_order=sort_order)
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    cache_clear("catalog")
+    return image
+
+
+def update_rug_image_row(db: Session, image: RugImage, sort_order: int) -> RugImage:
+    image.sort_order = sort_order
+    db.commit()
+    db.refresh(image)
+    cache_clear("catalog")
+    return image
+
+
+def delete_rug_image_row(db: Session, image: RugImage) -> None:
+    db.delete(image)
+    db.commit()
+    cache_clear("catalog")
+
+
+def get_tenant_rug_image(db: Session, image_id: int, tenant_id: int) -> Optional[RugImage]:
+    """Looks up a gallery image while enforcing it belongs to a rug in this
+    tenant's catalog — the join is the tenant check, since RugImage has no
+    tenant_id column of its own."""
+    return (
+        db.query(RugImage)
+        .join(RugCatalog, RugImage.rug_catalog_id == RugCatalog.id)
+        .filter(RugImage.id == image_id, RugCatalog.tenant_id == tenant_id)
+        .first()
+    )
+
+
 @router.post("/catalog/{rug_id}/images", response_model=RugImageSchema)
 def add_rug_image(
     rug_id: int,
@@ -212,12 +250,7 @@ def add_rug_image(
     ).first()
     if not rug:
         raise HTTPException(status_code=404, detail="Rug not found")
-    image = RugImage(rug_catalog_id=rug_id, image_url=body.image_url, sort_order=body.sort_order)
-    db.add(image)
-    db.commit()
-    db.refresh(image)
-    cache_clear("catalog")
-    return image
+    return add_rug_image_row(db, rug_id, body.image_url, body.sort_order)
 
 
 @router.patch("/catalog/images/{image_id}", response_model=RugImageSchema)
@@ -227,19 +260,10 @@ def update_rug_image(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    image = (
-        db.query(RugImage)
-        .join(RugCatalog, RugImage.rug_catalog_id == RugCatalog.id)
-        .filter(RugImage.id == image_id, RugCatalog.tenant_id == current_user.tenant_id)
-        .first()
-    )
+    image = get_tenant_rug_image(db, image_id, current_user.tenant_id)
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
-    image.sort_order = body.sort_order
-    db.commit()
-    db.refresh(image)
-    cache_clear("catalog")
-    return image
+    return update_rug_image_row(db, image, body.sort_order)
 
 
 @router.delete("/catalog/images/{image_id}")
@@ -248,15 +272,9 @@ def delete_rug_image(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    image = (
-        db.query(RugImage)
-        .join(RugCatalog, RugImage.rug_catalog_id == RugCatalog.id)
-        .filter(RugImage.id == image_id, RugCatalog.tenant_id == current_user.tenant_id)
-        .first()
-    )
+    image = get_tenant_rug_image(db, image_id, current_user.tenant_id)
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
-    db.delete(image)
-    db.commit()
+    delete_rug_image_row(db, image)
     cache_clear("catalog")
     return {"message": "Image deleted successfully"}

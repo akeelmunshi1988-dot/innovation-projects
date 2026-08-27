@@ -963,6 +963,14 @@ class PublicMaterialCreate(MaterialCreate):
     pass
 
 
+class PublicRugImageCreate(RugImageCreate):
+    pass
+
+
+class PublicRugImageUpdate(RugImageUpdate):
+    pass
+
+
 class PublicRestockRequest(BaseModel):
     qty_meters: float = Field(..., gt=0)
     notes: Optional[str] = Field(None, max_length=500)
