@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Mail,
   Tag,
+  Key,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
@@ -50,6 +51,7 @@ const navItems: NavItem[] = [
   { path: '/admin/orders', label: 'Orders', icon: <ShoppingBag size={18} /> },
   { path: '/admin/inventory', label: 'Inventory', icon: <Package size={18} /> },
   { path: '/admin/customers', label: 'Customers', icon: <Users size={18} /> },
+  { path: '/admin/api-access', label: 'API Access', icon: <Key size={18} /> },
   { path: '/', label: 'Customer Shop', icon: <Store size={18} /> },
   ...(FEATURE_FLAGS.SHOW_BILLING ? [{ path: '/admin/billing', label: 'Billing', icon: <CreditCard size={18} /> }] : []),
   { path: '/admin/settings', label: 'Settings', icon: <Settings size={18} /> },

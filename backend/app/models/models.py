@@ -509,3 +509,49 @@ class RefreshToken(Base):
         # traffic is modest.
         Index("ix_refresh_tokens_user", "user_type", "user_id", "revoked_at"),
     )
+
+
+class PendingAiAction(Base):
+    """A write the AI assistant (app/services/ai_agent.py) wants to make, staged
+    for a human to review before it touches real data. A write tool never calls
+    db.commit() on the target table directly — it only ever creates one of these
+    rows; the actual create/update/delete happens in the confirm endpoint
+    (app/api/routes/chat.py), reusing the exact same helper functions the normal
+    admin-panel routes call, so AI-confirmed and human-typed writes can never
+    diverge in behavior."""
+    __tablename__ = "pending_ai_actions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    session_id = Column(String(100), nullable=True)
+    action_type = Column(String(20), nullable=False)   # "create" | "update" | "delete"
+    entity_type = Column(String(30), nullable=False)   # "rug_catalog" | "material" | "promo_code"
+    entity_id = Column(Integer, nullable=True)          # target row id for update/delete; null for create
+    payload = Column(JSON, nullable=False)               # proposed field values, validated against the entity's Pydantic schema before this row is created
+    summary = Column(Text, nullable=False)                # human-readable one-liner shown on the confirm card
+    status = Column(String(20), nullable=False, default="pending")  # "pending" | "confirmed" | "rejected"
+    created_by_staff_id = Column(Integer, ForeignKey("staff_users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_pending_ai_actions_tenant_status", "tenant_id", "status"),
+    )
+
+
+class ApiClient(Base):
+    """A partner/integration credential for the public API (app/api/routes/public_api.py).
+    Auth is a single opaque key sent as X-Api-Key — like RefreshToken, only its
+    hash is ever stored; the raw key is shown to the vendor exactly once, at
+    creation time, and can never be retrieved again."""
+    __tablename__ = "api_clients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String(150), nullable=False)  # vendor-given label, e.g. "Partner ERP sync"
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)  # SHA-256 hex digest
+    key_prefix = Column(String(16), nullable=False)  # first chars of the raw key, shown in the UI for identification
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)

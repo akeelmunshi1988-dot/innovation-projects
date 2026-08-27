@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
 from app.core.slugify import unique_rug_slug
-from app.models.models import RugCatalog, RugImage, Material, StaffUser
+from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant
 from app.schemas.schemas import (
     RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
     RugImageCreate, RugImageUpdate, RugImage as RugImageSchema,
@@ -120,27 +120,49 @@ def get_rug(
     return rug
 
 
+def create_rug_row(db: Session, data: dict, tenant_id: int) -> RugCatalog:
+    """Shared by POST /catalog and the AI-assistant confirm endpoint
+    (app/api/routes/chat.py) so both paths create a rug identically."""
+    material = db.query(Material).filter(
+        Material.id == data.get("material_id"),
+        Material.tenant_id == tenant_id,
+    ).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    data = dict(data)
+    data["base_price_currency"] = data.get("base_price_currency") or (tenant.base_currency if tenant else None)
+    slug = unique_rug_slug(db, data["name"], tenant_id)
+    db_rug = RugCatalog(**data, tenant_id=tenant_id, slug=slug)
+    db.add(db_rug)
+    db.commit()
+    db.refresh(db_rug)
+    cache_clear("catalog")
+    return db_rug
+
+
+def update_rug_row(db: Session, rug: RugCatalog, updates: dict) -> RugCatalog:
+    for field, value in updates.items():
+        setattr(rug, field, value)
+    db.commit()
+    db.refresh(rug)
+    cache_clear("catalog")
+    return rug
+
+
+def delete_rug_row(db: Session, rug: RugCatalog) -> None:
+    db.delete(rug)
+    db.commit()
+    cache_clear("catalog")
+
+
 @router.post("/catalog", response_model=RugCatalogSchema)
 def create_rug(
     rug: RugCatalogCreate,
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    material = db.query(Material).filter(
-        Material.id == rug.material_id,
-        Material.tenant_id == current_user.tenant_id,
-    ).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
-    data = rug.model_dump()
-    data['base_price_currency'] = data.get('base_price_currency') or current_user.tenant.base_currency
-    slug = unique_rug_slug(db, rug.name, current_user.tenant_id)
-    db_rug = RugCatalog(**data, tenant_id=current_user.tenant_id, slug=slug)
-    db.add(db_rug)
-    db.commit()
-    db.refresh(db_rug)
-    cache_clear("catalog")
-    return db_rug
+    return create_rug_row(db, rug.model_dump(), current_user.tenant_id)
 
 
 @router.put("/catalog/{rug_id}", response_model=RugCatalogSchema)
@@ -156,12 +178,7 @@ def update_rug(
     ).first()
     if not rug:
         raise HTTPException(status_code=404, detail="Rug not found")
-    for field, value in rug_update.model_dump(exclude_unset=True).items():
-        setattr(rug, field, value)
-    db.commit()
-    db.refresh(rug)
-    cache_clear("catalog")
-    return rug
+    return update_rug_row(db, rug, rug_update.model_dump(exclude_unset=True))
 
 
 @router.delete("/catalog/{rug_id}")
@@ -176,9 +193,7 @@ def delete_rug(
     ).first()
     if not rug:
         raise HTTPException(status_code=404, detail="Rug not found")
-    db.delete(rug)
-    db.commit()
-    cache_clear("catalog")
+    delete_rug_row(db, rug)
     return {"message": "Rug deleted successfully"}
 
 

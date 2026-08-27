@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; case \"$f\" in *frontend/src/*.ts|*frontend/src/*.tsx) export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd /Applications/RugManufactureCustomApp/frontend && npx tsc --noEmit ;; esac; }; true",
+            "timeout": 60,
+            "statusMessage": "Type-checking frontend (tsc --noEmit)..."
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; case \"$f\" in *backend/app/*.py|*backend/migrate_*.py) cd /Applications/RugManufactureCustomApp/backend && source venv/bin/activate && python3 -m py_compile \"$f\" ;; esac; }; true",
+            "timeout": 30,
+            "statusMessage": "Checking Python syntax (py_compile)..."
+          }
+        ]
+      }
+    ]
+  }
+}

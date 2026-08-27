@@ -11,6 +11,9 @@ import type {
   QuoteCalculateRequest,
   QuoteCalculateResponse,
   ChatMessage,
+  PendingAiAction,
+  ApiClient,
+  ApiClientCreated,
   DashboardStats,
   EmailTemplate,
   ShowcaseVideo,
@@ -511,11 +514,43 @@ export const updateEmailTemplate = async (
 export const sendChat = async (
   messages: ChatMessage[],
   sessionId?: string
-): Promise<{ response: string; session_id: string }> => {
+): Promise<{ response: string; session_id: string; pending_actions: PendingAiAction[] }> => {
   const { data } = await api.post('/chat', {
     messages,
     session_id: sessionId,
   });
+  return data;
+};
+
+export const getPendingAiActions = async (): Promise<PendingAiAction[]> => {
+  const { data } = await api.get<PendingAiAction[]>('/chat/pending-actions');
+  return data;
+};
+
+export const confirmAiAction = async (id: number): Promise<PendingAiAction> => {
+  const { data } = await api.post<PendingAiAction>(`/chat/pending-actions/${id}/confirm`);
+  return data;
+};
+
+export const rejectAiAction = async (id: number): Promise<PendingAiAction> => {
+  const { data } = await api.post<PendingAiAction>(`/chat/pending-actions/${id}/reject`);
+  return data;
+};
+
+// ── Public API clients ──────────────────────────────────────────────────────────
+
+export const getApiClients = async (): Promise<ApiClient[]> => {
+  const { data } = await api.get<ApiClient[]>('/api-clients');
+  return data;
+};
+
+export const createApiClient = async (name: string): Promise<ApiClientCreated> => {
+  const { data } = await api.post<ApiClientCreated>('/api-clients', { name });
+  return data;
+};
+
+export const revokeApiClient = async (id: number): Promise<{ message: string }> => {
+  const { data } = await api.delete(`/api-clients/${id}`);
   return data;
 };
 

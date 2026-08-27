@@ -56,6 +56,7 @@ const Testimonials = lazy(() => import('./pages/Testimonials'));
 const ProjectGallery = lazy(() => import('./pages/ProjectGallery'));
 const NewsletterSubscribers = lazy(() => import('./pages/NewsletterSubscribers'));
 const PromoCodes = lazy(() => import('./pages/PromoCodes'));
+const ApiAccess = lazy(() => import('./pages/ApiAccess'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 import { FEATURE_FLAGS } from './config/featureFlags';
 
@@ -123,6 +124,7 @@ function App() {
                     <Route path="customers" element={<Customers />} />
                     <Route path="quotes" element={<Quotes />} />
                     <Route path="promo-codes" element={<PromoCodes />} />
+                    <Route path="api-access" element={<ApiAccess />} />
                     {FEATURE_FLAGS.SHOW_BILLING && <Route path="billing" element={<BillingSettings />} />}
                     <Route path="settings" element={<BusinessSettings />} />
                     <Route path="*" element={<Navigate to="/admin" replace />} />

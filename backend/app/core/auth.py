@@ -1,18 +1,18 @@
 import hashlib
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import StaffUser, Customer, RefreshToken
+from app.models.models import StaffUser, Customer, RefreshToken, ApiClient
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 oauth2_customer_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/customer/login")
@@ -173,3 +173,30 @@ def get_current_customer(
     if customer is None:
         raise credentials_error
     return customer
+
+
+API_KEY_PREFIX = "rug_live_"
+
+
+def generate_api_key() -> tuple[str, str, str]:
+    """Returns (raw_key, key_hash, key_prefix). Only the raw key is ever shown to
+    the vendor, exactly once, at creation time — never store or log it."""
+    raw_key = API_KEY_PREFIX + secrets.token_urlsafe(32)
+    return raw_key, _hash_token(raw_key), raw_key[:len(API_KEY_PREFIX) + 6]
+
+
+def get_api_client(
+    x_api_key: Optional[str] = Header(None, alias="X-Api-Key"),
+    db: Session = Depends(get_db),
+) -> ApiClient:
+    """Authenticates a public-API (app/api/routes/public_api.py) request via a
+    single opaque key sent as X-Api-Key — see generate_api_key()."""
+    error = HTTPException(status_code=401, detail="Missing or invalid X-Api-Key header")
+    if not x_api_key:
+        raise error
+    client = db.query(ApiClient).filter(ApiClient.key_hash == _hash_token(x_api_key)).first()
+    if not client or not client.is_active or client.revoked_at is not None:
+        raise error
+    client.last_used_at = datetime.now(timezone.utc)
+    db.commit()
+    return client

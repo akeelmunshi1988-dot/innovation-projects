@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.models import Material, InventoryTransaction, StaffUser
@@ -50,19 +50,47 @@ def get_material(
     return material
 
 
+def create_material_row(db: Session, data: dict, tenant_id: int) -> Material:
+    """Shared by POST /inventory and the AI-assistant confirm endpoint
+    (app/api/routes/chat.py) so both paths create a material identically."""
+    from app.models.models import Tenant
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    data = dict(data)
+    data["cost_currency"] = data.get("cost_currency") or (tenant.base_currency if tenant else None)
+    db_material = Material(**data, tenant_id=tenant_id)
+    db.add(db_material)
+    db.commit()
+    db.refresh(db_material)
+    return db_material
+
+
+def update_material_row(db: Session, material: Material, updates: dict) -> Material:
+    for field, value in updates.items():
+        setattr(material, field, value)
+    db.commit()
+    db.refresh(material)
+    return material
+
+
+def delete_material_row(db: Session, material: Material) -> None:
+    try:
+        db.delete(material)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete: this material is used by one or more rugs. Remove it from the catalog first.",
+        )
+
+
 @router.post("/inventory", response_model=MaterialSchema)
 def create_material(
     material: MaterialCreate,
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    data = material.model_dump()
-    data['cost_currency'] = data.get('cost_currency') or current_user.tenant.base_currency
-    db_material = Material(**data, tenant_id=current_user.tenant_id)
-    db.add(db_material)
-    db.commit()
-    db.refresh(db_material)
-    return db_material
+    return create_material_row(db, material.model_dump(), current_user.tenant_id)
 
 
 @router.put("/inventory/{material_id}", response_model=MaterialSchema)
@@ -78,11 +106,7 @@ def update_material(
     ).first()
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
-    for field, value in material_update.model_dump(exclude_unset=True).items():
-        setattr(material, field, value)
-    db.commit()
-    db.refresh(material)
-    return material
+    return update_material_row(db, material, material_update.model_dump(exclude_unset=True))
 
 
 @router.delete("/inventory/{material_id}", status_code=204)
@@ -97,15 +121,29 @@ def delete_material(
     ).first()
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
-    try:
-        db.delete(material)
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Cannot delete: this material is used by one or more rugs. Remove it from the catalog first.",
-        )
+    delete_material_row(db, material)
+
+
+def restock_material_row(db: Session, material: Material, qty_meters: float, tenant_id: int, notes: Optional[str] = None) -> Material:
+    """Shared by POST /inventory/{id}/restock and the public API
+    (app/api/routes/public_api.py) so both paths restock identically."""
+    if qty_meters <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be positive")
+
+    material.stock_meters += qty_meters
+    material.is_available = True
+
+    transaction = InventoryTransaction(
+        material_id=material.id,
+        tenant_id=tenant_id,
+        qty_change=qty_meters,
+        transaction_type="restock",
+        notes=notes or f"Restocked {qty_meters} meters",
+    )
+    db.add(transaction)
+    db.commit()
+    db.refresh(material)
+    return material
 
 
 @router.post("/inventory/{material_id}/restock", response_model=MaterialSchema)
@@ -122,23 +160,7 @@ def restock_material(
     ).first()
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
-    if qty_meters <= 0:
-        raise HTTPException(status_code=400, detail="Quantity must be positive")
-
-    material.stock_meters += qty_meters
-    material.is_available = True
-
-    transaction = InventoryTransaction(
-        material_id=material_id,
-        tenant_id=current_user.tenant_id,
-        qty_change=qty_meters,
-        transaction_type="restock",
-        notes=notes or f"Restocked {qty_meters} meters",
-    )
-    db.add(transaction)
-    db.commit()
-    db.refresh(material)
-    return material
+    return restock_material_row(db, material, qty_meters, current_user.tenant_id, notes)
 
 
 @router.get("/inventory/{material_id}/transactions", response_model=List[InventoryTransactionSchema])

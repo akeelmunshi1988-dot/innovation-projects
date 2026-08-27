@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Send, Sparkles, AlertCircle } from 'lucide-react';
+import { Send, Sparkles, AlertCircle, Check, X } from 'lucide-react';
 import ChatMessage from '../components/ChatMessage';
-import { sendChat } from '../services/api';
-import type { ChatMessage as ChatMessageType } from '../types';
+import { sendChat, getPendingAiActions, confirmAiAction, rejectAiAction } from '../services/api';
+import type { ChatMessage as ChatMessageType, PendingAiAction } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 const SUGGESTED_QUESTIONS = [
@@ -13,8 +13,8 @@ const SUGGESTED_QUESTIONS = [
   "How long for rush delivery?",
   "Show me the full rug catalog with prices",
   "What bulk discounts do we offer?",
-  "Is Tibetan wool available and how much?",
-  "What are our pricing rules?",
+  "Add a new material: Merino wool, cream, ₹1200/sqm",
+  "Create a 15% off promo code called WELCOME15",
 ];
 
 const AIAssistant: React.FC = () => {
@@ -24,6 +24,8 @@ const AIAssistant: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const [pendingActions, setPendingActions] = useState<PendingAiAction[]>([]);
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -34,6 +36,32 @@ const AIAssistant: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    getPendingAiActions().then(setPendingActions).catch(() => {});
+  }, []);
+
+  const mergePendingActions = (fresh: PendingAiAction[]) => {
+    if (!fresh.length) return;
+    setPendingActions((prev) => {
+      const byId = new Map(prev.map((a) => [a.id, a]));
+      for (const a of fresh) byId.set(a.id, a);
+      return Array.from(byId.values());
+    });
+  };
+
+  const resolveAction = async (id: number, confirm: boolean) => {
+    setResolvingId(id);
+    try {
+      const updated = confirm ? await confirmAiAction(id) : await rejectAiAction(id);
+      setPendingActions((prev) => prev.map((a) => (a.id === id ? updated : a)).filter((a) => a.status === 'pending'));
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      setError(apiErr?.response?.data?.detail ?? 'Failed to update this action. Please try again.');
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -50,11 +78,12 @@ const AIAssistant: React.FC = () => {
       const result = await sendChat(newMessages, sessionId);
       setSessionId(result.session_id);
       setMessages([...newMessages, { role: 'assistant', content: result.response }]);
+      mergePendingActions(result.pending_actions ?? []);
     } catch (err: unknown) {
       const apiErr = err as { response?: { data?: { detail?: string } } };
       const detail = apiErr?.response?.data?.detail;
-      if (detail?.includes('ANTHROPIC_API_KEY')) {
-        setError('The ANTHROPIC_API_KEY is not configured in the backend. Please add it to the .env file.');
+      if (detail?.includes('OPENAI_API_KEY')) {
+        setError('The OPENAI_API_KEY is not configured in the backend. Please add it to the .env file.');
       } else {
         setError(detail ?? 'Failed to get a response from the AI. Please try again.');
       }
@@ -90,7 +119,7 @@ const AIAssistant: React.FC = () => {
           <div>
             <h1 className="text-cream-100 font-bold">AI Business Assistant</h1>
             <p className="text-dark-400 text-xs">
-              Queries real business data · Never fabricates prices
+              Queries real business data · Can propose catalog/material/promo changes — nothing goes live until you confirm it
             </p>
           </div>
         </div>
@@ -106,8 +135,9 @@ const AIAssistant: React.FC = () => {
             <div className="space-y-2">
               <h2 className="text-cream-100 text-xl font-bold">{user?.tenant.name ?? 'Business'} AI Assistant</h2>
               <p className="text-dark-400 text-sm max-w-md">
-                Ask me anything about our rug catalog, pricing, material availability, or production timelines.
-                I query our live business database — no guessing.
+                Ask me anything about our rug catalog, pricing, material availability, or production timelines —
+                I query our live business database, no guessing. I can also draft changes to the catalog,
+                materials, and promo codes; every draft waits for your confirmation before it takes effect.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-xl w-full">
@@ -142,6 +172,40 @@ const AIAssistant: React.FC = () => {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Pending AI actions — proposed writes awaiting confirmation. Nothing
+          the assistant proposes takes effect until confirmed here. */}
+      {pendingActions.length > 0 && (
+        <div className="px-6 py-3 border-t border-dark-700 space-y-2 flex-shrink-0 max-h-56 overflow-y-auto">
+          <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">
+            Awaiting your confirmation ({pendingActions.length})
+          </p>
+          {pendingActions.map((action) => (
+            <div
+              key={action.id}
+              className="flex items-center justify-between gap-3 bg-dark-800 border border-gold-600/30 rounded-lg px-3 py-2.5"
+            >
+              <p className="text-cream-200 text-sm">{action.summary}</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => resolveAction(action.id, true)}
+                  disabled={resolvingId === action.id}
+                  className="flex items-center gap-1 text-xs font-medium text-green-400 hover:text-green-300 bg-green-900/20 hover:bg-green-900/30 border border-green-700/40 rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                >
+                  <Check size={13} /> Confirm
+                </button>
+                <button
+                  onClick={() => resolveAction(action.id, false)}
+                  disabled={resolvingId === action.id}
+                  className="flex items-center gap-1 text-xs font-medium text-dark-300 hover:text-red-300 bg-dark-700 hover:bg-red-900/20 border border-dark-600 hover:border-red-700/40 rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                >
+                  <X size={13} /> Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Suggested questions (shown when there are messages) */}
       {messages.length > 0 && !isLoading && (

@@ -278,6 +278,30 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ApiClient {
+  id: number;
+  name: string;
+  key_prefix: string;
+  is_active: boolean;
+  created_at: string | null;
+  last_used_at: string | null;
+}
+
+export interface ApiClientCreated extends ApiClient {
+  api_key: string;
+}
+
+export interface PendingAiAction {
+  id: number;
+  action_type: 'create' | 'update' | 'delete';
+  entity_type: 'rug_catalog' | 'material' | 'promo_code';
+  entity_id: number | null;
+  payload: Record<string, unknown>;
+  summary: string;
+  status: 'pending' | 'confirmed' | 'rejected';
+  created_at: string | null;
+}
+
 export interface DashboardStats {
   total_orders: number;
   total_revenue: number;

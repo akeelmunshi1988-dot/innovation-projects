@@ -753,9 +753,24 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
 
 
+class PendingAiAction(BaseModel):
+    id: int
+    action_type: str
+    entity_type: str
+    entity_id: Optional[int] = None
+    payload: dict
+    summary: str
+    status: str
+    created_at: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ChatResponse(BaseModel):
     response: str
     session_id: str
+    pending_actions: List[PendingAiAction] = []
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -913,3 +928,67 @@ class NewsletterSubscriber(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Public API clients ──────────────────────────────────────────────────────────
+
+class ApiClientCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+
+
+class ApiClient(BaseModel):
+    id: int
+    name: str
+    key_prefix: str
+    is_active: bool
+    created_at: Optional[Any] = None
+    last_used_at: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ApiClientCreated(ApiClient):
+    """Returned only once, at creation time — the raw key is never retrievable again."""
+    api_key: str
+
+
+# ── Public API request bodies (app/api/routes/public_api.py) ───────────────────
+
+class PublicCatalogCreate(RugCatalogCreate):
+    pass
+
+
+class PublicMaterialCreate(MaterialCreate):
+    pass
+
+
+class PublicRestockRequest(BaseModel):
+    qty_meters: float = Field(..., gt=0)
+    notes: Optional[str] = Field(None, max_length=500)
+
+
+class PublicQuoteItem(BaseModel):
+    rug_id: int
+    size_w: float = Field(..., gt=0, le=50)
+    size_h: float = Field(..., gt=0, le=50)
+    qty: int = Field(1, ge=1, le=10000)
+    rush_order: bool = False
+    shape: str = "rect"
+
+
+class PublicQuoteCreate(BaseModel):
+    customer_name: str = Field(..., min_length=1, max_length=200)
+    customer_email: EmailStr
+    customer_phone: Optional[str] = Field(None, max_length=20)
+    item: PublicQuoteItem
+
+
+class PublicOrderCreate(BaseModel):
+    customer_name: str = Field(..., min_length=1, max_length=200)
+    customer_email: EmailStr
+    customer_phone: Optional[str] = Field(None, max_length=20)
+    shipping_address: str = Field(..., min_length=5, max_length=1000)
+    country: str = Field("India", max_length=100)
+    items: List[PublicQuoteItem] = Field(..., min_length=1)
+    external_reference: Optional[str] = Field(None, max_length=100, description="The partner system's own id for this sale, for reconciliation.")

@@ -29,26 +29,55 @@ def get_promo_codes(
     return [_with_used_count(db, p) for p in promos]
 
 
+def create_promo_row(db: Session, data: dict, tenant_id: int) -> PromoCode:
+    """Shared by POST /promo-codes and the AI-assistant confirm endpoint
+    (app/api/routes/chat.py) so both paths create a promo code identically."""
+    normalized = data["code"].strip().upper()
+    existing = db.query(PromoCode).filter(
+        PromoCode.tenant_id == tenant_id, PromoCode.code == normalized,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f'A promo code "{normalized}" already exists.')
+
+    data = dict(data)
+    data["code"] = normalized
+    promo = PromoCode(**data, tenant_id=tenant_id)
+    db.add(promo)
+    db.commit()
+    db.refresh(promo)
+    return _with_used_count(db, promo)
+
+
+def update_promo_row(db: Session, promo: PromoCode, updates: dict, tenant_id: int) -> PromoCode:
+    updates = dict(updates)
+    if "code" in updates:
+        normalized = updates["code"].strip().upper()
+        dupe = db.query(PromoCode).filter(
+            PromoCode.tenant_id == tenant_id, PromoCode.code == normalized, PromoCode.id != promo.id,
+        ).first()
+        if dupe:
+            raise HTTPException(status_code=400, detail=f'A promo code "{normalized}" already exists.')
+        updates["code"] = normalized
+
+    for field, value in updates.items():
+        setattr(promo, field, value)
+    db.commit()
+    db.refresh(promo)
+    return _with_used_count(db, promo)
+
+
+def delete_promo_row(db: Session, promo: PromoCode) -> None:
+    db.delete(promo)
+    db.commit()
+
+
 @router.post("/promo-codes", response_model=PromoCodeSchema)
 def create_promo_code(
     body: PromoCodeCreate,
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    normalized = body.code.strip().upper()
-    existing = db.query(PromoCode).filter(
-        PromoCode.tenant_id == current_user.tenant_id, PromoCode.code == normalized,
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail=f'A promo code "{normalized}" already exists.')
-
-    data = body.model_dump()
-    data["code"] = normalized
-    promo = PromoCode(**data, tenant_id=current_user.tenant_id)
-    db.add(promo)
-    db.commit()
-    db.refresh(promo)
-    return _with_used_count(db, promo)
+    return create_promo_row(db, body.model_dump(), current_user.tenant_id)
 
 
 @router.put("/promo-codes/{promo_id}", response_model=PromoCodeSchema)
@@ -63,22 +92,7 @@ def update_promo_code(
     ).first()
     if not promo:
         raise HTTPException(status_code=404, detail="Promo code not found")
-
-    updates = body.model_dump(exclude_unset=True)
-    if "code" in updates:
-        normalized = updates["code"].strip().upper()
-        dupe = db.query(PromoCode).filter(
-            PromoCode.tenant_id == current_user.tenant_id, PromoCode.code == normalized, PromoCode.id != promo_id,
-        ).first()
-        if dupe:
-            raise HTTPException(status_code=400, detail=f'A promo code "{normalized}" already exists.')
-        updates["code"] = normalized
-
-    for field, value in updates.items():
-        setattr(promo, field, value)
-    db.commit()
-    db.refresh(promo)
-    return _with_used_count(db, promo)
+    return update_promo_row(db, promo, body.model_dump(exclude_unset=True), current_user.tenant_id)
 
 
 @router.delete("/promo-codes/{promo_id}")
@@ -92,6 +106,5 @@ def delete_promo_code(
     ).first()
     if not promo:
         raise HTTPException(status_code=404, detail="Promo code not found")
-    db.delete(promo)
-    db.commit()
+    delete_promo_row(db, promo)
     return {"message": "Promo code deleted successfully"}

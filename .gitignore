@@ -34,4 +34,4 @@ frontend/dist/
 
 # IDE
 .vscode/
-.claude/
+.claude/settings.local.json
