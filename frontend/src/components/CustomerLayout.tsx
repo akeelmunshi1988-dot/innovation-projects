@@ -52,6 +52,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [showCookieBanner, setShowCookieBanner] = useState(false);
+  const [infoBarDismissed, setInfoBarDismissed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const { displayCurrency, setDisplayCurrency, availableCurrencies } = useCurrency();
@@ -164,25 +165,46 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className={`fixed top-0 left-0 right-0 z-40 bg-white transition-shadow duration-300 ${scrolled ? 'shadow-[0_1px_0_0_#e7e5e0]' : 'border-b border-stone-100'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-[70px] flex items-center gap-8">
+        {/* Top announcement bar — dismissible */}
+        {!infoBarDismissed && (
+          <div className="relative flex items-center justify-center gap-6 bg-stone-900 text-stone-200 text-xs tracking-wide px-10 h-8">
+            <span className="truncate">Handcrafted, made to order — every rug, every size.</span>
+            {(contactPhones[0] || contactAddress) && (
+              <span className="hidden md:flex items-center gap-6 text-stone-400 flex-shrink-0">
+                {contactAddress && (
+                  <span className="inline-flex items-center gap-1.5"><MapPin size={11} /> Visit Us</span>
+                )}
+                {contactPhones[0] && (
+                  <a href={`tel:${contactPhones[0]}`} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
+                    <Phone size={11} /> {contactPhones[0]}
+                  </a>
+                )}
+              </span>
+            )}
+            <button
+              onClick={() => setInfoBarDismissed(true)}
+              aria-label="Dismiss"
+              className="absolute right-3 text-stone-400 hover:text-white transition-colors"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
 
-          {/* Brand */}
-          <Link to="/" className="flex-shrink-0 inline-flex items-center -ml-3">
-            <BrandLockup className="font-serif text-xl font-medium tracking-wide text-[#85501b]" markSize={46} />
-          </Link>
+        <div className="relative max-w-7xl mx-auto px-6 h-[70px] flex items-center gap-8">
 
-          {/* Desktop nav — centered */}
-          <nav className="hidden md:flex items-center gap-7 flex-1 justify-center">
+          {/* Desktop nav — left */}
+          <nav className="hidden md:flex items-center gap-7">
             {NAV.map((n) => {
               const active = location.pathname === n.path;
               return (
                 <Link
                   key={n.path}
                   to={n.path}
-                  className={`text-sm tracking-wide transition-colors pb-0.5 ${
+                  className={`storefront-nav-link border-b ${
                     active
-                      ? 'text-stone-900 border-b border-stone-900'
-                      : 'text-stone-500 hover:text-stone-900 border-b border-transparent hover:border-stone-300'
+                      ? 'text-stone-900 border-stone-900'
+                      : 'text-stone-500 hover:text-stone-900 border-transparent hover:border-stone-300'
                   }`}
                 >
                   {n.label}
@@ -190,6 +212,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
               );
             })}
           </nav>
+
+          {/* Brand — centered on desktop, left-aligned on mobile */}
+          <Link
+            to="/"
+            className="inline-flex items-center -ml-3 md:absolute md:left-1/2 md:-ml-0 md:-translate-x-1/2"
+          >
+            <BrandLockup className="font-serif text-xl font-medium tracking-wide text-[#85501b]" markSize={46} />
+          </Link>
 
           {/* Right area */}
           <div className="hidden md:flex items-center gap-5 ml-auto">
@@ -294,7 +324,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
             <Link
               to="/catalog"
-              className="bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-5 py-2.5 transition-colors"
+              className="storefront-cta-solid px-5 py-2.5"
             >
               Shop Now
             </Link>
@@ -383,7 +413,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                   Sign In
                 </Link>
                 <Link to="/catalog"
-                  className="text-center bg-stone-900 text-white text-xs tracking-widest uppercase font-medium py-3 transition-colors"
+                  className="storefront-cta-solid text-center py-3"
                 >
                   Shop Now
                 </Link>
@@ -394,11 +424,44 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       </header>
 
       {/* Page content */}
-      <main className="flex-1 pt-[70px]">{children}</main>
+      <main className={`flex-1 ${infoBarDismissed ? 'pt-[70px]' : 'pt-[102px]'}`}>{children}</main>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-stone-50 border-t border-stone-200 mt-24">
-        <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 gap-10">
+
+        {/* Newsletter band */}
+        <div className="border-b border-stone-200 py-16 text-center px-6">
+          <h2 className="storefront-heading text-3xl mb-2">Let us inspire you</h2>
+          <p className="text-stone-500 text-sm mb-6">New collections, workshop stories, and offers — straight to your inbox.</p>
+          {newsletterStatus === 'done' ? (
+            <p className="flex items-center justify-center gap-1.5 text-stone-600 text-sm">
+              <Check size={14} /> Thanks — you're subscribed.
+            </p>
+          ) : (
+            <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto flex gap-0">
+              <input
+                type="email"
+                required
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                placeholder="Enter email address"
+                className="flex-1 min-w-0 bg-white border border-stone-300 focus:border-stone-500 px-4 py-3 text-stone-900 placeholder-stone-400 text-sm focus:outline-none transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={newsletterStatus === 'submitting'}
+                className="storefront-cta-solid inline-flex items-center gap-2 px-5 flex-shrink-0"
+              >
+                Sign Up <Send size={13} />
+              </button>
+            </form>
+          )}
+          {newsletterStatus === 'error' && (
+            <p className="text-red-500 text-xs mt-2">Something went wrong — please try again.</p>
+          )}
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="space-y-4">
             <img src={FOOTER_LOGO_URL} alt={businessName ?? 'Dream Rugs Creation'} className="w-[200px] h-auto" />
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -419,7 +482,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           </div>
 
           <div className="space-y-4">
-            <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">Collection</p>
+            <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">Shop</p>
             <div className="space-y-2.5">
               {[
                 { to: '/catalog', label: 'All Rugs' },
@@ -454,41 +517,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 </Link>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest flex items-center gap-1.5">
-              <Mail size={12} /> Newsletter
-            </p>
-            <p className="text-stone-500 text-sm leading-relaxed">
-              New collections, workshop stories, and offers — straight to your inbox.
-            </p>
-            {newsletterStatus === 'done' ? (
-              <p className="flex items-center gap-1.5 text-stone-600 text-sm">
-                <Check size={14} /> Thanks — you're subscribed.
-              </p>
-            ) : (
-              <form onSubmit={handleNewsletterSubmit} className="flex gap-0">
-                <input
-                  type="email"
-                  required
-                  value={newsletterEmail}
-                  onChange={(e) => setNewsletterEmail(e.target.value)}
-                  placeholder="Your email"
-                  className="flex-1 min-w-0 bg-white border border-stone-300 focus:border-stone-500 px-3 py-2.5 text-stone-900 placeholder-stone-400 text-sm focus:outline-none transition-colors"
-                />
-                <button
-                  type="submit"
-                  disabled={newsletterStatus === 'submitting'}
-                  className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-4 py-2.5 flex-shrink-0 transition-colors"
-                >
-                  <Send size={14} />
-                </button>
-              </form>
-            )}
-            {newsletterStatus === 'error' && (
-              <p className="text-red-500 text-xs mt-1.5">Something went wrong — please try again.</p>
-            )}
           </div>
         </div>
 

@@ -12,6 +12,9 @@ import SizesEditor from '../components/SizesEditor';
 
 const PILE_OPTIONS   = ['low', 'medium', 'high', 'flat'];
 const WEAVE_OPTIONS  = ['hand-knotted', 'hand-tufted', 'flatweave', 'machine-woven'];
+const ROOM_TYPE_OPTIONS = ['living_room', 'bedroom', 'dining_room', 'entryway'];
+const MOOD_TAG_OPTIONS  = ['warm_earthy', 'quiet_luxury', 'modern_minimal', 'bohemian', 'bold_artistic', 'timeless_traditional'];
+const tagLabel = (v: string) => v.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 const typeColors: Record<string, string> = {
   wool:      'bg-amber-900/40 text-amber-300 border-amber-700/40',
@@ -41,12 +44,14 @@ type FormData = {
   lead_time_days: string;
   image_url: string;
   sizes: CatalogSize[];
+  room_types: string[];
+  mood_tags: string[];
 };
 
 const BLANK: FormData = {
   name: '', description: '', about_content_html: '', material_id: '', base_price: '', base_price_currency: '',
   pile_height: 'medium', weave_type: 'hand-knotted',
-  lead_time_days: '21', image_url: '', sizes: [],
+  lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [],
 };
 
 function rugToForm(r: RugCatalog): FormData {
@@ -62,6 +67,8 @@ function rugToForm(r: RugCatalog): FormData {
     lead_time_days: String(r.lead_time_days),
     image_url: r.image_url ?? '',
     sizes: r.sizes,
+    room_types: r.room_types ?? [],
+    mood_tags: r.mood_tags ?? [],
   };
 }
 
@@ -153,6 +160,12 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
   const set = (field: keyof FormData, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
 
+  const toggleTag = (field: 'room_types' | 'mood_tags', value: string) =>
+    setForm((f) => ({
+      ...f,
+      [field]: f[field].includes(value) ? f[field].filter((v) => v !== value) : [...f[field], value],
+    }));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -169,6 +182,8 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       lead_time_days:      parseInt(form.lead_time_days) || 21,
       image_url:           form.image_url.trim() || null,
       sizes:               form.sizes.filter((s) => s.ft.trim()).map((s) => ({ ft: s.ft.trim(), cm: s.cm?.trim() || null })),
+      room_types:          form.room_types,
+      mood_tags:           form.mood_tags,
     };
     try {
       const saved = editing
@@ -399,6 +414,30 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
 
           {/* Sizes */}
           <SizesEditor value={form.sizes} onChange={(sizes) => setForm((f) => ({ ...f, sizes }))} />
+
+          {/* Shop by Space / Shop by Mood tags */}
+          <div className="space-y-1.5">
+            <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Shop by Space</label>
+            <div className="flex flex-wrap gap-1.5">
+              {ROOM_TYPE_OPTIONS.map((v) => (
+                <button key={v} type="button" onClick={() => toggleTag('room_types', v)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.room_types.includes(v) ? 'border-gold-600/50 bg-gold-600/10 text-gold-400' : 'border-dark-700 text-dark-400 hover:text-cream-300'}`}>
+                  {tagLabel(v)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Shop by Mood</label>
+            <div className="flex flex-wrap gap-1.5">
+              {MOOD_TAG_OPTIONS.map((v) => (
+                <button key={v} type="button" onClick={() => toggleTag('mood_tags', v)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.mood_tags.includes(v) ? 'border-gold-600/50 bg-gold-600/10 text-gold-400' : 'border-dark-700 text-dark-400 hover:text-cream-300'}`}>
+                  {tagLabel(v)}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Image */}
           <div className="space-y-1.5">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, ArrowDown, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -27,18 +27,12 @@ interface CatalogRug {
   weave_type: string;
   pile_height: string;
   image_url: string | null;
+  images: { id: number; image_url: string; sort_order: number }[];
   base_price_per_sqm: number;
   lead_time_days: number;
   sizes: CatalogSize[];
   available: boolean;
 }
-
-const MATERIALS = [
-  { id: 'wool',      label: 'Wool',      desc: 'Warm, durable, naturally stain-resistant',   image: '/rugs/rug-beni-ourain.jpg' },
-  { id: 'silk',      label: 'Silk',      desc: 'Lustrous, formal spaces, exceptional sheen',  image: '/rugs/rug-tabriz.jpg' },
-  { id: 'cotton',    label: 'Cotton',    desc: 'Casual, easy-care, vibrant colours',           image: '/rugs/rug-geometric.jpg' },
-  { id: 'synthetic', label: 'Synthetic', desc: 'Stain-proof, outdoor, budget-friendly',        image: '/rugs/rug-outdoor.jpg' },
-];
 
 const SHOW_HERO = true;
 const SHOW_FEATURED_RUGS = false;
@@ -65,7 +59,7 @@ const HOW = [
 ];
 
 const WHY_LOOMCRAFT = [
-  { stat: '30+', label: 'Years Craftsmanship', desc: 'Three decades weaving for discerning homes and hospitality brands worldwide.' },
+  { stat: '20+', label: 'Years Craftsmanship', desc: 'Two decades weaving for discerning homes and hospitality brands worldwide.' },
   { stat: '100%', label: 'Artisan-Made', desc: 'Every rug is hand-knotted by skilled weavers — no machine shortcuts.' },
   { stat: 'MTO', label: 'Made-to-Order', desc: 'Every size and every colourway is woven specifically for your space.' },
   { stat: 'Export', label: 'Export Quality', desc: 'Rigorous quality control meets the standards of international buyers.' },
@@ -73,8 +67,38 @@ const WHY_LOOMCRAFT = [
 
 const TRUST_BAR = ['Handmade', 'Custom Sizes', 'Worldwide Shipping', 'Family Workshop', 'Sustainable Materials'];
 
+const SHOP_TABS = [
+  { key: 'space' as const, label: 'Shop by Space' },
+  { key: 'mood' as const, label: 'Shop by Mood' },
+  { key: 'material' as const, label: 'Shop by Material' },
+];
+
+const ROOM_TYPES = [
+  { v: 'living_room', label: 'Living Room', image: '/static/shop-by-space/living_room.jpg' },
+  { v: 'bedroom', label: 'Bedroom', image: '/static/shop-by-space/bedroom.jpg' },
+  { v: 'dining_room', label: 'Dining Room', image: '/static/shop-by-space/dining_room.jpg' },
+  { v: 'entryway', label: 'Entryway', image: '/static/shop-by-space/entryway.jpg' },
+];
+
+const MATERIAL_TEXTURES = [
+  { id: 'wool', label: 'Wool', desc: 'Warm, durable, naturally stain-resistant', image: '/static/materials/wool.jpg' },
+  { id: 'silk', label: 'Silk', desc: 'Lustrous, formal spaces, exceptional sheen', image: '/static/materials/silk.jpg' },
+  { id: 'cotton', label: 'Cotton', desc: 'Casual, easy-care, vibrant colours', image: '/static/materials/cotton.jpg' },
+  { id: 'synthetic', label: 'Synthetic', desc: 'Stain-proof, outdoor, budget-friendly', image: '/static/materials/synthetic.jpg' },
+];
+
+const MOOD_TAGS = [
+  { v: 'warm_earthy', label: 'Warm & Earthy' },
+  { v: 'quiet_luxury', label: 'Quiet Luxury' },
+  { v: 'modern_minimal', label: 'Modern Minimal' },
+  { v: 'bohemian', label: 'Bohemian' },
+  { v: 'bold_artistic', label: 'Bold & Artistic' },
+  { v: 'timeless_traditional', label: 'Timeless Traditional' },
+];
+
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
+  const [catalogTotal, setCatalogTotal] = useState(0);
   const [sort, setSort] = useState<'newest' | 'popular'>('newest');
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
@@ -90,12 +114,13 @@ export default function CustomerHome() {
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
   const [gallerySlide, setGallerySlide] = useState(0);
   const [testimonialSlide, setTestimonialSlide] = useState(0);
+  const [shopTab, setShopTab] = useState<'space' | 'mood' | 'material'>('space');
   const { displayPrice } = useCurrency();
 
   useEffect(() => {
     setCatalogLoading(true);
-    axios.get('/api/customer/catalog', { params: { sort } })
-      .then(({ data }) => setCatalog(data))
+    axios.get('/api/customer/catalog', { params: { sort, limit: 20 } })
+      .then(({ data }) => { setCatalog(data.items); setCatalogTotal(data.total); })
       .catch(() => {})
       .finally(() => setCatalogLoading(false));
   }, [sort]);
@@ -188,69 +213,56 @@ export default function CustomerHome() {
         jsonLd={organizationJsonLd}
       />
 
-      {/* ── HERO (full-bleed cinematic image, text overlaid) ─────────────── */}
+      {/* ── HERO (full-bleed image, opaque card overlay bottom-left) ─────── */}
       {SHOW_HERO && (
-        <section className="relative w-full overflow-hidden min-h-[640px] flex items-end">
-          {heroImage ? (
-            <img
-              src={heroImage}
-              alt="Handcrafted rug"
-              className="absolute inset-0 w-full h-full object-cover"
-              fetchPriority="high"
-              loading="eager"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-stone-100 flex items-center justify-center">
-              <div className="w-10 h-10 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 to-stone-900/25" />
+        <>
+          <section className="relative w-full overflow-hidden min-h-[640px] flex items-end">
+            {heroImage ? (
+              <img
+                src={heroImage}
+                alt="Handcrafted rug"
+                className="absolute inset-0 w-full h-full object-cover"
+                fetchPriority="high"
+                loading="eager"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-stone-100 flex items-center justify-center">
+                <div className="w-10 h-10 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
+              </div>
+            )}
 
-          <div className="relative max-w-7xl mx-auto px-6 pb-16 pt-32 w-full">
-            <div className="max-w-xl space-y-7">
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-200 font-medium">
-                Handcrafted Custom Rugs · Worldwide Shipping
-              </p>
-              <h1 className="font-serif text-6xl md:text-7xl font-light text-white leading-[1.05] tracking-tight">
-                Handcrafted Rugs.<br />
-                Made for <em className="font-normal not-italic">Timeless</em> Spaces.
-              </h1>
-              <p className="text-stone-200 text-lg leading-relaxed max-w-md">
-                Every rug made to your exact size and specification, from India's finest workshops. Custom dimensions, premium materials, delivered to your door.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-wrap items-center gap-4">
-                <Link
-                  to="/catalog"
-                  className="inline-flex items-center gap-3 bg-white hover:bg-stone-100 text-stone-900 text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
-                >
+            <div className="relative w-full px-6 lg:px-16 pb-0">
+              <div className="bg-cream-200 max-w-md p-10 space-y-5 -mb-px">
+                <p className="storefront-eyebrow">Handcrafted Custom Rugs</p>
+                <h1 className="storefront-heading text-4xl md:text-5xl">
+                  Made for <em className="font-normal not-italic">Timeless</em> Spaces.
+                </h1>
+                <p className="text-stone-500 leading-relaxed">
+                  Every rug made to your exact size and specification, from India's finest workshops.
+                </p>
+                <Link to="/catalog" className="storefront-link-arrow">
                   Explore Collection <ArrowRight size={14} />
                 </Link>
-                <Link
-                  to="/custom-rug-request"
-                  className="inline-flex items-center gap-3 border border-white/50 hover:border-white text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
-                >
-                  Request Custom Rug
-                </Link>
-              </div>
-
-              {/* Stats */}
-              <div className="flex gap-10 pt-4 border-t border-white/20">
-                {[
-                  { v: `${catalog.length || 8}+`, l: 'Designs' },
-                  { v: '4',     l: 'Materials' },
-                  { v: '7–60', l: 'Day Delivery' },
-                ].map((s) => (
-                  <div key={s.l}>
-                    <p className="font-serif text-2xl text-white font-light">{s.v}</p>
-                    <p className="text-stone-300 text-xs uppercase tracking-wider mt-0.5">{s.l}</p>
-                  </div>
-                ))}
               </div>
             </div>
+          </section>
+
+          {/* Stat strip */}
+          <div className="border-b border-stone-100">
+            <div className="max-w-7xl mx-auto px-6 py-6 flex flex-wrap gap-10 justify-center sm:justify-start">
+              {[
+                { v: `${catalogTotal || 8}+`, l: 'Designs' },
+                { v: '4',     l: 'Materials' },
+                { v: '7–60', l: 'Day Delivery' },
+              ].map((s) => (
+                <div key={s.l}>
+                  <p className="font-serif text-2xl text-stone-900 font-light">{s.v}</p>
+                  <p className="text-stone-400 text-xs uppercase tracking-wider mt-0.5">{s.l}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </section>
+        </>
       )}
 
       {/* ── TRUST BAR ──────────────────────────────────────────────────── */}
@@ -273,37 +285,16 @@ export default function CustomerHome() {
 
               {/* Description */}
               <div className="space-y-6">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Our Craft</p>
-                <h2 className="font-serif text-4xl font-light text-stone-900 leading-tight">
-                  Where tradition meets<br />precision
-                </h2>
-                <p className="text-stone-500 leading-relaxed">
+                <p className="font-serif text-2xl md:text-3xl font-light text-stone-900 leading-snug">
                   Every rug that leaves our workshop passes through the hands of master weavers
-                  who have spent years perfecting their craft. We blend time-honoured
-                  techniques — hand-knotting, natural dyeing, meticulous finishing — with
-                  rigorous quality control at every stage, so each piece meets the standards
-                  discerning buyers expect: consistent weave density, accurate sizing, and
-                  colourfast dyes.
+                  who have spent years perfecting their craft — hand-knotting, natural dyeing,
+                  and meticulous finishing, checked for weave density, accurate sizing, and
+                  colourfast dyes before anything ships.
                 </p>
-                <p className="text-stone-500 leading-relaxed">
-                  From raw fibre to finished rug, nothing ships until it earns our mark of approval.
-                </p>
-                <ul className="space-y-2 pt-2">
-                  {['Hand-knotted, made to order', 'Natural, colourfast dyes', 'Quality-checked before dispatch'].map((f) => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm text-stone-600">
-                      <span className="w-1 h-1 rounded-full bg-stone-400 flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="flex flex-wrap items-center gap-4 pt-2">
-                  <Link
-                    to="/catalog"
-                    className="inline-flex items-center gap-3 bg-stone-900 hover:bg-stone-800 text-white text-xs tracking-widest uppercase font-medium px-8 py-4 transition-colors"
-                  >
-                    Explore Collection <ArrowRight size={14} />
-                  </Link>
+                <Link to="/catalog" className="storefront-link-arrow">
+                  Explore Collection <ArrowRight size={14} />
+                </Link>
+                <div>
                   <Link
                     to="/visualizer"
                     className="text-sm text-stone-600 hover:text-stone-900 transition-colors border-b border-stone-300 hover:border-stone-900 pb-0.5"
@@ -351,6 +342,136 @@ export default function CustomerHome() {
         </section>
       )}
 
+      {/* ── SHOP BY SPACE / MOOD / MATERIAL (tabbed) ─────────────────────── */}
+      <section className="bg-stone-50 border-y border-stone-100 py-20">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="storefront-eyebrow mb-2">Find Your Fit</p>
+            <h2 className="storefront-heading text-4xl mb-8">Shop the Way You Like</h2>
+
+            <div className="inline-flex items-center gap-1 p-1.5 bg-white border border-stone-200 rounded-full shadow-sm">
+              {SHOP_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setShopTab(t.key)}
+                  className={`px-6 py-2.5 rounded-full text-xs font-medium tracking-[0.15em] uppercase transition-all duration-300 ${
+                    shopTab === t.key
+                      ? 'bg-stone-900 text-white shadow-md'
+                      : 'text-stone-500 hover:text-stone-900'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {shopTab === 'space' && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {ROOM_TYPES.map((s) => (
+                <Link
+                  key={s.v}
+                  to={`/catalog?room_type=${s.v}`}
+                  className="group relative overflow-hidden bg-cream-200 aspect-square flex items-center justify-center text-center p-6"
+                >
+                  <img
+                    src={s.image}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover scale-100 group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-stone-900/35 group-hover:bg-stone-900/45 transition-colors duration-500" />
+                  <span className="relative font-serif text-xl font-light text-white">{s.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {shopTab === 'mood' && (
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {MOOD_TAGS.map((m) => (
+                <Link
+                  key={m.v}
+                  to={`/catalog?mood=${m.v}`}
+                  className="storefront-cta-outline bg-white px-5 py-2.5"
+                >
+                  {m.label}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {shopTab === 'material' && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {MATERIAL_TEXTURES.map((mat) => (
+                <Link
+                  key={mat.id}
+                  to={`/catalog?material=${mat.id}`}
+                  className="group relative overflow-hidden bg-cream-200 aspect-square flex items-center justify-center text-center p-6"
+                >
+                  <img
+                    src={mat.image}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover scale-100 group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-stone-900/35 group-hover:bg-stone-900/45 transition-colors duration-500" />
+                  <div className="relative space-y-2">
+                    <p className="font-serif text-xl font-light text-white">{mat.label}</p>
+                    <p className="text-stone-200 text-xs leading-relaxed">{mat.desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── LATEST TRENDING RUG DESIGNS ──────────────────────────────────── */}
+      {catalog.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 py-20">
+          <h2 className="storefront-heading text-4xl text-center mb-12">Latest Trending Rug Designs</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10">
+            {catalog.slice(0, 5).map((rug) => (
+              <Link key={rug.id} to={`/catalog/${rug.slug}`} className="group block">
+                <div className="relative overflow-hidden bg-stone-100 aspect-[3/4.5]">
+                  {rug.image_url ? (
+                    <>
+                      <img
+                        src={rug.image_url}
+                        alt={rug.name}
+                        loading="lazy"
+                        className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
+                      />
+                      {rug.images?.length > 0 && (
+                        <img
+                          src={rug.images[0].image_url}
+                          alt=""
+                          aria-hidden="true"
+                          loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Layers size={28} className="text-stone-300" />
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4 space-y-1 text-center">
+                  <h3 className="font-serif text-base font-light text-stone-900 leading-snug">{rug.name}</h3>
+                  <p className="text-stone-500 text-sm">
+                    From {displayPrice(rug.base_price_per_sqm)}<span className="text-stone-400 text-xs">/m²</span>
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── WHY US ─────────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="mb-12 max-w-2xl">
@@ -359,7 +480,7 @@ export default function CustomerHome() {
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-stone-200">
           {WHY_LOOMCRAFT.map((w) => (
-            <div key={w.label} className="bg-white p-8 space-y-2">
+            <div key={w.label} className="bg-cream-200 p-8 space-y-2">
               <p className="font-serif text-3xl font-light text-stone-900">{w.stat}</p>
               <p className="text-stone-900 text-sm font-medium">{w.label}</p>
               <p className="text-stone-500 text-xs leading-relaxed">{w.desc}</p>
@@ -472,31 +593,41 @@ export default function CustomerHome() {
         </section>
       )}
 
-      {/* ── INSIDE THE WORKSHOP ───────────────────────────────────────── */}
+      {/* ── INSIDE THE WORKSHOP (editorial bento mosaic) ─────────────────── */}
       {!SHOW_FEATURED_RUGS && workshopPhotos.length > 0 && (
-        <section className="max-w-7xl mx-auto px-6 py-20">
-          <div className="mb-12 max-w-2xl">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Behind the Scenes</p>
-            <h2 className="font-serif text-4xl font-light text-stone-900 mb-4">Inside the Workshop</h2>
+        <section className="max-w-7xl mx-auto px-6 py-24">
+          <div className="mb-14 max-w-2xl">
+            <p className="storefront-eyebrow mb-2">Behind the Scenes</p>
+            <h2 className="storefront-heading text-4xl mb-4">Inside the Workshop</h2>
             <p className="text-stone-500 leading-relaxed">
               A look at the people and process behind every rug — from raw fibre
               to the finished piece that reaches your door.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {workshopPhotos.map((p) => (
-              <div key={p.id} className="group relative overflow-hidden bg-stone-100 aspect-[4/3]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 auto-rows-[180px] lg:auto-rows-[220px] gap-4">
+            {workshopPhotos.map((p, i) => (
+              <div
+                key={p.id}
+                className={`group relative overflow-hidden bg-stone-100 ${
+                  i === 0 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-1'
+                }`}
+              >
                 <img
                   src={p.image_url}
                   alt={p.caption}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  className="w-full h-full object-cover scale-100 group-hover:scale-[1.06] transition-transform duration-[1200ms] ease-out"
                   loading="lazy"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-stone-900/80 via-stone-900/10 to-transparent">
-                  <p className="text-white font-serif text-lg font-light">{p.caption}</p>
-                  {p.description && <p className="text-stone-300 text-xs mt-0.5">{p.description}</p>}
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/85 via-stone-950/5 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute bottom-0 left-0 right-0 p-5">
+                  <p className={`text-white font-serif font-light ${i === 0 ? 'text-2xl' : 'text-base'}`}>{p.caption}</p>
+                  {p.description && (
+                    <p className="text-stone-300 text-xs tracking-wide mt-1 max-w-xs opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                      {p.description}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -504,53 +635,36 @@ export default function CustomerHome() {
         </section>
       )}
 
-      {/* ── MATERIALS ─────────────────────────────────────────────────── */}
-      <section className="bg-stone-50 border-y border-stone-100 py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-12">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Materials</p>
-            <h2 className="font-serif text-4xl font-light text-stone-900">Shop by Material</h2>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-stone-200">
-            {MATERIALS.map((m) => (
-              <Link
-                key={m.id}
-                to={`/catalog?material=${m.id}`}
-                className="group relative overflow-hidden bg-white p-8 space-y-3 hover:bg-stone-50 transition-colors"
-              >
-                <img
-                  src={m.image}
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-15 transition-opacity duration-300 pointer-events-none"
-                />
-                <p className="relative font-serif text-2xl font-light text-stone-900">{m.label}</p>
-                <p className="relative text-stone-500 text-sm leading-relaxed">{m.desc}</p>
-                <p className="relative text-xs text-stone-400 group-hover:text-stone-900 transition-colors flex items-center gap-1.5 pt-2">
-                  Browse {m.label} <ArrowRight size={11} />
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CUSTOM RUG JOURNEY ────────────────────────────────────────── */}
+      {/* ── CUSTOM RUG JOURNEY (connected step flow) ─────────────────────── */}
       <section className="max-w-7xl mx-auto px-6 py-20">
-        <div className="mb-12">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">The Process</p>
-          <h2 className="font-serif text-4xl font-light text-stone-900">Custom Rug Journey</h2>
+        <div className="text-center mb-16">
+          <p className="storefront-eyebrow mb-2">The Process</p>
+          <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
-          {HOW.map((step) => (
-            <div key={step.n} className="-m-6 p-6 space-y-4 rounded hover:bg-stone-50 transition-colors">
-              <p className="font-serif text-5xl font-light text-stone-200">{step.n}</p>
-              <h3 className="text-stone-900 font-medium text-base">{step.title}</h3>
-              <p className="text-stone-500 text-sm leading-relaxed">{step.desc}</p>
-            </div>
+        <div className="flex flex-col lg:flex-row items-stretch">
+          {HOW.map((step, i) => (
+            <React.Fragment key={step.n}>
+              <div className="flex-1 flex flex-col items-center text-center bg-cream-200 px-5 py-8">
+                <div className="w-14 h-14 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-lg flex-shrink-0">
+                  {step.n}
+                </div>
+                <h3 className="text-stone-900 font-medium text-base mt-5">{step.title}</h3>
+                <p className="text-stone-500 text-sm leading-relaxed mt-2 max-w-[220px]">{step.desc}</p>
+              </div>
+
+              {i < HOW.length - 1 && (
+                <>
+                  <div className="hidden lg:flex items-center justify-center flex-shrink-0 w-10 pt-7">
+                    <ArrowRight size={18} className="text-stone-300" />
+                  </div>
+                  <div className="flex lg:hidden items-center justify-center flex-shrink-0 h-10">
+                    <ArrowDown size={18} className="text-stone-300" />
+                  </div>
+                </>
+              )}
+            </React.Fragment>
           ))}
         </div>
       </section>
@@ -768,7 +882,7 @@ export default function CustomerHome() {
       {/* ── VISUALIZER CTA ────────────────────────────────────────────── */}
       <section className="bg-stone-50 border-y border-stone-100 py-20">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="border border-stone-200 bg-white p-12 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="bg-cream-200 p-12 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-3 text-center md:text-left">
               <p className="text-xs tracking-[0.2em] uppercase text-stone-400">AI Room Visualizer</p>
               <h2 className="font-serif text-4xl font-light text-stone-900">

@@ -63,6 +63,8 @@ class RugCatalogBase(BaseModel):
     image_url: Optional[str] = None
     profit_margin_pct: Optional[float] = None
     hsn_code: Optional[str] = "5703"
+    room_types: Optional[List[str]] = None
+    mood_tags: Optional[List[str]] = None
 
 
 class RugCatalogCreate(RugCatalogBase):
@@ -83,6 +85,8 @@ class RugCatalogUpdate(BaseModel):
     image_url: Optional[str] = None
     profit_margin_pct: Optional[float] = None
     hsn_code: Optional[str] = None
+    room_types: Optional[List[str]] = None
+    mood_tags: Optional[List[str]] = None
 
 
 class RugImage(BaseModel):
@@ -771,6 +775,17 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
     pending_actions: List[PendingAiAction] = []
+
+
+class AiChatMessage(BaseModel):
+    id: int
+    session_id: Optional[str] = None
+    role: str
+    content: str
+    created_at: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────

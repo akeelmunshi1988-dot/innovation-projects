@@ -158,7 +158,7 @@ export default function CustomerCustomRugRequest() {
         <SEO title="Custom Rug Request Received" description="Your custom rug request has been received." noindex />
         <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-5">
           <CheckCircle size={44} className="text-green-600 mx-auto" />
-          <h1 className="font-serif text-3xl font-light text-stone-900">Request Received</h1>
+          <h1 className="storefront-heading text-3xl">Request Received</h1>
           <p className="text-stone-500 text-sm leading-relaxed">{submitted.message}</p>
           {submitted.quote_ids.length > 1 && (
             <p className="text-stone-400 text-xs">
@@ -203,8 +203,8 @@ export default function CustomerCustomRugRequest() {
         </div>
 
         <div className="pb-6 border-b border-stone-100">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Bespoke Design</p>
-          <h1 className="font-serif text-4xl font-light text-stone-900">Request a Custom Rug</h1>
+          <p className="storefront-eyebrow mb-2">Bespoke Design</p>
+          <h1 className="storefront-heading text-4xl">Request a Custom Rug</h1>
           <p className="text-stone-500 text-sm mt-3 leading-relaxed max-w-lg">
             No catalog item in mind? Tell us about your space and vision — size, material, colors,
             budget — and our team will get back to you with a personalized quote within 24–48 hours.
@@ -372,7 +372,7 @@ export default function CustomerCustomRugRequest() {
           <button
             type="submit"
             disabled={submitting || rugs.some((r) => r.uploading)}
-            className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2"
+            className="w-full storefront-cta-solid py-4 transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? (
               <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />

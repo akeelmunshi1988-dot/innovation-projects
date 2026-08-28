@@ -498,8 +498,17 @@ async def subscribe_newsletter(body: NewsletterSubscribeBody):
 
 
 @router.get("/customer/catalog")
-async def get_public_catalog(sort: str = Query("newest")):
-    cache_key = f"list:{sort}"
+async def get_public_catalog(
+    sort: str = Query("newest"),
+    room_type: str = Query(None),
+    mood: str = Query(None),
+    material: str = Query(None),
+    pile: str = Query(None),
+    search: str = Query(None),
+    limit: int = Query(12, ge=1, le=60),
+    offset: int = Query(0, ge=0),
+):
+    cache_key = f"list:{sort}:{room_type or ''}:{mood or ''}:{material or ''}:{pile or ''}:{(search or '').lower()}:{limit}:{offset}"
     cached = cache_get("catalog", cache_key)
     if cached is not None:
         return cached
@@ -508,6 +517,14 @@ async def get_public_catalog(sort: str = Query("newest")):
     try:
         tenant = db.query(Tenant).first()
         q = db.query(RugCatalog).join(Material).filter(RugCatalog.tenant_id == (tenant.id if tenant else None))
+        if material and material != "all":
+            q = q.filter(Material.type == material)
+        if pile and pile != "all":
+            q = q.filter(RugCatalog.pile_height == pile)
+        if search:
+            like = f"%{search}%"
+            q = q.filter(sqlfunc.lower(RugCatalog.name).like(sqlfunc.lower(like)) | sqlfunc.lower(RugCatalog.description).like(sqlfunc.lower(like)))
+
         if sort == "popular":
             from app.models.models import Quote as QuoteModel
             q = (
@@ -515,10 +532,24 @@ async def get_public_catalog(sort: str = Query("newest")):
                 .group_by(RugCatalog.id)
                 .order_by(sqlfunc.count(QuoteModel.id).desc())
             )
+        elif sort == "price-asc":
+            q = q.order_by(RugCatalog.base_price.asc())
+        elif sort == "price-desc":
+            q = q.order_by(RugCatalog.base_price.desc())
+        elif sort == "lead-asc":
+            q = q.order_by(RugCatalog.lead_time_days.asc())
         else:
             q = q.order_by(RugCatalog.id.desc())
+
         rugs = q.all()
-        result = [
+        if room_type and room_type != "all":
+            rugs = [r for r in rugs if room_type in (r.room_types or [])]
+        if mood and mood != "all":
+            rugs = [r for r in rugs if mood in (r.mood_tags or [])]
+
+        total = len(rugs)
+        page = rugs[offset:offset + limit]
+        items = [
             {
                 "id": r.id,
                 "slug": r.slug,
@@ -533,10 +564,14 @@ async def get_public_catalog(sort: str = Query("newest")):
                 "base_price_currency": r.base_price_currency,
                 "lead_time_days": r.lead_time_days,
                 "image_url": r.image_url,
+                "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
+                "room_types": r.room_types or [],
+                "mood_tags": r.mood_tags or [],
                 "available": r.material.is_available,
             }
-            for r in rugs
+            for r in page
         ]
+        result = {"items": items, "total": total, "has_more": offset + limit < total}
         cache_set("catalog", result, cache_key)
         return result
     finally:
@@ -580,6 +615,8 @@ async def get_public_rug(rug_id_or_slug: str):
             "lead_time_days": r.lead_time_days,
             "image_url": r.image_url,
             "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
+            "room_types": r.room_types or [],
+            "mood_tags": r.mood_tags or [],
             "available": r.material.is_available,
         }
         cache_set("catalog", result, cache_key)

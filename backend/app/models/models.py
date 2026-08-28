@@ -115,6 +115,8 @@ class RugCatalog(Base):
     image_url = Column(String(300), nullable=True)
     profit_margin_pct = Column(Float, nullable=True)
     hsn_code = Column(String(10), nullable=True, default="5703")  # HSN 5701-5705 for rugs
+    room_types = Column(JSON, nullable=True)  # list[str] — "Shop by Space" tags, e.g. ["living_room", "bedroom"]
+    mood_tags = Column(JSON, nullable=True)  # list[str] — "Shop by Mood" tags, e.g. ["warm_earthy", "quiet_luxury"]
 
     material = relationship("Material", back_populates="rugs")
     quotes = relationship("Quote", back_populates="rug_catalog")
@@ -555,3 +557,24 @@ class ApiClient(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AiChatMessage(Base):
+    """One turn of the vendor AI Assistant conversation (app/services/ai_agent.py),
+    persisted for history/audit — the frontend only holds the live conversation
+    in memory, so this is the only durable record of what was asked and answered.
+    Named AiChatMessage (not ChatMessage) to avoid clashing with the Pydantic
+    request/response schema of the same short name in schemas.py."""
+    __tablename__ = "ai_chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    session_id = Column(String(100), nullable=True, index=True)
+    staff_id = Column(Integer, ForeignKey("staff_users.id"), nullable=True)
+    role = Column(String(20), nullable=False)  # "user" | "assistant"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_ai_chat_messages_tenant_session", "tenant_id", "session_id", "created_at"),
+    )

@@ -74,8 +74,10 @@ export function detectCurrencyFromLocale(): string | null {
 }
 
 export function fmt(n: number, currency = 'INR', fractions = 0): string {
-  const locale = LOCALE_MAP[currency] ?? 'en-IN';
-  return new Intl.NumberFormat(locale, {
+  // Always format with a period decimal separator and comma thousands separator,
+  // regardless of currency — some of LOCALE_MAP's native locales (e.g. de-DE for
+  // EUR) use a comma decimal separator instead, which read as a display bug here.
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
     maximumFractionDigits: fractions,

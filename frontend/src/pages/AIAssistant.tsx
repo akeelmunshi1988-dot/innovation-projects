@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Send, Sparkles, AlertCircle, Check, X } from 'lucide-react';
+import { Send, Sparkles, AlertCircle, Check, X, MessageSquare, History, ArrowLeft, RefreshCw, PlayCircle } from 'lucide-react';
 import ChatMessage from '../components/ChatMessage';
-import { sendChat, getPendingAiActions, confirmAiAction, rejectAiAction } from '../services/api';
-import type { ChatMessage as ChatMessageType, PendingAiAction } from '../types';
+import { sendChat, getPendingAiActions, confirmAiAction, rejectAiAction, getChatSessions, getChatHistory } from '../services/api';
+import type { ChatMessage as ChatMessageType, PendingAiAction, AiChatSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 const SUGGESTED_QUESTIONS = [
@@ -26,6 +26,12 @@ const AIAssistant: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<PendingAiAction[]>([]);
   const [resolvingId, setResolvingId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
+  const [sessions, setSessions] = useState<AiChatSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [historyMessages, setHistoryMessages] = useState<ChatMessageType[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -61,6 +67,43 @@ const AIAssistant: React.FC = () => {
     } finally {
       setResolvingId(null);
     }
+  };
+
+  const loadSessions = async () => {
+    setSessionsLoading(true);
+    try {
+      setSessions(await getChatSessions());
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  const openTab = (tab: 'chat' | 'history') => {
+    setActiveTab(tab);
+    if (tab === 'history') {
+      setSelectedSessionId(null);
+      loadSessions();
+    }
+  };
+
+  const viewSession = async (id: string) => {
+    setSelectedSessionId(id);
+    setHistoryLoading(true);
+    try {
+      const rows = await getChatHistory(id);
+      // API returns newest-first; the transcript should read chronologically
+      const chronological = [...rows].reverse();
+      setHistoryMessages(chronological.map((r) => ({ role: r.role, content: r.content })));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const continueSession = () => {
+    if (!selectedSessionId) return;
+    setMessages(historyMessages);
+    setSessionId(selectedSessionId);
+    setActiveTab('chat');
   };
 
   const sendMessage = async (text: string) => {
@@ -112,19 +155,102 @@ const AIAssistant: React.FC = () => {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-dark-700 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gold-600/20 border border-gold-600/40 rounded-full flex items-center justify-center">
-            <Sparkles size={18} className="text-gold-400" />
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gold-600/20 border border-gold-600/40 rounded-full flex items-center justify-center">
+              <Sparkles size={18} className="text-gold-400" />
+            </div>
+            <div>
+              <h1 className="text-cream-100 font-bold">AI Business Assistant</h1>
+              <p className="text-dark-400 text-xs">
+                Queries real business data · Can propose catalog/material/promo changes — nothing goes live until you confirm it
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-cream-100 font-bold">AI Business Assistant</h1>
-            <p className="text-dark-400 text-xs">
-              Queries real business data · Can propose catalog/material/promo changes — nothing goes live until you confirm it
-            </p>
+          <div className="flex border border-dark-600 rounded-lg overflow-hidden flex-shrink-0">
+            <button
+              onClick={() => openTab('chat')}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 transition-colors ${
+                activeTab === 'chat' ? 'bg-gold-600 text-dark-950' : 'text-dark-300 hover:bg-dark-700'
+              }`}
+            >
+              <MessageSquare size={13} /> Chat
+            </button>
+            <button
+              onClick={() => openTab('history')}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 transition-colors border-l border-dark-600 ${
+                activeTab === 'history' ? 'bg-gold-600 text-dark-950' : 'text-dark-300 hover:bg-dark-700'
+              }`}
+            >
+              <History size={13} /> History
+            </button>
           </div>
         </div>
       </div>
 
+      {activeTab === 'history' ? (
+        <div className="flex-1 overflow-y-auto p-6">
+          {selectedSessionId ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setSelectedSessionId(null)}
+                  className="flex items-center gap-1.5 text-sm text-dark-300 hover:text-cream-200 transition-colors"
+                >
+                  <ArrowLeft size={14} /> Back to conversations
+                </button>
+                <button onClick={continueSession} className="btn-primary flex items-center gap-2 text-xs px-3 py-1.5">
+                  <PlayCircle size={13} /> Continue this conversation
+                </button>
+              </div>
+              {historyLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {historyMessages.map((msg, idx) => (
+                    <ChatMessage key={idx} role={msg.role} content={msg.content} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">Past conversations</p>
+                <button onClick={loadSessions} className="btn-secondary flex items-center gap-1.5 text-xs px-2.5 py-1.5">
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              </div>
+              {sessionsLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <History size={32} className="text-dark-600" />
+                  <p className="text-dark-400 text-sm">No past conversations yet.</p>
+                </div>
+              ) : (
+                sessions.map((s) => (
+                  <button
+                    key={s.session_id}
+                    onClick={() => viewSession(s.session_id)}
+                    className="w-full text-left bg-dark-800 hover:bg-dark-700 border border-dark-600 hover:border-gold-600/50 rounded-lg px-4 py-3 transition-colors"
+                  >
+                    <p className="text-cream-200 text-sm truncate">{s.preview || '(no preview)'}</p>
+                    <p className="text-dark-500 text-xs mt-1">
+                      {s.message_count} message{s.message_count !== 1 ? 's' : ''} · {new Date(s.last_message_at).toLocaleString()}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && !isLoading && (
@@ -251,6 +377,8 @@ const AIAssistant: React.FC = () => {
           Press Enter to send · Shift+Enter for new line
         </p>
       </div>
+      </>
+      )}
     </div>
   );
 };

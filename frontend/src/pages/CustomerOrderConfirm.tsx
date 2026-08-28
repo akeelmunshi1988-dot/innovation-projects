@@ -31,11 +31,11 @@ export default function CustomerOrderConfirm() {
       <CustomerLayout>
         <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
           <Package size={36} className="text-stone-300 mx-auto" />
-          <h2 className="font-serif text-2xl font-light text-stone-900">Order #{id}</h2>
+          <h2 className="storefront-heading text-2xl">Order #{id}</h2>
           <p className="text-stone-500 text-sm">Use your email to look up your orders and track status.</p>
           <Link
             to="/my-orders"
-            className="inline-flex items-center gap-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase px-6 py-3 transition-colors"
+            className="inline-flex items-center gap-2 storefront-cta-solid px-6 py-3 transition-colors"
           >
             <Search size={13} /> Track My Orders
           </Link>
@@ -52,7 +52,7 @@ export default function CustomerOrderConfirm() {
         {/* Success banner */}
         <div className="border border-green-200 bg-green-50 p-10 text-center space-y-3">
           <CheckCircle size={44} className="text-green-600 mx-auto" />
-          <h1 className="font-serif text-4xl font-light text-stone-900">Order Placed</h1>
+          <h1 className="storefront-heading text-4xl">Order Placed</h1>
           <p className="text-stone-500 text-sm leading-relaxed max-w-sm mx-auto">
             Order <span className="text-stone-900 font-medium">#{order.order_id}</span> has been received.
             Our team will call / WhatsApp you to confirm production details and payment.
@@ -63,7 +63,7 @@ export default function CustomerOrderConfirm() {
         <div className="border border-stone-200">
           <div className="px-5 py-4 border-b border-stone-100 flex items-center gap-2">
             <Package size={14} className="text-stone-400" />
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Order Details</p>
+            <p className="storefront-eyebrow">Order Details</p>
             <span className="ml-auto text-xs border border-stone-200 text-stone-500 px-2 py-0.5 capitalize">
               {order.status.replace('_', ' ')}
             </span>
@@ -115,7 +115,7 @@ export default function CustomerOrderConfirm() {
         {/* Status tracker */}
         <div className="border border-stone-200">
           <div className="px-5 py-4 border-b border-stone-100">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Order Progress</p>
+            <p className="storefront-eyebrow">Order Progress</p>
           </div>
           <div className="p-5">
             <ol className="relative border-l border-stone-200 ml-3 space-y-5">
@@ -148,7 +148,7 @@ export default function CustomerOrderConfirm() {
           </Link>
           <Link
             to="/catalog"
-            className="flex-1 flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 storefront-cta-solid py-4 transition-colors"
           >
             Continue Shopping <ArrowRight size={13} />
           </Link>

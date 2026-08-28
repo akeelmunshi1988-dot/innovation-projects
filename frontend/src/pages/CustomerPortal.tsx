@@ -121,7 +121,7 @@ export default function CustomerPortal() {
   };
 
   useEffect(() => {
-    axios.get("/api/customer/catalog").then(({ data }) => setCatalog(data)).catch(() => {});
+    axios.get("/api/customer/catalog", { params: { limit: 60 } }).then(({ data }) => setCatalog(data.items)).catch(() => {});
     loadDefaultRoom();
     getPublicSettings().then((data) => {
       setSizeUnit(data.default_size_unit || 'ft');
@@ -592,8 +592,8 @@ export default function CustomerPortal() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap border-b border-stone-100 pb-8">
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">AI Tool</p>
-            <h1 className="font-serif text-4xl font-light text-stone-900">Room Visualizer</h1>
+            <p className="storefront-eyebrow mb-2">AI Tool</p>
+            <h1 className="storefront-heading text-4xl">Room Visualizer</h1>
             <p className="text-stone-400 text-sm mt-1">See any rug in your space before you order</p>
           </div>
           {(roomFile || resultImage) && (
@@ -693,7 +693,7 @@ export default function CustomerPortal() {
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs transition-colors"
                     ><Download size={11} /> Download</a>
                     <button onClick={() => quoteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                      className="flex items-center gap-1.5 px-4 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase transition-colors"
+                      className="flex items-center gap-1.5 px-4 py-1.5 storefront-cta-solid transition-colors"
                     ><ShoppingBag size={11} /> Place Order</button>
                   </div>
                 </div>
@@ -722,7 +722,7 @@ export default function CustomerPortal() {
                     className="flex items-center justify-center gap-1.5 py-2.5 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs transition-colors"
                   ><Download size={12} /> Download</a>
                   <button onClick={() => quoteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                    className="flex items-center justify-center gap-1.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase transition-colors"
+                    className="flex items-center justify-center gap-1.5 py-2.5 storefront-cta-solid transition-colors"
                   ><ShoppingBag size={12} /> Place Order</button>
                 </div>
               </>
@@ -796,7 +796,7 @@ export default function CustomerPortal() {
                         >Use Default</button>
                         {points.length === maxPoints && (
                           <button onClick={generateRug} disabled={loading}
-                            className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase px-5 py-1.5 transition-colors flex items-center gap-2"
+                            className="storefront-cta-solid px-5 py-1.5 transition-colors flex items-center gap-2"
                           >
                             <Zap size={13} /> Generate
                           </button>
@@ -898,7 +898,7 @@ export default function CustomerPortal() {
                       >Use Default</button>
                       {points.length === maxPoints && (
                         <button onClick={generateRug}
-                          className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase px-4 py-1 transition-colors flex items-center gap-1.5"
+                          className="storefront-cta-solid px-4 py-1 transition-colors flex items-center gap-1.5"
                         ><Zap size={12} /> Generate</button>
                       )}
                       <button onClick={cancelCustomMode}
@@ -937,7 +937,7 @@ export default function CustomerPortal() {
         <div className="border-t border-stone-100 pt-8 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-1">
+              <p className="storefront-eyebrow mb-1">
                 {resultImage ? "Change Rug" : "Step 2"}
               </p>
               <h2 className="text-stone-900 font-medium text-base">
@@ -1013,7 +1013,7 @@ export default function CustomerPortal() {
               <div ref={quoteSectionRef} className="border-t border-stone-100 pt-8">
                 <div className="border border-stone-200">
                   <div className="px-6 py-4 border-b border-stone-100">
-                    <h3 className="font-serif text-xl font-light text-stone-900">Get a Quote</h3>
+                    <h3 className="storefront-heading text-xl">Get a Quote</h3>
                     <p className="text-stone-400 text-sm mt-0.5">{selectedRug.name}</p>
                   </div>
 
@@ -1021,7 +1021,7 @@ export default function CustomerPortal() {
                     <div className="p-8 flex flex-col items-center gap-4 text-center">
                       <CheckCircle size={40} className="text-green-600" />
                       <div>
-                        <p className="font-serif text-2xl font-light text-stone-900">Quote Submitted</p>
+                        <p className="storefront-heading text-2xl">Quote Submitted</p>
                         <p className="text-stone-500 text-sm mt-1">Quote #{quoteResult.quote_id} · We'll be in touch shortly.</p>
                       </div>
                       <div className="flex gap-10 border-t border-stone-100 pt-4 w-full justify-center">
@@ -1320,7 +1320,7 @@ export default function CustomerPortal() {
                           <button type="button"
                             onClick={handlePlaceOrder}
                             disabled={!quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h)}
-                            className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 storefront-cta-solid py-3.5 transition-colors flex items-center justify-center gap-2"
                           >
                             <Zap size={13} /> Buy Now
                           </button>

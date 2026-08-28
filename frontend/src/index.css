@@ -108,4 +108,13 @@
   .prose-content blockquote { @apply border-l-2 border-stone-300 pl-4 italic text-stone-500 my-3; }
   .prose-content a { @apply text-stone-900 underline underline-offset-2 hover:text-stone-600; }
   .prose-content strong { @apply font-semibold text-stone-900; }
+
+  /* Storefront shared visual language — reference: therugcompany.com editorial aesthetic.
+     No padding/sizing baked in — pair with layout classes at each call site. */
+  .storefront-eyebrow { @apply text-xs tracking-[0.25em] uppercase text-stone-400 font-medium; }
+  .storefront-heading { @apply font-serif font-light text-stone-900 leading-[1.1] tracking-tight; }
+  .storefront-nav-link { @apply text-sm transition-colors pb-0.5; }
+  .storefront-cta-solid { @apply bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-[0.2em] uppercase transition-colors; }
+  .storefront-cta-outline { @apply border border-stone-300 hover:border-stone-900 text-stone-700 hover:text-stone-900 text-xs font-medium tracking-[0.2em] uppercase transition-colors; }
+  .storefront-link-arrow { @apply inline-flex items-center gap-2 text-xs font-medium tracking-[0.15em] uppercase text-stone-900 hover:gap-3 transition-all; }
 }

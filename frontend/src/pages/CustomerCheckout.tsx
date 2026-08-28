@@ -130,7 +130,7 @@ export default function CustomerCheckout() {
       <CustomerLayout>
         <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
           <ShoppingBag size={36} className="mx-auto text-stone-300" />
-          <h2 className="font-serif text-2xl font-light text-stone-900">No order data found</h2>
+          <h2 className="storefront-heading text-2xl">No order data found</h2>
           <p className="text-stone-500 text-sm">Please start from the catalog.</p>
           <Link to="/catalog" className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
             ← Back to Collection
@@ -307,8 +307,8 @@ export default function CustomerCheckout() {
 
         {/* Page title */}
         <div className="pb-6 border-b border-stone-100">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Order</p>
-          <h1 className="font-serif text-4xl font-light text-stone-900">Checkout</h1>
+          <p className="storefront-eyebrow mb-2">Order</p>
+          <h1 className="storefront-heading text-4xl">Checkout</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
@@ -317,7 +317,7 @@ export default function CustomerCheckout() {
           <div className="lg:col-span-2 space-y-4">
             <div className="border border-stone-200">
               <div className="px-5 py-4 border-b border-stone-100">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">
+                <p className="storefront-eyebrow">
                   Order Summary {items.length > 1 && `· ${items.length} items`}
                 </p>
               </div>
@@ -435,7 +435,7 @@ export default function CustomerCheckout() {
               {/* Contact details */}
               <div className="px-5 py-4 border-b border-stone-100 flex items-center gap-2">
                 <User size={14} className="text-stone-400" />
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Contact Details</p>
+                <p className="storefront-eyebrow">Contact Details</p>
               </div>
               <div className="p-5 space-y-3">
                 {isCustomerAuthenticated && customer ? (
@@ -538,7 +538,7 @@ export default function CustomerCheckout() {
               {/* Shipping address */}
               <div className="px-5 py-4 border-y border-stone-100 flex items-center gap-2">
                 <MapPin size={14} className="text-stone-400" />
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Delivery Address</p>
+                <p className="storefront-eyebrow">Delivery Address</p>
               </div>
               <div className="p-5 space-y-3">
                 <div>
@@ -631,7 +631,7 @@ export default function CustomerCheckout() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2 mt-2"
+                  className="w-full storefront-cta-solid py-4 transition-colors flex items-center justify-center gap-2 mt-2"
                 >
                   {submitting ? (
                     <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
@@ -765,7 +765,7 @@ export default function CustomerCheckout() {
               <button
                 type="submit"
                 disabled={authLoading}
-                className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
+                className="w-full storefront-cta-solid py-3.5 transition-colors flex items-center justify-center gap-2"
               >
                 {authLoading ? (
                   <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />

@@ -365,81 +365,74 @@ export default function CustomerRugDetail() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-          {/* Left: Image + Details */}
-          <div className="lg:col-span-3 space-y-8">
+        {/* Two-panel hero: cover shot (left) + large lifestyle photo (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-10">
+          {/* Cover shot — fixed, no slider */}
+          <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/5' }}>
+            {rug.image_url ? (
+              <img src={rug.image_url} alt={rug.name} className="w-full h-full object-cover" fetchPriority="high" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Layers size={48} className="text-stone-300" />
+              </div>
+            )}
+          </div>
 
-            {/* Hero image / slider */}
-            {(() => {
-              const slides = [
-                ...(rug.image_url ? [rug.image_url] : []),
-                ...rug.images.map((img) => img.image_url),
-              ];
-              if (slides.length === 0) {
-                return (
-                  <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/3' }}>
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Layers size={48} className="text-stone-300" />
-                    </div>
-                  </div>
-                );
-              }
-              const current = Math.min(activeSlide, slides.length - 1);
+          {/* Lifestyle photo — first gallery image; falls back to the cover shot if none uploaded yet */}
+          {(() => {
+            const lifestyleImages = rug.images.length > 0 ? rug.images.map((img) => img.image_url) : (rug.image_url ? [rug.image_url] : []);
+            if (lifestyleImages.length === 0) {
               return (
-                <div className="space-y-2">
-                  <div className="relative overflow-hidden bg-stone-100 group" style={{ aspectRatio: '4/3' }}>
-                    <img src={slides[current]} alt={`${rug.name} — view ${current + 1}`} className="w-full h-full object-cover" fetchPriority="high" />
-                    {slides.length > 1 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setActiveSlide((current - 1 + slides.length) % slides.length)}
-                          aria-label="Previous image"
-                          className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveSlide((current + 1) % slides.length)}
-                          aria-label="Next image"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                          {slides.map((_, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => setActiveSlide(i)}
-                              aria-label={`Go to image ${i + 1}`}
-                              className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
+                <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/5' }}>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Layers size={48} className="text-stone-300" />
                   </div>
-                  {slides.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto">
-                      {slides.map((src, i) => (
+                </div>
+              );
+            }
+            const current = Math.min(activeSlide, lifestyleImages.length - 1);
+            return (
+              <div className="relative overflow-hidden bg-stone-100 group" style={{ aspectRatio: '4/5' }}>
+                <img src={lifestyleImages[current]} alt={`${rug.name} in a room setting`} className="w-full h-full object-cover" loading="lazy" />
+                {lifestyleImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSlide((current - 1 + lifestyleImages.length) % lifestyleImages.length)}
+                      aria-label="Previous image"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSlide((current + 1) % lifestyleImages.length)}
+                      aria-label="Next image"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                      {lifestyleImages.map((_, i) => (
                         <button
                           key={i}
                           type="button"
                           onClick={() => setActiveSlide(i)}
-                          className={`flex-shrink-0 w-16 h-16 overflow-hidden border transition-colors ${
-                            i === current ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'
-                          }`}
-                        >
-                          <img src={src} alt="" loading="lazy" width={64} height={64} className="w-full h-full object-cover" />
-                        </button>
+                          aria-label={`Go to image ${i + 1}`}
+                          className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`}
+                        />
                       ))}
                     </div>
-                  )}
-                </div>
-              );
-            })()}
+                  </>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+          {/* Left: Details */}
+          <div className="lg:col-span-3 space-y-8">
 
             {/* Name + meta */}
             <div className="space-y-3">

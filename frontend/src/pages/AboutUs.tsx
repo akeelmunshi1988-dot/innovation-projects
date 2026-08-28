@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Mail, Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
@@ -12,6 +13,13 @@ interface Person {
 }
 
 const SHOW_TEAM = false;
+
+interface WorkshopPhoto {
+  id: number;
+  caption: string;
+  description: string | null;
+  image_url: string;
+}
 
 const OWNER: Person = {
   name: 'Haris Ahmed',
@@ -47,6 +55,7 @@ export default function AboutUs() {
   const [contactPhones, setContactPhones] = useState<string[]>([]);
   const [contactAddress, setContactAddress] = useState<string | null>(null);
   const [contactHours, setContactHours] = useState<string | null>(null);
+  const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
 
   useEffect(() => {
     getPublicSettings()
@@ -60,32 +69,49 @@ export default function AboutUs() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    axios.get('/api/customer/workshop-photos')
+      .then(({ data }) => setWorkshopPhotos(data))
+      .catch(() => {});
+  }, []);
+
+  const photo = (i: number) => workshopPhotos[i % (workshopPhotos.length || 1)]?.image_url;
+
   return (
     <CustomerLayout>
       <SEO
         title={`About ${businessName}`}
         description={`Learn about ${businessName}'s craftsmanship, workshop, and the master weavers behind every handmade custom rug.`}
       />
-      {/* ── HERO ─────────────────────────────────────────────────────── */}
-      <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
-        <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-3">Our Story</p>
-        <h1 className="font-serif text-5xl font-light text-stone-900 leading-[1.1] mb-6">
-          About {businessName}
-        </h1>
-        <p className="text-stone-500 text-lg leading-relaxed max-w-2xl mx-auto">
-          We are a family-run rug making workshop dedicated to preserving traditional
-          hand-weaving techniques while bringing custom, made-to-order rugs to homes
-          everywhere. Every piece is woven by hand, sized to your exact specification,
-          and inspected before it ever leaves our workshop.
-        </p>
+      {/* ── HERO (full-bleed workshop photo background) ──────────────────── */}
+      <section className="relative overflow-hidden min-h-[420px] flex items-center justify-center text-center px-6">
+        {photo(0) && (
+          <img src={photo(0)} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+        <div className="absolute inset-0 bg-stone-950/70" />
+        <div className="relative max-w-3xl py-20">
+          <p className="storefront-eyebrow text-stone-300 mb-3">Our Story</p>
+          <h1 className="storefront-heading text-white text-5xl leading-[1.1] mb-6">
+            About {businessName}
+          </h1>
+          <p className="text-stone-200 text-lg leading-relaxed max-w-2xl mx-auto">
+            We are a family-run rug making workshop dedicated to preserving traditional
+            hand-weaving techniques while bringing custom, made-to-order rugs to homes
+            everywhere. Every piece is woven by hand, sized to your exact specification,
+            and inspected before it ever leaves our workshop.
+          </p>
+        </div>
       </section>
 
       {/* ── INTRODUCTION ─────────────────────────────────────────────── */}
-      <section className="bg-stone-50 border-y border-stone-100 py-20">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      <section className="relative bg-stone-50 border-y border-stone-100 py-20 overflow-hidden">
+        {photo(1) && (
+          <img src={photo(1)} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-[0.08]" />
+        )}
+        <div className="relative max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div className="space-y-5">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Who We Are</p>
-            <h2 className="font-serif text-3xl font-light text-stone-900">
+            <p className="storefront-eyebrow">Who We Are</p>
+            <h2 className="storefront-heading text-3xl">
               Generations of craftsmanship, never mass-produced
             </h2>
             <p className="text-stone-500 leading-relaxed">
@@ -119,17 +145,21 @@ export default function AboutUs() {
       {/* ── OWNER ────────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 py-20">
         <div className="mb-12 max-w-2xl">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Leadership</p>
-          <h2 className="font-serif text-4xl font-light text-stone-900">Meet the Owner</h2>
+          <p className="storefront-eyebrow mb-2">Leadership</p>
+          <h2 className="storefront-heading text-4xl">Meet the Owner</h2>
         </div>
-        <div className="flex flex-col sm:flex-row gap-8 items-start bg-stone-50 border border-stone-100 p-8">
-          <div className="w-24 h-24 rounded-full bg-stone-900 text-white flex items-center justify-center flex-shrink-0 font-serif text-2xl">
+        <div className="relative overflow-hidden flex flex-col sm:flex-row gap-8 items-start p-8 sm:p-10">
+          {photo(3) && (
+            <img src={photo(3)} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-stone-950/80" />
+          <div className="relative w-24 h-24 rounded-full bg-white text-stone-900 flex items-center justify-center flex-shrink-0 font-serif text-2xl">
             {OWNER.initials}
           </div>
-          <div className="space-y-2">
-            <h3 className="font-serif text-2xl font-light text-stone-900">{OWNER.name}</h3>
-            <p className="text-xs tracking-widest uppercase text-stone-400">{OWNER.role}</p>
-            <p className="text-stone-500 leading-relaxed pt-2">{OWNER.bio}</p>
+          <div className="relative space-y-2">
+            <h3 className="storefront-heading text-white text-2xl">{OWNER.name}</h3>
+            <p className="text-xs tracking-widest uppercase text-stone-300">{OWNER.role}</p>
+            <p className="text-stone-200 leading-relaxed pt-2">{OWNER.bio}</p>
           </div>
         </div>
       </section>
@@ -139,8 +169,8 @@ export default function AboutUs() {
       <section className="bg-stone-50 border-y border-stone-100 py-20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-12 max-w-2xl">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">The People Behind the Rugs</p>
-            <h2 className="font-serif text-4xl font-light text-stone-900">Our Team</h2>
+            <p className="storefront-eyebrow mb-2">The People Behind the Rugs</p>
+            <h2 className="storefront-heading text-4xl">Our Team</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {TEAM.map((p) => (
@@ -160,11 +190,24 @@ export default function AboutUs() {
       </section>
       )}
 
+      {/* ── PHOTO BAND ───────────────────────────────────────────────── */}
+      {photo(5) && (
+        <section className="relative h-[280px] overflow-hidden">
+          <img src={photo(5)} alt={workshopPhotos[5 % (workshopPhotos.length || 1)]?.caption ?? ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-stone-950/10 to-transparent" />
+          <div className="relative h-full flex items-end max-w-5xl mx-auto px-6 pb-8">
+            <p className="text-white font-serif text-2xl font-light">
+              {workshopPhotos[5 % (workshopPhotos.length || 1)]?.caption}
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ── CONTACT ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 py-20">
         <div className="mb-12 max-w-2xl">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Get in Touch</p>
-          <h2 className="font-serif text-4xl font-light text-stone-900">Contact Us</h2>
+          <p className="storefront-eyebrow mb-2">Get in Touch</p>
+          <h2 className="storefront-heading text-4xl">Contact Us</h2>
           <p className="text-stone-500 leading-relaxed mt-4">
             Have a question about a custom order, sizing, or materials? We'd love to hear from you.
           </p>

@@ -138,8 +138,8 @@ export default function CustomerCart() {
         </div>
 
         <div className="pb-6 border-b border-stone-100">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Your Selection</p>
-          <h1 className="font-serif text-4xl font-light text-stone-900">Cart</h1>
+          <p className="storefront-eyebrow mb-2">Your Selection</p>
+          <h1 className="storefront-heading text-4xl">Cart</h1>
         </div>
 
         {items.length === 0 ? (
@@ -213,7 +213,7 @@ export default function CustomerCart() {
 
             <div className="lg:col-span-1">
               <div className="border border-stone-200 p-5 space-y-4 sticky top-[102px]">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400">Order Total</p>
+                <p className="storefront-eyebrow">Order Total</p>
 
                 {/* Promo code */}
                 <div className="space-y-2">
@@ -295,7 +295,7 @@ export default function CustomerCart() {
                 <button
                   onClick={handleCheckout}
                   disabled={validItems.length === 0 || loading}
-                  className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors"
+                  className="w-full storefront-cta-solid py-4 transition-colors"
                 >
                   Proceed to Checkout
                 </button>

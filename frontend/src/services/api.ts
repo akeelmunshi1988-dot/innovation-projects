@@ -12,6 +12,8 @@ import type {
   QuoteCalculateResponse,
   ChatMessage,
   PendingAiAction,
+  AiChatMessage,
+  AiChatSession,
   ApiClient,
   ApiClientCreated,
   DashboardStats,
@@ -522,6 +524,16 @@ export const sendChat = async (
   return data;
 };
 
+export const getChatSessions = async (): Promise<AiChatSession[]> => {
+  const { data } = await api.get<AiChatSession[]>('/chat/sessions');
+  return data;
+};
+
+export const getChatHistory = async (sessionId: string): Promise<AiChatMessage[]> => {
+  const { data } = await api.get<AiChatMessage[]>('/chat/history', { params: { session_id: sessionId } });
+  return data;
+};
+
 export const getPendingAiActions = async (): Promise<PendingAiAction[]> => {
   const { data } = await api.get<PendingAiAction[]>('/chat/pending-actions');
   return data;
@@ -627,8 +639,8 @@ export const inspireMatch = async (
 };
 
 export const getPublicCatalog = async () => {
-  const { data } = await axios.get('/api/customer/catalog');
-  return data;
+  const { data } = await axios.get('/api/customer/catalog', { params: { limit: 60 } });
+  return data.items;
 };
 
 export const getPublicSettings = async (): Promise<{

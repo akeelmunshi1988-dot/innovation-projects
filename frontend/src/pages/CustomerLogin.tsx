@@ -53,8 +53,8 @@ export default function CustomerLogin() {
         <div className="max-w-7xl mx-auto px-6 py-20">
           <div className="max-w-md mx-auto text-center">
             <MailCheck size={40} className="text-stone-400 mx-auto mb-6" />
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Almost there</p>
-            <h1 className="font-serif text-3xl font-light text-stone-900 mb-4">Check your email</h1>
+            <p className="storefront-eyebrow mb-2">Almost there</p>
+            <h1 className="storefront-heading text-3xl mb-4">Check your email</h1>
             <p className="text-stone-500 text-sm leading-relaxed">
               We've sent a verification link to <strong className="text-stone-700">{registeredEmail}</strong>.
               Please click the link to activate your account before signing in.
@@ -79,8 +79,8 @@ export default function CustomerLogin() {
 
           {/* Page heading */}
           <div className="mb-10">
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Account</p>
-            <h1 className="font-serif text-4xl font-light text-stone-900">
+            <p className="storefront-eyebrow mb-2">Account</p>
+            <h1 className="storefront-heading text-4xl">
               {mode === 'login' ? 'Sign In' : 'Create Account'}
             </h1>
             <p className="text-stone-500 text-sm mt-3 leading-relaxed">
@@ -222,7 +222,7 @@ export default function CustomerLogin() {
             <button
               type="submit"
               disabled={isLoadingCustomer}
-              className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2 mt-2"
+              className="w-full storefront-cta-solid py-4 transition-colors flex items-center justify-center gap-2 mt-2"
             >
               {isLoadingCustomer ? (
                 <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />

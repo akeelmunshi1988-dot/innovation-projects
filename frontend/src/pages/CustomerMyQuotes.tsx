@@ -405,7 +405,7 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
                       }],
                     },
                   })}
-                  className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-3 transition-colors flex items-center justify-center gap-2"
+                  className="w-full storefront-cta-solid py-3 transition-colors flex items-center justify-center gap-2"
                 >
                   <Package size={13} /> Place Order
                 </button>
@@ -638,11 +638,11 @@ export default function CustomerMyQuotes() {
         <div className="min-h-[70vh] flex items-center justify-center px-6">
           <div className="text-center space-y-5 max-w-sm">
             <FileText size={32} className="text-stone-300 mx-auto" />
-            <h2 className="font-serif text-2xl font-light text-stone-900">Sign in to view your quotes</h2>
+            <h2 className="storefront-heading text-2xl">Sign in to view your quotes</h2>
             <p className="text-stone-400 text-sm">Log in or create an account to see quotes sent to you by our team.</p>
             <button
               onClick={() => navigate('/login')}
-              className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
+              className="w-full storefront-cta-solid py-3.5 transition-colors flex items-center justify-center gap-2"
             >
               <LogIn size={13} /> Sign In
             </button>
@@ -659,8 +659,8 @@ export default function CustomerMyQuotes() {
         {/* Header */}
         <div className="py-14 border-b border-stone-100 flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Account</p>
-            <h1 className="font-serif text-4xl font-light text-stone-900">My Quotes</h1>
+            <p className="storefront-eyebrow mb-2">Account</p>
+            <h1 className="storefront-heading text-4xl">My Quotes</h1>
             <p className="text-stone-400 text-sm mt-1">
               {customer?.name} · {total} quote{total !== 1 ? 's' : ''}
               {actionNeeded > 0 && (
@@ -765,7 +765,7 @@ export default function CustomerMyQuotes() {
             <div className="flex gap-2 pb-0.5">
               <button
                 onClick={handleApplyFilters}
-                className="text-xs px-3 py-2 bg-stone-900 hover:bg-stone-800 text-white uppercase tracking-wider transition-colors"
+                className="storefront-cta-solid px-3 py-2"
               >
                 Apply
               </button>

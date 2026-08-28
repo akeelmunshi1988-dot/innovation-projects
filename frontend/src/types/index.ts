@@ -103,6 +103,8 @@ export interface RugCatalog {
   image_url: string | null;
   profit_margin_pct: number | null;
   hsn_code: string | null;
+  room_types: string[] | null;
+  mood_tags: string[] | null;
   material?: Material;
   images: RugImage[];
 }
@@ -276,6 +278,22 @@ export interface EmailTemplate {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+export interface AiChatMessage {
+  id: number;
+  session_id: string | null;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string | null;
+}
+
+export interface AiChatSession {
+  session_id: string;
+  started_at: string;
+  last_message_at: string;
+  message_count: number;
+  preview: string;
 }
 
 export interface ApiClient {

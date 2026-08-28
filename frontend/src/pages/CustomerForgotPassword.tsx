@@ -31,8 +31,8 @@ export default function CustomerForgotPassword() {
           {status === 'done' ? (
             <div className="text-center">
               <MailCheck size={40} className="text-stone-400 mx-auto mb-6" />
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Check your email</p>
-              <h1 className="font-serif text-3xl font-light text-stone-900 mb-4">Reset link sent</h1>
+              <p className="storefront-eyebrow mb-2">Check your email</p>
+              <h1 className="storefront-heading text-3xl mb-4">Reset link sent</h1>
               <p className="text-stone-500 text-sm leading-relaxed">
                 If an account exists for <strong className="text-stone-700">{email}</strong>, we've sent a link to reset your password.
               </p>
@@ -46,8 +46,8 @@ export default function CustomerForgotPassword() {
           ) : (
             <>
               <div className="mb-10">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Account</p>
-                <h1 className="font-serif text-4xl font-light text-stone-900">Forgot Password</h1>
+                <p className="storefront-eyebrow mb-2">Account</p>
+                <h1 className="storefront-heading text-4xl">Forgot Password</h1>
                 <p className="text-stone-500 text-sm mt-3 leading-relaxed">
                   Enter your email and we'll send you a link to reset your password.
                 </p>
@@ -75,7 +75,7 @@ export default function CustomerForgotPassword() {
                 <button
                   type="submit"
                   disabled={status === 'submitting'}
-                  className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2 mt-2"
+                  className="w-full storefront-cta-solid py-4 transition-colors flex items-center justify-center gap-2 mt-2"
                 >
                   {status === 'submitting' ? (
                     <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />

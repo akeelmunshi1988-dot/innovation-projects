@@ -50,14 +50,14 @@ export default function VerifyEmail() {
           {status === 'success' && (
             <>
               <CheckCircle size={40} className="text-green-600 mx-auto mb-6" />
-              <h1 className="font-serif text-3xl font-light text-stone-900 mb-3">Email verified</h1>
+              <h1 className="storefront-heading text-3xl mb-3">Email verified</h1>
               <p className="text-stone-500 text-sm">Redirecting you to your account…</p>
             </>
           )}
           {status === 'error' && (
             <>
               <AlertTriangle size={40} className="text-red-500 mx-auto mb-6" />
-              <h1 className="font-serif text-3xl font-light text-stone-900 mb-3">Verification failed</h1>
+              <h1 className="storefront-heading text-3xl mb-3">Verification failed</h1>
               <p className="text-stone-500 text-sm leading-relaxed mb-6">{error}</p>
               <Link
                 to="/login"

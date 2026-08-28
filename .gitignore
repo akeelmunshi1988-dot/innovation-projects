@@ -35,3 +35,7 @@ frontend/dist/
 # IDE
 .vscode/
 .claude/settings.local.json
+
+# Storefront redesign working copy (local sandbox, not tracked)
+backend-redesign/
+frontend-redesign/

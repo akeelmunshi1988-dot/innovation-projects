@@ -1,4 +1,6 @@
+import base64
 import json
+import os
 import uuid
 from typing import List, Optional
 from openai import OpenAI
@@ -7,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.api.routes.catalog import UPLOAD_DIR as RUG_UPLOAD_DIR
 from app.models.models import (
     RugCatalog,
     Material,
@@ -26,7 +29,7 @@ from app.schemas.schemas import (
 )
 from app.services.quote_engine import QuoteEngine
 
-OPENAI_MODEL = "gpt-4o"
+OPENAI_MODEL = "gpt-4o-mini"
 
 SYSTEM_PROMPT_TEMPLATE = """You are a knowledgeable rug manufacturing business assistant for {business_name}, helping vendor/admin staff (not customers).
 
@@ -41,6 +44,8 @@ Write capabilities — you can also propose creating, editing, or deleting catal
 - Clearly tell the user you've prepared a draft, summarize exactly what it will do, and say it needs their confirmation in the UI before it takes effect.
 - Never say something "has been created/updated/deleted" — say it "is ready for you to confirm."
 - If you don't have enough information for a required field (e.g. no material chosen for a new rug), ask the user rather than guessing a value.
+
+Creating a rug with photos, in one pass: if the user gives you enough detail to create a catalog rug AND describes what it should look like, do the whole thing in this same turn — call generate_rug_image (once for the cover shot, again for each extra gallery angle they want) BEFORE calling create_rug_catalog_entry, then pass the resulting URLs as image_url / gallery_image_urls on that same create call. Don't ask the user to run these as separate steps, and don't ask them to supply an image URL themselves unless they say they already have specific photos to use instead of generating new ones. generate_rug_image runs immediately (it doesn't touch business data), so it needs no confirmation — only the resulting create_rug_catalog_entry draft does.
 
 When asked about pricing, ALWAYS call calculate_quote with specific dimensions and material rather than estimating.
 When asked about stock, ALWAYS call get_materials or check_material_stock.
@@ -159,6 +164,9 @@ _RUG_SIZE_SCHEMA = {
     },
 }
 
+_ROOM_TYPES = ["living_room", "bedroom", "dining_room", "entryway"]
+_MOOD_TAGS = ["warm_earthy", "quiet_luxury", "modern_minimal", "bohemian", "bold_artistic", "timeless_traditional"]
+
 WRITE_TOOLS = [
     {
         "name": "create_rug_catalog_entry",
@@ -176,8 +184,29 @@ WRITE_TOOLS = [
                 "weave_type": {"type": "string"},
                 "lead_time_days": {"type": "integer", "default": 21},
                 "hsn_code": {"type": "string", "default": "5703"},
+                "room_types": {"type": "array", "items": {"type": "string", "enum": _ROOM_TYPES}, "description": "\"Shop by Space\" tags for the room(s) this rug suits."},
+                "mood_tags": {"type": "array", "items": {"type": "string", "enum": _MOOD_TAGS}, "description": "\"Shop by Mood\" tags for this rug's style."},
+                "image_url": {"type": "string", "description": "Cover photo URL — get one from generate_rug_image, or omit if none available yet."},
+                "gallery_image_urls": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Additional gallery photo URLs (from generate_rug_image or elsewhere), shown alongside the cover photo on the rug detail page.",
+                },
             },
             "required": ["name", "sizes", "base_price", "material_id"],
+        },
+    },
+    {
+        "name": "generate_rug_image",
+        "description": "Generates a photorealistic product photo of a rug from a text description using AI image generation. Returns a URL you can pass as image_url or in gallery_image_urls on create/update_rug_catalog_entry. Call this once per photo you want (e.g. once for the cover shot, again for each gallery angle) before proposing the catalog entry.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Describe the rug and shot precisely — pattern, colors, material/texture, weave style, and setting (e.g. 'top-down studio shot on white background' or 'in a modern living room'). Be specific; this is the only guidance the image model gets.",
+                },
+            },
+            "required": ["prompt"],
         },
     },
     {
@@ -197,6 +226,10 @@ WRITE_TOOLS = [
                 "weave_type": {"type": "string"},
                 "lead_time_days": {"type": "integer"},
                 "hsn_code": {"type": "string"},
+                "room_types": {"type": "array", "items": {"type": "string", "enum": _ROOM_TYPES}, "description": "\"Shop by Space\" tags for the room(s) this rug suits."},
+                "mood_tags": {"type": "array", "items": {"type": "string", "enum": _MOOD_TAGS}, "description": "\"Shop by Mood\" tags for this rug's style."},
+                "image_url": {"type": "string"},
+                "gallery_image_urls": {"type": "array", "items": {"type": "string"}, "description": "Adds these as additional gallery photos — does not remove existing ones."},
             },
             "required": ["rug_id"],
         },
@@ -341,7 +374,7 @@ class AIAgent:
                     "weave_type": rug.weave_type,
                     "lead_time_days": rug.lead_time_days,
                 })
-            return json.dumps(result, indent=2)
+            return json.dumps(result)
         finally:
             db.close()
 
@@ -360,7 +393,7 @@ class AIAgent:
                 }
                 for m in materials
             ]
-            return json.dumps(result, indent=2)
+            return json.dumps(result)
         finally:
             db.close()
 
@@ -369,7 +402,7 @@ class AIAgent:
         try:
             engine = QuoteEngine(db, tenant_id=self.tenant_id)
             result = engine.calculate_quote(rug_id, size_w, size_h, material_id, qty, rush_order)
-            return json.dumps(result, indent=2)
+            return json.dumps(result)
         finally:
             db.close()
 
@@ -378,7 +411,7 @@ class AIAgent:
         try:
             engine = QuoteEngine(db, tenant_id=self.tenant_id)
             result = engine.check_material_stock(material_id, required_sqm)
-            return json.dumps(result, indent=2)
+            return json.dumps(result)
         finally:
             db.close()
 
@@ -395,7 +428,7 @@ class AIAgent:
             return json.dumps({
                 "rug_type": rug_type, "size_sqm": size_sqm, "qty": qty, "rush_order": rush_order,
                 "estimated_days": days, "available_timelines": timeline_data,
-            }, indent=2)
+            })
         finally:
             db.close()
 
@@ -407,7 +440,7 @@ class AIAgent:
                 query = query.filter(MOQRule.rug_type == rug_type)
             rules = query.all()
             result = [{"id": r.id, "rug_type": r.rug_type, "minimum_sqm": r.minimum_sqm, "minimum_pieces": r.minimum_pieces, "notes": r.notes} for r in rules]
-            return json.dumps(result, indent=2)
+            return json.dumps(result)
         finally:
             db.close()
 
@@ -428,8 +461,11 @@ class AIAgent:
         ]
         if topic:
             filtered = [f for f in faqs if topic.lower() in f["topic"].lower() or topic.lower() in f["question"].lower()]
-            return json.dumps(filtered if filtered else faqs, indent=2)
-        return json.dumps(faqs, indent=2)
+            if not filtered:
+                topics = sorted({f["topic"] for f in faqs})
+                return json.dumps({"error": f"No FAQ matches '{topic}'.", "available_topics": topics})
+            return json.dumps(filtered)
+        return json.dumps(faqs)
 
     def _tool_get_pricing_rules(self) -> str:
         db = self._get_db()
@@ -439,7 +475,7 @@ class AIAgent:
                 {"id": r.id, "name": r.name, "rule_type": r.rule_type, "min_qty": r.min_qty, "max_qty": r.max_qty, "multiplier": r.multiplier, "flat_fee": r.flat_fee, "description": r.description}
                 for r in rules
             ]
-            return json.dumps(result, indent=2)
+            return json.dumps(result)
         finally:
             db.close()
 
@@ -471,11 +507,12 @@ class AIAgent:
             "pending_action_id": action.id,
             "summary": summary,
             "message": "Staged as a draft — the user must confirm this in the admin UI before it takes effect. It has NOT happened yet.",
-        }, indent=2)
+        })
 
     def _tool_create_rug_catalog_entry(self, **kwargs) -> str:
         db = self._get_db()
         try:
+            gallery_urls = kwargs.pop("gallery_image_urls", None) or []
             try:
                 validated = RugCatalogCreate(**kwargs).model_dump()
             except ValidationError as e:
@@ -483,7 +520,11 @@ class AIAgent:
             material = db.query(Material).filter(Material.id == validated["material_id"], Material.tenant_id == self.tenant_id).first()
             if not material:
                 return json.dumps({"error": f"No material with id {validated['material_id']} found for this tenant. Call get_materials first."})
+            if gallery_urls:
+                validated["_gallery_image_urls"] = gallery_urls
             summary = f"Create catalog rug \"{validated['name']}\" — {material.name}, base price {validated['base_price']}"
+            if gallery_urls:
+                summary += f", {len(gallery_urls)} gallery photo{'s' if len(gallery_urls) != 1 else ''}"
             return self._stage_action(db, "create", "rug_catalog", None, validated, summary)
         finally:
             db.close()
@@ -494,16 +535,47 @@ class AIAgent:
             rug = db.query(RugCatalog).filter(RugCatalog.id == rug_id, RugCatalog.tenant_id == self.tenant_id).first()
             if not rug:
                 return json.dumps({"error": f"No catalog rug with id {rug_id} found for this tenant."})
+            gallery_urls = kwargs.pop("gallery_image_urls", None) or []
             try:
                 validated = RugCatalogUpdate(**kwargs).model_dump(exclude_unset=True)
             except ValidationError as e:
                 return json.dumps({"error": f"Invalid update data: {e}"})
-            if not validated:
+            if not validated and not gallery_urls:
                 return json.dumps({"error": "No fields to update were provided."})
-            summary = f"Update catalog rug \"{rug.name}\" (id {rug_id}): {', '.join(f'{k}={v}' for k, v in validated.items())}"
+            if gallery_urls:
+                validated["_gallery_image_urls"] = gallery_urls
+            summary_parts = [f"{k}={v}" for k, v in validated.items() if k != "_gallery_image_urls"]
+            if gallery_urls:
+                summary_parts.append(f"+{len(gallery_urls)} gallery photo{'s' if len(gallery_urls) != 1 else ''}")
+            summary = f"Update catalog rug \"{rug.name}\" (id {rug_id}): {', '.join(summary_parts)}"
             return self._stage_action(db, "update", "rug_catalog", rug_id, validated, summary)
         finally:
             db.close()
+
+    def _tool_generate_rug_image(self, prompt: str) -> str:
+        """Real-time AI image generation — not a staged write. Doesn't touch any
+        business data, so (unlike the create/update/delete tools) this runs
+        immediately and returns a real URL the model can reference right away."""
+        try:
+            full_prompt = (
+                f"Professional product photography of a rug: {prompt}. "
+                "Photorealistic, sharp focus, natural lighting, no text or watermarks."
+            )
+            result = self.client.images.generate(model="gpt-image-1", prompt=full_prompt, size="1024x1024", n=1)
+            b64 = result.data[0].b64_json
+            if not b64:
+                return json.dumps({"error": "Image generation returned no image data."})
+            image_bytes = base64.b64decode(b64)
+        except Exception as e:
+            return json.dumps({"error": f"Image generation failed: {e}"})
+
+        filename = f"{uuid.uuid4().hex}.png"
+        os.makedirs(RUG_UPLOAD_DIR, exist_ok=True)
+        filepath = os.path.join(RUG_UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+        url = f"/static/rugs/{filename}"
+        return json.dumps({"image_url": url, "message": "Generated — pass this URL as image_url or in gallery_image_urls."})
 
     def _tool_delete_rug_catalog_entry(self, rug_id: int) -> str:
         db = self._get_db()
@@ -606,6 +678,7 @@ class AIAgent:
         "get_faq": "_tool_get_faq",
         "get_pricing_rules": "_tool_get_pricing_rules",
         "create_rug_catalog_entry": "_tool_create_rug_catalog_entry",
+        "generate_rug_image": "_tool_generate_rug_image",
         "update_rug_catalog_entry": "_tool_update_rug_catalog_entry",
         "delete_rug_catalog_entry": "_tool_delete_rug_catalog_entry",
         "create_material": "_tool_create_material",
@@ -642,6 +715,7 @@ class AIAgent:
                 model=OPENAI_MODEL,
                 messages=openai_messages,
                 tools=TOOLS,
+                max_tokens=1200,
             )
             msg = response.choices[0].message
 

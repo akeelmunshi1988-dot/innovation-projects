@@ -53,14 +53,14 @@ export default function CustomerResetPassword() {
           {status === 'done' ? (
             <div className="text-center">
               <CheckCircle size={40} className="text-green-600 mx-auto mb-6" />
-              <h1 className="font-serif text-3xl font-light text-stone-900 mb-3">Password updated</h1>
+              <h1 className="storefront-heading text-3xl mb-3">Password updated</h1>
               <p className="text-stone-500 text-sm">Redirecting you to sign in…</p>
             </div>
           ) : (
             <>
               <div className="mb-10">
-                <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Account</p>
-                <h1 className="font-serif text-4xl font-light text-stone-900">Reset Password</h1>
+                <p className="storefront-eyebrow mb-2">Account</p>
+                <h1 className="storefront-heading text-4xl">Reset Password</h1>
                 <p className="text-stone-500 text-sm mt-3 leading-relaxed">
                   Choose a new password for your account.
                 </p>
@@ -121,7 +121,7 @@ export default function CustomerResetPassword() {
                 <button
                   type="submit"
                   disabled={status === 'submitting'}
-                  className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2 mt-2"
+                  className="w-full storefront-cta-solid py-4 transition-colors flex items-center justify-center gap-2 mt-2"
                 >
                   {status === 'submitting' ? (
                     <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />

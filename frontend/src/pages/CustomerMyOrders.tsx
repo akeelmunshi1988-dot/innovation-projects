@@ -642,8 +642,8 @@ export default function CustomerMyOrders() {
         <div className="max-w-3xl mx-auto px-6">
           <div className="py-14 border-b border-stone-100 flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Account</p>
-              <h1 className="font-serif text-4xl font-light text-stone-900">My Orders</h1>
+              <p className="storefront-eyebrow mb-2">Account</p>
+              <h1 className="storefront-heading text-4xl">My Orders</h1>
               <p className="text-stone-400 text-sm mt-1">
                 {customer.name} · {total} order{total !== 1 ? 's' : ''}
               </p>
@@ -743,7 +743,7 @@ export default function CustomerMyOrders() {
               <div className="flex gap-2 pb-0.5">
                 <button
                   onClick={handleApplyFilters}
-                  className="text-xs px-3 py-2 bg-stone-900 hover:bg-stone-800 text-white uppercase tracking-wider transition-colors"
+                  className="storefront-cta-solid px-3 py-2"
                 >
                   Apply
                 </button>
@@ -801,8 +801,8 @@ export default function CustomerMyOrders() {
       <SEO title="My Orders" description="Look up your custom rug orders by email." noindex />
       <div className="max-w-3xl mx-auto px-6">
         <div className="py-14 border-b border-stone-100">
-          <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Track</p>
-          <h1 className="font-serif text-4xl font-light text-stone-900">My Orders</h1>
+          <p className="storefront-eyebrow mb-2">Track</p>
+          <h1 className="storefront-heading text-4xl">My Orders</h1>
           <p className="text-stone-400 text-sm mt-1">
             Enter your email to track orders, or{' '}
             <button onClick={() => navigate('/login')} className="text-stone-900 underline underline-offset-2 hover:no-underline">
@@ -825,7 +825,7 @@ export default function CustomerMyOrders() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase px-6 py-3 transition-colors flex items-center gap-2 flex-shrink-0"
+              className="storefront-cta-solid px-6 py-3 transition-colors flex items-center gap-2 flex-shrink-0"
             >
               {loading
                 ? <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />

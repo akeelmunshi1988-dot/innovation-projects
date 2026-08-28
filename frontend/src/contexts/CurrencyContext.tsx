@@ -79,7 +79,12 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const displayPrice = useCallback((amount: number, itemCurrency?: string | null): string => {
     const from = itemCurrency || baseCurrency;
     const rate = getConversionRate(from, displayCurrency, baseCurrency, exchangeRates);
-    return fmt(amount * rate, displayCurrency, 0);
+    const converted = amount * rate;
+    // A nonzero amount that would round away to "0" at 0 decimal places (e.g. a
+    // small base price converted into a stronger currency) needs decimal places
+    // to still show a meaningful value instead of a misleading zero.
+    const fractions = converted !== 0 && Math.round(converted) === 0 ? 2 : 0;
+    return fmt(converted, displayCurrency, fractions);
   }, [baseCurrency, exchangeRates, displayCurrency]);
 
   return (
