@@ -222,7 +222,7 @@ export default function CustomerHome() {
       {/* ── HERO (full-bleed image, text centered directly on the image) ─── */}
       {SHOW_HERO && (
         <>
-          <section className="relative w-full overflow-hidden min-h-[640px] flex items-center justify-center">
+          <section className="relative w-full overflow-hidden aspect-[3/2] md:aspect-auto md:min-h-[640px] flex items-center justify-center">
             {heroImage ? (
               <img
                 src={heroImage}
