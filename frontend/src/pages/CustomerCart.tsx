@@ -17,6 +17,7 @@ interface ItemEstimate {
   gst_pct: number;
   gst_amount: number;
   gst_inclusive: boolean;
+  rush_surcharge: number;
   price_currency: string;
   estimated_days: number;
   material_available: boolean;
@@ -29,6 +30,9 @@ export default function CustomerCart() {
   const navigate = useNavigate();
   const [estimates, setEstimates] = useState<Record<string, ItemEstimate | null>>({});
   const [loading, setLoading] = useState(true);
+  // Guards against out-of-order estimate responses: rapid qty clicks fire overlapping
+  // batches, and a slow earlier batch resolving last would show a price for a stale qty.
+  const estimateRunRef = React.useRef(0);
   const [sizeUnit, setSizeUnit] = useState('ft');
   const [shippingRate, setShippingRate] = useState(0);
 
@@ -45,7 +49,8 @@ export default function CustomerCart() {
   }, []);
 
   useEffect(() => {
-    if (items.length === 0) { setLoading(false); return; }
+    if (items.length === 0) { setEstimates({}); setLoading(false); return; }
+    const runId = ++estimateRunRef.current;
     setLoading(true);
     Promise.all(
       items.map((item) =>
@@ -56,8 +61,12 @@ export default function CustomerCart() {
           .then(({ data }) => [item.id, data as ItemEstimate] as const)
           .catch(() => [item.id, null] as const)
       )
-    ).then((pairs) => setEstimates(Object.fromEntries(pairs)))
-      .finally(() => setLoading(false));
+    ).then((pairs) => {
+      if (runId !== estimateRunRef.current) return; // a newer cart change superseded this batch
+      setEstimates(Object.fromEntries(pairs));
+    }).finally(() => {
+      if (runId === estimateRunRef.current) setLoading(false);
+    });
   }, [items]);
 
   const validItems = items.filter((i) => estimates[i.id]?.final_price != null);
@@ -68,6 +77,11 @@ export default function CustomerCart() {
   const gstTotal = gstApplies
     ? validItems.reduce((sum, i) => sum + (estimates[i.id]?.gst_amount || 0), 0) : null;
   const primaryCurrency = validItems[0] ? estimates[validItems[0].id]?.price_currency : undefined;
+
+  // Rush surcharge is already baked into each item's final_price / pre_gst_price. Pull it
+  // out so it can be shown as its own line while the line items still sum to the total.
+  const rushTotal = validItems.reduce((sum, i) => sum + (estimates[i.id]?.rush_surcharge || 0), 0);
+  const subtotalDisplay = (preGstTotal ?? grandTotalBase) - rushTotal;
 
   const discountAmount = promoApplied?.discount_amount ?? 0;
   const finalTotal = Math.max(0, grandTotalBase + shippingRate - discountAmount);
@@ -260,8 +274,14 @@ export default function CustomerCart() {
                       {validItems.length} item{validItems.length !== 1 ? 's' : ''}
                       {preGstTotal != null ? ' — pre-tax' : ''}
                     </span>
-                    <span className="text-stone-600">{displayPrice(preGstTotal ?? grandTotalBase, primaryCurrency)}</span>
+                    <span className="text-stone-600">{displayPrice(subtotalDisplay, primaryCurrency)}</span>
                   </div>
+                  {rushTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-stone-400">Rush production</span>
+                      <span className="text-stone-600">+{displayPrice(rushTotal, primaryCurrency)}</span>
+                    </div>
+                  )}
                   {gstTotal != null && (
                     <div className="flex justify-between">
                       <span className="text-stone-400">Tax</span>

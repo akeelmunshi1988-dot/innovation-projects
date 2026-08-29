@@ -487,6 +487,14 @@ export const createMaterial = async (payload: {
   return data;
 };
 
+export const updateMaterial = async (id: number, payload: {
+  name?: string; type?: string; color?: string;
+  stock_meters?: number; cost_per_sqm?: number; cost_currency?: string; is_available?: boolean;
+}): Promise<Material> => {
+  const { data } = await api.put<Material>(`/inventory/${id}`, payload);
+  return data;
+};
+
 export const deleteMaterial = async (id: number): Promise<void> => {
   await api.delete(`/inventory/${id}`);
 };
