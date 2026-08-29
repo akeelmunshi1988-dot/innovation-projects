@@ -172,6 +172,19 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
     e.preventDefault();
     setSaving(true);
     setError('');
+    const materialId = Number(form.material_id);
+    const basePrice = Number(form.base_price);
+    const leadTimeDays = Number(form.lead_time_days);
+    if (
+      !form.name.trim()
+      || !form.material_id || !Number.isInteger(materialId) || materialId < 1
+      || !form.base_price || !Number.isFinite(basePrice) || basePrice < 0
+      || !form.lead_time_days || !Number.isInteger(leadTimeDays) || leadTimeDays < 1
+    ) {
+      setError('Complete all required fields with valid values.');
+      setSaving(false);
+      return;
+    }
     const validSizes = form.sizes.filter((s) => s.ft.trim());
     const defaultSize = validSizes.find((s) => s.is_default);
     if (validSizes.length === 0 || !defaultSize) {
@@ -183,12 +196,12 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       name:                form.name.trim(),
       description:         form.description.trim() || null,
       about_content_html:  form.about_content_html || null,
-      material_id:         parseInt(form.material_id),
-      base_price:          parseFloat(form.base_price),
+      material_id:         materialId,
+      base_price:          basePrice,
       base_price_currency: form.base_price_currency || tenant.base_currency,
       pile_height:         form.pile_height || null,
       weave_type:          form.weave_type || null,
-      lead_time_days:      parseInt(form.lead_time_days) || 21,
+      lead_time_days:      leadTimeDays,
       image_url:           form.image_url.trim() || null,
       sizes:               validSizes.map((s) => ({
         ft: s.ft.trim(),
@@ -204,7 +217,10 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
         : await createRug(payload);
       onSaved(saved);
     } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Save failed. Please try again.');
+      const detail = err.response?.data?.detail;
+      setError(Array.isArray(detail)
+        ? detail.map((item: any) => item?.msg).filter(Boolean).join(' ') || 'Some catalog fields are invalid.'
+        : typeof detail === 'string' ? detail : 'Save failed. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -228,7 +244,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 sm:px-6 xl:px-8 py-5 space-y-4">
+        <form id="catalog-rug-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 sm:px-6 xl:px-8 py-5 space-y-4">
 
           {/* Name */}
           <div className="space-y-1">
@@ -540,7 +556,8 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
             Cancel
           </button>
           <button
-            onClick={handleSubmit as any}
+            type="submit"
+            form="catalog-rug-form"
             disabled={saving}
             className="flex-1 py-2.5 bg-gold-600 hover:bg-gold-500 disabled:bg-dark-700 disabled:text-dark-500 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
           >
