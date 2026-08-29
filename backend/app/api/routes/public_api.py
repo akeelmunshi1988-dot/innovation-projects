@@ -21,7 +21,7 @@ from app.core.auth import get_api_client
 from app.core.database import get_db
 from app.models.models import ApiClient, RugCatalog, Material, Customer, Tenant, RugImage
 from app.schemas.schemas import (
-    PublicCatalogCreate, RugCatalog as RugCatalogSchema,
+    PublicCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
     PublicMaterialCreate, Material as MaterialSchema,
     PublicRestockRequest,
     PublicQuoteCreate,
@@ -29,7 +29,7 @@ from app.schemas.schemas import (
     PublicRugImageCreate, PublicRugImageUpdate, RugImage as RugImageSchema,
 )
 from app.api.routes.catalog import (
-    create_rug_row, UPLOAD_DIR, ALLOWED_TYPES, MAX_SIZE_MB,
+    create_rug_row, update_rug_row, UPLOAD_DIR, ALLOWED_TYPES, MAX_SIZE_MB,
     add_rug_image_row, update_rug_image_row, delete_rug_image_row, get_tenant_rug_image,
 )
 from app.api.routes.inventory import create_material_row, restock_material_row
@@ -87,6 +87,22 @@ def public_create_catalog(
     client: ApiClient = Depends(get_api_client),
 ):
     return create_rug_row(db, body.model_dump(), client.tenant_id)
+
+
+@router.put("/v1/catalog/{rug_id}", response_model=RugCatalogSchema)
+def public_update_catalog(
+    rug_id: int,
+    body: RugCatalogUpdate,
+    db: Session = Depends(get_db),
+    client: ApiClient = Depends(get_api_client),
+):
+    rug = db.query(RugCatalog).filter(
+        RugCatalog.id == rug_id,
+        RugCatalog.tenant_id == client.tenant_id,
+    ).first()
+    if not rug:
+        raise HTTPException(status_code=404, detail="Rug not found")
+    return update_rug_row(db, rug, body.model_dump(exclude_unset=True))
 
 
 @router.post("/v1/catalog/{rug_id}/images", response_model=RugImageSchema)

@@ -18,6 +18,9 @@ app = FastAPI(
     title="DreamRugsCreation - Rug Manufacture System",
     description="Custom rug manufacturing management system with AI assistant",
     version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 app.add_middleware(

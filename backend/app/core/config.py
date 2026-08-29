@@ -5,6 +5,7 @@ from typing import Optional
 class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None  # used by the "inspire from a room photo" rug-matcher only (app/services/vision_matcher.py) — NOT the vendor AI assistant, see OPENAI_API_KEY
     OPENAI_API_KEY: Optional[str] = None  # required for the vendor AI Assistant page (app/services/ai_agent.py); also enables the visualizer's "AI-enhanced lighting" polish pass
+    CATALOG_API_KEY: Optional[str] = None  # local room-visualizer agent credential for the authenticated public catalog API
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
     APP_NAME: str = "DreamRugsCreation"
     DEBUG: bool = False
