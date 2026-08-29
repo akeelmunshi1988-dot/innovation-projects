@@ -94,6 +94,7 @@ export default function CustomerRugDetail() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
   const [activeSlide, setActiveSlide] = useState(0);
+  const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
 
   const [form, setForm] = useState<QuoteForm>({
     name: '', email: '', phone: '',
@@ -138,6 +139,20 @@ export default function CustomerRugDetail() {
       .then((data) => setSizeUnit(data.default_size_unit || 'ft'))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!expandedImage) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedImage(null);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expandedImage]);
 
   useEffect(() => {
     if (!rug || !isCustomerAuthenticated || !customerToken) return;
@@ -280,6 +295,9 @@ export default function CustomerRugDetail() {
   const sym = currencySymbol(currency);
 
   const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
+  const scrollToConfigurator = () => {
+    document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <CustomerLayout>
@@ -318,20 +336,20 @@ export default function CustomerRugDetail() {
           },
         ]}
       />
-      <div className="max-w-7xl mx-auto px-4 py-10 space-y-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-stone-400">
+        <div className="flex items-center gap-2 text-xs text-stone-400 min-w-0">
           <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>
           <ChevronRight size={11} />
           <Link to="/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
           <ChevronRight size={11} />
-          <span className="text-stone-600">{rug.name}</span>
+          <span className="text-stone-600 truncate">{rug.name}</span>
         </div>
 
         {/* Active quote banner */}
         {activeQuote && (
-          <div className={`flex items-center justify-between gap-4 px-4 py-3 border ${
+          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 py-3 border ${
             activeQuote.status === 'sent'
               ? 'bg-blue-50 border-blue-200'
               : 'bg-stone-50 border-stone-200'
@@ -354,7 +372,7 @@ export default function CustomerRugDetail() {
             </div>
             <Link
               to="/my-quotes"
-              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border transition-colors flex-shrink-0 ${
+              className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 border transition-colors flex-shrink-0 w-full sm:w-auto ${
                 activeQuote.status === 'sent'
                   ? 'bg-stone-900 border-stone-900 text-white hover:bg-stone-800'
                   : 'border-stone-300 text-stone-600 hover:border-stone-600 hover:text-stone-900'
@@ -365,12 +383,19 @@ export default function CustomerRugDetail() {
           </div>
         )}
 
-        {/* Two-panel hero: cover shot (left) + large lifestyle photo (right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-10">
+        {/* Two-panel hero: portrait cover (left) + wide lifestyle photo (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:items-stretch mb-10">
           {/* Cover shot — fixed, no slider */}
-          <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/5' }}>
+          <div className="lg:col-span-2 overflow-hidden bg-stone-100 aspect-[4/5] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
             {rug.image_url ? (
-              <img src={rug.image_url} alt={rug.name} className="w-full h-full object-cover" fetchPriority="high" />
+              <button
+                type="button"
+                onClick={() => setExpandedImage({ src: rug.image_url!, alt: rug.name })}
+                aria-label={`Expand ${rug.name} image`}
+                className="block w-full h-full cursor-zoom-in"
+              >
+                <img src={rug.image_url} alt={rug.name} className="w-full h-full object-cover" fetchPriority="high" />
+              </button>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <Layers size={48} className="text-stone-300" />
@@ -383,7 +408,7 @@ export default function CustomerRugDetail() {
             const lifestyleImages = rug.images.length > 0 ? rug.images.map((img) => img.image_url) : (rug.image_url ? [rug.image_url] : []);
             if (lifestyleImages.length === 0) {
               return (
-                <div className="overflow-hidden bg-stone-100" style={{ aspectRatio: '4/5' }}>
+                <div className="lg:col-span-3 overflow-hidden bg-stone-100 aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
                   <div className="w-full h-full flex items-center justify-center">
                     <Layers size={48} className="text-stone-300" />
                   </div>
@@ -392,15 +417,22 @@ export default function CustomerRugDetail() {
             }
             const current = Math.min(activeSlide, lifestyleImages.length - 1);
             return (
-              <div className="relative overflow-hidden bg-stone-100 group" style={{ aspectRatio: '4/5' }}>
-                <img src={lifestyleImages[current]} alt={`${rug.name} in a room setting`} className="w-full h-full object-cover" loading="lazy" />
+              <div className="lg:col-span-3 relative overflow-hidden bg-stone-100 group aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+                <button
+                  type="button"
+                  onClick={() => setExpandedImage({ src: lifestyleImages[current], alt: `${rug.name} in a room setting` })}
+                  aria-label={`Expand ${rug.name} gallery image`}
+                  className="block w-full h-full cursor-zoom-in"
+                >
+                  <img src={lifestyleImages[current]} alt={`${rug.name} in a room setting`} className="w-full h-full object-cover" loading="lazy" />
+                </button>
                 {lifestyleImages.length > 1 && (
                   <>
                     <button
                       type="button"
                       onClick={() => setActiveSlide((current - 1 + lifestyleImages.length) % lifestyleImages.length)}
                       aria-label="Previous image"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-8 lg:h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                     >
                       <ChevronLeft size={16} />
                     </button>
@@ -408,7 +440,7 @@ export default function CustomerRugDetail() {
                       type="button"
                       onClick={() => setActiveSlide((current + 1) % lifestyleImages.length)}
                       aria-label="Next image"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-8 lg:h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                     >
                       <ChevronRight size={16} />
                     </button>
@@ -419,8 +451,10 @@ export default function CustomerRugDetail() {
                           type="button"
                           onClick={() => setActiveSlide(i)}
                           aria-label={`Go to image ${i + 1}`}
-                          className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`}
-                        />
+                          className="w-5 h-5 flex items-center justify-center"
+                        >
+                          <span className={`block w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`} />
+                        </button>
                       ))}
                     </div>
                   </>
@@ -430,54 +464,87 @@ export default function CustomerRugDetail() {
           })()}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-          {/* Left: Details */}
-          <div className="lg:col-span-3 space-y-8">
-
-            {/* Name + meta */}
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="font-serif text-3xl font-light text-stone-900">{rug.name}</h1>
-                  {rug.weave_type && <p className="text-stone-400 text-sm capitalize mt-1">{rug.weave_type}</p>}
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-stone-900 font-medium text-xl">{displayPrice(rug.base_price_per_sqm, currency)}</p>
-                  <p className="text-stone-400 text-xs">per m²</p>
-                </div>
-              </div>
-
-              {/* Minimal tags */}
-              <div className="flex flex-wrap gap-3 text-xs text-stone-500">
-                {rug.material && <span>{rug.material}</span>}
-                {rug.pile_height && <><span>·</span><span className="capitalize">{rug.pile_height} pile</span></>}
-                <span>·</span><span>{rug.lead_time_days} days delivery</span>
-                {!rug.available && <><span>·</span><span className="text-red-500">Currently unavailable</span></>}
+        {/* Product summary: details + attributes + actions, aligned like the reference */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12 items-start pb-4">
+          <section className="md:col-span-2 lg:col-span-5 space-y-4 min-w-0">
+            <div>
+              <h1 className="font-serif text-3xl font-light text-stone-900">{rug.name}</h1>
+              <div className="flex items-end gap-2 mt-3">
+                <p className="text-stone-900 font-medium text-xl">{displayPrice(rug.base_price_per_sqm, currency)}</p>
+                <p className="text-stone-400 text-xs pb-0.5">per m²</p>
               </div>
             </div>
 
-            {/* About this rug */}
-            {(rug.about_content_html || rug.description) && (
-              <div className="border-t border-stone-100 pt-6 space-y-2">
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-stone-400">About</h2>
-                {rug.about_content_html ? (
-                  <div
-                    className="prose-content"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
-                      ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
-                      ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
-                    }) }}
-                  />
-                ) : (
-                  <p className="text-stone-600 text-sm leading-relaxed">{rug.description}</p>
-                )}
-              </div>
-            )}
-          </div>
+            {rug.description ? (
+              <p className="text-stone-600 text-sm leading-relaxed max-w-xl">{rug.description}</p>
+            ) : rug.about_content_html ? (
+              <div
+                className="prose-content max-w-xl"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
+                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                }) }}
+              />
+            ) : null}
 
-          {/* Right: Quote form */}
-          <div className="lg:col-span-2">
-            <div className="sticky top-[102px] space-y-5">
+            {!rug.available && <p className="text-red-500 text-sm">Currently unavailable</p>}
+          </section>
+
+          <section className="lg:col-span-4 space-y-4 min-w-0" aria-label="Rug features">
+            <div className="flex items-center gap-3">
+              <span className="w-11 h-11 rounded-full border border-stone-200 flex items-center justify-center flex-shrink-0">
+                <Layers size={18} className="text-stone-500" />
+              </span>
+              <div>
+                <p className="font-serif text-lg leading-tight text-stone-900">{rug.material}</p>
+                <p className="text-stone-400 text-sm">{rug.material_type || 'Selected material'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-11 h-11 rounded-full border border-stone-200 flex items-center justify-center flex-shrink-0">
+                <CheckCircle size={18} className="text-stone-500" />
+              </span>
+              <div>
+                <p className="font-serif text-lg leading-tight text-stone-900 capitalize">{rug.weave_type || 'Handcrafted'}</p>
+                <p className="text-stone-400 text-sm">Made by skilled artisans</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-11 h-11 rounded-full border border-stone-200 flex items-center justify-center flex-shrink-0">
+                <Zap size={18} className="text-stone-500" />
+              </span>
+              <div>
+                <p className="font-serif text-lg leading-tight text-stone-900 capitalize">{rug.pile_height ? `${rug.pile_height} pile` : 'Made to order'}</p>
+                <p className="text-stone-400 text-sm">Estimated in {rug.lead_time_days} days</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="lg:col-span-3 space-y-4 lg:pt-2">
+            <button
+              type="button"
+              onClick={scrollToConfigurator}
+              disabled={!rug.available}
+              className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-sm py-4 transition-colors"
+            >
+              Request a Quote
+            </button>
+            <button
+              type="button"
+              onClick={scrollToConfigurator}
+              disabled={!rug.available}
+              className="w-full border border-stone-300 hover:border-stone-900 disabled:border-stone-200 disabled:text-stone-300 text-stone-900 text-sm py-4 transition-colors"
+            >
+              Add to Cart
+            </button>
+          </section>
+        </div>
+
+        <div id="rug-configurator" className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start scroll-mt-32 pt-8 border-t border-stone-100">
+
+          {/* Quote configurator */}
+          <div className="lg:col-span-5">
+            <div className="space-y-5">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
@@ -494,12 +561,18 @@ export default function CustomerRugDetail() {
                 </div>
               ) : (
                 <div className="border border-stone-200">
-                  <div className="px-5 py-4 border-b border-stone-100">
-                    <h2 className="font-serif text-xl font-light text-stone-900">Request a Quote</h2>
-                    <p className="text-stone-400 text-xs mt-0.5">Free · No commitment</p>
+                  <div className="px-6 lg:px-8 py-5 border-b border-stone-100">
+                    <h2 className="font-serif text-2xl font-light text-stone-900">Request a Quote</h2>
+                    <p className="text-stone-400 text-sm mt-1">Choose your rug specifications and review an instant estimate before submitting.</p>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                  <form onSubmit={handleSubmit} className="p-4 sm:p-6 lg:p-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+                      <section className="space-y-5 min-w-0">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">1. Rug configuration</p>
+                          <p className="text-stone-500 text-sm mt-1">Select a standard size or enter custom dimensions.</p>
+                        </div>
                     {/* Standard Sizes — only sizes with a value in the current unit are
                         offered; a size missing a vendor-entered cm value simply isn't
                         shown when browsing in cm, rather than falling back to a computed
@@ -535,7 +608,7 @@ export default function CustomerRugDetail() {
                     {/* Shape selector */}
                     <div className="space-y-1.5">
                       <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Shape</p>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {(['rect', 'circle', 'oval'] as const).map(s => (
                           <button
                             key={s}
@@ -574,7 +647,7 @@ export default function CustomerRugDetail() {
                         )}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
                             {form.shape === 'oval' ? `Width / Axis A (${inputUnit(sizeUnit)})` : `Width (${inputUnit(sizeUnit)})`} *
@@ -601,7 +674,7 @@ export default function CustomerRugDetail() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Quantity</label>
                         <input type="number" name="qty" value={form.qty} onChange={handleFormChange} min="1"
@@ -646,6 +719,14 @@ export default function CustomerRugDetail() {
                         )}
                       </div>
                     </div>
+
+                      </section>
+
+                      <section className="space-y-5 min-w-0 lg:border-l lg:border-stone-100 lg:pl-12">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">2. Estimate & submit</p>
+                          <p className="text-stone-500 text-sm mt-1">Review pricing, add notes, and send your request.</p>
+                        </div>
 
                     {/* Price estimate + Place Order */}
                     {hasSize && (
@@ -693,7 +774,7 @@ export default function CustomerRugDetail() {
                               <span className="text-stone-900">{displayPrice(priceResult.final_price, priceResult.price_currency)}</span>
                             </div>
                             <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
-                            <div className="flex gap-2 mt-1">
+                            <div className="flex flex-col sm:flex-row gap-2 mt-1">
                               <button type="button"
                                 onClick={() => {
                                   addItem({
@@ -738,8 +819,16 @@ export default function CustomerRugDetail() {
                       </div>
                     )}
 
+                    {!hasSize && (
+                      <div className="border border-stone-200 px-4 py-5 text-center">
+                        <Zap size={18} className="mx-auto text-stone-300 mb-2" />
+                        <p className="text-stone-600 text-sm">Your estimate will appear here</p>
+                        <p className="text-stone-400 text-xs mt-1">Add dimensions on the left to continue.</p>
+                      </div>
+                    )}
+
                     <div className="border-t border-stone-100 pt-4 space-y-3">
-                      {isCustomerAuthenticated && customer ? (
+                      {isCustomerAuthenticated && customer && (
                         <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-2.5">
                           <CheckCircle size={13} className="text-green-600 flex-shrink-0" />
                           <div className="min-w-0">
@@ -747,16 +836,6 @@ export default function CustomerRugDetail() {
                             <p className="text-stone-400 text-xs truncate">{customer.email}</p>
                           </div>
                         </div>
-                      ) : (
-                        <button type="button" onClick={() => setAuthModal(true)}
-                          className="w-full flex items-center gap-3 border border-stone-200 hover:border-stone-400 px-3 py-3 transition-colors text-left"
-                        >
-                          <LogIn size={14} className="text-stone-400 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-stone-700 text-xs font-medium">Sign in to request a quote</p>
-                            <p className="text-stone-400 text-xs">Login or create a free account</p>
-                          </div>
-                        </button>
                       )}
                       <textarea name="notes" value={form.notes} onChange={handleFormChange}
                         placeholder="Any special requirements?" rows={2}
@@ -779,6 +858,8 @@ export default function CustomerRugDetail() {
                       {submitting ? 'Submitting…' : isCustomerAuthenticated ? 'Request Quote' : 'Sign In & Request Quote'}
                     </button>
                     <p className="text-stone-400 text-xs text-center">Free quote · No commitment · UPI / Card</p>
+                      </section>
+                    </div>
                   </form>
                 </div>
               )}
@@ -786,6 +867,32 @@ export default function CustomerRugDetail() {
           </div>
         </div>
       </div>
+
+      {/* Full-screen image preview */}
+      {expandedImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Expanded rug image"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/90 p-4 sm:p-8"
+          onClick={() => setExpandedImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setExpandedImage(null)}
+            aria-label="Close expanded image"
+            className="absolute right-4 top-4 sm:right-6 sm:top-6 w-10 h-10 flex items-center justify-center bg-white text-stone-900 hover:bg-stone-100 transition-colors"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={expandedImage.src}
+            alt={expandedImage.alt}
+            className="max-w-full max-h-full object-contain"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Auth modal */}
       {authModal && (
