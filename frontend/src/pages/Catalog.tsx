@@ -55,6 +55,7 @@ const BLANK: FormData = {
 };
 
 function rugToForm(r: RugCatalog): FormData {
+  const hasDefaultSize = r.sizes.some((size) => size.is_default);
   return {
     name: r.name,
     description: r.description ?? '',
@@ -66,7 +67,7 @@ function rugToForm(r: RugCatalog): FormData {
     weave_type: r.weave_type ?? 'hand-knotted',
     lead_time_days: String(r.lead_time_days),
     image_url: r.image_url ?? '',
-    sizes: r.sizes,
+    sizes: r.sizes.map((size, index) => ({ ...size, is_default: hasDefaultSize ? Boolean(size.is_default) : index === 0 })),
     room_types: r.room_types ?? [],
     mood_tags: r.mood_tags ?? [],
   };
@@ -171,6 +172,13 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
     e.preventDefault();
     setSaving(true);
     setError('');
+    const validSizes = form.sizes.filter((s) => s.ft.trim());
+    const defaultSize = validSizes.find((s) => s.is_default);
+    if (validSizes.length === 0 || !defaultSize) {
+      setError('Add at least one size and select its Default option.');
+      setSaving(false);
+      return;
+    }
     const payload = {
       name:                form.name.trim(),
       description:         form.description.trim() || null,
@@ -182,7 +190,11 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       weave_type:          form.weave_type || null,
       lead_time_days:      parseInt(form.lead_time_days) || 21,
       image_url:           form.image_url.trim() || null,
-      sizes:               form.sizes.filter((s) => s.ft.trim()).map((s) => ({ ft: s.ft.trim(), cm: s.cm?.trim() || null })),
+      sizes:               validSizes.map((s) => ({
+        ft: s.ft.trim(),
+        cm: s.cm?.trim() || null,
+        is_default: Boolean(s.is_default),
+      })),
       room_types:          form.room_types,
       mood_tags:           form.mood_tags,
     };
@@ -204,9 +216,9 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       <div className="fixed inset-0 bg-dark-950/60 backdrop-blur-sm z-40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-dark-900 border-l border-dark-700 z-50 flex flex-col shadow-2xl">
+      <div className="fixed top-0 right-0 bottom-0 w-full sm:max-w-2xl xl:max-w-3xl bg-dark-900 border-l border-dark-700 z-50 flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 sm:px-6 xl:px-8 py-4 border-b border-dark-700 flex-shrink-0">
           <h2 className="text-cream-100 font-bold text-base">
             {editing ? 'Edit Rug' : 'Add New Rug'}
           </h2>
@@ -216,7 +228,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 sm:px-6 xl:px-8 py-5 space-y-4">
 
           {/* Name */}
           <div className="space-y-1">

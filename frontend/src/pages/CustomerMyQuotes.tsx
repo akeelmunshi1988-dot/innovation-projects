@@ -193,9 +193,6 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Qty</p>
               <p className="text-stone-900 text-sm">{quote.qty} pc{quote.qty !== 1 ? 's' : ''}</p>
-              {quote.size_w && quote.size_h && (
-                <p className="text-stone-400 text-xs mt-0.5">{(quote.size_w * quote.size_h * quote.qty).toFixed(2)} m² total</p>
-              )}
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Type</p>
@@ -553,8 +550,6 @@ export default function CustomerMyQuotes() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState('date_desc');
-  const [sizeMin, setSizeMin] = useState('');
-  const [sizeMax, setSizeMax] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sizeUnit, setSizeUnit] = useState('ft');
@@ -567,7 +562,7 @@ export default function CustomerMyQuotes() {
     }).catch(() => {});
   }, []);
 
-  interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
+  interface FetchOpts { status: string; sortBy: string; dateFrom: string; dateTo: string; }
 
   const fetchPage = async (pageNum: number, opts: FetchOpts, append: boolean) => {
     if (!customerToken) return;
@@ -576,8 +571,6 @@ export default function CustomerMyQuotes() {
     try {
       const params: Record<string, string | number> = { page: pageNum, page_size: PAGE_SIZE, sort_by: opts.sortBy };
       if (opts.status !== 'all') params.status = opts.status;
-      if (opts.sizeMin) params.size_min = parseFloat(opts.sizeMin);
-      if (opts.sizeMax) params.size_max = parseFloat(opts.sizeMax);
       if (opts.dateFrom) params.date_from = opts.dateFrom;
       if (opts.dateTo) params.date_to = opts.dateTo;
       const { data } = await axios.get('/api/customer/quotes', {
@@ -596,7 +589,7 @@ export default function CustomerMyQuotes() {
     }
   };
 
-  const currentOpts = (): FetchOpts => ({ status: filter, sortBy, sizeMin, sizeMax, dateFrom, dateTo });
+  const currentOpts = (): FetchOpts => ({ status: filter, sortBy, dateFrom, dateTo });
 
   useEffect(() => {
     if (isCustomerAuthenticated) fetchPage(1, currentOpts(), false);
@@ -620,12 +613,12 @@ export default function CustomerMyQuotes() {
   };
 
   const handleClearFilters = () => {
-    setSizeMin(''); setSizeMax(''); setDateFrom(''); setDateTo('');
+    setDateFrom(''); setDateTo('');
     setQuotes([]);
-    fetchPage(1, { ...currentOpts(), sizeMin: '', sizeMax: '', dateFrom: '', dateTo: '' }, false);
+    fetchPage(1, { ...currentOpts(), dateFrom: '', dateTo: '' }, false);
   };
 
-  const hasActiveFilters = !!(sizeMin || sizeMax || dateFrom || dateTo);
+  const hasActiveFilters = !!(dateFrom || dateTo);
 
   const handleLoadMore = () => fetchPage(page + 1, currentOpts(), true);
 
@@ -723,26 +716,6 @@ export default function CustomerMyQuotes() {
                 <option value="price_asc">Price — Low to High</option>
                 <option value="price_desc">Price — High to Low</option>
               </select>
-            </div>
-
-            {/* Size filter */}
-            <div>
-              <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Size (m²)</p>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number" min="0" step="0.5"
-                  value={sizeMin} onChange={e => setSizeMin(e.target.value)}
-                  placeholder="Min"
-                  className="w-20 border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400 placeholder-stone-300"
-                />
-                <span className="text-stone-300 text-xs">–</span>
-                <input
-                  type="number" min="0" step="0.5"
-                  value={sizeMax} onChange={e => setSizeMax(e.target.value)}
-                  placeholder="Max"
-                  className="w-20 border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400 placeholder-stone-300"
-                />
-              </div>
             </div>
 
             {/* Date filter */}

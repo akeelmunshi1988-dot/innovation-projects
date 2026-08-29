@@ -523,6 +523,41 @@ async def subscribe_newsletter(body: NewsletterSubscribeBody):
         db.close()
 
 
+def _public_catalog_offer(rug: RugCatalog, db: Session) -> dict:
+    """Calculate the admin-selected default size through the normal quote engine."""
+    sizes = [size for size in (rug.sizes or []) if isinstance(size, dict) and size.get("ft")]
+    default_size = next((size for size in sizes if size.get("is_default")), sizes[0] if sizes else None)
+    if not default_size:
+        return {"display_price": None, "default_size": None, "price_currency": None}
+
+    try:
+        width_ft, height_ft = [float(part.strip()) for part in default_size["ft"].lower().split("x")]
+        calculated = QuoteEngine(db, tenant_id=rug.tenant_id).calculate_quote(
+            rug_id=rug.id,
+            size_w=width_ft * 0.3048,
+            size_h=height_ft * 0.3048,
+            material_id=rug.material_id,
+            qty=1,
+            rush_order=False,
+            shape="rect",
+        )
+        price = None if "error" in calculated else calculated.get("final_price")
+        price_currency = calculated.get("price_currency")
+    except (TypeError, ValueError):
+        price = None
+        price_currency = None
+    public_size = {"ft": default_size["ft"], "cm": default_size.get("cm")}
+    return {"display_price": price, "default_size": public_size, "price_currency": price_currency}
+
+
+def _public_catalog_sizes(rug: RugCatalog) -> list[dict]:
+    return [
+        {"ft": size.get("ft"), "cm": size.get("cm")}
+        for size in (rug.sizes or [])
+        if isinstance(size, dict) and size.get("ft")
+    ]
+
+
 @router.get("/customer/catalog")
 async def get_public_catalog(
     sort: str = Query("newest"),
@@ -558,10 +593,8 @@ async def get_public_catalog(
                 .group_by(RugCatalog.id)
                 .order_by(sqlfunc.count(QuoteModel.id).desc())
             )
-        elif sort == "price-asc":
-            q = q.order_by(RugCatalog.base_price.asc())
-        elif sort == "price-desc":
-            q = q.order_by(RugCatalog.base_price.desc())
+        elif sort in ("price-asc", "price-desc"):
+            q = q.order_by(RugCatalog.id.desc())
         elif sort == "lead-asc":
             q = q.order_by(RugCatalog.lead_time_days.asc())
         else:
@@ -572,11 +605,18 @@ async def get_public_catalog(
             rugs = [r for r in rugs if room_type in (r.room_types or [])]
         if mood and mood != "all":
             rugs = [r for r in rugs if mood in (r.mood_tags or [])]
+        if sort in ("price-asc", "price-desc"):
+            def public_price_key(rug: RugCatalog) -> tuple[bool, float]:
+                price = _public_catalog_offer(rug, db)["display_price"]
+                return (price is None, (-price if sort == "price-desc" else price) if price is not None else 0.0)
+            rugs.sort(key=public_price_key)
 
         total = len(rugs)
         page = rugs[offset:offset + limit]
-        items = [
-            {
+        items = []
+        for r in page:
+            offer = _public_catalog_offer(r, db)
+            items.append({
                 "id": r.id,
                 "slug": r.slug,
                 "name": r.name,
@@ -585,18 +625,17 @@ async def get_public_catalog(
                 "pile_height": r.pile_height,
                 "material": r.material.name,
                 "material_type": r.material.type,
-                "sizes": r.sizes,
-                "base_price_per_sqm": r.base_price,
-                "base_price_currency": r.base_price_currency,
+                "sizes": _public_catalog_sizes(r),
+                "display_price": offer["display_price"],
+                "default_size": offer["default_size"],
+                "base_price_currency": offer["price_currency"],
                 "lead_time_days": r.lead_time_days,
                 "image_url": r.image_url,
                 "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
                 "room_types": r.room_types or [],
                 "mood_tags": r.mood_tags or [],
                 "available": r.material.is_available,
-            }
-            for r in page
-        ]
+            })
         result = {"items": items, "total": total, "has_more": offset + limit < total}
         cache_set("catalog", result, cache_key)
         return result
@@ -624,6 +663,7 @@ async def get_public_rug(rug_id_or_slug: str):
             r = q.filter(RugCatalog.slug == rug_id_or_slug).first()
         if not r:
             raise HTTPException(status_code=404, detail="Rug not found")
+        offer = _public_catalog_offer(r, db)
         result = {
             "id": r.id,
             "slug": r.slug,
@@ -635,9 +675,10 @@ async def get_public_rug(rug_id_or_slug: str):
             "material": r.material.name,
             "material_type": r.material.type,
             "material_color": r.material.color,
-            "sizes": r.sizes,
-            "base_price_per_sqm": r.base_price,
-            "base_price_currency": r.base_price_currency,
+            "sizes": _public_catalog_sizes(r),
+            "display_price": offer["display_price"],
+            "default_size": offer["default_size"],
+            "base_price_currency": offer["price_currency"],
             "lead_time_days": r.lead_time_days,
             "image_url": r.image_url,
             "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
@@ -679,7 +720,11 @@ async def estimate_rug_price(rug_id: int, body: EstimateRequest):
         )
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        return _customer_safe_breakdown(result)
+        safe = _customer_safe_breakdown(result)
+        shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
+        safe["shipping_cost"] = shipping_cost
+        safe["estimated_total"] = round((result.get("final_price") or 0.0) + shipping_cost, 2)
+        return safe
     finally:
         db.close()
 
@@ -715,6 +760,9 @@ async def inspire_match(
             budget_max=budget_max,
             rush_order=rush_order,
         )
+        for match in result.get("matches", []):
+            if isinstance(match.get("quote"), dict):
+                match["quote"] = _customer_safe_breakdown(match["quote"])
         return result
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -1693,7 +1741,6 @@ async def get_customer_orders(
             total_sqm = round(size_sqm * qty, 4) if size_sqm else None
             base_price = q.base_price if q else None
             price_per_piece = round(fp / qty, 2) if fp and qty else None
-            base_price_per_sqm = round(base_price / total_sqm, 2) if base_price and total_sqm else None
             if size_w and size_h:
                 if shape == "circle":
                     size_display = f"⌀ {size_w:g}m"
@@ -1728,11 +1775,8 @@ async def get_customer_orders(
                 "size": size_display,
                 "size_w": size_w,
                 "size_h": size_h,
-                "size_sqm": size_sqm,
-                "total_sqm": total_sqm,
                 "qty": qty,
                 "base_price": base_price,
-                "base_price_per_sqm": base_price_per_sqm,
                 "price_per_piece": price_per_piece,
                 "final_price": fp,
                 "pre_gst_price": pre_gst,
@@ -1788,14 +1832,15 @@ def _customer_safe_breakdown(result: dict) -> dict:
     order/quote views.
     """
     safe = {k: v for k, v in result.items() if k not in (
-        "material_cost_per_sqm", "profit_margin_pct", "moq_met", "moq_message",
+        "size_sqm", "total_sqm", "base_price_per_sqm", "material_cost_per_sqm",
+        "profit_margin_pct", "moq_met", "moq_message",
     )}
     breakdown = safe.get("breakdown")
     if breakdown:
         cleaned = []
         for i, line in enumerate(breakdown):
             if i == 0 and "label" in line:
-                line = {**line, "label": re.sub(r"\s*\[[^\]]*margin[^\]]*\]", "", line["label"]).strip()}
+                line = {**line, "label": "Rug subtotal"}
             cleaned.append(line)
         safe["breakdown"] = cleaned
     return safe
@@ -1975,12 +2020,19 @@ async def customer_chat(body: CustomerChatRequest):
         tenant = db.query(Tenant).first()
         business_name = tenant.name if tenant else "our studio"
         rugs = db.query(RugCatalog).join(Material).all()
-        catalog_lines = [
-            f"• ID {r.id} — {r.name}: material={r.material.name}, weave={r.weave_type or 'n/a'}, "
-            f"pile={r.pile_height or 'n/a'}, base_price={r.base_price}/sqm, "
-            f"lead_time={r.lead_time_days}d, sizes={', '.join(s['ft'] + ' ft' for s in r.sizes) or 'custom'}. {r.description or ''}"
-            for r in rugs
-        ]
+        catalog_lines = []
+        for r in rugs:
+            offer = _public_catalog_offer(r, db)
+            default_size = offer["default_size"]
+            offer_text = (
+                f"customer_price={offer['display_price']} for {default_size['ft']} ft"
+                if offer["display_price"] is not None and default_size else "price on request"
+            )
+            catalog_lines.append(
+                f"• ID {r.id} — {r.name}: material={r.material.name}, weave={r.weave_type or 'n/a'}, "
+                f"pile={r.pile_height or 'n/a'}, {offer_text}, "
+                f"lead_time={r.lead_time_days}d, sizes={', '.join(s['ft'] + ' ft' for s in r.sizes) or 'custom'}. {r.description or ''}"
+            )
         catalog_text = "\n".join(catalog_lines)
     finally:
         db.close()

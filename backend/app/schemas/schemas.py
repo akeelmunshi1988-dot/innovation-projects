@@ -47,6 +47,7 @@ class RugSize(BaseModel):
     no `cm` just isn't offered in cm mode on the customer-facing site."""
     ft: str
     cm: Optional[str] = None
+    is_default: bool = False
 
 
 class RugCatalogBase(BaseModel):

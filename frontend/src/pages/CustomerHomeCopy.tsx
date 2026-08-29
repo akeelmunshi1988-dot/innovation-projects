@@ -28,7 +28,8 @@ interface CatalogRug {
   pile_height: string;
   image_url: string | null;
   images: { id: number; image_url: string; sort_order: number }[];
-  base_price_per_sqm: number;
+  display_price: number | null;
+  default_size: CatalogSize | null;
   lead_time_days: number;
   sizes: CatalogSize[];
   available: boolean;
@@ -443,7 +444,7 @@ export default function CustomerHome() {
                 <div className="pt-4 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-serif text-lg font-light text-stone-900 leading-snug">{rug.name}</h3>
-                    <p className="text-stone-900 text-sm font-medium flex-shrink-0">{displayPrice(rug.base_price_per_sqm)}<span className="text-stone-400 text-xs">/sqm</span></p>
+                    {rug.display_price != null && <p className="text-stone-900 text-sm font-medium flex-shrink-0">{displayPrice(rug.display_price)}{rug.default_size && <span className="text-stone-400 text-xs"> · {rug.default_size.ft} ft</span>}</p>}
                   </div>
                   <p className="text-stone-400 text-sm capitalize">
                     {[rug.material, rug.weave_type].filter(Boolean).join(' · ')}
@@ -652,9 +653,9 @@ export default function CustomerHome() {
                 </div>
                 <div className="pt-4 space-y-1 text-center">
                   <h3 className="font-serif text-base font-light text-stone-900 leading-snug">{rug.name}</h3>
-                  <p className="text-stone-500 text-sm">
-                    From {displayPrice(rug.base_price_per_sqm)}<span className="text-stone-400 text-xs">/m²</span>
-                  </p>
+                  {rug.display_price != null && <p className="text-stone-500 text-sm">
+                    {displayPrice(rug.display_price)}{rug.default_size && <span className="text-stone-400 text-xs"> · {rug.default_size.ft} ft</span>}
+                  </p>}
                 </div>
               </Link>
             ))}

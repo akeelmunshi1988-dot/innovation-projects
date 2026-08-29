@@ -26,10 +26,41 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 const STORAGE_KEY = 'loomcraftrugs_cart';
 
+const sameDimension = (a: number, b: number) => Math.abs(a - b) < 0.000001;
+const normalizedNotes = (notes?: string) => (notes ?? '').trim().replace(/\s+/g, ' ');
+
+/** Charge-related choices (currently rush) do not create a separate cart line. */
+function isSameConfiguration(a: Omit<CartItem, 'id'>, b: Omit<CartItem, 'id'>): boolean {
+  return (
+    a.rug_id === b.rug_id &&
+    sameDimension(a.size_w, b.size_w) &&
+    sameDimension(a.size_h, b.size_h) &&
+    (a.shape || 'rect').toLowerCase() === (b.shape || 'rect').toLowerCase() &&
+    normalizedNotes(a.notes) === normalizedNotes(b.notes)
+  );
+}
+
+function consolidateCart(items: CartItem[]): CartItem[] {
+  return items.reduce<CartItem[]>((merged, item) => {
+    const existingIndex = merged.findIndex((existing) => isSameConfiguration(existing, item));
+    if (existingIndex === -1) return [...merged, item];
+
+    const next = [...merged];
+    next[existingIndex] = {
+      ...next[existingIndex],
+      qty: next[existingIndex].qty + item.qty,
+      // One configuration has one set of charge options; the latest choice wins.
+      rush_order: item.rush_order,
+      notes: item.notes,
+    };
+    return next;
+  }, []);
+}
+
 function loadCart(): CartItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return raw ? consolidateCart(JSON.parse(raw)) : [];
   } catch {
     return [];
   }
@@ -44,19 +75,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback((item: Omit<CartItem, 'id'>) => {
     setItems((prev) => {
-      // Same rug, same spec (size/shape/rush/notes) → same line item. Merge quantities
-      // instead of adding a second row for what's really the same configuration.
-      const dupeIndex = prev.findIndex((i) =>
-        i.rug_id === item.rug_id &&
-        i.size_w === item.size_w &&
-        i.size_h === item.size_h &&
-        i.shape === item.shape &&
-        i.rush_order === item.rush_order &&
-        (i.notes ?? '') === (item.notes ?? '')
-      );
+      // Same rug configuration → one line item, regardless of charge changes.
+      const dupeIndex = prev.findIndex((existing) => isSameConfiguration(existing, item));
       if (dupeIndex !== -1) {
         const next = [...prev];
-        next[dupeIndex] = { ...next[dupeIndex], qty: next[dupeIndex].qty + item.qty };
+        next[dupeIndex] = {
+          ...next[dupeIndex],
+          qty: next[dupeIndex].qty + item.qty,
+          rush_order: item.rush_order,
+          notes: item.notes,
+        };
         return next;
       }
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -69,7 +97,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateItem = useCallback((id: string, patch: Partial<Omit<CartItem, 'id'>>) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    setItems((prev) => consolidateCart(prev.map((i) => (i.id === id ? { ...i, ...patch } : i))));
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);

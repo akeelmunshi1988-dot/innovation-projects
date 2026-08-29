@@ -879,11 +879,8 @@ export interface CustomerOrder {
   size: string;
   size_w: number | null;
   size_h: number | null;
-  size_sqm: number | null;
-  total_sqm: number | null;
   qty: number;
   base_price: number | null;
-  base_price_per_sqm: number | null;
   price_per_piece: number | null;
   final_price: number | null;
   pre_gst_price: number | null;
@@ -920,9 +917,6 @@ export interface OrderBreakdown {
   rug_name: string;
   material_name: string | null;
   weave_type: string | null;
-  size_sqm: number;
-  total_sqm: number;
-  base_price_per_sqm: number;
   subtotal: number;
   bulk_discount: number;
   manual_discount: number;

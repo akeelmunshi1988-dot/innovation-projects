@@ -34,7 +34,8 @@ interface RugDetail {
   material_type: string;
   material_color: string;
   sizes: CatalogSize[];
-  base_price_per_sqm: number;
+  display_price: number | null;
+  default_size: CatalogSize | null;
   base_price_currency: string | null;
   lead_time_days: number;
   image_url: string | null;
@@ -43,8 +44,6 @@ interface RugDetail {
 }
 
 interface PriceResult {
-  size_sqm: number;
-  total_sqm: number;
   subtotal: number;
   final_price: number;
   price_per_piece: number;
@@ -54,6 +53,8 @@ interface PriceResult {
   gst_pct: number;
   gst_amount: number;
   gst_inclusive: boolean;
+  shipping_cost: number;
+  estimated_total: number;
   material_available: boolean;
   estimated_days: number;
   standard_days: number;
@@ -292,8 +293,6 @@ export default function CustomerRugDetail() {
   }
 
   const currency = rug?.base_price_currency ?? priceResult?.price_currency ?? 'INR';
-  const sym = currencySymbol(currency);
-
   const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
   const scrollToConfigurator = () => {
     document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -305,7 +304,7 @@ export default function CustomerRugDetail() {
         title={rug.name}
         description={
           rug.description ??
-          `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size, starting at ${sym}${rug.base_price_per_sqm}/m².`
+          `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size.`
         }
         image={rug.image_url ?? undefined}
         jsonLd={[
@@ -316,14 +315,16 @@ export default function CustomerRugDetail() {
             description: rug.description ?? undefined,
             image: rug.image_url ?? undefined,
             material: rug.material,
-            offers: {
-              '@type': 'Offer',
-              price: rug.base_price_per_sqm,
-              priceCurrency: currency,
-              availability: rug.available
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/OutOfStock',
-            },
+            ...(rug.display_price != null ? {
+              offers: {
+                '@type': 'Offer',
+                price: rug.display_price,
+                priceCurrency: currency,
+                availability: rug.available
+                  ? 'https://schema.org/InStock'
+                  : 'https://schema.org/OutOfStock',
+              },
+            } : {}),
           },
           {
             '@context': 'https://schema.org',
@@ -469,10 +470,12 @@ export default function CustomerRugDetail() {
           <section className="md:col-span-2 lg:col-span-5 space-y-4 min-w-0">
             <div>
               <h1 className="font-serif text-3xl font-light text-stone-900">{rug.name}</h1>
-              <div className="flex items-end gap-2 mt-3">
-                <p className="text-stone-900 font-medium text-xl">{displayPrice(rug.base_price_per_sqm, currency)}</p>
-                <p className="text-stone-400 text-xs pb-0.5">per m²</p>
-              </div>
+              {rug.display_price != null && (
+                <div className="flex flex-wrap items-end gap-x-2 gap-y-1 mt-3">
+                  <p className="text-stone-900 font-medium text-xl">{displayPrice(rug.display_price, currency)}</p>
+                  {rug.default_size && <p className="text-stone-400 text-xs pb-0.5">for {fmtSize(rug.default_size, sizeUnit)}</p>}
+                </div>
+              )}
             </div>
 
             {rug.description ? (
@@ -640,11 +643,6 @@ export default function CustomerRugDetail() {
                           placeholder={sizeUnit === 'cm' ? '300' : '10'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
                           className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                         />
-                        {form.size_w && parseFloat(form.size_w) > 0 && (
-                          <p className="text-stone-400 text-xs mt-1">
-                            Area ≈ {(Math.PI * (toMetres(parseFloat(form.size_w), sizeUnit) / 2) ** 2).toFixed(2)} m²
-                          </p>
-                        )}
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -666,11 +664,6 @@ export default function CustomerRugDetail() {
                             className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
                           />
                         </div>
-                        {form.shape === 'oval' && form.size_w && form.size_h && parseFloat(form.size_w) > 0 && parseFloat(form.size_h) > 0 && (
-                          <p className="col-span-2 text-stone-400 text-xs -mt-1">
-                            Area ≈ {(Math.PI * (sizeWMetres / 2) * (sizeHMetres / 2)).toFixed(2)} m²
-                          </p>
-                        )}
                       </div>
                     )}
 
@@ -741,10 +734,6 @@ export default function CustomerRugDetail() {
                         </button>
                         {priceResult && (
                           <div className="mt-2 border border-stone-100 bg-stone-50 p-3 space-y-1.5">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-stone-400">Area</span>
-                              <span className="text-stone-700">{priceResult.size_sqm.toFixed(2)} m²</span>
-                            </div>
                             {priceResult.bulk_discount > 0 && (
                               <div className="flex justify-between text-xs">
                                 <span className="text-green-600">Bulk discount</span>
@@ -769,9 +758,15 @@ export default function CustomerRugDetail() {
                                 </div>
                               </>
                             )}
+                            <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                              <span className="text-stone-400">Shipping</span>
+                              <span className="text-stone-700">
+                                {priceResult.shipping_cost > 0 ? `+${displayPrice(priceResult.shipping_cost, priceResult.price_currency)}` : 'Free'}
+                              </span>
+                            </div>
                             <div className="flex justify-between text-sm font-medium pt-1 border-t border-stone-200">
-                              <span className="text-stone-900">{priceResult.gst_inclusive ? 'Total (incl. Tax)' : 'Total'}</span>
-                              <span className="text-stone-900">{displayPrice(priceResult.final_price, priceResult.price_currency)}</span>
+                              <span className="text-stone-900">Estimated Total</span>
+                              <span className="text-stone-900">{displayPrice(priceResult.estimated_total, priceResult.price_currency)}</span>
                             </div>
                             <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
                             <div className="flex flex-col sm:flex-row gap-2 mt-1">
@@ -888,7 +883,7 @@ export default function CustomerRugDetail() {
           <img
             src={expandedImage.src}
             alt={expandedImage.alt}
-            className="max-w-full max-h-full object-contain"
+            className="w-full h-full object-contain"
             onClick={(event) => event.stopPropagation()}
           />
         </div>

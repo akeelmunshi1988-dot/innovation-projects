@@ -93,6 +93,7 @@ export interface RugImage {
 export interface CatalogSize {
   ft: string;
   cm?: string | null;
+  is_default?: boolean;
 }
 
 export interface RugCatalog {

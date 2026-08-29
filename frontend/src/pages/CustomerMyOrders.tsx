@@ -162,16 +162,10 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency, onCa
                 {order.rug_shape === 'circle' ? 'Diameter' : 'Size'} (per piece)
               </p>
               <p className="text-stone-900 text-sm">{fmtDims(order.size_w, order.size_h, sizeUnit, order.rug_shape)}</p>
-              {order.size_sqm != null && (
-                <p className="text-stone-400 text-xs mt-0.5">{order.size_sqm.toFixed(2)} m²</p>
-              )}
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Quantity</p>
               <p className="text-stone-900 text-sm">{order.qty} pc{order.qty !== 1 ? 's' : ''}</p>
-              {order.total_sqm != null && (
-                <p className="text-stone-400 text-xs mt-0.5">{order.total_sqm.toFixed(2)} m² total</p>
-              )}
             </div>
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Est. Delivery</p>
@@ -202,12 +196,6 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency, onCa
               <div>
                 <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Price / Piece</p>
                 <p className="text-stone-900 text-sm">{fmt(order.price_per_piece)}</p>
-              </div>
-            )}
-            {order.base_price_per_sqm != null && (
-              <div>
-                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Rate / m²</p>
-                <p className="text-stone-900 text-sm">{fmt(order.base_price_per_sqm)}</p>
               </div>
             )}
           </div>
@@ -269,11 +257,9 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency, onCa
 
             {bd && !breakdownLoading && (
               <>
-                {/* Unit cost row */}
+                {/* Customer-safe subtotal row */}
                 <div className="flex justify-between text-xs pb-1.5 border-b border-stone-200 mb-1">
-                  <span className="text-stone-500">
-                    Selling rate: {fmt(bd.base_price_per_sqm)}/m² × {bd.total_sqm.toFixed(2)} m²
-                  </span>
+                  <span className="text-stone-500">Rug subtotal</span>
                   <span className="text-stone-700">{fmt(bd.subtotal)}</span>
                 </div>
 
@@ -518,8 +504,6 @@ export default function CustomerMyOrders() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
-  const [sizeMin, setSizeMin] = useState('');
-  const [sizeMax, setSizeMax] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
@@ -545,7 +529,7 @@ export default function CustomerMyOrders() {
     }).catch(() => {});
   }, []);
 
-  interface FetchOpts { status: string; sortBy: string; sizeMin: string; sizeMax: string; dateFrom: string; dateTo: string; }
+  interface FetchOpts { status: string; sortBy: string; dateFrom: string; dateTo: string; }
 
   const fetchOrders = async (pageNum: number, opts: FetchOpts, append: boolean) => {
     if (!customer) return;
@@ -554,8 +538,6 @@ export default function CustomerMyOrders() {
       const res = await getMyOrders(customer.email, pageNum, PAGE_SIZE, {
         status: opts.status,
         sort_by: opts.sortBy,
-        size_min: opts.sizeMin ? parseFloat(opts.sizeMin) : undefined,
-        size_max: opts.sizeMax ? parseFloat(opts.sizeMax) : undefined,
         date_from: opts.dateFrom || undefined,
         date_to: opts.dateTo || undefined,
       });
@@ -567,7 +549,7 @@ export default function CustomerMyOrders() {
     }
   };
 
-  const currentOpts = (): FetchOpts => ({ status: filter, sortBy, sizeMin, sizeMax, dateFrom, dateTo });
+  const currentOpts = (): FetchOpts => ({ status: filter, sortBy, dateFrom, dateTo });
 
   useEffect(() => {
     if (!isCustomerAuthenticated || !customer) return;
@@ -592,12 +574,12 @@ export default function CustomerMyOrders() {
   };
 
   const handleClearFilters = () => {
-    setSizeMin(''); setSizeMax(''); setDateFrom(''); setDateTo('');
+    setDateFrom(''); setDateTo('');
     setOrders([]);
-    fetchOrders(1, { ...currentOpts(), sizeMin: '', sizeMax: '', dateFrom: '', dateTo: '' }, false);
+    fetchOrders(1, { ...currentOpts(), dateFrom: '', dateTo: '' }, false);
   };
 
-  const hasActiveFilters = !!(sizeMin || sizeMax || dateFrom || dateTo);
+  const hasActiveFilters = !!(dateFrom || dateTo);
 
   const handleLoadMore = () => fetchOrders(page + 1, currentOpts(), true);
 
@@ -704,25 +686,6 @@ export default function CustomerMyOrders() {
                   <option value="price_asc">Price — Low to High</option>
                   <option value="price_desc">Price — High to Low</option>
                 </select>
-              </div>
-
-              <div>
-                <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Size (m²)</p>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number" min="0" step="0.5"
-                    value={sizeMin} onChange={e => setSizeMin(e.target.value)}
-                    placeholder="Min"
-                    className="w-20 border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400 placeholder-stone-300"
-                  />
-                  <span className="text-stone-300 text-xs">–</span>
-                  <input
-                    type="number" min="0" step="0.5"
-                    value={sizeMax} onChange={e => setSizeMax(e.target.value)}
-                    placeholder="Max"
-                    className="w-20 border border-stone-200 text-stone-700 text-xs px-2 py-2 focus:outline-none focus:border-stone-400 placeholder-stone-300"
-                  />
-                </div>
               </div>
 
               <div>

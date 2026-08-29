@@ -13,10 +13,17 @@ interface SizesEditorProps {
  * the customer-facing site (see frontend/src/utils/size.ts).
  */
 export default function SizesEditor({ value, onChange }: SizesEditorProps) {
-  const addRow = () => onChange([...value, { ft: '', cm: '' }]);
-  const removeRow = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const addRow = () => onChange([...value, { ft: '', cm: '', is_default: value.length === 0 }]);
+  const removeRow = (i: number) => {
+    const removedDefault = value[i]?.is_default;
+    const next = value.filter((_, idx) => idx !== i);
+    if (removedDefault && next.length > 0) next[0] = { ...next[0], is_default: true };
+    onChange(next);
+  };
   const updateRow = (i: number, field: 'ft' | 'cm', v: string) =>
     onChange(value.map((row, idx) => (idx === i ? { ...row, [field]: v } : row)));
+  const setDefault = (i: number) =>
+    onChange(value.map((row, idx) => ({ ...row, is_default: idx === i })));
 
   return (
     <div className="space-y-1.5">
@@ -29,7 +36,17 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
 
       <div className="space-y-2">
         {value.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2">
+            <label className="flex flex-col items-center gap-1 text-[10px] text-dark-400 cursor-pointer" title="Use this as the default storefront size">
+              <input
+                type="radio"
+                name="default-rug-size"
+                checked={Boolean(row.is_default)}
+                onChange={() => setDefault(i)}
+                className="accent-gold-500"
+              />
+              Default
+            </label>
             <input
               value={row.ft}
               onChange={(e) => updateRow(i, 'ft', e.target.value)}
@@ -60,6 +77,7 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
       >
         <Plus size={13} /> Add Size
       </button>
+      <p className="text-dark-500 text-xs">The selected default size is used to calculate the total storefront price from material cost and margin.</p>
     </div>
   );
 }

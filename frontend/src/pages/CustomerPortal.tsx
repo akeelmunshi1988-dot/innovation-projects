@@ -23,7 +23,8 @@ interface CatalogRug {
   weave_type: string;
   image_url: string | null;
   available: boolean;
-  base_price_per_sqm: number;
+  display_price: number | null;
+  default_size: CatalogSize | null;
   sizes: CatalogSize[];
   lead_time_days: number;
 }
@@ -107,7 +108,8 @@ export default function CustomerPortal() {
   interface EstimateResult {
     final_price: number; pre_gst_price: number; gst_pct: number; gst_amount: number; gst_inclusive: boolean;
     subtotal: number; bulk_discount: number; rush_surcharge: number; size_surcharge: number;
-    price_per_piece: number; size_sqm: number; total_sqm: number; price_currency: string;
+    price_per_piece: number; price_currency: string;
+    shipping_cost: number; estimated_total: number;
     estimated_days: number; rush_available: boolean;
   }
   const [estimate, setEstimate]         = useState<EstimateResult | null>(null);
@@ -1059,7 +1061,10 @@ export default function CustomerPortal() {
                           <div className="min-w-0">
                             <p className="text-stone-900 text-sm font-medium truncate">{selectedRug.name}</p>
                             <p className="text-stone-400 text-xs">{selectedRug.material} · {selectedRug.weave_type}</p>
-                            <p className="text-stone-600 text-xs mt-0.5">{displayPrice(selectedRug.base_price_per_sqm)}/sqm · {selectedRug.lead_time_days}d delivery</p>
+                            <p className="text-stone-600 text-xs mt-0.5">
+                              {selectedRug.display_price != null && <>{displayPrice(selectedRug.display_price)}{selectedRug.default_size ? ` · ${selectedRug.default_size.ft} ft` : ''} · </>}
+                              {selectedRug.lead_time_days}d delivery
+                            </p>
                           </div>
                         </div>
 
@@ -1127,11 +1132,6 @@ export default function CustomerPortal() {
                                 placeholder={sizeUnit === 'cm' ? 'e.g. 300' : 'e.g. 10'} type="number" min={sizeUnit === 'cm' ? '30' : '1'} step={sizeUnit === 'cm' ? '1' : '0.1'} required
                                 className="w-40 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
                               />
-                              {quoteForm.size_w && parseFloat(quoteForm.size_w) > 0 && (
-                                <p className="text-stone-400 text-xs">
-                                  Area ≈ {(Math.PI * (toMetres(parseFloat(quoteForm.size_w), sizeUnit) / 2) ** 2).toFixed(2)} m²
-                                </p>
-                              )}
                             </>
                           ) : (
                             <>
@@ -1149,12 +1149,6 @@ export default function CustomerPortal() {
                                   className="flex-1 border border-stone-200 focus:border-stone-400 px-3 py-2 text-stone-900 text-sm placeholder-stone-300 focus:outline-none transition-colors"
                                 />
                               </div>
-                              {quoteForm.shape === 'oval' && quoteForm.size_w && quoteForm.size_h &&
-                               parseFloat(quoteForm.size_w) > 0 && parseFloat(quoteForm.size_h) > 0 && (
-                                <p className="text-stone-400 text-xs">
-                                  Area ≈ {(Math.PI * (toMetres(parseFloat(quoteForm.size_w), sizeUnit) / 2) * (toMetres(parseFloat(quoteForm.size_h), sizeUnit) / 2)).toFixed(2)} m²
-                                </p>
-                              )}
                             </>
                           )}
                         </div>
@@ -1206,9 +1200,7 @@ export default function CustomerPortal() {
                               <p className="text-stone-400 text-xs uppercase tracking-widest mb-2">Price Breakdown</p>
 
                               <div className="flex justify-between text-xs">
-                                <span className="text-stone-400">
-                                  {estimate.size_sqm.toFixed(2)} m² × {parseInt(quoteForm.qty) || 1} pc
-                                </span>
+                                <span className="text-stone-400">Rug subtotal</span>
                                 <span className="text-stone-700">{displayPrice(estimate.subtotal, estimate.price_currency)}</span>
                               </div>
 
@@ -1247,9 +1239,16 @@ export default function CustomerPortal() {
                                 </>
                               )}
 
+                              <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
+                                <span className="text-stone-400">Shipping</span>
+                                <span className="text-stone-700">
+                                  {estimate.shipping_cost > 0 ? `+${displayPrice(estimate.shipping_cost, estimate.price_currency)}` : 'Free'}
+                                </span>
+                              </div>
+
                               <div className="flex justify-between text-sm font-medium pt-1.5 border-t border-stone-200">
-                                <span className="text-stone-900">{estimate.gst_inclusive ? 'Total (incl. Tax)' : 'Total'}</span>
-                                <span className="text-stone-900">{displayPrice(estimate.final_price, estimate.price_currency)}</span>
+                                <span className="text-stone-900">Estimated Total</span>
+                                <span className="text-stone-900">{displayPrice(estimate.estimated_total, estimate.price_currency)}</span>
                               </div>
 
                               {(parseInt(quoteForm.qty) || 1) > 1 && (
@@ -1366,4 +1365,3 @@ export default function CustomerPortal() {
     </CustomerLayout>
   );
 }
-
