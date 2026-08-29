@@ -267,7 +267,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         <div className="relative max-w-7xl mx-auto px-4 h-[70px] flex items-center gap-8">
 
           {/* Desktop nav — left */}
-          <nav className="hidden md:flex items-center gap-7 h-full">
+          <nav className="hidden lg:flex items-center gap-7 h-full">
             {NAV.map((n) => {
               const active = location.pathname === n.path;
               const link = (
@@ -330,13 +330,13 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           {/* Brand — centered on desktop, left-aligned on mobile */}
           <Link
             to="/"
-            className="inline-flex items-center -ml-3 md:absolute md:left-1/2 md:-ml-0 md:-translate-x-1/2"
+            className="inline-flex items-center -ml-3 lg:absolute lg:left-1/2 lg:-ml-0 lg:-translate-x-1/2"
           >
             <BrandLockup className="font-serif text-xl font-medium tracking-wide text-[#85501b]" markSize={46} />
           </Link>
 
           {/* Right area */}
-          <div className="hidden md:flex items-center gap-5 ml-auto">
+          <div className="hidden lg:flex items-center gap-5 ml-auto">
             <div className="relative" ref={currencyRef}>
               <button
                 onClick={() => setCurrencyOpen((o) => !o)}
@@ -439,7 +439,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Mobile hamburger */}
           <button
-            className="ml-auto md:hidden text-stone-700 p-1"
+            className="ml-auto lg:hidden text-stone-700 p-1"
             onClick={() => setMobileOpen((o) => !o)}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -448,7 +448,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
         {/* Mobile nav */}
         {mobileOpen && (
-          <div className="md:hidden bg-white border-t border-stone-100 px-6 py-5 space-y-1">
+          <div className="lg:hidden bg-white border-t border-stone-100 px-6 py-5 space-y-1">
             <div className="flex items-center gap-2 pb-3 mb-1 border-b border-stone-50 flex-wrap">
               <span className="text-stone-400 text-xs uppercase tracking-wider">Currency</span>
               {availableCurrencies.map((c) => (
