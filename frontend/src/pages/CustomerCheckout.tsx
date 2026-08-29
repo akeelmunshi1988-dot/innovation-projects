@@ -128,7 +128,7 @@ export default function CustomerCheckout() {
   if (!state || !state.items || state.items.length === 0) {
     return (
       <CustomerLayout>
-        <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
+        <div className="max-w-xl mx-auto px-4 py-32 text-center space-y-4">
           <ShoppingBag size={36} className="mx-auto text-stone-300" />
           <h2 className="storefront-heading text-2xl">No order data found</h2>
           <p className="text-stone-500 text-sm">Please start from the catalog.</p>
@@ -294,7 +294,7 @@ export default function CustomerCheckout() {
   return (
     <CustomerLayout>
       <SEO title="Checkout" description="Complete your custom rug order." noindex />
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-10 space-y-8">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-stone-400">
@@ -474,13 +474,13 @@ export default function CustomerCheckout() {
                 ) : (
                   <>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-stone-500 text-xs">Continue as guest</p>
+                      <p className="text-stone-500 text-sm">Continue as guest</p>
                       <button
                         type="button"
                         onClick={() => setAuthModal(true)}
-                        className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-900 transition-colors underline underline-offset-2"
+                        className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-900 transition-colors underline underline-offset-2"
                       >
-                        <LogIn size={11} /> Sign in instead
+                        <LogIn size={13} /> Sign in instead
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-3">

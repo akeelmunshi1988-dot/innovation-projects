@@ -482,6 +482,12 @@ def update_tenant_settings(
         tenant.catalog_pdf_url = body.catalog_pdf_url
     if body.hero_image_url is not None:
         tenant.hero_image_url = body.hero_image_url or None
+    if body.hero_eyebrow is not None:
+        tenant.hero_eyebrow = body.hero_eyebrow or None
+    if body.hero_heading is not None:
+        tenant.hero_heading = body.hero_heading or None
+    if body.hero_cta_label is not None:
+        tenant.hero_cta_label = body.hero_cta_label or None
     if body.certifications is not None:
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:

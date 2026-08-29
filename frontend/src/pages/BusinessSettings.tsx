@@ -64,6 +64,10 @@ export default function BusinessSettings() {
 
   const [sizeUnit, setSizeUnit] = useState(tenant.default_size_unit ?? 'ft');
 
+  const [heroEyebrow, setHeroEyebrow] = useState(tenant.hero_eyebrow ?? '');
+  const [heroHeading, setHeroHeading] = useState(tenant.hero_heading ?? '');
+  const [heroCtaLabel, setHeroCtaLabel] = useState(tenant.hero_cta_label ?? '');
+
   // Pricing
   const [marginPct, setMarginPct] = useState(String(tenant.default_profit_margin_pct ?? 40));
   const [rushPct, setRushPct] = useState(String(tenant.rush_surcharge_pct ?? 25));
@@ -231,7 +235,10 @@ export default function BusinessSettings() {
     || aiAssistantCustomerEnabled !== (tenant.ai_assistant_customer_enabled ?? true)
     || aiAssistantVendorEnabled !== (tenant.ai_assistant_vendor_enabled ?? true)
     || vendorNotificationEmail !== (tenant.vendor_notification_email ?? '')
-    || sizeUnit !== (tenant.default_size_unit ?? 'ft');
+    || sizeUnit !== (tenant.default_size_unit ?? 'ft')
+    || heroEyebrow !== (tenant.hero_eyebrow ?? '')
+    || heroHeading !== (tenant.hero_heading ?? '')
+    || heroCtaLabel !== (tenant.hero_cta_label ?? '');
   const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true);
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct || (parseFloat(shippingRate) || 0) !== (tenant.default_shipping_rate ?? 0) || (parseInt(cancellationWindowHours) || 0) !== (tenant.cancellation_window_hours ?? 24);
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '') || gstInclusive !== (tenant.gst_inclusive ?? false);
@@ -286,6 +293,9 @@ export default function BusinessSettings() {
         ai_assistant_vendor_enabled: aiAssistantVendorEnabled,
         vendor_notification_email: vendorNotificationEmail.trim() || undefined,
         default_size_unit: sizeUnit,
+        hero_eyebrow: heroEyebrow.trim(),
+        hero_heading: heroHeading.trim(),
+        hero_cta_label: heroCtaLabel.trim(),
         contact_emails: contactEmails,
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
@@ -479,6 +489,46 @@ export default function BusinessSettings() {
               </div>
               {heroImageError && <p className="text-red-400 text-xs">{heroImageError}</p>}
               <p className={hintCls}>Full-bleed background behind the "Handcrafted Rugs. Made for Timeless Spaces." headline on your storefront homepage. JPEG, PNG, or WebP, max 10MB. Falls back to a default image when unset.</p>
+            </div>
+
+            {/* Hero Text */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className={labelCls}>Hero Eyebrow Text</label>
+                <input
+                  type="text"
+                  value={heroEyebrow}
+                  onChange={(e) => setHeroEyebrow(e.target.value)}
+                  maxLength={100}
+                  placeholder="20+ Years in the Making"
+                  className={inputCls}
+                />
+                <p className={hintCls}>Small line above the headline. Leave blank to use the default.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Hero Headline</label>
+                <input
+                  type="text"
+                  value={heroHeading}
+                  onChange={(e) => setHeroHeading(e.target.value)}
+                  maxLength={200}
+                  placeholder="Made for Timeless Spaces."
+                  className={inputCls}
+                />
+                <p className={hintCls}>Main hero headline. Leave blank to use the default.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Hero Button Text</label>
+                <input
+                  type="text"
+                  value={heroCtaLabel}
+                  onChange={(e) => setHeroCtaLabel(e.target.value)}
+                  maxLength={50}
+                  placeholder="Explore Collection"
+                  className={inputCls}
+                />
+                <p className={hintCls}>Links to the catalog. Leave blank to use the default.</p>
+              </div>
             </div>
 
             {/* Standard Size Unit */}

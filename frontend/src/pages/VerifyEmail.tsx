@@ -39,7 +39,7 @@ export default function VerifyEmail() {
   return (
     <CustomerLayout>
       <SEO title="Verify Email" description="Verifying your email address." noindex />
-      <div className="max-w-7xl mx-auto px-6 py-20">
+      <div className="max-w-7xl mx-auto px-4 py-20">
         <div className="max-w-md mx-auto text-center">
           {status === 'verifying' && (
             <>

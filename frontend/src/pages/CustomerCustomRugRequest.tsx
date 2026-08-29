@@ -43,6 +43,15 @@ const DELIVERY_EXPECTATIONS = [
 const MAX_IMAGES = 3;
 const MAX_RUGS = 10;
 
+// Mirrors the "Custom Rug Journey" section on the homepage — same steps, same copy.
+const JOURNEY_STEPS = [
+  { n: '01', title: 'Design', image: '/static/journey/design.jpg' },
+  { n: '02', title: 'Material', image: '/static/materials/wool.jpg' },
+  { n: '03', title: 'Weaving', image: '/static/journey/weaving.jpg' },
+  { n: '04', title: 'Quality Inspection', image: '/static/workshop/087b47494cc84953bc275b7f951d0216.jpg' },
+  { n: '05', title: 'Global Delivery', image: '/static/journey/delivery.jpg' },
+];
+
 interface RugSpec {
   room_type: string;
   size_w: string;
@@ -156,7 +165,7 @@ export default function CustomerCustomRugRequest() {
     return (
       <CustomerLayout>
         <SEO title="Custom Rug Request Received" description="Your custom rug request has been received." noindex />
-        <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-5">
+        <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-5">
           <CheckCircle size={44} className="text-green-600 mx-auto" />
           <h1 className="storefront-heading text-3xl">Request Received</h1>
           <p className="text-stone-500 text-sm leading-relaxed">{submitted.message}</p>
@@ -191,10 +200,30 @@ export default function CustomerCustomRugRequest() {
     'Not sure yet',
   ];
 
+  const stepTile = (step: typeof JOURNEY_STEPS[number]) => (
+    <div key={step.n} className="text-center">
+      <div className="relative overflow-hidden bg-stone-100 aspect-square">
+        <img src={step.image} alt={step.title} className="w-full h-full object-cover" loading="lazy" />
+        <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/90 text-stone-900 text-[10px] font-medium flex items-center justify-center">
+          {step.n}
+        </span>
+      </div>
+      <p className="text-stone-700 text-sm font-medium leading-tight mt-2">{step.title}</p>
+    </div>
+  );
+
   return (
     <CustomerLayout>
       <SEO title="Request a Custom Rug" description="Tell us about the rug you have in mind — size, material, style, and budget — and our team will send you a personalized quote." />
-      <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="grid grid-cols-1 lg:grid-cols-[160px_1fr_160px] gap-8 items-start">
+
+        {/* Left: steps 1–3 */}
+        <div className="hidden lg:flex flex-col gap-8 sticky top-24">
+          {JOURNEY_STEPS.slice(0, 3).map(stepTile)}
+        </div>
+
+        <div className="space-y-8">
 
         <div className="flex items-center gap-2 text-xs text-stone-400">
           <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>
@@ -210,6 +239,11 @@ export default function CustomerCustomRugRequest() {
             budget — and our team will get back to you with a personalized quote within 24–48 hours.
             Need more than one rug? Add as many as you like below — we'll quote them together.
           </p>
+        </div>
+
+        {/* Mobile-only compact journey strip — side columns above take over on lg+ */}
+        <div className="grid grid-cols-5 gap-3 lg:hidden">
+          {JOURNEY_STEPS.map(stepTile)}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -382,6 +416,14 @@ export default function CustomerCustomRugRequest() {
             {submitting ? 'Submitting…' : rugs.length > 1 ? `Submit Request (${rugs.length} Rugs)` : 'Submit Request'}
           </button>
         </form>
+        </div>
+
+        {/* Right: steps 4–5 */}
+        <div className="hidden lg:flex flex-col gap-8 sticky top-24">
+          {JOURNEY_STEPS.slice(3, 5).map(stepTile)}
+        </div>
+
+      </div>
       </div>
     </CustomerLayout>
   );

@@ -42,6 +42,9 @@ class Tenant(Base):
     contact_hours = Column(String(200), nullable=True)    # e.g. "Mon-Sat, 9am-6pm"
     catalog_pdf_url = Column(String(300), nullable=True)   # downloadable lookbook/catalog shown on storefront
     hero_image_url = Column(String(500), nullable=True)    # storefront homepage hero background image; falls back to a curated default when unset
+    hero_eyebrow = Column(String(100), nullable=True)       # small line above the hero headline, e.g. "20+ Years in the Making"; falls back to a default when unset
+    hero_heading = Column(String(200), nullable=True)       # main hero headline text; falls back to a default when unset
+    hero_cta_label = Column(String(50), nullable=True)      # hero CTA link text (always links to /catalog); falls back to a default when unset
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
@@ -441,6 +444,18 @@ class WorkshopPhoto(Base):
     caption = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     image_url = Column(String(300), nullable=False)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AnnouncementMessage(Base):
+    __tablename__ = "announcement_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    text = Column(String(200), nullable=False)  # e.g. "Free shipping worldwide this month"
+    link_url = Column(String(300), nullable=True)  # optional — makes the message clickable
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

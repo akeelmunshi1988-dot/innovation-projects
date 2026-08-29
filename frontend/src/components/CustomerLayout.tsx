@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingBag, Phone, MapPin, MessageCircle } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingCart, Phone, MapPin, MessageCircle } from 'lucide-react';
 import axios from 'axios';
 import CustomerChat from './CustomerChat';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
@@ -19,9 +19,49 @@ const NAV = [
   { path: '/', label: 'Home' },
   { path: '/catalog', label: 'Collection' },
   { path: '/custom-rug-request', label: 'Custom Rug' },
-  { path: '/visualizer', label: 'Visualizer' },
   { path: '/about', label: 'About Us' },
 ];
+
+// Mega menu shown on hovering "Collection" — mirrors the same Space/Mood/Material
+// facets used on the homepage tabs and the catalog page's own filter pills.
+const MEGA_MENU = {
+  space: {
+    heading: 'Shop by Space',
+    links: [
+      { label: 'Living Room', to: '/catalog/space/living_room' },
+      { label: 'Bedroom', to: '/catalog/space/bedroom' },
+      { label: 'Dining Room', to: '/catalog/space/dining_room' },
+      { label: 'Entryway', to: '/catalog/space/entryway' },
+    ],
+  },
+  mood: {
+    heading: 'Shop by Mood',
+    links: [
+      { label: 'Warm & Earthy', to: '/catalog/mood/warm_earthy' },
+      { label: 'Quiet Luxury', to: '/catalog/mood/quiet_luxury' },
+      { label: 'Modern Minimal', to: '/catalog/mood/modern_minimal' },
+      { label: 'Bohemian', to: '/catalog/mood/bohemian' },
+      { label: 'Bold & Artistic', to: '/catalog/mood/bold_artistic' },
+      { label: 'Timeless Traditional', to: '/catalog/mood/timeless_traditional' },
+    ],
+  },
+  material: {
+    heading: 'Shop by Material',
+    links: [
+      { label: 'Wool', to: '/catalog/material/wool' },
+      { label: 'Silk', to: '/catalog/material/silk' },
+      { label: 'Cotton', to: '/catalog/material/cotton' },
+      { label: 'Synthetic', to: '/catalog/material/synthetic' },
+    ],
+  },
+  quick: {
+    heading: 'Quick Links',
+    links: [
+      { label: 'All Rugs', to: '/catalog' },
+      { label: 'Custom Rug Request', to: '/custom-rug-request' },
+    ],
+  },
+};
 
 const USER_MENU = [
   { path: '/my-orders', label: 'My Orders', icon: <Package size={13} /> },
@@ -53,6 +93,9 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [showCookieBanner, setShowCookieBanner] = useState(false);
   const [infoBarDismissed, setInfoBarDismissed] = useState(false);
+  const [announcements, setAnnouncements] = useState<{ id: number; text: string; link_url: string | null }[]>([]);
+  const [announceIndex, setAnnounceIndex] = useState(0);
+  const [announceFading, setAnnounceFading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const { displayCurrency, setDisplayCurrency, availableCurrencies } = useCurrency();
@@ -66,6 +109,28 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     localStorage.setItem('cookie_consent', choice);
     setShowCookieBanner(false);
   };
+
+  useEffect(() => {
+    axios.get('/api/customer/announcement-messages')
+      .then(({ data }) => setAnnouncements(data))
+      .catch(() => {});
+  }, []);
+
+  // Rotates through admin-configured announcement messages with a brief fade —
+  // stays put if there's only one (or none, where a default line renders instead).
+  useEffect(() => {
+    if (announcements.length <= 1) return;
+    const interval = setInterval(() => {
+      setAnnounceFading(true);
+      setTimeout(() => {
+        setAnnounceIndex((i) => (i + 1) % announcements.length);
+        setAnnounceFading(false);
+      }, 300);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [announcements.length]);
+
+  const activeAnnouncement = announcements[announceIndex % (announcements.length || 1)];
 
   useEffect(() => {
     getPublicSettings()
@@ -168,7 +233,15 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {/* Top announcement bar — dismissible */}
         {!infoBarDismissed && (
           <div className="relative flex items-center justify-center gap-6 bg-stone-900 text-stone-200 text-xs tracking-wide px-10 h-8">
-            <span className="truncate">Handcrafted, made to order — every rug, every size.</span>
+            <span className={`truncate transition-opacity duration-300 ${announceFading ? 'opacity-0' : 'opacity-100'}`}>
+              {activeAnnouncement?.link_url ? (
+                <a href={activeAnnouncement.link_url} className="hover:text-white transition-colors">
+                  {activeAnnouncement.text}
+                </a>
+              ) : (
+                activeAnnouncement?.text ?? 'Handcrafted, made to order — every rug, every size.'
+              )}
+            </span>
             {(contactPhones[0] || contactAddress) && (
               <span className="hidden md:flex items-center gap-6 text-stone-400 flex-shrink-0">
                 {contactAddress && (
@@ -191,15 +264,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           </div>
         )}
 
-        <div className="relative max-w-7xl mx-auto px-6 h-[70px] flex items-center gap-8">
+        <div className="relative max-w-7xl mx-auto px-4 h-[70px] flex items-center gap-8">
 
           {/* Desktop nav — left */}
-          <nav className="hidden md:flex items-center gap-7">
+          <nav className="hidden md:flex items-center gap-7 h-full">
             {NAV.map((n) => {
               const active = location.pathname === n.path;
-              return (
+              const link = (
                 <Link
-                  key={n.path}
                   to={n.path}
                   className={`storefront-nav-link border-b ${
                     active
@@ -209,6 +281,48 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 >
                   {n.label}
                 </Link>
+              );
+
+              if (n.path !== '/catalog') return <React.Fragment key={n.path}>{link}</React.Fragment>;
+
+              // "Collection" gets a mega menu — the wrapper spans the full header
+              // row height so the mouse never crosses a hover-dead-zone on its way
+              // down into the panel below.
+              return (
+                <div key={n.path} className="group/mega h-full flex items-center">
+                  {link}
+                  <div
+                    className={`hidden group-hover/mega:block fixed left-0 right-0 bg-cream-200 border-t border-b border-stone-100 shadow-lg z-30 ${
+                      infoBarDismissed ? 'top-[70px]' : 'top-[102px]'
+                    }`}
+                  >
+                    <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-5 gap-10">
+                      {(Object.keys(MEGA_MENU) as (keyof typeof MEGA_MENU)[]).map((key) => (
+                        <div key={key} className="space-y-3">
+                          <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{MEGA_MENU[key].heading}</p>
+                          <div className="space-y-2.5">
+                            {MEGA_MENU[key].links.map((l) => (
+                              <Link key={l.to} to={l.to} className="block text-stone-500 hover:text-stone-900 text-sm transition-colors">
+                                {l.label}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <Link to="/catalog" className="group/promo relative overflow-hidden bg-stone-100 aspect-[4/5] block">
+                        <img
+                          src="/static/shop-by-space/living_room.jpg"
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover group-hover/promo:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-transparent to-transparent" />
+                        <span className="absolute bottom-4 left-4 right-4 text-white font-serif text-lg font-light">
+                          Explore the Full Collection
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </nav>
@@ -253,7 +367,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             </div>
 
             <Link to="/cart" className="relative text-stone-500 hover:text-stone-900 transition-colors">
-              <ShoppingBag size={18} />
+              <ShoppingCart size={18} />
               {itemCount > 0 && (
                 <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-stone-900 text-white text-[10px] leading-4 text-center">
                   {itemCount}
@@ -321,13 +435,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 Sign In
               </Link>
             )}
-
-            <Link
-              to="/catalog"
-              className="storefront-cta-solid px-5 py-2.5"
-            >
-              Shop Now
-            </Link>
           </div>
 
           {/* Mobile hamburger */}
@@ -366,7 +473,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <Link to="/cart"
               className="flex items-center gap-2 py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50"
             >
-              <ShoppingBag size={14} /> Cart{itemCount > 0 ? ` (${itemCount})` : ''}
+              <ShoppingCart size={14} /> Cart{itemCount > 0 ? ` (${itemCount})` : ''}
             </Link>
 
             {(isCustomerAuthenticated && customer) || isAdminBrowsing ? (
@@ -408,14 +515,9 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 )}
               </div>
             ) : (
-              <div className="pt-3 flex flex-col gap-2">
-                <Link to="/login" className="text-center py-2.5 text-sm text-stone-600 hover:text-stone-900 transition-colors">
+              <div className="pt-3">
+                <Link to="/login" className="text-center block py-2.5 text-sm text-stone-600 hover:text-stone-900 transition-colors">
                   Sign In
-                </Link>
-                <Link to="/catalog"
-                  className="storefront-cta-solid text-center py-3"
-                >
-                  Shop Now
                 </Link>
               </div>
             )}
@@ -428,40 +530,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-stone-50 border-t border-stone-200 mt-24">
-
-        {/* Newsletter band */}
-        <div className="border-b border-stone-200 py-16 text-center px-6">
-          <h2 className="storefront-heading text-3xl mb-2">Let us inspire you</h2>
-          <p className="text-stone-500 text-sm mb-6">New collections, workshop stories, and offers — straight to your inbox.</p>
-          {newsletterStatus === 'done' ? (
-            <p className="flex items-center justify-center gap-1.5 text-stone-600 text-sm">
-              <Check size={14} /> Thanks — you're subscribed.
-            </p>
-          ) : (
-            <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto flex gap-0">
-              <input
-                type="email"
-                required
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
-                placeholder="Enter email address"
-                className="flex-1 min-w-0 bg-white border border-stone-300 focus:border-stone-500 px-4 py-3 text-stone-900 placeholder-stone-400 text-sm focus:outline-none transition-colors"
-              />
-              <button
-                type="submit"
-                disabled={newsletterStatus === 'submitting'}
-                className="storefront-cta-solid inline-flex items-center gap-2 px-5 flex-shrink-0"
-              >
-                Sign Up <Send size={13} />
-              </button>
-            </form>
-          )}
-          {newsletterStatus === 'error' && (
-            <p className="text-red-500 text-xs mt-2">Something went wrong — please try again.</p>
-          )}
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div className="max-w-7xl mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.3fr_0.8fr_0.8fr_1.6fr] gap-10">
           <div className="space-y-4">
             <img src={FOOTER_LOGO_URL} alt={businessName ?? 'Dream Rugs Creation'} className="w-[200px] h-auto" />
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -486,10 +555,9 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <div className="space-y-2.5">
               {[
                 { to: '/catalog', label: 'All Rugs' },
-                { to: '/catalog?material=wool', label: 'Wool' },
-                { to: '/catalog?material=silk', label: 'Silk' },
-                { to: '/catalog?material=cotton', label: 'Cotton' },
-                { to: '/visualizer', label: 'Room Visualizer' },
+                { to: '/catalog/material/wool', label: 'Wool' },
+                { to: '/catalog/material/silk', label: 'Silk' },
+                { to: '/catalog/material/cotton', label: 'Cotton' },
               ].map((l) => (
                 <Link key={l.label} to={l.to}
                   className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
@@ -518,11 +586,42 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
               ))}
             </div>
           </div>
+
+          <div className="space-y-4">
+            <p className="storefront-heading text-2xl">Let us inspire you</p>
+            <p className="text-stone-500 text-sm leading-relaxed">New collections, workshop stories, and offers — straight to your inbox.</p>
+            {newsletterStatus === 'done' ? (
+              <p className="flex items-center gap-1.5 text-stone-600 text-sm">
+                <Check size={14} /> Thanks — you're subscribed.
+              </p>
+            ) : (
+              <form onSubmit={handleNewsletterSubmit} className="flex gap-0">
+                <input
+                  type="email"
+                  required
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  placeholder="Your email"
+                  className="flex-1 min-w-0 bg-white border border-stone-300 focus:border-stone-500 px-3 py-2.5 text-stone-900 placeholder-stone-400 text-sm focus:outline-none transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={newsletterStatus === 'submitting'}
+                  className="storefront-cta-solid px-4 flex-shrink-0"
+                >
+                  <Send size={14} />
+                </button>
+              </form>
+            )}
+            {newsletterStatus === 'error' && (
+              <p className="text-red-500 text-xs mt-1.5">Something went wrong — please try again.</p>
+            )}
+          </div>
         </div>
 
         {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress) && (
           <div className="border-t border-stone-200 py-8">
-            <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
+            <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
               {contactEmails.map((e) => (
                 <a key={e} href={`mailto:${e}`} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors">
                   <Mail size={14} className="flex-shrink-0" /> {e}
@@ -554,7 +653,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
         {certifications.length > 0 && (
           <div className="border-t border-stone-200 py-8">
-            <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+            <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
               {certifications.map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <img src={c.image_url} alt={c.label} className="w-8 h-8 object-contain" />
@@ -574,7 +673,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {showCookieBanner && (
         <div className="fixed inset-x-0 bottom-0 z-50 bg-stone-900 border-t border-stone-700">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center gap-4">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-4">
             <p className="flex-1 text-stone-300 text-sm text-center sm:text-left">
               We use cookies to keep you signed in, remember your cart, and understand how the site is used.
             </p>

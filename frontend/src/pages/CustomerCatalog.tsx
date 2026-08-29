@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Layers, X, Plus, Minus } from 'lucide-react';
 import type { CatalogSize } from '../types';
@@ -42,7 +42,10 @@ const tagLabel = (v: string) => v.split('_').map((w) => w[0].toUpperCase() + w.s
 const PAGE_SIZE = 12;
 
 export default function CustomerCatalog() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const { value: pathValue } = useParams<{ value?: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [items, setItems] = useState<CatalogRug[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -51,16 +54,25 @@ export default function CustomerCatalog() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('default');
-  const [filtersOpen, setFiltersOpen] = useState(() =>
-    ['material', 'pile', 'room_type', 'mood'].some((k) => searchParams.get(k))
-  );
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { displayPrice } = useCurrency();
 
-  const materialParam = searchParams.get('material')  ?? 'all';
-  const pileParam     = searchParams.get('pile')      ?? 'all';
-  const roomParam     = searchParams.get('room_type') ?? 'all';
-  const moodParam     = searchParams.get('mood')      ?? 'all';
+  // The primary facet (room/mood/material) lives as a clean URL segment —
+  // e.g. /catalog/space/bedroom — set by whichever `useParams` route matched.
+  // The other two facet types, plus pile, ride along as query params on top.
+  const pathFacet: 'room_type' | 'mood' | 'material' | null =
+    location.pathname.startsWith('/catalog/space/')    ? 'room_type' :
+    location.pathname.startsWith('/catalog/mood/')     ? 'mood' :
+    location.pathname.startsWith('/catalog/material/') ? 'material' : null;
+
+  const materialParam = pathFacet === 'material'  ? (pathValue ?? 'all') : (searchParams.get('material')  ?? 'all');
+  const pileParam     = searchParams.get('pile') ?? 'all';
+  const roomParam     = pathFacet === 'room_type' ? (pathValue ?? 'all') : (searchParams.get('room_type') ?? 'all');
+  const moodParam     = pathFacet === 'mood'      ? (pathValue ?? 'all') : (searchParams.get('mood')      ?? 'all');
+
+  const [filtersOpen, setFiltersOpen] = useState(() =>
+    pathFacet !== null || ['material', 'pile', 'room_type', 'mood'].some((k) => searchParams.get(k))
+  );
 
   // Debounce free-text search so we don't hit the backend on every keystroke
   useEffect(() => {
@@ -111,14 +123,34 @@ export default function CustomerCatalog() {
     return () => observer.disconnect();
   }, [items.length, hasMore, loading, loadingMore, materialParam, pileParam, roomParam, moodParam, sort, debouncedSearch]);
 
-  const setFilter = (key: string, val: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (val === 'all') next.delete(key);
-    else next.set(key, val);
-    setSearchParams(next);
+  // Builds a clean URL for the given filter state: whichever of room_type/mood/material
+  // is active takes the path segment (room_type > mood > material priority when more
+  // than one is active), the rest ride as query params alongside pile.
+  const buildCatalogUrl = (overrides: Partial<{ room_type: string; mood: string; material: string; pile: string }>) => {
+    const current = { room_type: roomParam, mood: moodParam, material: materialParam, pile: pileParam, ...overrides };
+
+    let facet: 'space' | 'mood' | 'material' | null = null;
+    let facetValue = '';
+    if (current.room_type !== 'all') { facet = 'space'; facetValue = current.room_type; }
+    else if (current.mood !== 'all') { facet = 'mood'; facetValue = current.mood; }
+    else if (current.material !== 'all') { facet = 'material'; facetValue = current.material; }
+
+    const params = new URLSearchParams();
+    if (facet !== 'space' && current.room_type !== 'all') params.set('room_type', current.room_type);
+    if (facet !== 'mood' && current.mood !== 'all') params.set('mood', current.mood);
+    if (facet !== 'material' && current.material !== 'all') params.set('material', current.material);
+    if (current.pile !== 'all') params.set('pile', current.pile);
+
+    const path = facet ? `/catalog/${facet}/${facetValue}` : '/catalog';
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
   };
 
-  const clearFilters = () => setSearchParams({});
+  const setFilter = (key: 'material' | 'pile' | 'room_type' | 'mood', val: string) => {
+    navigate(buildCatalogUrl({ [key]: val }));
+  };
+
+  const clearFilters = () => navigate('/catalog');
   const hasActiveFilters = materialParam !== 'all' || pileParam !== 'all' || roomParam !== 'all' || moodParam !== 'all';
 
   return (
@@ -135,7 +167,7 @@ export default function CustomerCatalog() {
           ],
         }}
       />
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4">
 
         {/* ── Page header ───────────────────────────────────────────── */}
         <div className="py-14 border-b border-stone-100 text-center">
@@ -153,8 +185,13 @@ export default function CustomerCatalog() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search rugs…"
-                className="w-full border border-stone-200 focus:border-stone-400 pl-8 pr-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none transition-colors"
+                className="w-full border border-stone-200 focus:border-stone-400 pl-8 pr-8 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none transition-colors"
               />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 transition-colors">
+                  <X size={13} />
+                </button>
+              )}
             </div>
 
             {/* Filters toggle */}
@@ -199,77 +236,61 @@ export default function CustomerCatalog() {
           </div>
 
           {filtersOpen && (
-            <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-stone-100">
-              {/* Material pills */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-stone-400 uppercase tracking-wider">Material:</span>
-                {['all', ...MATERIAL_OPTIONS].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setFilter('material', m)}
-                    className={`text-xs px-3 py-1.5 border capitalize transition-colors ${
-                      materialParam === m
-                        ? 'bg-stone-900 text-white border-stone-900'
-                        : 'text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-900'
-                    }`}
-                  >
-                    {m === 'all' ? 'All' : m}
-                  </button>
-                ))}
+            <div className="flex flex-wrap items-center gap-3 mt-5 pt-5 border-t border-stone-100">
+              {/* Material */}
+              <div className="space-y-1">
+                <label className="block text-xs text-stone-400 uppercase tracking-wider">Material</label>
+                <select
+                  value={materialParam}
+                  onChange={(e) => setFilter('material', e.target.value)}
+                  className="text-xs border border-stone-200 px-3 py-2 text-stone-700 capitalize focus:outline-none focus:border-stone-400 transition-colors min-w-32"
+                >
+                  {['all', ...MATERIAL_OPTIONS].map((m) => (
+                    <option key={m} value={m} className="capitalize">{m === 'all' ? 'All' : m}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Pile pills */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-stone-400 uppercase tracking-wider">Pile:</span>
-                {['all', ...PILE_OPTIONS].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setFilter('pile', p)}
-                    className={`text-xs px-3 py-1.5 border capitalize transition-colors ${
-                      pileParam === p
-                        ? 'bg-stone-900 text-white border-stone-900'
-                        : 'text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-900'
-                    }`}
-                  >
-                    {p === 'all' ? 'All' : `${p} pile`}
-                  </button>
-                ))}
+              {/* Pile */}
+              <div className="space-y-1">
+                <label className="block text-xs text-stone-400 uppercase tracking-wider">Pile</label>
+                <select
+                  value={pileParam}
+                  onChange={(e) => setFilter('pile', e.target.value)}
+                  className="text-xs border border-stone-200 px-3 py-2 text-stone-700 capitalize focus:outline-none focus:border-stone-400 transition-colors min-w-32"
+                >
+                  {['all', ...PILE_OPTIONS].map((p) => (
+                    <option key={p} value={p}>{p === 'all' ? 'All' : `${p} pile`}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Shop by Space pills */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-stone-400 uppercase tracking-wider">Space:</span>
-                {['all', ...ROOM_TYPE_OPTIONS].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setFilter('room_type', r)}
-                    className={`text-xs px-3 py-1.5 border transition-colors ${
-                      roomParam === r
-                        ? 'bg-stone-900 text-white border-stone-900'
-                        : 'text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-900'
-                    }`}
-                  >
-                    {r === 'all' ? 'All' : tagLabel(r)}
-                  </button>
-                ))}
+              {/* Shop by Space */}
+              <div className="space-y-1">
+                <label className="block text-xs text-stone-400 uppercase tracking-wider">Space</label>
+                <select
+                  value={roomParam}
+                  onChange={(e) => setFilter('room_type', e.target.value)}
+                  className="text-xs border border-stone-200 px-3 py-2 text-stone-700 focus:outline-none focus:border-stone-400 transition-colors min-w-36"
+                >
+                  {['all', ...ROOM_TYPE_OPTIONS].map((r) => (
+                    <option key={r} value={r}>{r === 'all' ? 'All' : tagLabel(r)}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Shop by Mood pills */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-stone-400 uppercase tracking-wider">Mood:</span>
-                {['all', ...MOOD_TAG_OPTIONS].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setFilter('mood', m)}
-                    className={`text-xs px-3 py-1.5 border transition-colors ${
-                      moodParam === m
-                        ? 'bg-stone-900 text-white border-stone-900'
-                        : 'text-stone-500 border-stone-200 hover:border-stone-400 hover:text-stone-900'
-                    }`}
-                  >
-                    {m === 'all' ? 'All' : tagLabel(m)}
-                  </button>
-                ))}
+              {/* Shop by Mood */}
+              <div className="space-y-1">
+                <label className="block text-xs text-stone-400 uppercase tracking-wider">Mood</label>
+                <select
+                  value={moodParam}
+                  onChange={(e) => setFilter('mood', e.target.value)}
+                  className="text-xs border border-stone-200 px-3 py-2 text-stone-700 focus:outline-none focus:border-stone-400 transition-colors min-w-40"
+                >
+                  {['all', ...MOOD_TAG_OPTIONS].map((m) => (
+                    <option key={m} value={m}>{m === 'all' ? 'All' : tagLabel(m)}</option>
+                  ))}
+                </select>
               </div>
             </div>
           )}

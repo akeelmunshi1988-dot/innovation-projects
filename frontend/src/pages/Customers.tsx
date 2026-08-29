@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Search, ChevronDown, Mail, Phone, Building2, RefreshCw } from 'lucide-react';
+import { Users, Search, ChevronDown, Mail, Phone, Building2, RefreshCw, X } from 'lucide-react';
 import { getCustomers, getCustomerQuotes } from '../services/api';
 import type { Customer, Quote } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -80,8 +80,13 @@ const Customers: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search customers..."
-              className="input-field pl-9 text-sm w-52"
+              className="input-field pl-9 pr-8 text-sm w-52"
             />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dark-500 hover:text-cream-300">
+                <X size={13} />
+              </button>
+            )}
           </div>
           <button onClick={fetchCustomers} className="btn-secondary flex items-center gap-2 text-sm">
             <RefreshCw size={14} />

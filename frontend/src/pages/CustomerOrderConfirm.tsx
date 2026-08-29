@@ -29,7 +29,7 @@ export default function CustomerOrderConfirm() {
   if (!order) {
     return (
       <CustomerLayout>
-        <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
+        <div className="max-w-xl mx-auto px-4 py-32 text-center space-y-4">
           <Package size={36} className="text-stone-300 mx-auto" />
           <h2 className="storefront-heading text-2xl">Order #{id}</h2>
           <p className="text-stone-500 text-sm">Use your email to look up your orders and track status.</p>
@@ -47,7 +47,7 @@ export default function CustomerOrderConfirm() {
   return (
     <CustomerLayout>
       <SEO title="Order Confirmed" description="Your custom rug order has been placed." noindex />
-      <div className="max-w-3xl mx-auto px-6 py-16 space-y-8">
+      <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
 
         {/* Success banner */}
         <div className="border border-green-200 bg-green-50 p-10 text-center space-y-3">

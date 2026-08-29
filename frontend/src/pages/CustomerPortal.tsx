@@ -587,7 +587,7 @@ export default function CustomerPortal() {
         title="Room Visualizer — See Any Rug in Your Space"
         description="Upload a photo of your room and preview any rug from our collection before you order — powered by AI room visualization."
       />
-      <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap border-b border-stone-100 pb-8">
@@ -961,8 +961,13 @@ export default function CustomerPortal() {
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search…"
-                  className="border border-stone-200 focus:border-stone-400 pl-7 pr-3 py-1.5 text-xs text-stone-900 placeholder-stone-300 focus:outline-none transition-colors w-32"
+                  className="border border-stone-200 focus:border-stone-400 pl-7 pr-6 py-1.5 text-xs text-stone-900 placeholder-stone-300 focus:outline-none transition-colors w-32"
                 />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 transition-colors">
+                    <X size={12} />
+                  </button>
+                )}
               </div>
             </div>
           </div>

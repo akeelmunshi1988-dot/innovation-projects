@@ -21,6 +21,7 @@ import type {
   ShowcaseVideo,
   WorkshopPhoto,
   Testimonial,
+  AnnouncementMessage,
   ProjectGalleryItem,
   NewsletterSubscriber,
   PromoCode,
@@ -149,6 +150,27 @@ export const updateWorkshopPhoto = async (id: number, photo: Partial<WorkshopPho
 
 export const deleteWorkshopPhoto = async (id: number): Promise<void> => {
   await api.delete(`/workshop-photos/${id}`);
+};
+
+// ── Announcement bar ─────────────────────────────────────────────────────────
+
+export const getAnnouncements = async (): Promise<AnnouncementMessage[]> => {
+  const { data } = await api.get<AnnouncementMessage[]>('/announcements');
+  return data;
+};
+
+export const createAnnouncement = async (a: Partial<AnnouncementMessage>): Promise<AnnouncementMessage> => {
+  const { data } = await api.post<AnnouncementMessage>('/announcements', a);
+  return data;
+};
+
+export const updateAnnouncement = async (id: number, a: Partial<AnnouncementMessage>): Promise<AnnouncementMessage> => {
+  const { data } = await api.put<AnnouncementMessage>(`/announcements/${id}`, a);
+  return data;
+};
+
+export const deleteAnnouncement = async (id: number): Promise<void> => {
+  await api.delete(`/announcements/${id}`);
 };
 
 // ── Testimonials ──────────────────────────────────────────────────────────────
@@ -649,6 +671,9 @@ export const getPublicSettings = async (): Promise<{
   business_name: string | null;
   logo_url: string | null;
   hero_image_url: string | null;
+  hero_eyebrow: string | null;
+  hero_heading: string | null;
+  hero_cta_label: string | null;
   default_size_unit: string;
   contact_emails: string[];
   contact_phones: string[];

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Send, Sparkles, AlertCircle, Check, X, MessageSquare, History, ArrowLeft, RefreshCw, PlayCircle } from 'lucide-react';
+import { Send, Sparkles, AlertCircle, Check, X, MessageSquare, History, ArrowLeft, RefreshCw, PlayCircle, Pencil } from 'lucide-react';
 import ChatMessage from '../components/ChatMessage';
 import { sendChat, getPendingAiActions, confirmAiAction, rejectAiAction, getChatSessions, getChatHistory } from '../services/api';
 import type { ChatMessage as ChatMessageType, PendingAiAction, AiChatSession } from '../types';
@@ -34,6 +34,16 @@ const AIAssistant: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the textarea as the user types — resets to measure the natural
+  // content height each time, then caps it so it can't take over the page
+  // (the user can still drag it taller than that cap via the resize handle).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 400)}px`;
+  }, [input]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -104,6 +114,18 @@ const AIAssistant: React.FC = () => {
     setMessages(historyMessages);
     setSessionId(selectedSessionId);
     setActiveTab('chat');
+  };
+
+  // Rewind to just before this past user message, drop it and everything
+  // after it, and drop the edited text into the composer so the user can
+  // tweak it before it's re-sent as a new turn in the same session.
+  const editAndResend = (idx: number) => {
+    if (!selectedSessionId) return;
+    setMessages(historyMessages.slice(0, idx));
+    setSessionId(selectedSessionId);
+    setInput(historyMessages[idx].content);
+    setActiveTab('chat');
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   const sendMessage = async (text: string) => {
@@ -210,7 +232,18 @@ const AIAssistant: React.FC = () => {
               ) : (
                 <div className="space-y-4">
                   {historyMessages.map((msg, idx) => (
-                    <ChatMessage key={idx} role={msg.role} content={msg.content} />
+                    <div key={idx} className="group relative">
+                      <ChatMessage role={msg.role} content={msg.content} />
+                      {msg.role === 'user' && (
+                        <button
+                          onClick={() => editAndResend(idx)}
+                          title="Edit and resend this prompt"
+                          className="absolute -top-2 right-11 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-medium text-dark-300 hover:text-gold-400 bg-dark-800 border border-dark-600 rounded px-2 py-1"
+                        >
+                          <Pencil size={11} /> Edit &amp; resend
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -359,8 +392,8 @@ const AIAssistant: React.FC = () => {
               onKeyDown={handleKeyDown}
               placeholder="Ask about pricing, materials, production timelines..."
               rows={1}
-              className="input-field w-full resize-none pr-4 py-3 text-sm leading-relaxed"
-              style={{ minHeight: '44px', maxHeight: '120px' }}
+              className="input-field w-full resize-y pr-4 py-3 text-sm leading-relaxed"
+              style={{ minHeight: '44px', maxHeight: '400px' }}
               disabled={isLoading}
             />
           </div>

@@ -265,7 +265,7 @@ export default function CustomerRugDetail() {
     return (
       <CustomerLayout>
         <SEO title="Rug Not Found" description="This rug is no longer available in our catalog." noindex />
-        <div className="max-w-xl mx-auto px-6 py-32 text-center space-y-4">
+        <div className="max-w-xl mx-auto px-4 py-32 text-center space-y-4">
           <Layers size={36} className="mx-auto text-stone-300" />
           <h2 className="font-serif text-2xl font-light text-stone-900">Rug not found</h2>
           <Link to="/catalog" className="text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
@@ -318,7 +318,7 @@ export default function CustomerRugDetail() {
           },
         ]}
       />
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-10 space-y-8">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-stone-400">
@@ -473,21 +473,6 @@ export default function CustomerRugDetail() {
                 )}
               </div>
             )}
-
-            {/* Visualizer CTA */}
-            <Link
-              to={`/visualizer?rug_id=${rug.id}`}
-              className="flex items-center justify-between border border-stone-200 hover:border-stone-400 p-5 transition-colors group"
-            >
-              <div className="flex items-center gap-4">
-                <Eye size={18} className="text-stone-400 group-hover:text-stone-900 transition-colors flex-shrink-0" />
-                <div>
-                  <p className="text-stone-900 font-medium text-sm">See it in your room</p>
-                  <p className="text-stone-400 text-xs mt-0.5">Upload a photo and place this rug on your floor</p>
-                </div>
-              </div>
-              <ChevronRight size={14} className="text-stone-400 group-hover:text-stone-900 transition-colors" />
-            </Link>
           </div>
 
           {/* Right: Quote form */}
@@ -665,24 +650,14 @@ export default function CustomerRugDetail() {
                     {/* Price estimate + Place Order */}
                     {hasSize && (
                       <div>
-                        <div className="flex gap-2">
-                          <button type="button" onClick={calcPrice} disabled={calcLoading}
-                            className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-stone-600 hover:text-stone-900 border border-stone-200 hover:border-stone-400 px-3 py-2.5 transition-colors uppercase tracking-wider"
-                          >
-                            {calcLoading
-                              ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
-                              : <Zap size={13} />}
-                            Estimate
-                          </button>
-                          <button type="submit" disabled={submitting || !rug.available}
-                            className="flex-1 flex items-center justify-center gap-2 text-xs font-medium bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white px-3 py-2.5 transition-colors uppercase tracking-wider"
-                          >
-                            {submitting
-                              ? <div className="w-3.5 h-3.5 border border-white/30 border-t-white rounded-full animate-spin" />
-                              : <Send size={13} />}
-                            Request Quote
-                          </button>
-                        </div>
+                        <button type="button" onClick={calcPrice} disabled={calcLoading}
+                          className="w-full flex items-center justify-center gap-2 text-xs font-medium text-stone-600 hover:text-stone-900 border border-stone-200 hover:border-stone-400 px-3 py-2.5 transition-colors uppercase tracking-wider"
+                        >
+                          {calcLoading
+                            ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
+                            : <Zap size={13} />}
+                          Estimate
+                        </button>
                         {priceResult && (
                           <div className="mt-2 border border-stone-100 bg-stone-50 p-3 space-y-1.5">
                             <div className="flex justify-between text-xs">

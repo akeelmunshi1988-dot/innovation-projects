@@ -39,7 +39,7 @@ PLANS = {
             "UPI · Cards · Net Banking",
             "Email support",
         ],
-        "not_included": ["Room visualizer", "Team logins", "White-label portal", "API access"],
+        "not_included": ["Team logins", "White-label portal", "API access"],
     },
     "growth": {
         "id": "growth",
@@ -55,7 +55,7 @@ PLANS = {
             "5 staff logins",
             "Unlimited catalog designs",
             "1,000 AI queries / month",
-            "Customer shop + Room visualizer",
+            "Customer shop widget",
             "Advanced analytics dashboard",
             "Export orders tracking",
             "Priority support (Hindi + English)",

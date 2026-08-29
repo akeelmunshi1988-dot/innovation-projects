@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes, api_clients, public_api
+from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes, api_clients, public_api, announcements
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -113,6 +113,7 @@ app.include_router(email_templates.router, prefix="/api", tags=["Email Templates
 app.include_router(showcase.router, prefix="/api", tags=["Showcase Videos"])
 app.include_router(workshop.router, prefix="/api", tags=["Workshop Photos"])
 app.include_router(testimonials.router, prefix="/api", tags=["Testimonials"])
+app.include_router(announcements.router, prefix="/api", tags=["Announcements"])
 app.include_router(gallery.router, prefix="/api", tags=["Project Gallery"])
 app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
 app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
@@ -178,7 +179,7 @@ async def access_check(request: Request):
     return Response(status_code=403)
 
 
-STATIC_SITEMAP_ROUTES = ["/", "/about", "/catalog", "/visualizer"]
+STATIC_SITEMAP_ROUTES = ["/", "/about", "/catalog"]
 
 
 @app.get("/sitemap.xml")

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Search, Clock, Layers, RefreshCw, Plus, Pencil, Trash2, X, AlertTriangle, Check, Upload, Link2, Image as ImageIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import { BookOpen, Search, Clock, Layers, RefreshCw, Plus, Pencil, Trash2, X, AlertTriangle, Check, Upload, Link2, Image as ImageIcon, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
 import axios from 'axios';
 import { getCatalog, createRug, updateRug, deleteRug, getInventory, addRugImage, updateRugImageOrder, deleteRugImage } from '../services/api';
 import type { RugCatalog, Material, RugImage, CatalogSize } from '../types';
@@ -97,6 +97,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
   const [galleryImages, setGalleryImages] = useState<RugImage[]>(editing?.images ?? []);
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [galleryError, setGalleryError] = useState('');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const handleGalleryImageUpload = async (file: File) => {
     if (!editing) return;
@@ -292,6 +293,14 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
                       <div key={img.id} className="relative group rounded-lg overflow-hidden bg-dark-800 border border-dark-700 aspect-square">
                         <img src={img.image_url} alt="" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-dark-950/0 group-hover:bg-dark-950/60 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxImage(img.image_url)}
+                            className="p-1 rounded-lg bg-dark-900/80 text-cream-200 hover:text-gold-400 transition-colors"
+                            title="Expand"
+                          >
+                            <Maximize2 size={12} />
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleMoveGalleryImage(i, 'up')}
@@ -539,6 +548,28 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
           onCancel={() => setCropFile(null)}
         />
       )}
+
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-dark-950/90 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-5 right-5 text-cream-200 hover:text-white transition-colors"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -680,8 +711,13 @@ const Catalog: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search rugs..."
-              className="input-field pl-9 text-sm w-48"
+              className="input-field pl-9 pr-8 text-sm w-48"
             />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dark-500 hover:text-cream-300">
+                <X size={13} />
+              </button>
+            )}
           </div>
           <button onClick={fetchCatalog} className="btn-secondary flex items-center gap-2 text-sm p-2">
             <RefreshCw size={14} />

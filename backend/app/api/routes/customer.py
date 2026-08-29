@@ -303,6 +303,9 @@ async def get_public_settings():
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
             "hero_image_url": tenant.hero_image_url if tenant else None,
+            "hero_eyebrow": tenant.hero_eyebrow if tenant else None,
+            "hero_heading": tenant.hero_heading if tenant else None,
+            "hero_cta_label": tenant.hero_cta_label if tenant else None,
             "default_size_unit": tenant.default_size_unit if tenant else "ft",
             "contact_emails": (tenant.contact_emails or []) if tenant else [],
             "contact_phones": (tenant.contact_phones or []) if tenant else [],
@@ -401,6 +404,29 @@ async def get_public_workshop_photos():
             for p in photos
         ]
         cache_set("workshop_photos", result)
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/customer/announcement-messages")
+async def get_public_announcement_messages():
+    """Public, unauthenticated messages for the storefront's rotating top announcement bar."""
+    cached = cache_get("announcements")
+    if cached is not None:
+        return cached
+    from app.models.models import AnnouncementMessage
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        rows = (
+            db.query(AnnouncementMessage)
+            .filter(AnnouncementMessage.is_active == True, AnnouncementMessage.tenant_id == (tenant.id if tenant else None))
+            .order_by(AnnouncementMessage.sort_order.asc(), AnnouncementMessage.id.asc())
+            .all()
+        )
+        result = [{"id": a.id, "text": a.text, "link_url": a.link_url} for a in rows]
+        cache_set("announcements", result)
         return result
     finally:
         db.close()

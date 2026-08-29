@@ -29,6 +29,14 @@ export interface WorkshopPhoto {
   is_active: boolean;
 }
 
+export interface AnnouncementMessage {
+  id: number;
+  text: string;
+  link_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface Testimonial {
   id: number;
   author_name: string;

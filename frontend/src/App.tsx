@@ -53,6 +53,7 @@ const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
 const WorkshopPhotos = lazy(() => import('./pages/WorkshopPhotos'));
 const Testimonials = lazy(() => import('./pages/Testimonials'));
+const AnnouncementBar = lazy(() => import('./pages/AnnouncementBar'));
 const ProjectGallery = lazy(() => import('./pages/ProjectGallery'));
 const NewsletterSubscribers = lazy(() => import('./pages/NewsletterSubscribers'));
 const PromoCodes = lazy(() => import('./pages/PromoCodes'));
@@ -82,6 +83,9 @@ function App() {
           <Route path="/" element={<CustomerHome />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/catalog" element={<CustomerCatalog />} />
+          <Route path="/catalog/space/:value" element={<CustomerCatalog />} />
+          <Route path="/catalog/mood/:value" element={<CustomerCatalog />} />
+          <Route path="/catalog/material/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/cart" element={<CustomerCart />} />
           <Route path="/custom-rug-request" element={<CustomerCustomRugRequest />} />
@@ -94,7 +98,7 @@ function App() {
           <Route path="/reset-password/:token" element={<CustomerResetPassword />} />
           <Route path="/oauth-callback" element={<CustomerOAuthCallback />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/visualizer" element={<CustomerPortal />} />
+          {/* Room Visualizer hidden for now — route intentionally disabled, page/component left intact for re-enabling later */}
 
           {/* Admin login + pricing (public) */}
           <Route path="/admin/login" element={<Login />} />
@@ -116,6 +120,7 @@ function App() {
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
                     <Route path="testimonials" element={<Testimonials />} />
+                    <Route path="announcement-bar" element={<AnnouncementBar />} />
                     <Route path="project-gallery" element={<ProjectGallery />} />
                     <Route path="newsletter-subscribers" element={<NewsletterSubscribers />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />

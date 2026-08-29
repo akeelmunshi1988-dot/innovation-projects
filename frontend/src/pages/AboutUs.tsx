@@ -108,7 +108,7 @@ export default function AboutUs() {
         {photo(1) && (
           <img src={photo(1)} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-[0.08]" />
         )}
-        <div className="relative max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className="relative max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div className="space-y-5">
             <p className="storefront-eyebrow">Who We Are</p>
             <h2 className="storefront-heading text-3xl">
@@ -143,7 +143,7 @@ export default function AboutUs() {
       </section>
 
       {/* ── OWNER ────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-20">
+      <section className="max-w-5xl mx-auto px-4 py-20">
         <div className="mb-12 max-w-2xl">
           <p className="storefront-eyebrow mb-2">Leadership</p>
           <h2 className="storefront-heading text-4xl">Meet the Owner</h2>
@@ -167,7 +167,7 @@ export default function AboutUs() {
       {/* ── TEAM ─────────────────────────────────────────────────────── */}
       {SHOW_TEAM && (
       <section className="bg-stone-50 border-y border-stone-100 py-20">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="mb-12 max-w-2xl">
             <p className="storefront-eyebrow mb-2">The People Behind the Rugs</p>
             <h2 className="storefront-heading text-4xl">Our Team</h2>
@@ -195,7 +195,7 @@ export default function AboutUs() {
         <section className="relative h-[280px] overflow-hidden">
           <img src={photo(5)} alt={workshopPhotos[5 % (workshopPhotos.length || 1)]?.caption ?? ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-stone-950/10 to-transparent" />
-          <div className="relative h-full flex items-end max-w-5xl mx-auto px-6 pb-8">
+          <div className="relative h-full flex items-end max-w-5xl mx-auto px-4 pb-8">
             <p className="text-white font-serif text-2xl font-light">
               {workshopPhotos[5 % (workshopPhotos.length || 1)]?.caption}
             </p>
@@ -204,7 +204,7 @@ export default function AboutUs() {
       )}
 
       {/* ── CONTACT ──────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-20">
+      <section className="max-w-5xl mx-auto px-4 py-20">
         <div className="mb-12 max-w-2xl">
           <p className="storefront-eyebrow mb-2">Get in Touch</p>
           <h2 className="storefront-heading text-4xl">Contact Us</h2>

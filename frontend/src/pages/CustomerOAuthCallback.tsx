@@ -46,7 +46,7 @@ export default function CustomerOAuthCallback() {
   return (
     <CustomerLayout>
       <SEO title="Signing In" description="Completing sign-in." noindex />
-      <div className="max-w-md mx-auto px-6 py-32 text-center space-y-4">
+      <div className="max-w-md mx-auto px-4 py-32 text-center space-y-4">
         {error ? (
           <>
             <AlertTriangle size={32} className="mx-auto text-red-400" />

@@ -222,23 +222,22 @@ export default function CustomerHome() {
       {/* ── HERO (full-bleed image, text centered directly on the image) ─── */}
       {SHOW_HERO && (
         <>
-          <section className="relative w-full overflow-hidden bg-stone-100">
+          <section className="relative w-full overflow-hidden min-h-[640px] flex items-center justify-center">
             {heroImage ? (
               <img
                 src={heroImage}
                 alt="Handcrafted rug"
-                className="block w-full h-auto max-h-[78vh] object-contain"
+                className="absolute inset-0 w-full h-full object-cover"
                 fetchPriority="high"
                 loading="eager"
               />
             ) : (
-              <div className="w-full min-h-[640px] bg-stone-100 flex items-center justify-center">
+              <div className="absolute inset-0 bg-stone-100 flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
               </div>
             )}
 
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative max-w-xl px-6 text-center space-y-5 pointer-events-auto">
+            <div className="relative max-w-xl px-6 text-center space-y-5">
               <p className="storefront-eyebrow text-white/80">{heroEyebrow || `${WHY_LOOMCRAFT[0].stat} Years in the Making`}</p>
               <h1 className="storefront-heading text-4xl md:text-5xl text-white [text-shadow:0_2px_24px_rgba(0,0,0,0.4)]">
                 {heroHeading || (<>Made for <em className="font-normal not-italic">Timeless</em> Spaces.</>)}
@@ -246,7 +245,6 @@ export default function CustomerHome() {
               <Link to="/catalog" className="storefront-link-arrow text-white justify-center">
                 {heroCtaLabel || 'Explore Collection'} <ArrowRight size={14} />
               </Link>
-              </div>
             </div>
           </section>
 

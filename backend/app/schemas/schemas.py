@@ -532,6 +532,9 @@ class TenantPublic(BaseModel):
     contact_hours: Optional[str] = None
     catalog_pdf_url: Optional[str] = None
     hero_image_url: Optional[str] = None
+    hero_eyebrow: Optional[str] = None
+    hero_heading: Optional[str] = None
+    hero_cta_label: Optional[str] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
@@ -574,6 +577,9 @@ class TenantUpdateRequest(BaseModel):
     contact_hours: Optional[str] = Field(None, max_length=200)
     catalog_pdf_url: Optional[str] = None
     hero_image_url: Optional[str] = None
+    hero_eyebrow: Optional[str] = Field(None, max_length=100)
+    hero_heading: Optional[str] = Field(None, max_length=200)
+    hero_cta_label: Optional[str] = Field(None, max_length=50)
     certifications: Optional[List[dict]] = None
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)
@@ -865,6 +871,31 @@ class WorkshopPhoto(WorkshopPhotoBase):
 
 
 # ── Testimonials ───────────────────────────────────────────────────────────────
+
+class AnnouncementMessageBase(BaseModel):
+    text: str
+    link_url: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class AnnouncementMessageCreate(AnnouncementMessageBase):
+    pass
+
+
+class AnnouncementMessageUpdate(BaseModel):
+    text: Optional[str] = None
+    link_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class AnnouncementMessage(AnnouncementMessageBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
 
 class TestimonialBase(BaseModel):
     author_name: str

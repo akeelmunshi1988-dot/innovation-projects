@@ -26,7 +26,7 @@ export default function CustomerForgotPassword() {
   return (
     <CustomerLayout>
       <SEO title="Forgot Password" description="Reset your account password." noindex />
-      <div className="max-w-7xl mx-auto px-6 py-20">
+      <div className="max-w-7xl mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">
           {status === 'done' ? (
             <div className="text-center">

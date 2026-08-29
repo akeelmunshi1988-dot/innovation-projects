@@ -31,6 +31,12 @@ from app.services.quote_engine import QuoteEngine
 
 OPENAI_MODEL = "gpt-4o-mini"
 
+# The frontend resends the whole session's messages every turn, so without a
+# cap, token cost grows with the square of turn count on a long conversation.
+# Full history still lives in ai_chat_messages for the History tab — this only
+# limits what gets replayed into the OpenAI call itself.
+MAX_HISTORY_MESSAGES = 12
+
 SYSTEM_PROMPT_TEMPLATE = """You are a knowledgeable rug manufacturing business assistant for {business_name}, helping vendor/admin staff (not customers).
 
 You ONLY answer based on real data from our business systems. Never make up prices, timelines, stock levels, or availability — always call the appropriate tool to retrieve accurate information before answering.
@@ -46,6 +52,8 @@ Write capabilities — you can also propose creating, editing, or deleting catal
 - If you don't have enough information for a required field (e.g. no material chosen for a new rug), ask the user rather than guessing a value.
 
 Creating a rug with photos, in one pass: if the user gives you enough detail to create a catalog rug AND describes what it should look like, do the whole thing in this same turn — call generate_rug_image (once for the cover shot, again for each extra gallery angle they want) BEFORE calling create_rug_catalog_entry, then pass the resulting URLs as image_url / gallery_image_urls on that same create call. Don't ask the user to run these as separate steps, and don't ask them to supply an image URL themselves unless they say they already have specific photos to use instead of generating new ones. generate_rug_image runs immediately (it doesn't touch business data), so it needs no confirmation — only the resulting create_rug_catalog_entry draft does.
+
+Gallery photos must show the SAME rug as the cover shot, not a different-looking one. Generate the cover shot first with a plain prompt (no reference_image_url). For every gallery photo after that, call generate_rug_image again with reference_image_url set to the cover shot's image_url (or another already-generated photo of this rug) and a prompt describing only the new angle or room setting (e.g. "close-up on the pile texture" or "on the floor of a bright modern living room") — never re-describe the pattern/colors in that prompt, and never generate a gallery photo without a reference_image_url once a cover shot exists for that rug.
 
 When asked about pricing, ALWAYS call calculate_quote with specific dimensions and material rather than estimating.
 When asked about stock, ALWAYS call get_materials or check_material_stock.
@@ -197,13 +205,17 @@ WRITE_TOOLS = [
     },
     {
         "name": "generate_rug_image",
-        "description": "Generates a photorealistic product photo of a rug from a text description using AI image generation. Returns a URL you can pass as image_url or in gallery_image_urls on create/update_rug_catalog_entry. Call this once per photo you want (e.g. once for the cover shot, again for each gallery angle) before proposing the catalog entry.",
+        "description": "Generates a photorealistic product photo of a rug using AI image generation. Returns a URL you can pass as image_url or in gallery_image_urls on create/update_rug_catalog_entry. For the cover shot, call this with just a prompt. For every gallery photo after that, you MUST also pass reference_image_url set to the cover shot's URL (or another already-generated photo of this same rug) — this edits that exact image into a new angle/setting instead of generating an unrelated rug from scratch, which is required to keep the gallery showing the same rug as the cover.",
         "parameters": {
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Describe the rug and shot precisely — pattern, colors, material/texture, weave style, and setting (e.g. 'top-down studio shot on white background' or 'in a modern living room'). Be specific; this is the only guidance the image model gets.",
+                    "description": "Describe the shot. For the first (cover) image with no reference: describe the whole rug precisely — pattern, colors, material/texture, weave style, and setting. For a gallery image WITH reference_image_url set: describe only what should change (e.g. 'shown from a low angle close-up on the pile texture' or 'placed on the floor of a sunlit modern living room') — do not re-describe the rug's pattern/colors, the reference image already fixes those.",
+                },
+                "reference_image_url": {
+                    "type": "string",
+                    "description": "URL of an already-generated photo of THIS SAME rug (typically the cover shot's image_url) to edit into a new angle or room setting. Omit only for the very first/cover photo of a rug. Always set this for every subsequent gallery photo of the same rug.",
                 },
             },
             "required": ["prompt"],
@@ -335,6 +347,7 @@ class AIAgent:
         self.staff_id = staff_id
         self.session_id: Optional[str] = None
         self._staged_this_turn: List[dict] = []
+        self._generated_images_this_turn: List[str] = []
 
     def _get_db(self) -> Session:
         return SessionLocal()
@@ -517,6 +530,11 @@ class AIAgent:
                 validated = RugCatalogCreate(**kwargs).model_dump()
             except ValidationError as e:
                 return json.dumps({"error": f"Invalid rug data: {e}"})
+            # Safety net: if generate_rug_image was called this turn but the model
+            # forgot to pass gallery_image_urls here, don't silently drop those
+            # photos — attach whichever generated images aren't already the cover.
+            if not gallery_urls and self._generated_images_this_turn:
+                gallery_urls = [u for u in self._generated_images_this_turn if u != validated.get("image_url")]
             material = db.query(Material).filter(Material.id == validated["material_id"], Material.tenant_id == self.tenant_id).first()
             if not material:
                 return json.dumps({"error": f"No material with id {validated['material_id']} found for this tenant. Call get_materials first."})
@@ -540,6 +558,8 @@ class AIAgent:
                 validated = RugCatalogUpdate(**kwargs).model_dump(exclude_unset=True)
             except ValidationError as e:
                 return json.dumps({"error": f"Invalid update data: {e}"})
+            if not gallery_urls and self._generated_images_this_turn:
+                gallery_urls = [u for u in self._generated_images_this_turn if u != validated.get("image_url")]
             if not validated and not gallery_urls:
                 return json.dumps({"error": "No fields to update were provided."})
             if gallery_urls:
@@ -552,16 +572,39 @@ class AIAgent:
         finally:
             db.close()
 
-    def _tool_generate_rug_image(self, prompt: str) -> str:
+    def _tool_generate_rug_image(self, prompt: str, reference_image_url: str = None) -> str:
         """Real-time AI image generation — not a staged write. Doesn't touch any
         business data, so (unlike the create/update/delete tools) this runs
-        immediately and returns a real URL the model can reference right away."""
+        immediately and returns a real URL the model can reference right away.
+
+        When reference_image_url is given (e.g. the cover shot just generated for
+        this same rug), this edits that exact image instead of generating a fresh
+        one from text alone — the only way to guarantee a gallery photo shows the
+        *same* rug (same pattern/colors/texture) in a new angle or setting, rather
+        than gpt-image-1 independently imagining a different-looking rug each call."""
         try:
-            full_prompt = (
-                f"Professional product photography of a rug: {prompt}. "
-                "Photorealistic, sharp focus, natural lighting, no text or watermarks."
-            )
-            result = self.client.images.generate(model="gpt-image-1", prompt=full_prompt, size="1024x1024", n=1)
+            if reference_image_url:
+                ref_path = os.path.join(RUG_UPLOAD_DIR, os.path.basename(reference_image_url))
+                if not os.path.isfile(ref_path):
+                    return json.dumps({"error": f"reference_image_url does not point to an existing generated image: {reference_image_url}"})
+                edit_prompt = (
+                    f"This is a photo of a rug. Keeping this exact rug — the same pattern, colors, "
+                    f"texture, and proportions, unchanged — {prompt}. "
+                    "Photorealistic, sharp focus, natural lighting, no text or watermarks."
+                )
+                with open(ref_path, "rb") as ref_file:
+                    result = self.client.images.edit(
+                        model="gpt-image-1",
+                        image=(os.path.basename(ref_path), ref_file, "image/png"),
+                        prompt=edit_prompt,
+                        size="1024x1024",
+                    )
+            else:
+                full_prompt = (
+                    f"Professional product photography of a rug: {prompt}. "
+                    "Photorealistic, sharp focus, natural lighting, no text or watermarks."
+                )
+                result = self.client.images.generate(model="gpt-image-1", prompt=full_prompt, size="1024x1024", n=1)
             b64 = result.data[0].b64_json
             if not b64:
                 return json.dumps({"error": "Image generation returned no image data."})
@@ -575,6 +618,7 @@ class AIAgent:
         with open(filepath, "wb") as f:
             f.write(image_bytes)
         url = f"/static/rugs/{filename}"
+        self._generated_images_this_turn.append(url)
         return json.dumps({"image_url": url, "message": "Generated — pass this URL as image_url or in gallery_image_urls."})
 
     def _tool_delete_rug_catalog_entry(self, rug_id: int) -> str:
@@ -701,10 +745,12 @@ class AIAgent:
     def chat(self, messages: List[dict], session_id: Optional[str] = None) -> dict:
         self.session_id = session_id or str(uuid.uuid4())
         self._staged_this_turn = []
+        self._generated_images_this_turn = []
 
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(business_name=self._get_business_name())
         openai_messages = [{"role": "system", "content": system_prompt}]
-        openai_messages += [{"role": m["role"], "content": m["content"]} for m in messages]
+        recent_messages = messages[-MAX_HISTORY_MESSAGES:]
+        openai_messages += [{"role": m["role"], "content": m["content"]} for m in recent_messages]
 
         max_iterations = 10
         iteration = 0

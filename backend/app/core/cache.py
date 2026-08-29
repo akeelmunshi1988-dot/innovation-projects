@@ -21,6 +21,7 @@ _TTL_SECONDS = {
     "showcase_videos": 90,
     "workshop_photos": 90,
     "testimonials": 90,
+    "announcements": 90,
     "gallery_items": 90,
     "settings": 60,
     "tenant": 60,

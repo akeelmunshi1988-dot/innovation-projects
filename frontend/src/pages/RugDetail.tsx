@@ -5,7 +5,7 @@ import {
   DollarSign, Zap, CheckCircle, AlertTriangle, Edit2,
   Trash2, X, Calculator, ChevronRight, ShoppingCart,
   TrendingUp, Star, RefreshCw, Upload, Image as ImageIcon,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Maximize2,
 } from 'lucide-react';
 import axios from 'axios';
 import {
@@ -87,6 +87,7 @@ export default function RugDetail() {
   // Gallery images
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -185,7 +186,7 @@ export default function RugDetail() {
     setDeleteLoading(true);
     try {
       await deleteRug(rug.id);
-      navigate('/catalog');
+      navigate('/admin/catalog');
     } catch {
       setDeleteLoading(false);
       setDeleteConfirm(false);
@@ -252,7 +253,7 @@ export default function RugDetail() {
   if (error || !rug) {
     return (
       <div className="p-6 space-y-4">
-        <Link to="/catalog" className="flex items-center gap-2 text-dark-400 hover:text-cream-200 text-sm w-fit">
+        <Link to="/admin/catalog" className="flex items-center gap-2 text-dark-400 hover:text-cream-200 text-sm w-fit">
           <ArrowLeft size={16} /> Back to Catalog
         </Link>
         <div className="bg-red-900/20 border border-red-700/40 rounded-xl p-6 text-red-300 text-sm">
@@ -272,7 +273,7 @@ export default function RugDetail() {
       {/* ── Breadcrumb + actions ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 text-sm text-dark-400">
-          <Link to="/catalog" className="hover:text-gold-400 transition-colors flex items-center gap-1">
+          <Link to="/admin/catalog" className="hover:text-gold-400 transition-colors flex items-center gap-1">
             <BookOpen size={14} /> Catalog
           </Link>
           <ChevronRight size={13} />
@@ -435,6 +436,14 @@ export default function RugDetail() {
                   <div key={img.id} className="relative group rounded-xl overflow-hidden bg-dark-800 border border-dark-700 aspect-square">
                     <img src={img.image_url} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-dark-950/0 group-hover:bg-dark-950/60 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => setLightboxImage(img.image_url)}
+                        className="p-1.5 rounded-lg bg-dark-900/80 text-cream-200 hover:text-gold-400 transition-colors"
+                        title="Expand"
+                      >
+                        <Maximize2 size={13} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleMoveGalleryImage(i, 'up')}
@@ -1013,6 +1022,28 @@ export default function RugDetail() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-dark-950/90 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-5 right-5 text-cream-200 hover:text-white transition-colors"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

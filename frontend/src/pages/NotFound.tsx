@@ -10,7 +10,7 @@ export default function NotFound() {
         description="The page you're looking for doesn't exist or may have been moved."
         noindex
       />
-      <section className="max-w-2xl mx-auto px-6 py-32 text-center">
+      <section className="max-w-2xl mx-auto px-4 py-32 text-center">
         <p className="storefront-eyebrow mb-3">404</p>
         <h1 className="storefront-heading text-5xl leading-[1.1] mb-6">
           Page not found
