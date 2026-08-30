@@ -581,18 +581,6 @@ export default function CustomerRugDetail() {
               )}
             </div>
 
-            {rug.description ? (
-              <p className="text-stone-600 text-sm leading-relaxed max-w-xl">{rug.description}</p>
-            ) : rug.about_content_html ? (
-              <div
-                className="prose-content max-w-xl"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
-                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
-                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
-                }) }}
-              />
-            ) : null}
-
             {!rug.available && <p className="text-red-500 text-sm font-medium">Out of stock</p>}
             {rug.available && rug.inventory_quantity != null && rug.inventory_quantity <= 5 && (
               <p className="text-amber-600 text-sm">Only {rug.inventory_quantity} left</p>
@@ -651,9 +639,27 @@ export default function CustomerRugDetail() {
 
         <div id="rug-configurator" className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start scroll-mt-32 pt-8 border-t border-stone-100">
 
+          {/* Long-form product description */}
+          <section className="lg:col-span-2 min-w-0">
+            <h2 className="font-serif text-2xl font-light text-stone-900 mb-3">Description</h2>
+            {rug.description ? (
+              <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-line">{rug.description}</p>
+            ) : rug.about_content_html ? (
+              <div
+                className="prose-content"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
+                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                }) }}
+              />
+            ) : (
+              <p className="text-stone-400 text-sm">No additional description is available.</p>
+            )}
+          </section>
+
           {/* Direct-purchase configurator */}
-          <div className="lg:col-span-5">
-            <div className="space-y-5 w-full max-w-2xl ml-auto">
+          <div className="lg:col-span-3">
+            <div className="space-y-5 w-full">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
