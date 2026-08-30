@@ -650,7 +650,7 @@ export default function CustomerMyQuotes() {
   return (
     <CustomerLayout>
       <SEO title="My Quotes" description="View and respond to quotes sent to you." noindex />
-      <div className="max-w-3xl mx-auto px-4">
+      <div className="w-[94vw] max-w-none mx-auto px-4">
         {/* Header */}
         <div className="py-14 border-b border-stone-100 flex items-end justify-between gap-4 flex-wrap">
           <div>

@@ -144,7 +144,7 @@ export default function CustomerCart() {
   return (
     <CustomerLayout>
       <SEO title="Your Cart" description="Review the rugs in your cart before checkout." noindex />
-      <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
+      <div className="w-[94vw] max-w-none mx-auto px-4 py-10 space-y-8">
 
         <div className="flex items-center gap-2 text-xs text-stone-400">
           <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>

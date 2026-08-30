@@ -215,7 +215,7 @@ export default function CustomerCustomRugRequest() {
   return (
     <CustomerLayout>
       <SEO title="Request a Custom Rug" description="Tell us about the rug you have in mind — size, material, style, and budget — and our team will send you a personalized quote." />
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="w-[94vw] max-w-none mx-auto px-4 py-12">
       <div className="grid grid-cols-1 lg:grid-cols-[160px_1fr_160px] gap-8 items-start">
 
         {/* Left: steps 1–3 */}

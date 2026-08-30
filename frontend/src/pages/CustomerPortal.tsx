@@ -595,7 +595,7 @@ export default function CustomerPortal() {
         title="Room Visualizer — See Any Rug in Your Space"
         description="Upload a photo of your room and preview any rug from our collection before you order — powered by AI room visualization."
       />
-      <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
+      <div className="w-[94vw] max-w-none mx-auto px-4 py-12 space-y-8">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap border-b border-stone-100 pb-8">

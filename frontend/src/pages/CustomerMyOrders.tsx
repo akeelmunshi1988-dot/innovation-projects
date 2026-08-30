@@ -621,7 +621,7 @@ export default function CustomerMyOrders() {
     return (
       <CustomerLayout>
         <SEO title="My Orders" description="View and track your custom rug orders." noindex />
-        <div className="max-w-3xl mx-auto px-4">
+        <div className="w-[94vw] max-w-none mx-auto px-4">
           <div className="py-14 border-b border-stone-100 flex items-end justify-between gap-4 flex-wrap">
             <div>
               <p className="storefront-eyebrow mb-2">Account</p>
@@ -762,7 +762,7 @@ export default function CustomerMyOrders() {
   return (
     <CustomerLayout>
       <SEO title="My Orders" description="Look up your custom rug orders by email." noindex />
-      <div className="max-w-3xl mx-auto px-4">
+      <div className="w-[94vw] max-w-none mx-auto px-4">
         <div className="py-14 border-b border-stone-100">
           <p className="storefront-eyebrow mb-2">Track</p>
           <h1 className="storefront-heading text-4xl">My Orders</h1>

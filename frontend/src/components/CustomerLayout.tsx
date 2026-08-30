@@ -264,7 +264,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           </div>
         )}
 
-        <div className="relative max-w-7xl mx-auto px-4 h-[70px] flex items-center gap-8">
+        <div className="relative w-[94vw] max-w-none mx-auto px-4 h-[70px] flex items-center gap-8">
 
           {/* Desktop nav — left */}
           <nav className="hidden lg:flex items-center gap-7 h-full">
@@ -296,7 +296,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                       infoBarDismissed ? 'top-[70px]' : 'top-[102px]'
                     }`}
                   >
-                    <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-5 gap-10">
+                    <div className="w-[94vw] max-w-none mx-auto px-4 py-10 grid grid-cols-5 gap-10">
                       {(Object.keys(MEGA_MENU) as (keyof typeof MEGA_MENU)[]).map((key) => (
                         <div key={key} className="space-y-3">
                           <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{MEGA_MENU[key].heading}</p>
@@ -530,7 +530,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-stone-50 border-t border-stone-200 mt-24">
-        <div className="max-w-7xl mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.3fr_0.8fr_0.8fr_1.6fr] gap-10">
+        <div className="w-[94vw] max-w-none mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.3fr_0.8fr_0.8fr_1.6fr] gap-10">
           <div className="space-y-4">
             <img src={FOOTER_LOGO_URL} alt={businessName ?? 'Dream Rugs Creation'} className="w-[200px] h-auto" />
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -621,7 +621,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
         {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress) && (
           <div className="border-t border-stone-200 py-8">
-            <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
+            <div className="w-[94vw] max-w-none mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
               {contactEmails.map((e) => (
                 <a key={e} href={`mailto:${e}`} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors">
                   <Mail size={14} className="flex-shrink-0" /> {e}
@@ -653,7 +653,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
         {certifications.length > 0 && (
           <div className="border-t border-stone-200 py-8">
-            <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+            <div className="w-[94vw] max-w-none mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
               {certifications.map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <img src={c.image_url} alt={c.label} className="w-8 h-8 object-contain" />
@@ -673,7 +673,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {showCookieBanner && (
         <div className="fixed inset-x-0 bottom-0 z-50 bg-stone-900 border-t border-stone-700">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-4">
+          <div className="w-[94vw] max-w-none mx-auto px-4 py-4 flex flex-col sm:flex-row items-center gap-4">
             <p className="flex-1 text-stone-300 text-sm text-center sm:text-left">
               We use cookies to keep you signed in, remember your cart, and understand how the site is used.
             </p>

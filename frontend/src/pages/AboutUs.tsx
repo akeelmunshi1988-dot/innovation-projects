@@ -102,7 +102,7 @@ export default function AboutUs() {
         <div className="absolute inset-0 bg-gradient-to-r from-stone-950/90 via-stone-950/55 to-stone-950/10" />
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950/75 via-transparent to-stone-950/15" />
 
-        <div className="relative w-full max-w-7xl mx-auto px-4 pb-14 sm:pb-20">
+        <div className="relative w-[94vw] max-w-none mx-auto px-4 pb-14 sm:pb-20">
           <div className="max-w-3xl">
             <div className="flex items-center gap-3 mb-5">
               <span className="block w-10 h-px bg-white/50" />
@@ -133,7 +133,7 @@ export default function AboutUs() {
 
       {/* Quiet credentials strip */}
       <section className="border-b border-stone-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-stone-200">
+        <div className="w-[94vw] max-w-none mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-stone-200">
           {[
             ['Made individually', 'Never pulled from a production line'],
             ['Sized for your space', 'Proportion considered from the start'],
@@ -148,7 +148,7 @@ export default function AboutUs() {
       </section>
 
       {/* Story — asymmetric editorial composition */}
-      <section className="max-w-7xl mx-auto px-4 py-20 lg:py-24">
+      <section className="w-[94vw] max-w-none mx-auto px-4 py-20 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           <div className="lg:col-span-6 relative">
             <div className="aspect-[4/5] overflow-hidden">
@@ -187,7 +187,7 @@ export default function AboutUs() {
 
       {/* Process */}
       <section className="bg-cream-200 text-stone-900 py-20 lg:py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="w-[94vw] max-w-none mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-end mb-14 lg:mb-16">
             <div className="lg:col-span-7">
               <p className="text-[11px] tracking-[0.3em] uppercase text-stone-500 mb-4">The making of a rug</p>
@@ -223,7 +223,7 @@ export default function AboutUs() {
 
       {/* Principles */}
       <section className="bg-stone-50 border-b border-stone-200 py-20 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="w-[94vw] max-w-none mx-auto px-4">
           <div className="max-w-2xl mb-14 lg:mb-16">
             <p className="storefront-eyebrow mb-4">What matters to us</p>
             <h2 className="storefront-heading text-4xl lg:text-5xl">Beauty begins with integrity.</h2>
@@ -249,7 +249,7 @@ export default function AboutUs() {
       </section>
 
       {/* Founder */}
-      <section className="max-w-7xl mx-auto px-4 py-20 lg:py-24">
+      <section className="w-[94vw] max-w-none mx-auto px-4 py-20 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-stone-200">
           <div className="relative min-h-[460px] lg:min-h-[660px] overflow-hidden">
             <img src={photo(5)} alt="Inside the rug workshop" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
@@ -285,7 +285,7 @@ export default function AboutUs() {
 
       {/* Consultation + contact */}
       <section className="bg-cream-200 text-stone-900 py-20 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-0 items-center">
+        <div className="w-[94vw] max-w-none mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-0 items-center">
           <div className="lg:col-span-7 lg:pr-16">
             <div className="flex items-center gap-3 mb-4">
               <span className="w-8 h-px bg-stone-400 flex-shrink-0" />

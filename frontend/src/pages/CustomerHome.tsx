@@ -251,7 +251,7 @@ export default function CustomerHome() {
 
           {/* Stat strip */}
           <div className="border-b border-stone-100">
-            <div className="max-w-7xl mx-auto px-4 py-6 flex flex-wrap gap-10 justify-center sm:justify-start">
+            <div className="w-[94vw] max-w-none mx-auto px-4 py-6 flex flex-wrap gap-10 justify-center sm:justify-start">
               {[
                 { v: `${catalogTotal || 8}+`, l: 'Designs' },
                 { v: '4',     l: 'Materials' },
@@ -269,7 +269,7 @@ export default function CustomerHome() {
 
       {/* ── TRUST BAR ──────────────────────────────────────────────────── */}
       <section className="border-y border-stone-100 bg-stone-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
+        <div className="w-[94vw] max-w-none mx-auto px-4 py-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
           {TRUST_BAR.map((t, i) => (
             <React.Fragment key={t}>
               <span className="text-stone-500 text-xs uppercase tracking-widest">{t}</span>
@@ -282,7 +282,7 @@ export default function CustomerHome() {
       {/* ── OUR CRAFT (text left ~40% / video right ~60%) ────────────────── */}
       {showCraftSection && (
         <section className="py-20">
-          <div className="max-w-7xl mx-auto px-4">
+          <div className="w-[94vw] max-w-none mx-auto px-4">
             <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-12 lg:gap-16 items-center">
 
               {/* Description */}
@@ -337,7 +337,7 @@ export default function CustomerHome() {
       )}
 
       {/* ── WHY US ─────────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-20">
+      <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
         <div className="mb-12 max-w-2xl">
           <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">{businessName ? `Why ${businessName}` : 'Why Choose Us'}</p>
           <h2 className="font-serif text-4xl font-light text-stone-900">Craftsmanship you can trust</h2>
@@ -356,7 +356,7 @@ export default function CustomerHome() {
       {/* ── BEHIND THE CRAFT (hover-to-play video grid) ──────────────────── */}
       {gridVideos.length > 0 && (
         <section className="bg-stone-50 border-y border-stone-100 py-20">
-          <div className="max-w-7xl mx-auto px-4">
+          <div className="w-[94vw] max-w-none mx-auto px-4">
             <div className="mb-12">
               <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">See It Made</p>
               <h2 className="font-serif text-4xl font-light text-stone-900">Behind the Craft</h2>
@@ -381,7 +381,7 @@ export default function CustomerHome() {
 
       {/* ── FEATURED COLLECTION ───────────────────────────────────────── */}
       {SHOW_FEATURED_RUGS && (
-        <section className="max-w-7xl mx-auto px-4 py-20">
+        <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
           <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
             <div>
               <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Our Collection</p>
@@ -459,7 +459,7 @@ export default function CustomerHome() {
 
       {/* ── INSIDE THE WORKSHOP (editorial bento mosaic) ─────────────────── */}
       {!SHOW_FEATURED_RUGS && workshopPhotos.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-24">
+        <section className="w-[94vw] max-w-none mx-auto px-4 py-24">
           <div className="mb-14 max-w-2xl">
             <p className="storefront-eyebrow mb-2">Behind the Scenes</p>
             <h2 className="storefront-heading text-4xl mb-4">Inside the Workshop</h2>
@@ -501,7 +501,7 @@ export default function CustomerHome() {
 
 
       {/* ── CUSTOM RUG JOURNEY (connected step flow) ─────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-20">
+      <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
         <div className="text-center mb-16">
           <p className="storefront-eyebrow mb-2">The Process</p>
           <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
@@ -535,7 +535,7 @@ export default function CustomerHome() {
 
       {/* ── SHOP BY SPACE / MOOD / MATERIAL (tabbed) ─────────────────────── */}
       <section className="bg-stone-50 border-y border-stone-100 py-20">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="w-[94vw] max-w-none mx-auto px-4">
           <div className="text-center mb-10">
             <p className="storefront-eyebrow mb-2">Find Your Fit</p>
             <h2 className="storefront-heading text-4xl mb-8">Shop the Way You Like</h2>
@@ -621,7 +621,7 @@ export default function CustomerHome() {
 
       {/* ── LATEST TRENDING RUG DESIGNS ──────────────────────────────────── */}
       {catalog.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-20">
+        <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
           <h2 className="storefront-heading text-4xl text-center mb-12">Latest Trending Rug Designs</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10">
             {catalog.slice(0, 5).map((rug) => (
@@ -672,7 +672,7 @@ export default function CustomerHome() {
 
         return (
           <section className="bg-stone-50 border-y border-stone-100 py-20">
-            <div className="max-w-7xl mx-auto px-4">
+            <div className="w-[94vw] max-w-none mx-auto px-4">
               <div className="mb-12 max-w-2xl">
                 <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Testimonials</p>
                 <h2 className="font-serif text-4xl font-light text-stone-900">What Buyers Say</h2>
@@ -780,7 +780,7 @@ export default function CustomerHome() {
         );
         return (
           <section className="py-20">
-            <div className="max-w-7xl mx-auto px-4 mb-12 max-w-2xl">
+            <div className="w-[94vw] max-w-none mx-auto px-4 mb-12">
               <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Project Gallery</p>
               <h2 className="font-serif text-4xl font-light text-stone-900">Rugs in Their New Homes</h2>
             </div>

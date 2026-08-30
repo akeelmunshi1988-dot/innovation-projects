@@ -47,7 +47,7 @@ export default function CustomerOrderConfirm() {
   return (
     <CustomerLayout>
       <SEO title="Order Confirmed" description="Your custom rug order has been placed." noindex />
-      <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
+      <div className="w-[94vw] max-w-none mx-auto px-4 py-16 space-y-8">
 
         {/* Success banner */}
         <div className="border border-green-200 bg-green-50 p-10 text-center space-y-3">

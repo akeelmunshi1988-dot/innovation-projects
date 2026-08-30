@@ -48,7 +48,7 @@ export default function CustomerResetPassword() {
   return (
     <CustomerLayout>
       <SEO title="Reset Password" description="Choose a new account password." noindex />
-      <div className="max-w-7xl mx-auto px-4 py-20">
+      <div className="w-[94vw] max-w-none mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">
           {status === 'done' ? (
             <div className="text-center">

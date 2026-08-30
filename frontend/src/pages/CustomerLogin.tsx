@@ -50,7 +50,7 @@ export default function CustomerLogin() {
   if (registeredEmail) {
     return (
       <CustomerLayout>
-        <div className="max-w-7xl mx-auto px-4 py-20">
+        <div className="w-[94vw] max-w-none mx-auto px-4 py-20">
           <div className="max-w-md mx-auto text-center">
             <MailCheck size={40} className="text-stone-400 mx-auto mb-6" />
             <p className="storefront-eyebrow mb-2">Almost there</p>
@@ -74,7 +74,7 @@ export default function CustomerLogin() {
   return (
     <CustomerLayout>
       <SEO title="Sign In" description="Sign in to your account to track orders and manage quotes." noindex />
-      <div className="max-w-7xl mx-auto px-4 py-20">
+      <div className="w-[94vw] max-w-none mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">
 
           {/* Page heading */}

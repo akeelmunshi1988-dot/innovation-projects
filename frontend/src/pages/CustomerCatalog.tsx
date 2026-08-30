@@ -169,7 +169,7 @@ export default function CustomerCatalog() {
           ],
         }}
       />
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="w-[94vw] max-w-none mx-auto px-4">
 
         {/* ── Page header ───────────────────────────────────────────── */}
         <div className="py-14 border-b border-stone-100 text-center">
