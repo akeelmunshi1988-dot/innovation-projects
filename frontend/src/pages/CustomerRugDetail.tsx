@@ -632,7 +632,7 @@ export default function CustomerRugDetail() {
           <section className="lg:col-span-3 space-y-4 lg:pt-2">
             <button
               type="button"
-              onClick={scrollToConfigurator}
+              onClick={openQuoteRequest}
               disabled={!rug.available}
               className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-sm py-4 transition-colors"
             >
@@ -651,9 +651,9 @@ export default function CustomerRugDetail() {
 
         <div id="rug-configurator" className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start scroll-mt-32 pt-8 border-t border-stone-100">
 
-          {/* Quote configurator */}
+          {/* Direct-purchase configurator */}
           <div className="lg:col-span-5">
-            <div className="space-y-5">
+            <div className="space-y-5 w-full max-w-2xl mx-auto">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
@@ -671,13 +671,12 @@ export default function CustomerRugDetail() {
               ) : (
                 <div className="border border-stone-200">
                   <div className="px-5 py-4 border-b border-stone-100">
-                    <h2 className="font-serif text-2xl font-light text-stone-900">Request a Quote</h2>
-                    <p className="text-stone-400 text-sm mt-1">Choose your rug specifications and review an instant estimate before submitting.</p>
+                    <h2 className="font-serif text-2xl font-light text-stone-900">Choose Size &amp; Purchase</h2>
+                    <p className="text-stone-400 text-sm mt-1">Select an available size for an instant estimate and direct checkout.</p>
                   </div>
 
                   <form onSubmit={(event) => event.preventDefault()} className="p-4 sm:p-5">
-                    <div className="space-y-4 max-w-xl">
-                      <p className="text-stone-500 text-sm">Select a size, review the instant estimate, then submit your request.</p>
+                    <div className="space-y-4">
                     {/* Standard Sizes — only sizes with a value in the current unit are
                         offered; a size missing a vendor-entered cm value simply isn't
                         shown when browsing in cm, rather than falling back to a computed
@@ -804,7 +803,18 @@ export default function CustomerRugDetail() {
                             </div>
                             <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
                             {!priceResult.material_available && (
-                              <p className="text-red-500 text-xs font-medium">Out of stock for this size and quantity.</p>
+                              <div className="border border-amber-200 bg-amber-50 p-3 space-y-2">
+                                <p className="text-amber-800 text-xs leading-relaxed">
+                                  Immediate checkout is unavailable for this size and quantity because current material stock is insufficient. This rug is still available for a custom quote.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={openQuoteRequest}
+                                  className="text-xs font-medium uppercase tracking-wider text-stone-900 border-b border-stone-500 pb-0.5"
+                                >
+                                  Request a Quote
+                                </button>
+                              </div>
                             )}
                             <div className="flex flex-col sm:flex-row gap-2 mt-1">
                               <button type="button"
@@ -863,34 +873,6 @@ export default function CustomerRugDetail() {
                       </div>
                     )}
 
-                    <div className="border-t border-stone-100 pt-4 space-y-3">
-                      {isCustomerAuthenticated && customer && (
-                        <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-2.5">
-                          <CheckCircle size={13} className="text-green-600 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-stone-900 text-xs font-medium truncate">{customer.name}</p>
-                            <p className="text-stone-400 text-xs truncate">{customer.email}</p>
-                          </div>
-                        </div>
-                      )}
-                      <textarea name="notes" value={form.notes} onChange={handleFormChange}
-                        placeholder="Any special requirements?" rows={2}
-                        className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors resize-none"
-                      />
-                    </div>
-
-                    {submitError && (
-                      <div className="flex items-center gap-2 bg-red-50 border border-red-200 p-3 text-red-600 text-xs">
-                        <AlertTriangle size={12} /> {submitError}
-                      </div>
-                    )}
-
-                    <button type="button" onClick={openQuoteRequest} disabled={submitting || !rug.available || !hasSize}
-                      className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Send size={13} /> Request Quote
-                    </button>
-                    <p className="text-stone-400 text-xs text-center">Free quote · No commitment · UPI / Card</p>
                     </div>
                   </form>
                 </div>
