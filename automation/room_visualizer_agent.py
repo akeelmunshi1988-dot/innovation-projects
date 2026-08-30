@@ -106,7 +106,7 @@ def build_collection_prompt(source: Path) -> str:
 
 Product details inferred from the source filename: {details}.
 
-Treat the supplied photograph as the authoritative product reference. Extract this exact physical rug; do not generate a replacement or reinterpret its appearance. Preserve the visible rug surface exactly as photographed, including its original design, colors, pattern geometry, weave, material appearance, pile, fiber texture, border, edge irregularities, tonal variation, wear, and handmade character. It must retain the natural photographic texture of the original and must not look digitally painted, airbrushed, sharpened into synthetic fibers, or AI-generated.
+Treat the supplied photograph as the authoritative product reference. Extract this exact physical rug; do not generate a replacement or reinterpret its appearance. Preserve the visible rug surface exactly as photographed, including its original design, colors, pattern geometry, all lines and line weights, any text, letters, numbers, symbols, or typography woven or printed into the rug, weave, material appearance, pile, fiber texture, border, edge irregularities, tonal variation, wear, and handmade character. Rug artwork containing text or linework is intentional and must remain legible, correctly positioned, and unchanged. It must retain the natural photographic texture of the original and must not look digitally painted, airbrushed, sharpened into synthetic fibers, or AI-generated.
 
 The only permitted transformations are: remove the surrounding scene/background, correct camera perspective, rotate the rug upright, center it, scale it to fit the portrait canvas, improve output resolution, and apply restrained photographic exposure and clarity correction. Show it straight-on from the front as a flat product cutout, with its long edge running top to bottom. Any enhancement must remain subtle and source-faithful; do not beautify, repair, clean, extend, reconstruct, simplify, or replace any portion of the rug. The entire rug and every original outer edge must be visible.
 
@@ -116,7 +116,7 @@ Background: genuinely transparent alpha channel, including all four corners; no 
 
 Quality: high-resolution commercial catalog extraction with authentic photographic weave and pile detail, natural edges, and color matching the source photograph. Favor source fidelity over visual perfection.
 
-Avoid: text, labels, logos, watermark, furniture, people, props, room scene, floor, wall, drop shadow, folded edges, duplicate rugs, cropped rug, altered artwork, invented detail, cleaned-up or replaced motifs, uniform or synthetic texture, oversmoothing, recoloring, relighting, exaggerated contrast, tilted perspective, landscape orientation, checkerboard pattern, or an obviously generated appearance."""
+Avoid: newly added text, labels, logos, or watermarks that are not present on the rug; furniture, people, props, room scene, floor, wall, drop shadow, folded edges, duplicate rugs, cropped rug, altered artwork, changed or removed rug text, changed linework, invented detail, cleaned-up or replaced motifs, uniform or synthetic texture, oversmoothing, recoloring, relighting, exaggerated contrast, tilted perspective, landscape orientation, checkerboard pattern, or an obviously generated appearance."""
 
 
 def build_room_prompt(room_description: str, source: Path) -> str:
@@ -125,13 +125,13 @@ def build_room_prompt(room_description: str, source: Path) -> str:
 
 Product details inferred from the source filename: {details}.
 
-Place this exact rug naturally on the floor in {room_description}. Preserve the rug's design, colors, pattern, texture, proportions, and border accurately; do not redesign or crop it. Match realistic perspective, scale, shadows, pile texture, and room lighting so it looks physically present in the scene.
+Place this exact rug naturally on the floor in {room_description}. Preserve the rug's design, colors, pattern, all intentional lines, and any text, letters, numbers, symbols, or typography that are part of its artwork, plus its texture, proportions, and border accurately; do not redesign or crop it. Keep all rug text and linework legible, correctly positioned, and unchanged. Match realistic perspective, scale, shadows, pile texture, and room lighting so it looks physically present in the scene.
 
 Composition: wide landscape editorial interior photograph, complete rug clearly visible, balanced furniture placement, premium but lived-in styling, uncluttered room, natural daylight plus warm ambient light.
 
 Quality: high-resolution commercial interior photography, sharp material detail, realistic surfaces and shadows.
 
-Avoid: text, logos, watermarks, people, duplicate rugs, distorted geometry, altered rug artwork, oversaturation, or an obviously composited appearance."""
+Avoid: newly added text, logos, or watermarks not present on the rug; people, duplicate rugs, distorted geometry, altered or removed rug text, changed linework, altered rug artwork, oversaturation, or an obviously composited appearance."""
 
 
 def generate_catalog_metadata(client: OpenAI, source: Path) -> CatalogMetadata:
