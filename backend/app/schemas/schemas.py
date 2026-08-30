@@ -51,6 +51,7 @@ class RugSize(BaseModel):
     cm: Optional[str] = None
     is_default: bool = False
     price: float = Field(..., ge=0, description="Vendor-entered total selling price for one rug in this size")
+    lead_time_days: Optional[int] = Field(None, ge=1, description="Expected delivery time for this size; falls back to the catalog default")
 
 
 class RugCatalogBase(BaseModel):

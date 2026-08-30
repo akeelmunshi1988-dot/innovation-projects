@@ -95,6 +95,7 @@ export interface CatalogSize {
   cm?: string | null;
   is_default?: boolean;
   price: number;
+  lead_time_days?: number | null;
 }
 
 export interface RugCatalog {

@@ -240,11 +240,25 @@ def collect_catalog_config(metadata: CatalogMetadata, defaults: dict) -> tuple[C
                 break
             except ValueError:
                 subprocess.run(["osascript", "-e", 'display alert "Enter a valid non-negative price."'], check=False)
-        sizes.append({"ft": label, "cm": None, "price": price, "is_default": index == 0})
+        while True:
+            lead_time_text = macos_prompt(
+                f"Expected delivery time in days for {label} ft",
+                str(defaults.get("lead_time_days", 21)),
+            )
+            if lead_time_text is None:
+                return None
+            try:
+                lead_time_days = int(lead_time_text)
+                if lead_time_days < 1:
+                    raise ValueError
+                break
+            except ValueError:
+                subprocess.run(["osascript", "-e", 'display alert "Enter valid delivery days (1 or more)."'], check=False)
+        sizes.append({
+            "ft": label, "cm": None, "price": price,
+            "lead_time_days": lead_time_days, "is_default": index == 0,
+        })
 
-    lead_time = macos_prompt("Expected delivery time in days", str(defaults.get("lead_time_days", 21)))
-    if lead_time is None:
-        return None
     currency = macos_prompt("Price currency", defaults.get("base_price_currency", "INR"))
     if currency is None:
         return None
@@ -262,7 +276,7 @@ def collect_catalog_config(metadata: CatalogMetadata, defaults: dict) -> tuple[C
     job_config.update({
         "sizes": sizes,
         "base_price_currency": currency.strip().upper(),
-        "lead_time_days": int(lead_time),
+        "lead_time_days": sizes[0]["lead_time_days"],
         "room_types": [value.strip() for value in room_types.split(",") if value.strip()],
         "mood_tags": [value.strip() for value in mood_tags.split(",") if value.strip()],
     })

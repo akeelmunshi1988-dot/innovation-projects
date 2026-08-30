@@ -202,6 +202,11 @@ export default function CustomerRugDetail() {
   // form.size_w/size_h are entered in `sizeUnit`; quote pricing is denominated in metres.
   const sizeWMetres = toMetres(parseFloat(form.size_w), sizeUnit);
   const sizeHMetres = toMetres(parseFloat(effectiveSizeH), sizeUnit);
+  const selectedCatalogSize = rug?.sizes.find((size) => {
+    const dimensions = catalogSizeDims(size, inputUnit(sizeUnit));
+    return dimensions && form.size_w === String(dimensions[0]) && form.size_h === String(dimensions[1]);
+  }) ?? rug?.sizes.find((size) => size.is_default) ?? rug?.sizes[0];
+  const selectedLeadTimeDays = selectedCatalogSize?.lead_time_days ?? rug?.lead_time_days ?? 21;
 
   const calcPrice = async (selectedSize?: { size_w: string; size_h: string }) => {
     const selectedWidth = selectedSize?.size_w ?? form.size_w;
@@ -244,10 +249,7 @@ export default function CustomerRugDetail() {
     const matchingRoom = QUOTE_ROOM_TYPES.find((option) => option.toLowerCase() === room?.toLowerCase());
     const material = QUOTE_MATERIALS.some((option) => option.value === rug.material_type)
       ? rug.material_type : 'other';
-    const selectedSize = rug.sizes.find((size) => {
-      const dimensions = catalogSizeDims(size, inputUnit(sizeUnit));
-      return dimensions && form.size_w === String(dimensions[0]) && form.size_h === String(dimensions[1]);
-    }) ?? rug.sizes.find((size) => size.is_default) ?? rug.sizes[0];
+    const selectedSize = selectedCatalogSize;
     const selectedPrice = Number(selectedSize?.price ?? 0);
     const budget = selectedPrice < 25000 ? QUOTE_BUDGETS[0]
       : selectedPrice < 50000 ? QUOTE_BUDGETS[1]
@@ -266,7 +268,7 @@ export default function CustomerRugDetail() {
       size_w: selectedSize ? String(catalogSizeDims(selectedSize, 'ft')?.[0] ?? '') : '',
       size_h: selectedSize ? String(catalogSizeDims(selectedSize, 'ft')?.[1] ?? '') : '',
       unit: 'ft',
-      expected_delivery: rug.lead_time_days <= 28 ? 'Within 4 weeks' : rug.lead_time_days <= 60 ? '1–2 months' : '2–3 months or more',
+      expected_delivery: selectedLeadTimeDays <= 28 ? 'Within 4 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
     }));
     setSubmitError(null);
     setQuoteModal(true);
@@ -614,7 +616,7 @@ export default function CustomerRugDetail() {
               </span>
               <div>
                 <p className="font-serif text-lg leading-tight text-stone-900 capitalize">{rug.pile_height ? `${rug.pile_height} pile` : 'Made to order'}</p>
-                <p className="text-stone-400 text-sm">Estimated in {rug.lead_time_days} days</p>
+                <p className="text-stone-400 text-sm">Estimated in {selectedLeadTimeDays} days</p>
               </div>
             </div>
           </section>

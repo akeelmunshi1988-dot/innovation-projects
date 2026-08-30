@@ -300,8 +300,8 @@ export default function RugDetail() {
           },
           {
             icon: <Clock size={16} />,
-            label: 'Expected Delivery',
-            value: `${rug.lead_time_days} days`,
+            label: 'Default Delivery',
+            value: `${(rug.sizes.find((size) => size.is_default) ?? rug.sizes[0])?.lead_time_days ?? rug.lead_time_days} days`,
           },
           {
             icon: <TrendingUp size={16} />,
@@ -446,9 +446,9 @@ export default function RugDetail() {
                   {(() => {
                     const area = catalogSizeAreaSqm(size);
                     if (area) {
-                      return <p className="text-dark-500 text-xs">{area.toFixed(1)} m²</p>;
+                      return <p className="text-dark-500 text-xs">{area.toFixed(1)} m² · {size.lead_time_days ?? rug.lead_time_days} days</p>;
                     }
-                    return null;
+                    return <p className="text-dark-500 text-xs">{size.lead_time_days ?? rug.lead_time_days} days</p>;
                   })()}
                 </div>
               ))}

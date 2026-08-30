@@ -546,13 +546,21 @@ def _public_catalog_offer(rug: RugCatalog, db: Session) -> dict:
     except (TypeError, ValueError):
         price = None
         price_currency = None
-    public_size = {"ft": default_size["ft"], "cm": default_size.get("cm"), "price": default_size.get("price")}
+    public_size = {
+        "ft": default_size["ft"], "cm": default_size.get("cm"),
+        "price": default_size.get("price"),
+        "lead_time_days": default_size.get("lead_time_days") or rug.lead_time_days,
+    }
     return {"display_price": price, "default_size": public_size, "price_currency": price_currency}
 
 
 def _public_catalog_sizes(rug: RugCatalog) -> list[dict]:
     return [
-        {"ft": size.get("ft"), "cm": size.get("cm"), "price": size.get("price")}
+        {
+            "ft": size.get("ft"), "cm": size.get("cm"), "price": size.get("price"),
+            "lead_time_days": size.get("lead_time_days") or rug.lead_time_days,
+            "is_default": bool(size.get("is_default")),
+        }
         for size in (rug.sizes or [])
         if isinstance(size, dict) and size.get("ft")
     ]
@@ -601,6 +609,11 @@ async def get_public_catalog(
             q = q.order_by(RugCatalog.id.desc())
 
         rugs = q.all()
+        if sort == "lead-asc":
+            rugs.sort(key=lambda rug: int(
+                (next((size for size in (rug.sizes or []) if isinstance(size, dict) and size.get("is_default")), None) or {}).get("lead_time_days")
+                or rug.lead_time_days or 21
+            ))
         if room_type and room_type != "all":
             rugs = [r for r in rugs if room_type in (r.room_types or [])]
         if mood and mood != "all":
@@ -629,7 +642,7 @@ async def get_public_catalog(
                 "display_price": offer["display_price"],
                 "default_size": offer["default_size"],
                 "base_price_currency": offer["price_currency"],
-                "lead_time_days": r.lead_time_days,
+                "lead_time_days": (offer["default_size"] or {}).get("lead_time_days") or r.lead_time_days,
                 "image_url": r.image_url,
                 "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
                 "room_types": r.room_types or [],
@@ -683,7 +696,7 @@ async def get_public_rug(rug_id_or_slug: str):
             "display_price": offer["display_price"],
             "default_size": offer["default_size"],
             "base_price_currency": offer["price_currency"],
-            "lead_time_days": r.lead_time_days,
+            "lead_time_days": (offer["default_size"] or {}).get("lead_time_days") or r.lead_time_days,
             "image_url": r.image_url,
             "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
             "room_types": r.room_types or [],
@@ -911,7 +924,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
                 "rug_name": rug.name,
                 "final_price": existing.final_price,
                 "size": f"{body.size_w}m × {body.size_h}m",
-                "lead_time_days": rug.lead_time_days,
+                "lead_time_days": existing.expected_delivery_days or rug.lead_time_days,
                 "message": "You already have an open quote for this rug and size.",
             }
 
@@ -949,6 +962,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             material_preference=body.material_preference,
             budget_range=body.budget_range,
             expected_delivery=body.expected_delivery,
+            expected_delivery_days=int(calc.get("estimated_days") or rug.lead_time_days or 21),
             reference_image_urls=body.reference_image_urls,
         )
         db.add(quote)
@@ -970,7 +984,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             "rug_name": rug.name,
             "final_price": quote.final_price,
             "size": size_display,
-            "lead_time_days": rug.lead_time_days,
+            "lead_time_days": quote.expected_delivery_days or rug.lead_time_days,
             "message": "Your quote request has been received. Our team will contact you shortly to confirm details.",
         }
     finally:
@@ -1271,13 +1285,12 @@ def _create_order_from_items(
             price_currency=calc.get("price_currency") or (tenant.base_currency if tenant else "INR"),
             margin_pct=calc.get("profit_margin_pct"), gst_pct=calc.get("gst_pct"),
             rush_order=item.rush_order, status="accepted", notes=item.notes,
+            expected_delivery_days=int(calc.get("estimated_days") or rug.lead_time_days or 21),
         )
         db.add(quote)
         db.flush()
 
-        lead_days = rug.lead_time_days or 21
-        if item.rush_order:
-            lead_days = max(7, lead_days // 2)
+        lead_days = int(calc.get("estimated_days") or rug.lead_time_days or 21)
         size_display = f"⌀ {item.size_w}m" if shape == "circle" else f"{item.size_w}m × {item.size_h}m"
         quotes_with_meta.append({"quote": quote, "rug": rug, "material": material, "total_sqm": total_sqm, "lead_days": lead_days, "size_display": size_display, "qty": item.qty})
 
@@ -1489,7 +1502,7 @@ def _order_confirmation_from_existing(db: Session, order_id: int) -> dict:
         "gst_inclusive": bool(tenant.gst_inclusive) if tenant else False,
         "items": items, "status": order.status,
         "estimated_delivery": order.estimated_delivery.strftime("%Y-%m-%d") if order.estimated_delivery else None,
-        "lead_time_days": max((first_rug.lead_time_days if first_rug else 21), 1),
+        "lead_time_days": max((q.expected_delivery_days or 21 for q in quotes), default=21),
         "customer_name": customer.name if customer else None,
         "shipping_address": order.shipping_address,
     }
@@ -2350,9 +2363,7 @@ Rules:
                             rug_id=rug_id, size_w=size_w, size_h=size_h,
                             material_id=rug_rec.material_id, qty=qty, rush_order=rush,
                         )
-                        lead_days = rug_rec.lead_time_days or 21
-                        if rush:
-                            lead_days = max(7, lead_days // 2)
+                        lead_days = int(calc.get("estimated_days") or rug_rec.lead_time_days or 21)
                         action.update({
                             "estimated_price":  calc.get("final_price"),
                             "rush_surcharge":   calc.get("rush_surcharge", 0.0),

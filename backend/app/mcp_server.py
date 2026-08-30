@@ -117,7 +117,7 @@ async def import_catalog_image(image_url: str, filename: str = "rug-image.png") 
 @mcp.tool(
     description=(
         "Create and publish one catalog rug after the user has confirmed the questionnaire. "
-        "Every item in sizes must include its manually calculated total price for that size. "
+        "Every item in sizes must include its manually calculated total price and expected delivery days for that size. "
         "main_image_path must be the upright, front-facing, transparent-background product image. "
         "gallery_image_paths should contain the five separately generated room visualizers in order."
     ),
@@ -143,6 +143,9 @@ def create_catalog_item(
     default_size = next((size for size in sizes if size.get("is_default")), sizes[0] if sizes else None)
     if not default_size or default_size.get("price") is None:
         raise ValueError("Each catalog item needs priced sizes and one default size")
+    if any(not isinstance(size.get("lead_time_days", lead_time_days), int) or size.get("lead_time_days", lead_time_days) < 1 for size in sizes):
+        raise ValueError("Each catalog size needs valid expected delivery days")
+    sizes = [{**size, "lead_time_days": size.get("lead_time_days", lead_time_days)} for size in sizes]
 
     payload = PublicCatalogCreate.model_validate(
         {
@@ -154,7 +157,7 @@ def create_catalog_item(
             "material_id": material_id,
             "pile_height": pile_height,
             "weave_type": weave_type,
-            "lead_time_days": lead_time_days,
+            "lead_time_days": default_size.get("lead_time_days", lead_time_days),
             "image_url": main_image_path,
             "room_types": ["living-room", "bedroom", "dining-room", "study", "entryway"],
             "mood_tags": [],

@@ -68,6 +68,7 @@ function rugToForm(r: RugCatalog): FormData {
     sizes: r.sizes.map((size, index) => ({
       ...size,
       price: size.price ?? r.base_price,
+      lead_time_days: size.lead_time_days ?? r.lead_time_days,
       is_default: hasDefaultSize ? Boolean(size.is_default) : index === 0,
     })),
     room_types: r.room_types ?? [],
@@ -180,11 +181,9 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
     setSaving(true);
     setError('');
     const materialId = Number(form.material_id);
-    const leadTimeDays = Number(form.lead_time_days);
     if (
       !form.name.trim()
       || !form.material_id || !Number.isInteger(materialId) || materialId < 1
-      || !form.lead_time_days || !Number.isInteger(leadTimeDays) || leadTimeDays < 1
     ) {
       setError('Complete all required fields with valid values.');
       setSaving(false);
@@ -209,6 +208,11 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
       setSaving(false);
       return;
     }
+    if (validSizes.some((size) => !Number.isInteger(Number(size.lead_time_days)) || Number(size.lead_time_days) < 1)) {
+      setError('Enter valid expected delivery days for every size.');
+      setSaving(false);
+      return;
+    }
     const payload = {
       name:                form.name.trim(),
       description:         form.description.trim() || null,
@@ -220,13 +224,14 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
       base_price_currency: tenant.base_currency,
       pile_height:         form.pile_height || null,
       weave_type:          form.weave_type || null,
-      lead_time_days:      leadTimeDays,
+      lead_time_days:      Number(defaultSize.lead_time_days),
       image_url:           form.image_url.trim() || null,
       sizes:               validSizes.map((s) => ({
         ft: s.ft.trim(),
         cm: s.cm?.trim() || null,
         is_default: Boolean(s.is_default),
         price: Number(s.price),
+        lead_time_days: Number(s.lead_time_days),
       })),
       room_types:          form.room_types,
       mood_tags:           form.mood_tags,
@@ -403,22 +408,6 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
-          </div>
-
-          {/* Lead time */}
-          <div>
-            <div className="space-y-1">
-              <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Expected Delivery (days) *</label>
-              <input
-                value={form.lead_time_days}
-                onChange={(e) => set('lead_time_days', e.target.value)}
-                type="number"
-                min="1"
-                placeholder="21"
-                required
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
-              />
-            </div>
           </div>
 
           {/* Storefront availability */}
@@ -872,7 +861,7 @@ const Catalog: React.FC = () => {
                   )}
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-dark-800 rounded-lg text-xs text-dark-400">
                     <Clock size={11} />
-                    {rug.lead_time_days} days lead
+                    {(rug.sizes.find((size) => size.is_default) ?? rug.sizes[0])?.lead_time_days ?? rug.lead_time_days} days lead
                   </div>
                 </div>
 
@@ -885,7 +874,7 @@ const Catalog: React.FC = () => {
                         className={`text-xs px-2 py-0.5 rounded border ${size.cm ? 'bg-dark-800 text-dark-300 border-dark-700' : 'bg-dark-800/50 text-dark-500 border-dark-700/60'}`}
                         title={size.cm ? undefined : 'No cm value entered yet'}
                       >
-                        {size.ft} ft{size.cm ? ` (${size.cm} cm)` : ''}
+                        {size.ft} ft{size.cm ? ` (${size.cm} cm)` : ''} · {size.lead_time_days ?? rug.lead_time_days}d
                       </span>
                     ))}
                   </div>

@@ -13,12 +13,12 @@ a genuine transparent background; filename details guide the material/style trea
 but are never drawn as text onto the image.
 
 After all six images exist, native macOS dialogs ask for title, description,
-material, weave type, sizes, a total price for every size, delivery time,
+material, weave type, sizes, a total price and delivery time for every size,
 currency, room tags, and mood tags. Only after confirmation, the agent uses the
 app's authenticated integration API to:
 
 1. upload `00-collection-main-transparent.png` as the catalog cover;
-2. create the catalog row with title, description, material, weave type, and per-size total prices;
+2. create the catalog row with title, description, material, weave type, and per-size total prices and delivery times;
 3. upload the five room visualizations as the ordered gallery.
 
 Edit `catalog_defaults.json` to change material IDs, base prices, sizes, currency, or

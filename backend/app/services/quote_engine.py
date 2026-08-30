@@ -17,8 +17,8 @@ def _parse_catalog_dimensions(value: object, metres_per_unit: float) -> Optional
         return None
 
 
-def _catalog_size_price(rug: RugCatalog, size_w: float, size_h: float) -> Optional[float]:
-    """Return the vendor-entered total price for the requested standard size."""
+def _catalog_size_offer(rug: RugCatalog, size_w: float, size_h: float) -> Optional[dict]:
+    """Return the vendor-entered price and delivery time for a standard size."""
     tolerance_m = 0.025
     for size in rug.sizes or []:
         if not isinstance(size, dict) or size.get("price") is None:
@@ -32,7 +32,7 @@ def _catalog_size_price(rug: RugCatalog, size_w: float, size_h: float) -> Option
         direct = abs(width - size_w) <= tolerance_m and abs(height - size_h) <= tolerance_m
         rotated = abs(width - size_h) <= tolerance_m and abs(height - size_w) <= tolerance_m
         if direct or rotated:
-            return float(size["price"])
+            return size
     return None
 
 
@@ -105,9 +105,10 @@ class QuoteEngine:
         # Catalog price is the authoritative selling rate for catalog rugs.
         # Material cost and margin remain available for stock/cost reporting,
         # but must never replace a vendor-entered catalog price.
-        size_price = _catalog_size_price(rug, size_w, size_h)
-        if size_price is None:
+        size_offer = _catalog_size_offer(rug, size_w, size_h)
+        if size_offer is None:
             return {"error": "This rug does not have a total price configured for the requested size"}
+        size_price = float(size_offer["price"])
         catalog_price_per_piece = round(
             self._to_base(
                 size_price,
@@ -174,8 +175,9 @@ class QuoteEngine:
         pricing_rules_applied = []
 
         # Determine if rush actually saves delivery time
-        standard_days = self._estimate_days(rug.weave_type or "standard", size_sqm, qty, rush_order=False)
-        rush_candidate_days = self._estimate_days(rug.weave_type or "standard", size_sqm, qty, rush_order=True)
+        configured_days = size_offer.get("lead_time_days") or rug.lead_time_days
+        standard_days = int(configured_days) if configured_days else self._estimate_days(rug.weave_type or "standard", size_sqm, qty, rush_order=False)
+        rush_candidate_days = max(math.ceil(standard_days * 0.7), 7)
         rush_saves_time = rush_candidate_days < standard_days  # False when floor kicks in (e.g. 7-day rugs)
         rush_effective = rush_order and rush_saves_time
 

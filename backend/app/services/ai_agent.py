@@ -167,8 +167,11 @@ _RUG_SIZE_SCHEMA = {
         "properties": {
             "ft": {"type": "string", "description": "Size in feet, e.g. '6x9'."},
             "cm": {"type": "string", "description": "Size in centimetres, e.g. '183x274'. Only set this if the user explicitly gave you a cm value — otherwise omit it."},
+            "price": {"type": "number", "description": "Final total selling price for this size."},
+            "lead_time_days": {"type": "integer", "description": "Expected delivery time in days for this size."},
+            "is_default": {"type": "boolean", "description": "Whether this is the default storefront size."},
         },
-        "required": ["ft"],
+        "required": ["ft", "price", "lead_time_days"],
     },
 }
 

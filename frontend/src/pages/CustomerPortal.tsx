@@ -115,6 +115,11 @@ export default function CustomerPortal() {
   const [estimate, setEstimate]         = useState<EstimateResult | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
+  const selectedStandardSize = selectedRug?.sizes.find((size) => {
+    const dimensions = catalogSizeDims(size, inputUnit(sizeUnit));
+    return dimensions && quoteForm.size_w === String(dimensions[0]) && quoteForm.size_h === String(dimensions[1]);
+  }) ?? selectedRug?.default_size;
+  const selectedDeliveryDays = selectedStandardSize?.lead_time_days ?? selectedRug?.lead_time_days ?? 21;
 
   const loadDefaultRoom = () => {
     fetch(DEFAULT_ROOM_SRC).then((r) => r.blob()).then((blob) => {
@@ -1064,7 +1069,7 @@ export default function CustomerPortal() {
                             <p className="text-stone-400 text-xs">{selectedRug.material} · {selectedRug.weave_type}</p>
                             <p className="text-stone-600 text-xs mt-0.5">
                               {selectedRug.display_price != null && <>{displayPrice(selectedRug.display_price)}{selectedRug.default_size ? ` · ${selectedRug.default_size.ft} ft` : ''} · </>}
-                              {selectedRug.lead_time_days}d delivery
+                              {selectedDeliveryDays}d delivery
                             </p>
                           </div>
                         </div>
@@ -1176,8 +1181,8 @@ export default function CustomerPortal() {
                                 {selectedRug && (
                                   <p className="text-xs text-stone-400 whitespace-nowrap">
                                     {quoteForm.rush_order
-                                      ? `~${Math.max(Math.ceil(selectedRug.lead_time_days * 0.7), 7)} days`
-                                      : `${selectedRug.lead_time_days} days`}
+                                      ? `~${Math.max(Math.ceil(selectedDeliveryDays * 0.7), 7)} days`
+                                      : `${selectedDeliveryDays} days`}
                                   </p>
                                 )}
                               </div>
