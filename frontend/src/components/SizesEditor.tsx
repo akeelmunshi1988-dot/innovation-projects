@@ -38,6 +38,7 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
         {value.map((row, i) => (
           <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(110px,0.7fr)_minmax(100px,0.6fr)_auto] items-end gap-2">
             <label className="flex flex-col items-center gap-1 text-[10px] text-dark-400 cursor-pointer" title="Use this as the default storefront size">
+              Default
               <input
                 type="radio"
                 name="default-rug-size"
@@ -45,17 +46,21 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
                 onChange={() => setDefault(i)}
                 className="accent-gold-500"
               />
-              Default
             </label>
-            <input
-              value={row.ft}
-              onChange={(e) => updateRow(i, 'ft', e.target.value)}
-              placeholder="6x9 (ft)"
-              className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
-            />
             <div>
-              <label className="text-dark-400 text-[10px] block mb-1">Delivery days</label>
+              <label className="text-dark-400 text-[10px] block mb-1" htmlFor={`rug-size-ft-${i}`}>Size (ft)</label>
               <input
+                id={`rug-size-ft-${i}`}
+                value={row.ft}
+                onChange={(e) => updateRow(i, 'ft', e.target.value)}
+                placeholder="6x9"
+                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+              />
+            </div>
+            <div>
+              <label className="text-dark-400 text-[10px] block mb-1" htmlFor={`rug-size-delivery-${i}`}>Delivery Days</label>
+              <input
+                id={`rug-size-delivery-${i}`}
                 value={row.lead_time_days ?? ''}
                 onChange={(e) => updateRow(i, 'lead_time_days', e.target.value === '' ? null : Number(e.target.value))}
                 type="number"
@@ -65,28 +70,40 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
                 className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
               />
             </div>
-            <input
-              value={row.price ?? ''}
-              onChange={(e) => updateRow(i, 'price', Number(e.target.value))}
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Total price"
-              className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
-            />
-            <input
-              value={row.cm ?? ''}
-              onChange={(e) => updateRow(i, 'cm', e.target.value)}
-              placeholder="183x274 (cm, optional)"
-              className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
-            />
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              className="text-dark-500 hover:text-red-400 transition-colors flex-shrink-0"
-            >
-              <X size={16} />
-            </button>
+            <div>
+              <label className="text-dark-400 text-[10px] block mb-1" htmlFor={`rug-size-price-${i}`}>Total Price</label>
+              <input
+                id={`rug-size-price-${i}`}
+                value={row.price ?? ''}
+                onChange={(e) => updateRow(i, 'price', Number(e.target.value))}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Total price"
+                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+              />
+            </div>
+            <div>
+              <label className="text-dark-400 text-[10px] block mb-1" htmlFor={`rug-size-cm-${i}`}>Size (cm, optional)</label>
+              <input
+                id={`rug-size-cm-${i}`}
+                value={row.cm ?? ''}
+                onChange={(e) => updateRow(i, 'cm', e.target.value)}
+                placeholder="183x274"
+                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+              />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-dark-400 text-[10px]">Remove</span>
+              <button
+                type="button"
+                onClick={() => removeRow(i)}
+                aria-label={`Remove size ${row.ft || i + 1}`}
+                className="h-[38px] text-dark-500 hover:text-red-400 transition-colors flex items-center"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
