@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 import bcrypt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -122,6 +122,7 @@ def revoke_refresh_token(db: Session, raw_token: str) -> None:
 
 
 def get_current_user(
+    request: Request,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> StaffUser:
@@ -145,10 +146,14 @@ def get_current_user(
     ).first()
     if user is None:
         raise credentials_error
+    request.state.actor_type = "staff"
+    request.state.actor_id = user.id
+    request.state.tenant_id = user.tenant_id
     return user
 
 
 def get_current_customer(
+    request: Request,
     token: str = Depends(oauth2_customer_scheme),
     db: Session = Depends(get_db),
 ) -> Customer:
@@ -172,6 +177,9 @@ def get_current_customer(
     ).first()
     if customer is None:
         raise credentials_error
+    request.state.actor_type = "customer"
+    request.state.actor_id = customer.id
+    request.state.tenant_id = customer.tenant_id
     return customer
 
 
@@ -186,6 +194,7 @@ def generate_api_key() -> tuple[str, str, str]:
 
 
 def get_api_client(
+    request: Request,
     x_api_key: Optional[str] = Header(None, alias="X-Api-Key"),
     db: Session = Depends(get_db),
 ) -> ApiClient:
@@ -199,4 +208,7 @@ def get_api_client(
         raise error
     client.last_used_at = datetime.now(timezone.utc)
     db.commit()
+    request.state.actor_type = "api_client"
+    request.state.actor_id = client.id
+    request.state.tenant_id = client.tenant_id
     return client

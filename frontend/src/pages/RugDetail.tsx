@@ -193,24 +193,27 @@ export default function RugDetail() {
   };
 
   // ── Gallery images ───────────────────────────────────────────────────────────
-  const handleGalleryImageUpload = async (file: File) => {
-    if (!rug) return;
+  const handleGalleryImageUpload = async (files: File[]) => {
+    if (!rug || files.length === 0) return;
     setGalleryUploading(true);
     setGalleryError(null);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const nextOrder = rug.images.length > 0 ? Math.max(...rug.images.map((i) => i.sort_order)) + 1 : 0;
-      await addRugImage(rug.id, data.url, nextOrder);
-      await load();
-    } catch (err: any) {
-      setGalleryError(err.response?.data?.detail ?? 'Image upload failed.');
-    } finally {
-      setGalleryUploading(false);
+    const firstOrder = rug.images.length > 0 ? Math.max(...rug.images.map((i) => i.sort_order)) + 1 : 0;
+    const failures: string[] = [];
+    for (const [index, file] of files.entries()) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        await addRugImage(rug.id, data.url, firstOrder + index);
+      } catch (err: any) {
+        failures.push(`${file.name}: ${err.response?.data?.detail ?? 'upload failed'}`);
+      }
     }
+    await load();
+    if (failures.length > 0) setGalleryError(failures.join(' · '));
+    setGalleryUploading(false);
   };
 
   const handleDeleteGalleryImage = async (imageId: number) => {
@@ -411,13 +414,14 @@ export default function RugDetail() {
                 ) : (
                   <Upload size={13} />
                 )}
-                Add Image
+                Add Images
                 <input
                   type="file"
+                  multiple
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   className="hidden"
                   disabled={galleryUploading}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryImageUpload(f); e.target.value = ''; }}
+                  onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) handleGalleryImageUpload(files); e.target.value = ''; }}
                 />
               </label>
             </div>

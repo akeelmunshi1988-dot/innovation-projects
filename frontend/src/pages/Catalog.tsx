@@ -100,24 +100,27 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
   const [galleryError, setGalleryError] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  const handleGalleryImageUpload = async (file: File) => {
-    if (!editing) return;
+  const handleGalleryImageUpload = async (files: File[]) => {
+    if (!editing || files.length === 0) return;
     setGalleryUploading(true);
     setGalleryError('');
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const nextOrder = galleryImages.length > 0 ? Math.max(...galleryImages.map((i) => i.sort_order)) + 1 : 0;
-      const created = await addRugImage(editing.id, data.url, nextOrder);
-      setGalleryImages((prev) => [...prev, created]);
-    } catch (err: any) {
-      setGalleryError(err.response?.data?.detail ?? 'Image upload failed.');
-    } finally {
-      setGalleryUploading(false);
+    const firstOrder = galleryImages.length > 0 ? Math.max(...galleryImages.map((i) => i.sort_order)) + 1 : 0;
+    const failures: string[] = [];
+    for (const [index, file] of files.entries()) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const created = await addRugImage(editing.id, data.url, firstOrder + index);
+        setGalleryImages((prev) => [...prev, created]);
+      } catch (err: any) {
+        failures.push(`${file.name}: ${err.response?.data?.detail ?? 'upload failed'}`);
+      }
     }
+    if (failures.length > 0) setGalleryError(failures.join(' · '));
+    setGalleryUploading(false);
   };
 
   const handleDeleteGalleryImage = async (imageId: number) => {
@@ -302,13 +305,14 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
                   ) : (
                     <Upload size={12} />
                   )}
-                  Add Image
+                  Add Images
                   <input
                     type="file"
+                    multiple
                     accept="image/jpeg,image/png,image/webp,image/gif"
                     className="hidden"
                     disabled={galleryUploading}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryImageUpload(f); e.target.value = ''; }}
+                    onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) handleGalleryImageUpload(files); e.target.value = ''; }}
                   />
                 </label>
               )}

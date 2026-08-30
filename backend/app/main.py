@@ -1,6 +1,8 @@
 import os
 import time
 import asyncio
+import re
+import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -35,20 +37,41 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Logs every API request to backend/logs/app.log — method, path, status, duration.
-    Unhandled exceptions get their full traceback logged here before re-raising, since
-    otherwise they're only visible in whichever terminal happened to be running uvicorn
-    at the time (see logging_config.py)."""
+    """Log every request without recording credentials, query strings, or bodies."""
     start = time.time()
+    supplied_request_id = request.headers.get("x-request-id", "")
+    request_id = supplied_request_id if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", supplied_request_id) else uuid.uuid4().hex
+    forwarded_for = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    client_ip = request.headers.get("x-real-ip") or forwarded_for or (
+        request.client.host if request.client else "unknown"
+    )
+    request.state.request_id = request_id
+
+    def context() -> str:
+        actor_type = getattr(request.state, "actor_type", "anonymous")
+        actor_id = getattr(request.state, "actor_id", "-")
+        tenant_id = getattr(request.state, "tenant_id", "-")
+        return (
+            f"request_id={request_id} client_ip={client_ip} "
+            f"actor_type={actor_type} actor_id={actor_id} tenant_id={tenant_id}"
+        )
+
     try:
         response = await call_next(request)
     except Exception:
         duration_ms = (time.time() - start) * 1000
-        logger.exception(f"{request.method} {request.url.path} raised an unhandled exception after {duration_ms:.0f}ms")
+        logger.exception(
+            "%s method=%s path=%s status=500 duration_ms=%.0f unhandled_exception=true",
+            context(), request.method, request.url.path, duration_ms,
+        )
         raise
     duration_ms = (time.time() - start) * 1000
-    log = logger.warning if response.status_code >= 500 else logger.info
-    log(f"{request.method} {request.url.path} {response.status_code} {duration_ms:.0f}ms")
+    response.headers["X-Request-ID"] = request_id
+    log = logger.warning if response.status_code >= 400 else logger.info
+    log(
+        "%s method=%s path=%s status=%s duration_ms=%.0f",
+        context(), request.method, request.url.path, response.status_code, duration_ms,
+    )
     return response
 
 
