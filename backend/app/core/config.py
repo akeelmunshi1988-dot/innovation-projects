@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     MCP_CONNECTOR_TOKEN: Optional[str] = None  # optional dedicated bearer token; falls back to CATALOG_API_KEY
     MCP_TENANT_ID: Optional[int] = 1  # connector is deliberately scoped to one tenant
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
+    SQLITE_SOURCE_URL: Optional[str] = None  # one-time legacy import source; unused by the running application
     APP_NAME: str = "DreamRugsCreation"
     DEBUG: bool = False
 
