@@ -203,13 +203,15 @@ export default function CustomerRugDetail() {
   const sizeWMetres = toMetres(parseFloat(form.size_w), sizeUnit);
   const sizeHMetres = toMetres(parseFloat(effectiveSizeH), sizeUnit);
 
-  const calcPrice = async () => {
-    if (!rug || !form.size_w || (form.shape !== 'circle' && !form.size_h)) return;
+  const calcPrice = async (selectedSize?: { size_w: string; size_h: string }) => {
+    const selectedWidth = selectedSize?.size_w ?? form.size_w;
+    const selectedHeight = selectedSize?.size_h ?? form.size_h;
+    if (!rug || !selectedWidth || (form.shape !== 'circle' && !selectedHeight)) return;
     setCalcLoading(true);
     try {
       const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
-        size_w: sizeWMetres,
-        size_h: sizeHMetres,
+        size_w: toMetres(parseFloat(selectedWidth), sizeUnit),
+        size_h: toMetres(parseFloat(form.shape === 'circle' ? selectedWidth : selectedHeight), sizeUnit),
         qty: parseInt(form.qty) || 1,
         rush_order: form.rush_order,
         shape: form.shape,
@@ -699,14 +701,18 @@ export default function CustomerRugDetail() {
                             const isSelected = form.size_w === dispW && form.size_h === dispH;
                             return (
                               <button key={size.ft} type="button"
-                                onClick={() => setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }))}
+                                onClick={() => {
+                                  setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
+                                  setPriceResult(null);
+                                  void calcPrice({ size_w: dispW, size_h: dispH });
+                                }}
                                 className={`border px-3 py-1.5 text-xs transition-colors ${
                                   isSelected
                                     ? 'bg-stone-900 border-stone-900 text-white'
                                     : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
                                 }`}
                               >
-                                {fmtSize(size, sizeUnit)} · {displayPrice(size.price, currency)}
+                                {fmtSize(size, sizeUnit)}
                               </button>
                             );
                           })}
@@ -763,7 +769,7 @@ export default function CustomerRugDetail() {
                     {/* Price estimate + Place Order */}
                     {hasSize && (
                       <div>
-                        <button type="button" onClick={calcPrice} disabled={calcLoading}
+                        <button type="button" onClick={() => void calcPrice()} disabled={calcLoading}
                           className="w-full flex items-center justify-center gap-2 text-xs font-medium text-stone-600 hover:text-stone-900 border border-stone-200 hover:border-stone-400 px-3 py-2.5 transition-colors uppercase tracking-wider"
                         >
                           {calcLoading
