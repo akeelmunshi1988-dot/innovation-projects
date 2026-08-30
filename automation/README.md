@@ -27,6 +27,15 @@ Cancelling a questionnaire snoozes it so it does not repeatedly interrupt you. R
 `room_visualizer_ctl.sh catalog` to reopen all pending questionnaires, including
 folders that already contained all six images before this feature was enabled.
 
+To regenerate and replace only an existing catalog item's main image, run:
+
+`room_visualizer_ctl.sh catalog-update <catalog-id>`
+
+A file picker asks for the dropped original rug image, followed by a confirmation.
+The agent generates a fresh, natural, source-faithful portrait cutout and updates only
+the catalog `image_url`; gallery images, sizes, prices, inventory, and other fields are unchanged.
+You may also pass the original image path as the final command argument.
+
 The agent reads `OPENAI_API_KEY` from `backend/.env`. It fingerprints source files,
 so unchanged images are not charged or processed twice. Failed jobs remain pending
 and are retried on the next scan.

@@ -53,6 +53,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--poll-seconds", type=float, default=10)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--prompt-catalog", action="store_true", help="Reopen catalog questionnaires that were previously cancelled")
+    parser.add_argument("--update-catalog-id", type=int, help="Regenerate and replace only this catalog item's main image")
+    parser.add_argument("--update-source", type=Path, help="Original rug image for --update-catalog-id; opens a file picker when omitted")
     return parser.parse_args()
 
 
@@ -104,15 +106,17 @@ def build_collection_prompt(source: Path) -> str:
 
 Product details inferred from the source filename: {details}.
 
-Extract and present this exact rug as the sole product for the main image on a luxury rug Collections page. Preserve the rug's original design, colors, pattern, weave, material appearance, texture, border, shape, and proportions accurately. Correct any source-photo perspective so the rug is shown straight-on from the front as a clean, flat product cutout. Orient the rug vertically in portrait format, with its long edge running top to bottom. The entire rug and every outer edge must be visible.
+Treat the supplied photograph as the authoritative product reference. Extract this exact physical rug; do not generate a replacement or reinterpret its appearance. Preserve the visible rug surface exactly as photographed, including its original design, colors, pattern geometry, weave, material appearance, pile, fiber texture, border, edge irregularities, tonal variation, wear, and handmade character. It must retain the natural photographic texture of the original and must not look digitally painted, airbrushed, sharpened into synthetic fibers, or AI-generated.
+
+The only permitted transformations are: remove the surrounding scene/background, correct camera perspective, rotate the rug upright, center it, scale it to fit the portrait canvas, improve output resolution, and apply restrained photographic exposure and clarity correction. Show it straight-on from the front as a flat product cutout, with its long edge running top to bottom. Any enhancement must remain subtle and source-faithful; do not beautify, repair, clean, extend, reconstruct, simplify, or replace any portion of the rug. The entire rug and every original outer edge must be visible.
 
 Composition: portrait ecommerce image, rug centered upright, symmetrical front-facing view, generous transparent margin on every side.
 
 Background: genuinely transparent alpha channel, including all four corners; no colored, white, studio, floor, wall, or room background.
 
-Quality: high-resolution commercial catalog product cutout, sharp weave and pile detail, clean natural edges, accurate color.
+Quality: high-resolution commercial catalog extraction with authentic photographic weave and pile detail, natural edges, and color matching the source photograph. Favor source fidelity over visual perfection.
 
-Avoid: text, labels, logos, watermark, furniture, people, props, room scene, floor, wall, drop shadow, folded edges, duplicate rugs, cropped rug, altered artwork, tilted perspective, landscape orientation, checkerboard pattern, or an obviously generated appearance."""
+Avoid: text, labels, logos, watermark, furniture, people, props, room scene, floor, wall, drop shadow, folded edges, duplicate rugs, cropped rug, altered artwork, invented detail, cleaned-up or replaced motifs, uniform or synthetic texture, oversmoothing, recoloring, relighting, exaggerated contrast, tilted perspective, landscape orientation, checkerboard pattern, or an obviously generated appearance."""
 
 
 def build_room_prompt(room_description: str, source: Path) -> str:
@@ -200,6 +204,28 @@ def macos_choose(message: str, choices: list[str], default: str) -> str | None:
     if result.returncode != 0:
         logging.warning("Catalog choice prompt failed/cancelled (%s): %s", message, result.stderr.strip())
     return result.stdout.strip() if result.returncode == 0 else None
+
+
+def choose_update_source(watch_dir: Path) -> Path | None:
+    script = (
+        f'set picked to choose file with prompt "Select the original rug image" default location POSIX file {json.dumps(str(watch_dir))}\n'
+        'return POSIX path of picked'
+    )
+    result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        return None
+    return Path(result.stdout.strip()).expanduser().resolve()
+
+
+def confirm_main_image_update(catalog_id: int, source: Path) -> bool:
+    message = f"Replace only the main image of catalog ID {catalog_id} using {source.name}? Gallery images and catalog details will not change."
+    script = (
+        f'display dialog {json.dumps(message, ensure_ascii=False)} '
+        'buttons {"Cancel", "Update Main Image"} default button "Update Main Image" with title "DreamRugs Catalog Update"\n'
+        'return button returned of result'
+    )
+    result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    return result.returncode == 0 and result.stdout.strip() == "Update Main Image"
 
 
 def collect_catalog_config(metadata: CatalogMetadata, defaults: dict) -> tuple[CatalogMetadata, dict] | None:
@@ -379,6 +405,54 @@ def sync_catalog(
     save_state(state_path, state)
 
 
+def generate_main_image(client: OpenAI, source: Path, output: Path) -> None:
+    """Generate one fresh, source-faithful catalog cover without touching gallery assets."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(source) as original, tempfile.NamedTemporaryFile(suffix=".png") as normalized_file:
+        normalized = ImageOps.exif_transpose(original).convert("RGB")
+        normalized.save(normalized_file, format="PNG", optimize=True)
+        normalized_file.flush()
+        normalized_file.seek(0)
+        response = client.images.edit(
+            model="gpt-image-2",
+            image=(f"{source.stem}.png", normalized_file, "image/png"),
+            prompt=build_collection_prompt(source),
+            quality="high",
+            input_fidelity="high",
+            size="1024x1536",
+            background="transparent",
+            output_format="png",
+            n=1,
+            timeout=600,
+        )
+    if not response.data or not response.data[0].b64_json:
+        raise RuntimeError(f"The API returned no main image data for {source.name}")
+    output.write_bytes(base64.b64decode(response.data[0].b64_json))
+
+
+def update_catalog_main_image(client: OpenAI, source: Path, output_root: Path, catalog_id: int, config: dict) -> None:
+    if catalog_id < 1:
+        raise ValueError("Catalog ID must be a positive integer")
+    if not source.is_file() or source.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        raise ValueError("Select an existing JPG, JPEG, PNG, or WebP original image")
+    api_key = os.getenv("CATALOG_API_KEY")
+    if not api_key:
+        raise RuntimeError("CATALOG_API_KEY is missing; run setup_catalog_api_key.py")
+
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    output = output_root / source.stem / f"00-collection-main-catalog-{catalog_id}-{timestamp}.png"
+    logging.info("Generating a fresh natural main image for catalog id %s from %s", catalog_id, source.name)
+    generate_main_image(client, source, output)
+
+    headers = {"X-Api-Key": api_key}
+    with httpx.Client(base_url=config["api_base_url"].rstrip("/"), headers=headers, timeout=120) as http:
+        image_url = upload_catalog_image(http, output)
+        response = http.put(f"/catalog/{catalog_id}", json={"image_url": image_url})
+        response.raise_for_status()
+    logging.info("Updated only the main image for catalog id %s: %s", catalog_id, image_url)
+    print(f"Catalog {catalog_id} main image updated: {image_url}")
+
+
 def process_image(client: OpenAI, source: Path, output_root: Path) -> None:
     destination = output_root / source.stem
     destination.mkdir(parents=True, exist_ok=True)
@@ -410,6 +484,7 @@ def process_image(client: OpenAI, source: Path, output_root: Path) -> None:
                 image=(f"{source.stem}.png", normalized_file, "image/png"),
                 prompt=prompt,
                 quality="high",
+                input_fidelity="high",
                 size=size,
                 background=background,
                 output_format="png",
@@ -436,6 +511,17 @@ def run(args: argparse.Namespace) -> None:
 
     client = OpenAI()
     catalog_defaults = load_catalog_config(args.catalog_config)
+    if args.update_catalog_id is not None:
+        source = args.update_source.expanduser().resolve() if args.update_source else choose_update_source(watch_dir)
+        if source is None:
+            logging.info("Catalog main-image update cancelled")
+            return
+        if not confirm_main_image_update(args.update_catalog_id, source):
+            logging.info("Catalog main-image update cancelled")
+            return
+        update_catalog_main_image(client, source, output_root, args.update_catalog_id, catalog_defaults)
+        return
+
     state = load_state(state_path)
     logging.info("Watching %s", watch_dir)
 
