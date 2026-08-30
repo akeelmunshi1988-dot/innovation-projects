@@ -115,6 +115,8 @@ export interface RugCatalog {
   hsn_code: string | null;
   room_types: string[] | null;
   mood_tags: string[] | null;
+  is_available: boolean;
+  inventory_quantity: number | null;
   material?: Material;
   images: RugImage[];
 }

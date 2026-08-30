@@ -44,12 +44,14 @@ type FormData = {
   sizes: CatalogSize[];
   room_types: string[];
   mood_tags: string[];
+  is_available: boolean;
+  inventory_quantity: string;
 };
 
 const BLANK: FormData = {
   name: '', description: '', about_content_html: '', material_id: '',
   pile_height: 'medium', weave_type: 'hand-knotted',
-  lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [],
+  lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [], is_available: true, inventory_quantity: '',
 };
 
 function rugToForm(r: RugCatalog): FormData {
@@ -70,6 +72,8 @@ function rugToForm(r: RugCatalog): FormData {
     })),
     room_types: r.room_types ?? [],
     mood_tags: r.mood_tags ?? [],
+    is_available: r.is_available !== false,
+    inventory_quantity: r.inventory_quantity == null ? '' : String(r.inventory_quantity),
   };
 }
 
@@ -186,6 +190,13 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       setSaving(false);
       return;
     }
+    if (form.inventory_quantity.trim() !== '' && (
+      !Number.isInteger(Number(form.inventory_quantity)) || Number(form.inventory_quantity) < 0
+    )) {
+      setError('Finished rug inventory must be a whole number of zero or more.');
+      setSaving(false);
+      return;
+    }
     const validSizes = form.sizes.filter((s) => s.ft.trim());
     const defaultSize = validSizes.find((s) => s.is_default);
     if (validSizes.length === 0 || !defaultSize) {
@@ -219,6 +230,8 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       })),
       room_types:          form.room_types,
       mood_tags:           form.mood_tags,
+      is_available:        form.is_available,
+      inventory_quantity:  form.inventory_quantity.trim() === '' ? null : Number(form.inventory_quantity),
     };
     try {
       const saved = editing
@@ -406,6 +419,38 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
                 className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
               />
             </div>
+          </div>
+
+          {/* Storefront availability */}
+          <label className="flex items-center justify-between gap-4 bg-dark-800 border border-dark-700 rounded-lg px-3 py-3 cursor-pointer">
+            <div>
+              <p className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Available for sale</p>
+              <p className="text-dark-500 text-xs mt-0.5">Turn off to show this rug as Out of stock and block checkout.</p>
+            </div>
+            <span className="relative inline-flex flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={form.is_available}
+                onChange={(e) => setForm((current) => ({ ...current, is_available: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <span className="w-10 h-6 rounded-full bg-dark-600 peer-checked:bg-gold-600 transition-colors" />
+              <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
+            </span>
+          </label>
+
+          <div className="space-y-1">
+            <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Finished Rug Inventory</label>
+            <input
+              value={form.inventory_quantity}
+              onChange={(e) => set('inventory_quantity', e.target.value)}
+              type="number"
+              min="0"
+              step="1"
+              placeholder="Leave blank if inventory is not tracked"
+              className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+            />
+            <p className="text-dark-500 text-xs">Number of finished rugs available. Each placed order subtracts its quantity; zero shows Out of stock.</p>
           </div>
 
           {/* Pile + Weave */}

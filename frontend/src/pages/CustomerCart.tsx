@@ -69,7 +69,7 @@ export default function CustomerCart() {
     });
   }, [items]);
 
-  const validItems = items.filter((i) => estimates[i.id]?.final_price != null);
+  const validItems = items.filter((i) => estimates[i.id]?.final_price != null && estimates[i.id]?.material_available);
   const grandTotalBase = validItems.reduce((sum, i) => sum + (estimates[i.id]?.final_price || 0), 0);
   const gstApplies = validItems.length > 0 && validItems.every((i) => estimates[i.id]?.gst_inclusive);
   const preGstTotal = gstApplies
@@ -126,6 +126,7 @@ export default function CustomerCart() {
         size_w: item.size_w, size_h: item.size_h, qty: item.qty, rush_order: item.rush_order,
         shape: item.shape, notes: item.notes,
         estimated_price: est.final_price, pre_gst_price: est.pre_gst_price,
+        rush_surcharge: est.rush_surcharge,
         gst_pct: est.gst_pct, gst_amount: est.gst_amount, gst_inclusive: est.gst_inclusive,
         price_currency: est.price_currency, estimated_days: est.estimated_days,
       };
@@ -213,7 +214,7 @@ export default function CustomerCart() {
 
                         {loading ? (
                           <div className="w-3.5 h-3.5 border border-stone-300 border-t-stone-600 rounded-full animate-spin" />
-                        ) : est?.final_price != null ? (
+                        ) : est?.final_price != null && est.material_available ? (
                           <p className="text-stone-900 text-sm font-medium">{displayPrice(est.final_price, est.price_currency)}</p>
                         ) : (
                           <p className="text-red-500 text-xs flex items-center gap-1"><AlertTriangle size={11} /> Unavailable</p>

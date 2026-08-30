@@ -28,6 +28,7 @@ interface CustomerQuote {
   price_currency: string;
   customer_country?: string | null;
   rush_order: boolean;
+  rush_surcharge?: number;
   notes: string | null;
   vendor_notes: string | null;
   customer_response_notes: string | null;
@@ -395,6 +396,7 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
                         rug_id: quote.rug_id, rug_name: quote.rug_name, image_url: quote.rug_image_url,
                         size_w: quote.size_w, size_h: quote.size_h, qty: quote.qty,
                         rush_order: quote.rush_order, notes: quote.notes ?? undefined,
+                        rush_surcharge: quote.rush_surcharge,
                         estimated_price: quote.final_price, pre_gst_price: quote.pre_gst_price ?? undefined,
                         gst_pct: quote.gst_pct ?? 0, gst_amount: quote.gst_amount ?? undefined,
                         gst_inclusive: quote.gst_inclusive,

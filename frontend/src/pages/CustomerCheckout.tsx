@@ -29,6 +29,7 @@ interface CheckoutItem {
   shape?: string;
   notes?: string;
   estimated_price: number;
+  rush_surcharge?: number;
   pre_gst_price?: number;
   gst_pct?: number;
   gst_amount?: number;
@@ -69,6 +70,7 @@ export default function CustomerCheckout() {
     country: detectCountry(),
   });
   const [submitting, setSubmitting] = useState(false);
+  const [paymentCaptured, setPaymentCaptured] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Auth modal state — pre-fill name/email/phone if passed from visualizer
@@ -157,6 +159,10 @@ export default function CustomerCheckout() {
     ? items.reduce((sum, i) => sum + (i.pre_gst_price || 0), 0) : null;
   const gstTotal = isExport ? 0 : (gstApplies && items.every((i) => i.gst_amount != null)
     ? items.reduce((sum, i) => sum + (i.gst_amount || 0), 0) : null);
+  // The estimate's final price already includes rush production. This value is
+  // display-only and must never be added to payableTotal a second time.
+  const rushTotal = items.reduce((sum, i) => sum + (i.rush_surcharge || 0), 0);
+  const productionSubtotal = (preGstTotal ?? grandTotal) - rushTotal;
   const maxEstimatedDays = Math.max(...items.map((i) => i.estimated_days));
   const itemSizeLabel = (i: CheckoutItem) => fmtDims(i.size_w, i.size_h, sizeUnit, i.shape ?? 'rect');
 
@@ -226,6 +232,7 @@ export default function CustomerCheckout() {
         prefill: { name, email, contact: form.phone || undefined },
         theme: { color: '#1c1917' },
         handler: async (response) => {
+          setPaymentCaptured(true);
           try {
             const result: CheckoutResponse = await verifyPayment(
               { ...orderPayload, ...response },
@@ -235,13 +242,19 @@ export default function CustomerCheckout() {
             navigate(`/order/${result.order_id}`, { state: result });
           } catch (err: unknown) {
             const e = err as { response?: { data?: { detail?: string } } };
-            setError(e?.response?.data?.detail ?? 'Payment verified but order creation failed. Please contact support.');
+            setError(e?.response?.data?.detail ?? 'Payment was received and order recovery is running automatically. Do not pay again. Please check My Orders shortly or contact support with your payment reference.');
             setSubmitting(false);
           }
         },
         modal: {
           ondismiss: () => setSubmitting(false),
         },
+      });
+      rzp.on('payment.failed', (failure: unknown) => {
+        const details = failure as { error?: { description?: string } };
+        setError(details.error?.description ?? 'Payment failed. No order has been placed. Please retry or use another payment method.');
+        setPaymentCaptured(false);
+        setSubmitting(false);
       });
       rzp.open();
     } catch (err: unknown) {
@@ -338,10 +351,16 @@ export default function CustomerCheckout() {
                 ))}
 
                 <div className="space-y-2 text-sm border-t border-stone-200 pt-4">
-                  {preGstTotal != null && (
+                  {(preGstTotal != null || rushTotal > 0) && (
                     <div className="flex justify-between">
-                      <span className="text-stone-400">Pre-tax</span>
-                      <span className="text-stone-600">{fmt(preGstTotal)}</span>
+                      <span className="text-stone-400">{rushTotal > 0 ? 'Production subtotal' : 'Pre-tax'}</span>
+                      <span className="text-stone-600">{fmt(rushTotal > 0 ? productionSubtotal : preGstTotal!)}</span>
+                    </div>
+                  )}
+                  {rushTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-amber-600">Rush production cost</span>
+                      <span className="text-amber-600">+{fmt(rushTotal)}</span>
                     </div>
                   )}
                   {gstTotal != null && (
@@ -630,7 +649,7 @@ export default function CustomerCheckout() {
 
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || paymentCaptured}
                   className="w-full storefront-cta-solid py-4 transition-colors flex items-center justify-center gap-2 mt-2"
                 >
                   {submitting ? (
@@ -640,7 +659,9 @@ export default function CustomerCheckout() {
                   ) : (
                     <LogIn size={13} />
                   )}
-                  {submitting
+                  {paymentCaptured
+                    ? 'Payment received — finalizing order…'
+                    : submitting
                     ? 'Opening Payment…'
                     : (isCustomerAuthenticated || (form.name.trim() && form.email.trim()))
                       ? `Pay ${fmt(payableTotal)}`

@@ -51,6 +51,7 @@ interface RugDetail {
   image_url: string | null;
   images: { id: number; image_url: string; sort_order: number }[];
   available: boolean;
+  inventory_quantity?: number | null;
   room_types: string[];
 }
 
@@ -592,7 +593,10 @@ export default function CustomerRugDetail() {
               />
             ) : null}
 
-            {!rug.available && <p className="text-red-500 text-sm">Currently unavailable</p>}
+            {!rug.available && <p className="text-red-500 text-sm font-medium">Out of stock</p>}
+            {rug.available && rug.inventory_quantity != null && rug.inventory_quantity <= 5 && (
+              <p className="text-amber-600 text-sm">Only {rug.inventory_quantity} left</p>
+            )}
           </section>
 
           <section className="lg:col-span-4 space-y-4 min-w-0" aria-label="Rug features">
@@ -799,9 +803,14 @@ export default function CustomerRugDetail() {
                               <span className="text-stone-900">{displayPrice(priceResult.estimated_total, priceResult.price_currency)}</span>
                             </div>
                             <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
+                            {!priceResult.material_available && (
+                              <p className="text-red-500 text-xs font-medium">Out of stock for this size and quantity.</p>
+                            )}
                             <div className="flex flex-col sm:flex-row gap-2 mt-1">
                               <button type="button"
+                                disabled={!priceResult.material_available}
                                 onClick={() => {
+                                  if (!priceResult.material_available) return;
                                   addItem({
                                     rug_id: rug.id, rug_name: rug.name, image_url: rug.image_url,
                                     size_w: sizeWMetres, size_h: sizeHMetres, shape: form.shape,
@@ -811,11 +820,12 @@ export default function CustomerRugDetail() {
                                   setAddedToCart(true);
                                   setTimeout(() => setAddedToCart(false), 2500);
                                 }}
-                                className="flex-1 flex items-center justify-center gap-2 border border-stone-300 hover:border-stone-900 text-stone-900 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
+                                className="flex-1 flex items-center justify-center gap-2 border border-stone-300 hover:border-stone-900 disabled:border-stone-200 disabled:text-stone-300 text-stone-900 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
                               >
                                 {addedToCart ? <><CheckCircle size={13} className="text-green-600" /> Added</> : <><ShoppingBag size={13} /> Add to Cart</>}
                               </button>
                               <button type="button"
+                                disabled={!priceResult.material_available}
                                 onClick={() => navigate('/checkout', {
                                   state: {
                                     items: [{
@@ -825,6 +835,7 @@ export default function CustomerRugDetail() {
                                       shape: form.shape,
                                       notes: form.notes || undefined,
                                       estimated_price: priceResult.final_price,
+                                      rush_surcharge: priceResult.rush_surcharge,
                                       pre_gst_price: priceResult.pre_gst_price,
                                       gst_pct: priceResult.gst_pct, gst_amount: priceResult.gst_amount,
                                       gst_inclusive: priceResult.gst_inclusive,
@@ -834,7 +845,7 @@ export default function CustomerRugDetail() {
                                     name: form.name || undefined, email: form.email || undefined, phone: form.phone || undefined,
                                   },
                                 })}
-                                className="flex-1 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
+                                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
                               >
                                 Buy Now
                               </button>

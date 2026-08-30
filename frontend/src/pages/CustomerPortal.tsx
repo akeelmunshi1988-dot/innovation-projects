@@ -486,6 +486,7 @@ export default function CustomerPortal() {
             shape: quoteForm.shape,
             notes: quoteForm.notes || undefined,
             estimated_price: data.final_price,
+            rush_surcharge: data.rush_surcharge,
             pre_gst_price: data.pre_gst_price,
             gst_pct: data.gst_pct,
             gst_amount: data.gst_amount,

@@ -1,6 +1,6 @@
 # DreamRugsCreation — Project Conventions
 
-FastAPI (Python) backend + React/TypeScript (Vite) frontend, SQLite. Rug
+FastAPI (Python) backend + React/TypeScript (Vite) frontend, PostgreSQL in production. Rug
 manufacturing e-commerce: admin/vendor panel + public customer storefront,
 production domain `dreamrugscreation.in`.
 
@@ -34,7 +34,18 @@ A secondary object derived from an already-tenant-checked row (e.g. looking up
 need to re-check tenant — it inherited that guarantee. Don't add redundant
 filters there.
 
-## Migrations
+## Database migrations
+
+PostgreSQL is the production database. `backend/migrate_sqlite_to_postgres.py`
+is the one-time legacy-data importer; it requires an empty PostgreSQL target,
+preserves explicit IDs, and resets sequences. The old `migrate_v*.py` files
+operate directly on the legacy SQLite file and must not be used as the schema
+migration mechanism after the PostgreSQL cutover.
+
+After the import, run `alembic stamp 20260830_0001`. All subsequent schema
+changes must be new Alembic revisions and deploys must run `alembic upgrade head`.
+
+### Legacy SQLite migrations
 
 SQLite, no ORM migration framework — plain Python scripts,
 `backend/migrate_v##_description.py`, strictly following this shape:
@@ -47,7 +58,7 @@ SQLite, no ORM migration framework — plain Python scripts,
 - Never alter a migration that's already shipped — add a new one, always the
   next `v##`.
 
-Every backend deploy must re-run the **full ordered list** of migration
+Until the PostgreSQL cutover, every backend deploy must re-run the **full ordered list** of migration
 scripts (they're idempotent, so this is always safe even if most are already
 applied) — code deploys and DB migrations are two separate steps here, and
 skipping the second one after a code deploy is the single most common cause
@@ -113,7 +124,8 @@ See `DEPLOYMENT.md`. Two servers exist during the in-progress migration:
 `srv1833598.hstgr.cloud` (old, `/var/www/loomcraft/innovation-projects`) and
 `srv1909366` (current, `/var/www/dreamrugscreation-projects`, user
 `dreamrugsuser`). `dreamrugscreation.in` DNS points at the new server.
-Deploy = `git fetch && git reset --hard origin/main` + run every migration
-script + `systemctl restart dreamrugscreation` — frontend changes additionally
+After PostgreSQL cutover, deploy = `git fetch && git reset --hard origin/main` +
+apply the current PostgreSQL schema migration + `systemctl restart dreamrugscreation`.
+Do not run the historical SQLite scripts as a substitute. Frontend changes additionally
 need `npm run build` on the server (or an `rsync` of a Mac-built `dist/`) since
 nginx serves a separate static build directory, not the git working tree.

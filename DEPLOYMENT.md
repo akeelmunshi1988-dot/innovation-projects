@@ -1,5 +1,20 @@
 # DreamRugsCreation — Deployment Guide (Hostinger KVM 2)
 
+> **Database transition:** PostgreSQL is now the primary runtime database.
+> `migrate_v*.py` scripts are for the legacy SQLite database only. For the
+> one-time cutover, apply those scripts to SQLite through v44, stop the service,
+> then run `backend/migrate_sqlite_to_postgres.py` with `POSTGRES_DATABASE_URL`
+> pointing to an empty PostgreSQL database. After verification, set `.env`:
+>
+> `DATABASE_URL=postgresql+psycopg://dreamrugsapp:PASSWORD@127.0.0.1:5432/dreamrugscreation`
+>
+> Then establish the PostgreSQL migration baseline once:
+>
+> `alembic stamp 20260830_0001`
+>
+> Every later backend deployment runs `alembic upgrade head`; do not rerun the
+> one-time importer or the historical SQLite migrations.
+
 ## Prerequisites
 - Hostinger KVM 2 VPS with Ubuntu 22.04
 - A domain name with DNS pointed to your server IP

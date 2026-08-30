@@ -1,10 +1,10 @@
 import math
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query, Request
 from fastapi.responses import StreamingResponse, FileResponse, Response
 from sqlalchemy.orm import Session
-from sqlalchemy import update as sa_update
+from sqlalchemy import case, or_, update as sa_update
 from typing import Optional, List
 from pydantic import Field, EmailStr
 import io
@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt, PromoCode
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services import ai_realism
@@ -634,7 +634,8 @@ async def get_public_catalog(
                 "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
                 "room_types": r.room_types or [],
                 "mood_tags": r.mood_tags or [],
-                "available": r.material.is_available,
+                "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0) and r.material.is_available and r.material.stock_meters > 0),
+                "inventory_quantity": r.inventory_quantity,
             })
         result = {"items": items, "total": total, "has_more": offset + limit < total}
         cache_set("catalog", result, cache_key)
@@ -684,7 +685,8 @@ async def get_public_rug(rug_id_or_slug: str):
             "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
             "room_types": r.room_types or [],
             "mood_tags": r.mood_tags or [],
-            "available": r.material.is_available,
+            "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0) and r.material.is_available and r.material.stock_meters > 0),
+            "inventory_quantity": r.inventory_quantity,
         }
         cache_set("catalog", result, cache_key)
         return result
@@ -708,6 +710,10 @@ async def estimate_rug_price(rug_id: int, body: EstimateRequest):
         rug = db.query(RugCatalog).filter(RugCatalog.id == rug_id, RugCatalog.tenant_id == (tenant.id if tenant else None)).first()
         if not rug:
             raise HTTPException(status_code=404, detail="Rug not found")
+        if not rug.is_available:
+            raise HTTPException(status_code=409, detail="This rug is currently out of stock")
+        if rug.inventory_quantity is not None and rug.inventory_quantity < body.qty:
+            raise HTTPException(status_code=409, detail=f"Only {rug.inventory_quantity} rug(s) are available")
         engine = QuoteEngine(db, tenant_id=rug.tenant_id)
         result = engine.calculate_quote(
             rug_id=rug.id,
@@ -1186,6 +1192,10 @@ def _price_cart_items(db: Session, tenant_id: Optional[int], items: List["CartIt
         rug = db.query(RugCatalog).filter(RugCatalog.id == item.rug_id, RugCatalog.tenant_id == tenant_id).first()
         if not rug:
             raise HTTPException(status_code=404, detail=f"Rug {item.rug_id} not found")
+        if not rug.is_available:
+            raise HTTPException(status_code=409, detail=f'"{rug.name}" is currently out of stock')
+        if rug.inventory_quantity is not None and rug.inventory_quantity < item.qty:
+            raise HTTPException(status_code=409, detail=f'Only {rug.inventory_quantity} unit(s) of "{rug.name}" are available')
         material = db.query(Material).filter(Material.id == rug.material_id).first()
         if not material or not material.is_available:
             raise HTTPException(status_code=400, detail=f"Material for \"{rug.name}\" is not available")
@@ -1210,6 +1220,7 @@ def _price_cart_items(db: Session, tenant_id: Optional[int], items: List["CartIt
 def _create_order_from_items(
     db: Session, tenant_id: Optional[int], tenant: Optional[Tenant], customer: Customer,
     priced_items: List[dict], shipping_address: str, payment_ref: Optional[str] = None,
+    allow_inventory_shortfall: bool = False,
 ) -> tuple:
     """Mutates the DB: atomically deducts stock and creates one Quote per cart line, then one
     Order + one OrderItem per Quote. Order.quote_id points at the first item for backward
@@ -1222,12 +1233,30 @@ def _create_order_from_items(
     for p in priced_items:
         item, rug, material, shape, calc, total_sqm = p["item"], p["rug"], p["material"], p["shape"], p["calc"], p["total_sqm"]
 
-        # Atomic check-and-deduct — prevents oversell under concurrent orders
-        deducted = db.execute(
-            sa_update(Material)
-            .where(Material.id == rug.material_id, Material.stock_meters >= total_sqm)
-            .values(stock_meters=Material.stock_meters - total_sqm)
+        catalog_condition = RugCatalog.id == rug.id
+        if not allow_inventory_shortfall:
+            catalog_condition = catalog_condition & or_(
+                RugCatalog.inventory_quantity.is_(None),
+                RugCatalog.inventory_quantity >= item.qty,
+            )
+        catalog_deducted = db.execute(
+            sa_update(RugCatalog).where(catalog_condition).values(
+                inventory_quantity=case(
+                    (RugCatalog.inventory_quantity.is_(None), None),
+                    else_=RugCatalog.inventory_quantity - item.qty,
+                )
+            )
         )
+        if catalog_deducted.rowcount == 0:
+            raise HTTPException(status_code=409, detail=f'Insufficient finished inventory for "{rug.name}"')
+
+        # Atomic check-and-deduct — prevents oversell under concurrent orders
+        stock_condition = Material.id == rug.material_id
+        if not allow_inventory_shortfall:
+            stock_condition = stock_condition & (Material.stock_meters >= total_sqm)
+        deducted = db.execute(sa_update(Material).where(stock_condition).values(
+            stock_meters=Material.stock_meters - total_sqm
+        ))
         db.flush()
         if deducted.rowcount == 0:
             raise HTTPException(status_code=400, detail=f"Insufficient stock for \"{rug.name}\" — another order may have just reserved this material.")
@@ -1272,6 +1301,25 @@ def _create_order_from_items(
     db.flush()
 
     return order, quotes_with_meta
+
+
+def _snapshot_priced_items(db: Session, snapshot: dict) -> List[dict]:
+    """Rehydrate the exact pricing accepted before Razorpay checkout opened."""
+    priced = []
+    for saved in snapshot.get("items", []):
+        item = CartItemBody(**saved["item"])
+        rug = db.query(RugCatalog).filter(RugCatalog.id == saved["rug_id"]).first()
+        material = db.query(Material).filter(Material.id == saved["material_id"]).first()
+        if not rug or not material:
+            raise RuntimeError(f"Paid checkout references missing rug/material for rug {saved['rug_id']}")
+        priced.append({
+            "item": item, "rug": rug, "material": material,
+            "shape": saved["shape"], "calc": saved["calc"],
+            "total_sqm": saved["total_sqm"],
+        })
+    if not priced:
+        raise RuntimeError("Payment attempt has no frozen priced items")
+    return priced
 
 
 def _customer_id_from_auth_header(request: Request) -> Optional[int]:
@@ -1357,11 +1405,24 @@ async def create_payment_order(body: OrderDetailsBase, request: Request):
         # payment (browser crash, lost connection, etc.), the webhook uses this row
         # to reconstruct the order on its own rather than the payment vanishing with
         # zero trace in our system.
+        checkout_snapshot = {
+            "subtotal": total_final_price,
+            "shipping_cost": shipping_cost,
+            "discount_amount": discount_amount,
+            "promo_code": promo.code if promo else None,
+            "items": [{
+                "item": p["item"].model_dump(), "rug_id": p["rug"].id,
+                "material_id": p["material"].id, "shape": p["shape"],
+                "calc": p["calc"], "total_sqm": p["total_sqm"],
+            } for p in priced],
+        }
+        frozen_payload = body.model_dump()
+        frozen_payload["_checkout_snapshot"] = checkout_snapshot
         db.add(PaymentAttempt(
             tenant_id=tenant_id,
             razorpay_order_id=rzp_order["id"],
             customer_id_hint=customer_id_hint,
-            payload=body.model_dump(),
+            payload=frozen_payload,
             amount=payable,
             currency=currency,
         ))
@@ -1460,45 +1521,70 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
         # charge at nearly the same moment). Whichever gets here first wins;
         # losing the claim means the webhook already built the order, so return
         # that instead of creating a duplicate.
+        stale_before = datetime.utcnow() - timedelta(minutes=5)
         claimed = db.execute(
             sa_update(PaymentAttempt)
-            .where(PaymentAttempt.razorpay_order_id == body.razorpay_order_id, PaymentAttempt.status == "created")
-            .values(status="completing")
+            .where(
+                PaymentAttempt.razorpay_order_id == body.razorpay_order_id,
+                or_(
+                    PaymentAttempt.status == "created",
+                    (PaymentAttempt.status == "completing") & or_(
+                        PaymentAttempt.processing_started_at.is_(None),
+                        PaymentAttempt.processing_started_at < stale_before,
+                    ),
+                ),
+            )
+            .values(status="completing", processing_started_at=datetime.utcnow(), last_error=None)
         )
         db.commit()
         if claimed.rowcount == 0:
             existing = db.query(PaymentAttempt).filter(PaymentAttempt.razorpay_order_id == body.razorpay_order_id).first()
             if existing and existing.status == "completed" and existing.order_id:
                 return _order_confirmation_from_existing(db, existing.order_id)
-            # No attempt row at all (fine — this endpoint worked without one before
-            # PaymentAttempt existed) or a same-millisecond in-flight webhook we lost
-            # the race to; either way, fall through and create the order normally.
+            if existing and existing.status == "completing":
+                raise HTTPException(status_code=409, detail="Payment is being finalized. Please retry shortly.")
+            if existing and existing.status == "failed":
+                raise HTTPException(status_code=409, detail="Payment attempt is marked failed. Please contact support if money was deducted.")
+            raise HTTPException(status_code=409, detail="Payment attempt was not found. Please contact support.")
+
+        attempt = db.query(PaymentAttempt).filter(PaymentAttempt.razorpay_order_id == body.razorpay_order_id).first()
 
         tenant = db.query(Tenant).first()
         tid = tenant.id if tenant else None
 
         try:
-            customer = _resolve_customer(db, request, tid, body)
-            priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
-            subtotal = sum(p["calc"]["final_price"] for p in priced)
-            shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
-            promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost)
+            frozen_body = OrderDetailsBase(**attempt.payload)
+            snapshot = attempt.payload.get("_checkout_snapshot")
+            if not snapshot:
+                raise RuntimeError("Payment attempt is missing its checkout snapshot")
+            customer = _resolve_or_create_customer(db, tid, frozen_body, attempt.customer_id_hint)
+            priced = _snapshot_priced_items(db, snapshot)
+            subtotal = float(snapshot["subtotal"])
+            shipping_cost = float(snapshot["shipping_cost"])
+            discount_amount = float(snapshot["discount_amount"])
+            promo_code = snapshot.get("promo_code")
 
-            order, items_meta = _create_order_from_items(db, tid, tenant, customer, priced, body.shipping_address, payment_ref=body.razorpay_payment_id)
+            order, items_meta = _create_order_from_items(
+                db, tid, tenant, customer, priced, frozen_body.shipping_address,
+                payment_ref=body.razorpay_payment_id, allow_inventory_shortfall=True,
+            )
             order.shipping_cost = shipping_cost
-            if promo:
-                order.promo_code = promo.code
+            if promo_code:
+                order.promo_code = promo_code
                 order.discount_amount = discount_amount
-                record_redemption(db, promo, discount_amount, customer.id, order.id)
+                promo = db.query(PromoCode).filter(PromoCode.tenant_id == tid, PromoCode.code == promo_code).first()
+                if promo:
+                    record_redemption(db, promo, discount_amount, customer.id, order.id)
             order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
             order.price_currency = items_meta[0]["quote"].price_currency
             db.flush()
             db.execute(
                 sa_update(PaymentAttempt)
                 .where(PaymentAttempt.razorpay_order_id == body.razorpay_order_id)
-                .values(status="completed", order_id=order.id, completed_at=datetime.utcnow())
+                .values(status="completed", order_id=order.id, completed_at=datetime.utcnow(), processing_started_at=None)
             )
             db.commit()
+            cache_clear("catalog")
         except Exception:
             db.rollback()
             # Release the claim so the webhook (or a client retry) can still recover
@@ -1506,7 +1592,7 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             db.execute(
                 sa_update(PaymentAttempt)
                 .where(PaymentAttempt.razorpay_order_id == body.razorpay_order_id, PaymentAttempt.status == "completing")
-                .values(status="created")
+                .values(status="created", processing_started_at=None, last_error="Browser verification failed; awaiting retry")
             )
             db.commit()
             raise
@@ -1516,7 +1602,7 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             "final_price": subtotal + shipping_cost - discount_amount,
             "subtotal": subtotal,
             "shipping_cost": shipping_cost,
-            "promo_code": promo.code if promo else None,
+            "promo_code": promo_code,
             "discount_amount": discount_amount,
             "price_currency": items_meta[0]["quote"].price_currency,
             "gst_inclusive": bool(tenant.gst_inclusive) if tenant else False,
@@ -1528,7 +1614,7 @@ async def verify_payment(body: VerifyPaymentBody, request: Request):
             "estimated_delivery": order.estimated_delivery.strftime("%Y-%m-%d"),
             "lead_time_days": max(m["lead_days"] for m in items_meta),
             "customer_name": customer.name,
-            "shipping_address": body.shipping_address,
+            "shipping_address": frozen_body.shipping_address,
         }
     finally:
         db.close()
@@ -1551,10 +1637,20 @@ def recover_order_from_payment_attempt(razorpay_order_id: str, razorpay_payment_
         # Same atomic-claim pattern as verify_payment, for the same reason: this
         # and a concurrent /verify-payment call could both be reacting to the same
         # charge. Whichever claims it first wins.
+        stale_before = datetime.utcnow() - timedelta(minutes=5)
         claimed = db.execute(
             sa_update(PaymentAttempt)
-            .where(PaymentAttempt.razorpay_order_id == razorpay_order_id, PaymentAttempt.status == "created")
-            .values(status="completing")
+            .where(
+                PaymentAttempt.razorpay_order_id == razorpay_order_id,
+                or_(
+                    PaymentAttempt.status == "created",
+                    (PaymentAttempt.status == "completing") & or_(
+                        PaymentAttempt.processing_started_at.is_(None),
+                        PaymentAttempt.processing_started_at < stale_before,
+                    ),
+                ),
+            )
+            .values(status="completing", processing_started_at=datetime.utcnow(), last_error=None)
         )
         db.commit()
         if claimed.rowcount == 0:
@@ -1563,23 +1659,29 @@ def recover_order_from_payment_attempt(razorpay_order_id: str, razorpay_payment_
         attempt = db.query(PaymentAttempt).filter(PaymentAttempt.razorpay_order_id == razorpay_order_id).first()
         try:
             body = OrderDetailsBase(**attempt.payload)
+            snapshot = attempt.payload.get("_checkout_snapshot")
+            if not snapshot:
+                raise RuntimeError("Payment attempt is missing its checkout snapshot")
             tenant = db.query(Tenant).filter(Tenant.id == attempt.tenant_id).first()
             customer = _resolve_or_create_customer(db, attempt.tenant_id, body, attempt.customer_id_hint)
-
-            priced = _price_cart_items(db, attempt.tenant_id, body.items, is_export=customer.is_export_buyer)
-            subtotal = sum(p["calc"]["final_price"] for p in priced)
-            shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
-            promo, discount_amount = _apply_promo(db, attempt.tenant_id, body.promo_code, subtotal, customer.id, shipping_cost)
+            priced = _snapshot_priced_items(db, snapshot)
+            subtotal = float(snapshot["subtotal"])
+            shipping_cost = float(snapshot["shipping_cost"])
+            discount_amount = float(snapshot["discount_amount"])
+            promo_code = snapshot.get("promo_code")
 
             order, _items_meta = _create_order_from_items(
-                db, attempt.tenant_id, tenant, customer, priced, body.shipping_address, payment_ref=razorpay_payment_id,
+                db, attempt.tenant_id, tenant, customer, priced, body.shipping_address,
+                payment_ref=razorpay_payment_id, allow_inventory_shortfall=True,
             )
             order.shipping_cost = shipping_cost
             order.recovered_via_webhook = True
-            if promo:
-                order.promo_code = promo.code
+            if promo_code:
+                order.promo_code = promo_code
                 order.discount_amount = discount_amount
-                record_redemption(db, promo, discount_amount, customer.id, order.id)
+                promo = db.query(PromoCode).filter(PromoCode.tenant_id == attempt.tenant_id, PromoCode.code == promo_code).first()
+                if promo:
+                    record_redemption(db, promo, discount_amount, customer.id, order.id)
             order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
             order.price_currency = _items_meta[0]["quote"].price_currency
 
@@ -1587,7 +1689,9 @@ def recover_order_from_payment_attempt(razorpay_order_id: str, razorpay_payment_
             attempt.status = "completed"
             attempt.order_id = order.id
             attempt.completed_at = datetime.utcnow()
+            attempt.processing_started_at = None
             db.commit()
+            cache_clear("catalog")
             logger.info(f"Recovered order {order.id} via webhook for razorpay_order_id={razorpay_order_id} (browser never completed checkout)")
             return order.id
         except Exception:
@@ -1597,11 +1701,41 @@ def recover_order_from_payment_attempt(razorpay_order_id: str, razorpay_payment_
             db.execute(
                 sa_update(PaymentAttempt)
                 .where(PaymentAttempt.razorpay_order_id == razorpay_order_id, PaymentAttempt.status == "completing")
-                .values(status="created")
+                .values(status="created", processing_started_at=None, last_error="Webhook recovery failed; awaiting retry")
             )
             db.commit()
             logger.exception(f"Failed to recover order from payment_attempt razorpay_order_id={razorpay_order_id}")
-            return None
+            raise
+    finally:
+        db.close()
+
+
+def reconcile_payment_attempts() -> None:
+    """Recover captured payments whose webhook/browser callback was lost."""
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        return
+    import razorpay as _rzp
+    client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    db = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(minutes=2)
+        attempts = db.query(PaymentAttempt).filter(
+            PaymentAttempt.status.in_(("created", "completing")),
+            PaymentAttempt.created_at < cutoff,
+        ).limit(100).all()
+        for attempt in attempts:
+            try:
+                payments = client.order.payments(attempt.razorpay_order_id).get("items", [])
+                captured = next((p for p in payments if p.get("status") == "captured"), None)
+                if captured:
+                    recover_order_from_payment_attempt(attempt.razorpay_order_id, captured.get("id"))
+                elif attempt.created_at and attempt.created_at < datetime.utcnow() - timedelta(days=7):
+                    attempt.status = "failed"
+                    attempt.last_error = "Expired without a captured payment"
+                    db.commit()
+            except Exception as exc:
+                db.rollback()
+                logger.warning("Payment reconciliation failed for %s: %s", attempt.razorpay_order_id, exc)
     finally:
         db.close()
 
@@ -1632,6 +1766,7 @@ async def customer_checkout(body: CheckoutBody, request: Request):
         order.total_amount = round(subtotal + shipping_cost - discount_amount, 2)
         order.price_currency = items_meta[0]["quote"].price_currency
         db.commit()
+        cache_clear("catalog")
         return {
             "order_id": order.id, "quote_id": items_meta[0]["quote"].id,
             "rug_name": items_meta[0]["rug"].name, "size": items_meta[0]["size_display"],
@@ -2217,6 +2352,7 @@ Rules:
                             lead_days = max(7, lead_days // 2)
                         action.update({
                             "estimated_price":  calc.get("final_price"),
+                            "rush_surcharge":   calc.get("rush_surcharge", 0.0),
                             "pre_gst_price":    calc.get("pre_gst_price"),
                             "gst_pct":          calc.get("gst_pct"),
                             "gst_amount":       calc.get("gst_amount"),
@@ -2375,6 +2511,12 @@ def get_customer_quotes(
             ),
             "manual_discount_pct": q.manual_discount_pct,
             "rush_order": q.rush_order,
+            # Older Quote rows do not store the rush component separately. Base
+            # price is the pre-surcharge production subtotal, so expose the
+            # configured surcharge for checkout's display-only breakdown.
+            "rush_surcharge": round(
+                (q.base_price or 0.0) * ((tenant.rush_surcharge_pct or 25.0) / 100), 2
+            ) if q.rush_order else 0.0,
             "notes": q.notes,
             "vendor_notes": q.vendor_notes,
             "customer_response_notes": q.customer_response_notes,

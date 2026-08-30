@@ -870,10 +870,22 @@ export const verifyPayment = async (
   customerToken?: string | null,
 ): Promise<CheckoutResponse> => {
   const headers = customerToken ? { Authorization: `Bearer ${customerToken}` } : {};
-  const { data } = await axios.post<CheckoutResponse>(
-    '/api/customer/checkout/verify-payment', payload, { headers },
-  );
-  return data;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const { data } = await axios.post<CheckoutResponse>(
+        '/api/customer/checkout/verify-payment', payload, { headers },
+      );
+      return data;
+    } catch (error: unknown) {
+      lastError = error;
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const retryable = status == null || status === 409 || status >= 500;
+      if (!retryable || attempt === 3) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 };
 
 export interface CustomerOrder {

@@ -243,14 +243,15 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
     body_bytes = await request.body()
     signature = request.headers.get("x-razorpay-signature", "")
 
-    if settings.RAZORPAY_WEBHOOK_SECRET:
-        expected = hmac.new(
-            key=settings.RAZORPAY_WEBHOOK_SECRET.encode(),
-            msg=body_bytes,
-            digestmod=hashlib.sha256,
-        ).hexdigest()
-        if not hmac.compare_digest(expected, signature):
-            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    if not settings.RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Razorpay webhook secret is not configured")
+    expected = hmac.new(
+        key=settings.RAZORPAY_WEBHOOK_SECRET.encode(),
+        msg=body_bytes,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     event = json.loads(body_bytes)
     event_type = event.get("event", "")
@@ -294,7 +295,9 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
                 db.execute(
                     sa_update(PaymentAttempt)
                     .where(PaymentAttempt.razorpay_order_id == order_id, PaymentAttempt.status == "created")
-                    .values(status="failed")
+                    # A Razorpay order may have another successful payment attempt
+                    # after one method fails, so keep the order recoverable.
+                    .values(last_error="Razorpay reported a failed payment attempt")
                 )
                 db.commit()
 

@@ -14,6 +14,7 @@ interface ChatAction {
   rush_order: boolean;
   notes?: string;
   estimated_price?: number;
+  rush_surcharge?: number;
   pre_gst_price?: number;
   gst_pct?: number;
   gst_amount?: number;
@@ -317,22 +318,23 @@ export default function CustomerChat({ businessName }: { businessName?: string |
                                   onClick={() => {
                                     setOpen(false);
                                     navigate('/checkout', {
-                                      state: {
-                                        rug_id: msg.action!.rug_id,
-                                        rug_name: msg.action!.rug_name,
-                                        size_w: msg.action!.size_w,
-                                        size_h: msg.action!.size_h,
-                                        qty: msg.action!.qty,
-                                        rush_order: msg.action!.rush_order,
-                                        notes: msg.action!.notes,
-                                        estimated_price: msg.action!.estimated_price,
-                                        pre_gst_price: msg.action!.pre_gst_price,
-                                        gst_pct: msg.action!.gst_pct,
-                                        gst_amount: msg.action!.gst_amount,
-                                        gst_inclusive: msg.action!.gst_inclusive,
-                                        price_currency: msg.action!.price_currency ?? 'INR',
-                                        estimated_days: msg.action!.estimated_days ?? 21,
-                                      },
+                                      state: { items: [{
+                                          rug_id: msg.action!.rug_id,
+                                          rug_name: msg.action!.rug_name,
+                                          size_w: msg.action!.size_w,
+                                          size_h: msg.action!.size_h,
+                                          qty: msg.action!.qty,
+                                          rush_order: msg.action!.rush_order,
+                                          notes: msg.action!.notes,
+                                          estimated_price: msg.action!.estimated_price,
+                                          rush_surcharge: msg.action!.rush_surcharge,
+                                          pre_gst_price: msg.action!.pre_gst_price,
+                                          gst_pct: msg.action!.gst_pct,
+                                          gst_amount: msg.action!.gst_amount,
+                                          gst_inclusive: msg.action!.gst_inclusive,
+                                          price_currency: msg.action!.price_currency ?? 'INR',
+                                          estimated_days: msg.action!.estimated_days ?? 21,
+                                        }] },
                                     });
                                   }}
                                   className="w-full flex items-center justify-between gap-2 bg-gold-600 hover:bg-gold-500 text-white text-xs font-medium px-3 py-2.5 rounded-lg transition-colors"

@@ -120,6 +120,8 @@ class RugCatalog(Base):
     hsn_code = Column(String(10), nullable=True, default="5703")  # HSN 5701-5705 for rugs
     room_types = Column(JSON, nullable=True)  # list[str] — "Shop by Space" tags, e.g. ["living_room", "bedroom"]
     mood_tags = Column(JSON, nullable=True)  # list[str] — "Shop by Mood" tags, e.g. ["warm_earthy", "quiet_luxury"]
+    is_available = Column(Boolean, nullable=False, default=True)  # vendor-controlled storefront sellability
+    inventory_quantity = Column(Integer, nullable=True)  # finished rug units; NULL preserves legacy/untracked catalogs
 
     material = relationship("Material", back_populates="rugs")
     quotes = relationship("Quote", back_populates="rug_catalog")
@@ -290,6 +292,7 @@ class Order(Base):
         # and app/api/routes/dashboard.py.
         Index("ix_orders_tenant_status", "tenant_id", "status"),
         Index("ix_orders_tenant_created", "tenant_id", "created_at"),
+        Index("ux_orders_razorpay_payment_id", "razorpay_payment_id", unique=True),
     )
 
     quote = relationship("Quote", back_populates="order")
@@ -316,6 +319,8 @@ class PaymentAttempt(Base):
     currency = Column(String(10), nullable=False)
     status = Column(String(20), default="created")  # created -> completed | failed (see recover_order_from_payment_attempt for the "completing" transient lock state)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    processing_started_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 

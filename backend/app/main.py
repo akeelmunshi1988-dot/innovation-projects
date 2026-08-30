@@ -3,10 +3,11 @@ import time
 import asyncio
 import re
 import uuid
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
@@ -119,12 +120,24 @@ async def _fx_refresh_loop():
         await asyncio.sleep(_FX_REFRESH_INTERVAL_SECONDS)
 
 
+async def _payment_reconciliation_loop():
+    """Periodic fallback when both the browser callback and webhook are lost."""
+    from app.api.routes.customer import reconcile_payment_attempts
+    while True:
+        try:
+            await asyncio.to_thread(reconcile_payment_attempts)
+        except Exception:
+            logger.exception("Payment reconciliation loop failed")
+        await asyncio.sleep(5 * 60)
+
+
 @app.on_event("startup")
 async def startup_event():
     init_db()
     app.state.mcp_session_context = mcp.session_manager.run()
     await app.state.mcp_session_context.__aenter__()
     asyncio.create_task(_fx_refresh_loop())
+    asyncio.create_task(_payment_reconciliation_loop())
 
 
 @app.on_event("shutdown")
@@ -163,7 +176,15 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": db.bind.dialect.name}
+    except Exception:
+        logger.exception("Database health check failed")
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    finally:
+        db.close()
 
 
 ACCESS_GATE_COOKIE = "drc_access"

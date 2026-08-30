@@ -25,6 +25,7 @@ interface CatalogRug {
   room_types: string[];
   mood_tags: string[];
   available: boolean;
+  inventory_quantity?: number | null;
 }
 
 const SORT_OPTIONS = [
@@ -348,7 +349,7 @@ export default function CustomerCatalog() {
                     )}
                     {!rug.available && (
                       <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                        <span className="text-stone-500 text-xs tracking-widest uppercase">Unavailable</span>
+                        <span className="text-stone-600 text-xs tracking-widest uppercase">Out of stock</span>
                       </div>
                     )}
                   </div>

@@ -3,8 +3,8 @@
 The backend exposes a private, Streamable HTTP MCP server at:
 
 - Local: `http://127.0.0.1:8000/mcp/`
-- Production: `https://dreamrugscreation.in/mcp/`
-
+- Production: `https ://dreamrugscreation.in/mcp/`
+   
 ## Production configuration
 
 Set these values in `backend/.env` on the production server:
