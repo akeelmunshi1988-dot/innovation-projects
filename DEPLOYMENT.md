@@ -150,6 +150,10 @@ Paste and fill in your values (use your **rotated** Anthropic key — the one th
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-api03-YOUR-KEY-HERE
+OPENAI_API_KEY=sk-YOUR-OPENAI-KEY-HERE
+CATALOG_API_KEY=rug_live_YOUR-EXISTING-CATALOG-KEY
+MCP_CONNECTOR_TOKEN=REPLACE_WITH-A-SEPARATE-RANDOM-TOKEN
+MCP_TENANT_ID=1
 DATABASE_URL=sqlite:////var/www/dreamrugscreation/innovation-projects/backend/rug_manufacture.db
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -309,6 +313,23 @@ server {
         proxy_read_timeout 120s;
     }
 
+    # ChatGPT/Codex remote MCP connector. Do not apply the India visitor gate
+    # here: the backend validates the connector's Authorization bearer token.
+    # Streaming must remain unbuffered for MCP's Streamable HTTP transport.
+    location /mcp/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Authorization $http_authorization;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 900s;
+        proxy_send_timeout 900s;
+        client_max_body_size 55M;
+    }
+
     # Internal-only: backs the auth_request calls above. `internal;` means
     # nginx refuses this location for any request that didn't originate from
     # an auth_request subrequest — it's not reachable directly from outside.
@@ -411,6 +432,10 @@ sudo certbot renew --dry-run
 ```bash
 # API health check
 curl https://yourdomain.com/api/health
+
+# MCP is private: no token must be rejected; an authenticated initialize
+# request can then be tested from ChatGPT developer mode.
+curl -o /dev/null -s -w '%{http_code}\n' -X POST https://yourdomain.com/mcp/
 
 # Public catalog (should return 8 rugs)
 curl https://yourdomain.com/api/customer/catalog | python3 -m json.tool | head -30

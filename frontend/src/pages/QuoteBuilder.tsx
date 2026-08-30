@@ -213,7 +213,7 @@ const QuoteBuilder: React.FC = () => {
                   <option value="">Choose a rug...</option>
                   {rugs.map((rug) => (
                     <option key={rug.id} value={rug.id}>
-                      {rug.name} — {fmtTenant(rug.base_price, tenant, rug.base_price_currency)}/sqm
+                      {rug.name} — {fmtTenant(rug.base_price, tenant, rug.base_price_currency)} total
                     </option>
                   ))}
                 </select>

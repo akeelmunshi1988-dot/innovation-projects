@@ -60,7 +60,7 @@ def _get_catalog_summary(db: Session) -> list:
             "pile_height": r.pile_height,
             "material": r.material.name,
             "material_type": r.material.type,
-            "base_price_per_sqm": r.base_price,
+            "total_catalog_price": r.base_price,
             "lead_time_days": r.lead_time_days,
         }
         for r in rugs

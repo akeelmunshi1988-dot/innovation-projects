@@ -541,8 +541,8 @@ const Orders: React.FC = () => {
                                 <p className="text-cream-200 font-medium">{bd.profit_margin_pct.toFixed(0)}%</p>
                               </div>
                               <div className="bg-dark-700/60 rounded-lg px-2 py-2">
-                                <p className="text-dark-400 mb-0.5">Selling rate</p>
-                                <p className="text-cream-200 font-medium">{fmtB(bd.base_price_per_sqm)}/sqm</p>
+                                <p className="text-dark-400 mb-0.5">Catalog price</p>
+                                <p className="text-cream-200 font-medium">{fmtB(bd.catalog_price_per_piece)} / rug</p>
                               </div>
                             </div>
                             {(!bd.margin_locked || !bd.gst_locked) && (

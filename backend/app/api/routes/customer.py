@@ -546,13 +546,13 @@ def _public_catalog_offer(rug: RugCatalog, db: Session) -> dict:
     except (TypeError, ValueError):
         price = None
         price_currency = None
-    public_size = {"ft": default_size["ft"], "cm": default_size.get("cm")}
+    public_size = {"ft": default_size["ft"], "cm": default_size.get("cm"), "price": default_size.get("price")}
     return {"display_price": price, "default_size": public_size, "price_currency": price_currency}
 
 
 def _public_catalog_sizes(rug: RugCatalog) -> list[dict]:
     return [
-        {"ft": size.get("ft"), "cm": size.get("cm")}
+        {"ft": size.get("ft"), "cm": size.get("cm"), "price": size.get("price")}
         for size in (rug.sizes or [])
         if isinstance(size, dict) and size.get("ft")
     ]
@@ -834,6 +834,11 @@ class QuoteRequestBody(BaseModel):
     rush_order: bool = False
     shape: str = "rect"
     notes: Optional[str] = Field(None, max_length=2000)
+    room_type: Optional[str] = Field(None, max_length=100)
+    material_preference: Optional[str] = Field(None, max_length=50)
+    budget_range: Optional[str] = Field(None, max_length=100)
+    expected_delivery: Optional[str] = Field(None, max_length=50)
+    reference_image_urls: Optional[list[str]] = Field(None, max_length=3)
 
 
 @router.post("/customer/request-quote")
@@ -931,6 +936,11 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             rush_order=body.rush_order,
             status="draft",
             notes=body.notes,
+            room_type=body.room_type,
+            material_preference=body.material_preference,
+            budget_range=body.budget_range,
+            expected_delivery=body.expected_delivery,
+            reference_image_urls=body.reference_image_urls,
         )
         db.add(quote)
         db.commit()

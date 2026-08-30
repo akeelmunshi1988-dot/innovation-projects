@@ -5,7 +5,7 @@ import axios from 'axios';
 import { getCatalog, createRug, updateRug, deleteRug, getInventory, addRugImage, updateRugImageOrder, deleteRugImage } from '../services/api';
 import type { RugCatalog, Material, RugImage, CatalogSize } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { fmtTenant, CURRENCIES } from '../utils/currency';
+import { fmtTenant } from '../utils/currency';
 import CornerCropModal from '../components/CornerCropModal';
 import RichTextEditor from '../components/RichTextEditor';
 import SizesEditor from '../components/SizesEditor';
@@ -37,8 +37,6 @@ type FormData = {
   description: string;
   about_content_html: string;
   material_id: string;
-  base_price: string;
-  base_price_currency: string;
   pile_height: string;
   weave_type: string;
   lead_time_days: string;
@@ -49,7 +47,7 @@ type FormData = {
 };
 
 const BLANK: FormData = {
-  name: '', description: '', about_content_html: '', material_id: '', base_price: '', base_price_currency: '',
+  name: '', description: '', about_content_html: '', material_id: '',
   pile_height: 'medium', weave_type: 'hand-knotted',
   lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [],
 };
@@ -61,13 +59,15 @@ function rugToForm(r: RugCatalog): FormData {
     description: r.description ?? '',
     about_content_html: r.about_content_html ?? '',
     material_id: String(r.material_id),
-    base_price: String(r.base_price),
-    base_price_currency: r.base_price_currency ?? '',
     pile_height: r.pile_height ?? 'medium',
     weave_type: r.weave_type ?? 'hand-knotted',
     lead_time_days: String(r.lead_time_days),
     image_url: r.image_url ?? '',
-    sizes: r.sizes.map((size, index) => ({ ...size, is_default: hasDefaultSize ? Boolean(size.is_default) : index === 0 })),
+    sizes: r.sizes.map((size, index) => ({
+      ...size,
+      price: size.price ?? r.base_price,
+      is_default: hasDefaultSize ? Boolean(size.is_default) : index === 0,
+    })),
     room_types: r.room_types ?? [],
     mood_tags: r.mood_tags ?? [],
   };
@@ -173,12 +173,10 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
     setSaving(true);
     setError('');
     const materialId = Number(form.material_id);
-    const basePrice = Number(form.base_price);
     const leadTimeDays = Number(form.lead_time_days);
     if (
       !form.name.trim()
       || !form.material_id || !Number.isInteger(materialId) || materialId < 1
-      || !form.base_price || !Number.isFinite(basePrice) || basePrice < 0
       || !form.lead_time_days || !Number.isInteger(leadTimeDays) || leadTimeDays < 1
     ) {
       setError('Complete all required fields with valid values.');
@@ -192,13 +190,20 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
       setSaving(false);
       return;
     }
+    if (validSizes.some((size) => !Number.isFinite(Number(size.price)) || Number(size.price) < 0)) {
+      setError('Enter a valid total price for every size.');
+      setSaving(false);
+      return;
+    }
     const payload = {
       name:                form.name.trim(),
       description:         form.description.trim() || null,
       about_content_html:  form.about_content_html || null,
       material_id:         materialId,
-      base_price:          basePrice,
-      base_price_currency: form.base_price_currency || tenant.base_currency,
+      // Legacy columns remain populated from the default size for backwards
+      // compatibility; pricing calculations read sizes[].price.
+      base_price:          Number(defaultSize.price),
+      base_price_currency: tenant.base_currency,
       pile_height:         form.pile_height || null,
       weave_type:          form.weave_type || null,
       lead_time_days:      leadTimeDays,
@@ -207,6 +212,7 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
         ft: s.ft.trim(),
         cm: s.cm?.trim() || null,
         is_default: Boolean(s.is_default),
+        price: Number(s.price),
       })),
       room_types:          form.room_types,
       mood_tags:           form.mood_tags,
@@ -382,33 +388,8 @@ function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
             </select>
           </div>
 
-          {/* Price + Lead time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Floor / Reference Price per sqm *</label>
-              <div className="flex gap-1.5">
-                <input
-                  value={form.base_price}
-                  onChange={(e) => set('base_price', e.target.value)}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="45.00"
-                  required
-                  className="flex-1 min-w-0 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
-                />
-                <select
-                  value={form.base_price_currency || tenant.base_currency}
-                  onChange={(e) => set('base_price_currency', e.target.value)}
-                  className="w-20 bg-dark-800 border border-dark-700 rounded-lg px-2 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600/60"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.code}</option>
-                  ))}
-                </select>
-              </div>
-              <p className="text-dark-500 text-xs">Quote price = material cost × (1 + margin%)</p>
-            </div>
+          {/* Lead time */}
+          <div>
             <div className="space-y-1">
               <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Expected Delivery (days) *</label>
               <input
@@ -803,11 +784,9 @@ const Catalog: React.FC = () => {
                 )}
                 <div className="absolute top-3 right-3 bg-dark-900/80 backdrop-blur-sm rounded-lg px-2.5 py-1.5 text-right">
                   <p className="text-gold-400 font-bold text-base leading-none">
-                    {rug.material
-                      ? fmt(rug.material.cost_per_sqm * (1 + (rug.profit_margin_pct ?? tenant.default_profit_margin_pct ?? 40) / 100), rug.material.cost_currency)
-                      : fmt(rug.base_price, rug.base_price_currency)}
+                    {fmt(rug.base_price, rug.base_price_currency)}
                   </p>
-                  <p className="text-dark-400 text-xs">selling / sqm</p>
+                  <p className="text-dark-400 text-xs">total price per rug</p>
                 </div>
               </div>
 

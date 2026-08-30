@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import {
   Layers, Send, CheckCircle, AlertTriangle, Zap, Eye,
   ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink, ShoppingBag,
-  ChevronLeft,
+  ChevronLeft, Upload, ChevronDown,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
@@ -13,13 +13,23 @@ import SocialLoginButtons from '../components/SocialLoginButtons';
 import { fmtExact, currencySymbol } from '../utils/currency';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
-import { fmtSize, catalogSizeDims, toMetres, inputUnit } from '../utils/size';
+import { fmtSize, catalogSizeDims, toMetres, inputUnit, SIZE_UNITS } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 import type { CatalogSize } from '../types';
+
+const QUOTE_ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
+const QUOTE_MATERIALS = [
+  { value: 'wool', label: 'Wool' }, { value: 'silk', label: 'Silk' },
+  { value: 'cotton', label: 'Cotton' }, { value: 'synthetic', label: 'Synthetic' },
+  { value: 'no_preference', label: 'No preference' }, { value: 'other', label: 'Other' },
+];
+const QUOTE_BUDGETS = ['Under ₹25,000', '₹25,000 – ₹50,000', '₹50,000 – ₹1,00,000', '₹1,00,000 – ₹2,50,000', 'Above ₹2,50,000', 'Not sure yet'];
+const QUOTE_DELIVERY = ['No preference', 'ASAP / Rush', 'Within 4 weeks', '1–2 months', '2–3 months or more'];
+const MAX_QUOTE_IMAGES = 3;
 
 
 interface RugDetail {
@@ -41,6 +51,7 @@ interface RugDetail {
   image_url: string | null;
   images: { id: number; image_url: string; sort_order: number }[];
   available: boolean;
+  room_types: string[];
 }
 
 interface PriceResult {
@@ -107,6 +118,14 @@ export default function CustomerRugDetail() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [quoteResult, setQuoteResult] = useState<{ quote_id: number; final_price: number; lead_time_days: number } | null>(null);
+  const [quoteModal, setQuoteModal] = useState(false);
+  const [quoteDetails, setQuoteDetails] = useState({
+    name: customer?.name ?? '', email: customer?.email ?? '', phone: '', company: '',
+    room_type: QUOTE_ROOM_TYPES[0], material_preference: 'no_preference', material_other: '',
+    budget_range: QUOTE_BUDGETS[0], expected_delivery: QUOTE_DELIVERY[0], notes: '',
+    size_w: '', size_h: '', unit: 'ft',
+    reference_image_urls: [] as string[], uploading: false,
+  });
 
   // Auth modal (shown when unauthenticated user tries to submit)
   const [authModal, setAuthModal] = useState(false);
@@ -140,6 +159,19 @@ export default function CustomerRugDetail() {
       .then((data) => setSizeUnit(data.default_size_unit || 'ft'))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!rug?.sizes.length) return;
+    const preferred = rug.sizes.find((size) => size.is_default) ?? rug.sizes[0];
+    const dimensions = catalogSizeDims(preferred, inputUnit(sizeUnit));
+    if (!dimensions) return;
+    setForm((current) => ({
+      ...current,
+      size_w: String(dimensions[0]),
+      size_h: String(dimensions[1]),
+      shape: 'rect',
+    }));
+  }, [rug, sizeUnit]);
 
   useEffect(() => {
     if (!expandedImage) return;
@@ -203,6 +235,58 @@ export default function CustomerRugDetail() {
     }));
   };
 
+  const openQuoteRequest = () => {
+    if (!rug) return;
+    const room = rug.room_types?.[0]?.replace(/_/g, ' ');
+    const matchingRoom = QUOTE_ROOM_TYPES.find((option) => option.toLowerCase() === room?.toLowerCase());
+    const material = QUOTE_MATERIALS.some((option) => option.value === rug.material_type)
+      ? rug.material_type : 'other';
+    const selectedSize = rug.sizes.find((size) => {
+      const dimensions = catalogSizeDims(size, inputUnit(sizeUnit));
+      return dimensions && form.size_w === String(dimensions[0]) && form.size_h === String(dimensions[1]);
+    }) ?? rug.sizes.find((size) => size.is_default) ?? rug.sizes[0];
+    const selectedPrice = Number(selectedSize?.price ?? 0);
+    const budget = selectedPrice < 25000 ? QUOTE_BUDGETS[0]
+      : selectedPrice < 50000 ? QUOTE_BUDGETS[1]
+        : selectedPrice < 100000 ? QUOTE_BUDGETS[2]
+          : selectedPrice < 250000 ? QUOTE_BUDGETS[3] : QUOTE_BUDGETS[4];
+    setQuoteDetails((current) => ({
+      ...current,
+      name: customer?.name ?? current.name,
+      email: customer?.email ?? current.email,
+      phone: current.phone,
+      company: current.company,
+      room_type: matchingRoom ?? current.room_type,
+      material_preference: material,
+      material_other: material === 'other' ? rug.material : '',
+      budget_range: budget,
+      size_w: selectedSize ? String(catalogSizeDims(selectedSize, 'ft')?.[0] ?? '') : '',
+      size_h: selectedSize ? String(catalogSizeDims(selectedSize, 'ft')?.[1] ?? '') : '',
+      unit: 'ft',
+      expected_delivery: rug.lead_time_days <= 28 ? 'Within 4 weeks' : rug.lead_time_days <= 60 ? '1–2 months' : '2–3 months or more',
+    }));
+    setSubmitError(null);
+    setQuoteModal(true);
+  };
+
+  const uploadQuoteReference = async (file: File) => {
+    if (quoteDetails.reference_image_urls.length >= MAX_QUOTE_IMAGES) return;
+    setQuoteDetails((current) => ({ ...current, uploading: true }));
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const { data } = await axios.post<{ url: string }>('/api/customer/custom-rug-request/upload-image', body, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setQuoteDetails((current) => ({
+        ...current, reference_image_urls: [...current.reference_image_urls, data.url], uploading: false,
+      }));
+    } catch (err: any) {
+      setSubmitError(err.response?.data?.detail ?? 'Reference image upload failed.');
+      setQuoteDetails((current) => ({ ...current, uploading: false }));
+    }
+  };
+
   const doSubmitQuote = async (name: string, email: string) => {
     if (!rug) return;
     setSubmitting(true);
@@ -211,17 +295,24 @@ export default function CustomerRugDetail() {
       const { data } = await axios.post('/api/customer/request-quote', {
         name,
         email,
-        phone: form.phone || null,
+        phone: quoteDetails.phone || null,
+        company: quoteDetails.company || null,
         rug_id: rug.id,
-        size_w: sizeWMetres,
-        size_h: sizeHMetres,
-        qty: parseInt(form.qty) || 1,
-        rush_order: form.rush_order,
-        shape: form.shape,
-        notes: form.notes || null,
+        size_w: toMetres(parseFloat(quoteDetails.size_w), quoteDetails.unit),
+        size_h: toMetres(parseFloat(quoteDetails.size_h), quoteDetails.unit),
+        qty: 1,
+        rush_order: false,
+        shape: 'rect',
+        notes: quoteDetails.notes || null,
+        room_type: quoteDetails.room_type || null,
+        material_preference: quoteDetails.material_preference === 'other' ? quoteDetails.material_other : quoteDetails.material_preference,
+        budget_range: quoteDetails.budget_range || null,
+        expected_delivery: quoteDetails.expected_delivery || null,
+        reference_image_urls: quoteDetails.reference_image_urls.length ? quoteDetails.reference_image_urls : null,
       }, { headers: customerToken ? { Authorization: `Bearer ${customerToken}` } : {} });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
       setSubmitted(true);
+      setQuoteModal(false);
     } catch (err: any) {
       setSubmitError(err.response?.data?.detail || 'Failed to submit quote. Please try again.');
     } finally {
@@ -229,14 +320,25 @@ export default function CustomerRugDetail() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitSelectedQuote = async () => {
     if (!rug) return;
+    if (!quoteDetails.name.trim() || !quoteDetails.email.trim()) {
+      setSubmitError('Name and email are required.');
+      return;
+    }
+    if (!(parseFloat(quoteDetails.size_w) > 0) || !(parseFloat(quoteDetails.size_h) > 0)) {
+      setSubmitError('Enter the requested rug width and length.');
+      return;
+    }
+    if (quoteDetails.material_preference === 'other' && !quoteDetails.material_other.trim()) {
+      setSubmitError('Please specify the preferred material.');
+      return;
+    }
     if (!isCustomerAuthenticated || !customer) {
       setAuthModal(true);
       return;
     }
-    await doSubmitQuote(customer.name, customer.email);
+    await doSubmitQuote(quoteDetails.name || customer.name, quoteDetails.email || customer.email);
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -564,18 +666,14 @@ export default function CustomerRugDetail() {
                 </div>
               ) : (
                 <div className="border border-stone-200">
-                  <div className="px-6 lg:px-8 py-5 border-b border-stone-100">
+                  <div className="px-5 py-4 border-b border-stone-100">
                     <h2 className="font-serif text-2xl font-light text-stone-900">Request a Quote</h2>
                     <p className="text-stone-400 text-sm mt-1">Choose your rug specifications and review an instant estimate before submitting.</p>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="p-4 sm:p-6 lg:p-8">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-                      <section className="space-y-5 min-w-0">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">1. Rug configuration</p>
-                          <p className="text-stone-500 text-sm mt-1">Select a standard size or enter custom dimensions.</p>
-                        </div>
+                  <form onSubmit={(event) => event.preventDefault()} className="p-4 sm:p-5">
+                    <div className="space-y-4 max-w-xl">
+                      <p className="text-stone-500 text-sm">Select a size, review the instant estimate, then submit your request.</p>
                     {/* Standard Sizes — only sizes with a value in the current unit are
                         offered; a size missing a vendor-entered cm value simply isn't
                         shown when browsing in cm, rather than falling back to a computed
@@ -599,70 +697,10 @@ export default function CustomerRugDetail() {
                                     : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
                                 }`}
                               >
-                                {fmtSize(size, sizeUnit)}
+                                {fmtSize(size, sizeUnit)} · {displayPrice(size.price, currency)}
                               </button>
                             );
                           })}
-                        </div>
-                        <p className="text-stone-400 text-xs">Or enter custom dimensions below</p>
-                      </div>
-                    )}
-
-                    {/* Shape selector */}
-                    <div className="space-y-1.5">
-                      <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Shape</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(['rect', 'circle', 'oval'] as const).map(s => (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => setForm(f => ({
-                              ...f,
-                              shape: s,
-                              size_h: s === 'circle' ? f.size_w : f.size_h,
-                            }))}
-                            className={`px-3 py-1.5 border text-xs transition-colors ${
-                              form.shape === s
-                                ? 'bg-stone-900 border-stone-900 text-white'
-                                : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
-                            }`}
-                          >
-                            {s === 'rect' ? 'Rectangle' : s === 'circle' ? 'Circle' : 'Oval'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Size inputs */}
-                    {form.shape === 'circle' ? (
-                      <div className="max-w-[160px]">
-                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Diameter ({inputUnit(sizeUnit)}) *</label>
-                        <input
-                          type="number" name="size_w" value={form.size_w}
-                          onChange={e => setForm(f => ({ ...f, size_w: e.target.value, size_h: e.target.value }))}
-                          placeholder={sizeUnit === 'cm' ? '300' : '10'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
-                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
-                        />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
-                            {form.shape === 'oval' ? `Width / Axis A (${inputUnit(sizeUnit)})` : `Width (${inputUnit(sizeUnit)})`} *
-                          </label>
-                          <input type="number" name="size_w" value={form.size_w} onChange={handleFormChange}
-                            placeholder={sizeUnit === 'cm' ? '240' : '8'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
-                            className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">
-                            {form.shape === 'oval' ? `Height / Axis B (${inputUnit(sizeUnit)})` : `Height (${inputUnit(sizeUnit)})`} *
-                          </label>
-                          <input type="number" name="size_h" value={form.size_h} onChange={handleFormChange}
-                            placeholder={sizeUnit === 'cm' ? '180' : '6'} step={sizeUnit === 'cm' ? '1' : '0.1'} min={sizeUnit === 'cm' ? '30' : '1'} required
-                            className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors"
-                          />
                         </div>
                       </div>
                     )}
@@ -712,14 +750,6 @@ export default function CustomerRugDetail() {
                         )}
                       </div>
                     </div>
-
-                      </section>
-
-                      <section className="space-y-5 min-w-0 lg:border-l lg:border-stone-100 lg:pl-12">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">2. Estimate & submit</p>
-                          <p className="text-stone-500 text-sm mt-1">Review pricing, add notes, and send your request.</p>
-                        </div>
 
                     {/* Price estimate + Place Order */}
                     {hasSize && (
@@ -818,7 +848,7 @@ export default function CustomerRugDetail() {
                       <div className="border border-stone-200 px-4 py-5 text-center">
                         <Zap size={18} className="mx-auto text-stone-300 mb-2" />
                         <p className="text-stone-600 text-sm">Your estimate will appear here</p>
-                        <p className="text-stone-400 text-xs mt-1">Add dimensions on the left to continue.</p>
+                        <p className="text-stone-400 text-xs mt-1">Select a size above to continue.</p>
                       </div>
                     )}
 
@@ -844,16 +874,12 @@ export default function CustomerRugDetail() {
                       </div>
                     )}
 
-                    <button type="submit" disabled={submitting || !rug.available}
+                    <button type="button" onClick={openQuoteRequest} disabled={submitting || !rug.available || !hasSize}
                       className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-4 transition-colors flex items-center justify-center gap-2"
                     >
-                      {submitting
-                        ? <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
-                        : isCustomerAuthenticated ? <Send size={13} /> : <LogIn size={13} />}
-                      {submitting ? 'Submitting…' : isCustomerAuthenticated ? 'Request Quote' : 'Sign In & Request Quote'}
+                      <Send size={13} /> Request Quote
                     </button>
                     <p className="text-stone-400 text-xs text-center">Free quote · No commitment · UPI / Card</p>
-                      </section>
                     </div>
                   </form>
                 </div>
@@ -886,6 +912,182 @@ export default function CustomerRugDetail() {
             className="w-full h-full object-contain"
             onClick={(event) => event.stopPropagation()}
           />
+        </div>
+      )}
+
+      {/* Quote request modal — rug is fixed; customer supplies the required size. */}
+      {quoteModal && rug && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-label="Request a quote" className="w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+              <div>
+                <p className="text-stone-400 text-xs uppercase tracking-widest">Request a Quote</p>
+                <h3 className="font-serif text-xl font-light text-stone-900 mt-0.5">{rug.name}</h3>
+              </div>
+              <button onClick={() => setQuoteModal(false)} className="text-stone-400 hover:text-stone-900 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              <div className="flex gap-3 bg-stone-50 border border-stone-100 p-3">
+                {rug.image_url && <img src={rug.image_url} alt="" className="w-16 h-20 object-contain bg-white" />}
+                <div className="min-w-0">
+                  <p className="text-stone-900 text-sm font-medium">{rug.name}</p>
+                  <p className="text-stone-500 text-xs mt-1">{rug.material}{rug.weave_type ? ` · ${rug.weave_type}` : ''}</p>
+                  <p className="text-stone-400 text-xs mt-1">Rug details are pre-selected.</p>
+                </div>
+              </div>
+
+              {isCustomerAuthenticated && customer ? (
+                <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 px-3 py-2.5">
+                  <CheckCircle size={13} className="text-green-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-stone-900 text-xs font-medium truncate">{customer.name}</p>
+                    <p className="text-stone-400 text-xs truncate">{customer.email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Full Name *</label>
+                    <input value={quoteDetails.name} onChange={(e) => setQuoteDetails((current) => ({ ...current, name: e.target.value }))}
+                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                  <div>
+                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Email *</label>
+                    <input type="email" value={quoteDetails.email} onChange={(e) => setQuoteDetails((current) => ({ ...current, email: e.target.value }))}
+                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                  <div>
+                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Phone / WhatsApp</label>
+                    <input value={quoteDetails.phone} onChange={(e) => setQuoteDetails((current) => ({ ...current, phone: e.target.value }))}
+                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                  <div>
+                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Company</label>
+                    <input value={quoteDetails.company} onChange={(e) => setQuoteDetails((current) => ({ ...current, company: e.target.value }))}
+                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Requested Size *</label>
+                <div className="grid grid-cols-[1fr_1fr_110px] gap-2">
+                  <input type="number" min="0.1" step="0.1" value={quoteDetails.size_w}
+                    onChange={(e) => setQuoteDetails((current) => ({ ...current, size_w: e.target.value }))}
+                    placeholder="Width" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  <input type="number" min="0.1" step="0.1" value={quoteDetails.size_h}
+                    onChange={(e) => setQuoteDetails((current) => ({ ...current, size_h: e.target.value }))}
+                    placeholder="Length" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  <div className="relative">
+                    <select value={quoteDetails.unit} onChange={(e) => setQuoteDetails((current) => ({ ...current, unit: e.target.value }))}
+                      className="w-full appearance-none border border-stone-200 bg-white px-2 pr-7 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
+                      {SIZE_UNITS.filter((unit) => unit.code !== 'both').map((unit) => <option key={unit.code} value={unit.code}>{unit.label}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-stone-400" />
+                  </div>
+                </div>
+                <p className="text-stone-400 text-xs mt-1">Enter the exact dimensions you want us to quote.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Room / Purpose</label>
+                  <div className="relative">
+                    <select value={quoteDetails.room_type} onChange={(e) => setQuoteDetails((current) => ({ ...current, room_type: e.target.value }))}
+                      className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
+                      {QUOTE_ROOM_TYPES.map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Material Preference</label>
+                  <div className="relative">
+                    <select value={quoteDetails.material_preference} onChange={(e) => setQuoteDetails((current) => ({ ...current, material_preference: e.target.value }))}
+                      className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
+                      {QUOTE_MATERIALS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                  </div>
+                </div>
+                {quoteDetails.material_preference === 'other' && (
+                  <div className="sm:col-span-2">
+                    <input value={quoteDetails.material_other} onChange={(e) => setQuoteDetails((current) => ({ ...current, material_other: e.target.value }))}
+                      placeholder="Specify material" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                )}
+                <div>
+                  <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Budget Range</label>
+                  <div className="relative">
+                    <select value={quoteDetails.budget_range} onChange={(e) => setQuoteDetails((current) => ({ ...current, budget_range: e.target.value }))}
+                      className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
+                      {QUOTE_BUDGETS.map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Expected Delivery</label>
+                  <div className="relative">
+                    <select value={quoteDetails.expected_delivery} onChange={(e) => setQuoteDetails((current) => ({ ...current, expected_delivery: e.target.value }))}
+                      className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
+                      {QUOTE_DELIVERY.map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Describe Your Requirements</label>
+                <textarea rows={3} maxLength={1500} value={quoteDetails.notes}
+                  onChange={(e) => setQuoteDetails((current) => ({ ...current, notes: e.target.value }))}
+                  placeholder="Colors, placement, changes, or anything else we should know…"
+                  className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm resize-none focus:outline-none focus:border-stone-400" />
+              </div>
+
+              <div>
+                <label className="text-stone-500 text-xs font-medium block mb-2 uppercase tracking-wider">Reference Images ({quoteDetails.reference_image_urls.length}/{MAX_QUOTE_IMAGES})</label>
+                <div className="flex flex-wrap gap-2">
+                  {quoteDetails.reference_image_urls.map((url) => (
+                    <div key={url} className="relative w-16 h-16 border border-stone-200">
+                      <img src={url} alt="Reference" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setQuoteDetails((current) => ({ ...current, reference_image_urls: current.reference_image_urls.filter((item) => item !== url) }))}
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center"><X size={11} /></button>
+                    </div>
+                  ))}
+                  {quoteDetails.reference_image_urls.length < MAX_QUOTE_IMAGES && (
+                    <label className="w-16 h-16 border border-dashed border-stone-300 flex items-center justify-center cursor-pointer hover:border-stone-500">
+                      {quoteDetails.uploading ? <div className="w-4 h-4 border border-stone-400 border-t-transparent rounded-full animate-spin" /> : <Upload size={16} className="text-stone-400" />}
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" disabled={quoteDetails.uploading}
+                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadQuoteReference(file); e.target.value = ''; }} />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {submitError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 p-3 text-red-600 text-xs">
+                  <AlertTriangle size={12} /> {submitError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={submitSelectedQuote}
+                disabled={submitting || !hasSize}
+                className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-3.5 transition-colors flex items-center justify-center gap-2"
+              >
+                {submitting
+                  ? <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
+                  : isCustomerAuthenticated ? <Send size={13} /> : <LogIn size={13} />}
+                {submitting ? 'Submitting…' : isCustomerAuthenticated ? 'Submit Quote Request' : 'Sign In & Submit'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

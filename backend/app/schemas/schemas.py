@@ -48,6 +48,7 @@ class RugSize(BaseModel):
     ft: str
     cm: Optional[str] = None
     is_default: bool = False
+    price: float = Field(..., ge=0, description="Vendor-entered total selling price for one rug in this size")
 
 
 class RugCatalogBase(BaseModel):
@@ -55,7 +56,7 @@ class RugCatalogBase(BaseModel):
     description: Optional[str] = None
     about_content_html: Optional[str] = None
     sizes: List[RugSize]
-    base_price: float
+    base_price: float = Field(..., ge=0)
     base_price_currency: Optional[str] = None
     material_id: int
     pile_height: Optional[str] = None
@@ -343,6 +344,7 @@ class QuoteCalculateRequest(BaseModel):
 class QuoteCalculateResponse(BaseModel):
     size_sqm: float
     total_sqm: float
+    catalog_price_per_piece: float = 0.0
     base_price_per_sqm: float
     material_cost_per_sqm: float
     profit_margin_pct: float = 0.0

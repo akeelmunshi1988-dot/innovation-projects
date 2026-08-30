@@ -13,6 +13,7 @@ from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
 from app.core.cache import cache_get, cache_set
+from app.mcp_server import mcp, mcp_http_app
 
 app = FastAPI(
     title="DreamRugsCreation - Rug Manufacture System",
@@ -98,7 +99,14 @@ async def _fx_refresh_loop():
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    app.state.mcp_session_context = mcp.session_manager.run()
+    await app.state.mcp_session_context.__aenter__()
     asyncio.create_task(_fx_refresh_loop())
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await app.state.mcp_session_context.__aexit__(None, None, None)
 
 
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
@@ -122,11 +130,12 @@ app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
 app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 app.include_router(api_clients.router, prefix="/api", tags=["API Clients"])
 app.include_router(public_api.router, prefix="/api", tags=["Public API"])
+app.mount("/mcp", mcp_http_app)
 
 
 @app.get("/")
 async def root():
-    return {"message": "DreamRugsCreation API is running", "docs": "/docs"}
+    return {"message": "DreamRugsCreation API is running", "docs": "/api/docs", "mcp": "/mcp/"}
 
 
 @app.get("/health")

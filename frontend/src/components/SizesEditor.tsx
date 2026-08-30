@@ -13,14 +13,14 @@ interface SizesEditorProps {
  * the customer-facing site (see frontend/src/utils/size.ts).
  */
 export default function SizesEditor({ value, onChange }: SizesEditorProps) {
-  const addRow = () => onChange([...value, { ft: '', cm: '', is_default: value.length === 0 }]);
+  const addRow = () => onChange([...value, { ft: '', cm: '', price: 0, is_default: value.length === 0 }]);
   const removeRow = (i: number) => {
     const removedDefault = value[i]?.is_default;
     const next = value.filter((_, idx) => idx !== i);
     if (removedDefault && next.length > 0) next[0] = { ...next[0], is_default: true };
     onChange(next);
   };
-  const updateRow = (i: number, field: 'ft' | 'cm', v: string) =>
+  const updateRow = (i: number, field: 'ft' | 'cm' | 'price', v: string | number) =>
     onChange(value.map((row, idx) => (idx === i ? { ...row, [field]: v } : row)));
   const setDefault = (i: number) =>
     onChange(value.map((row, idx) => ({ ...row, is_default: idx === i })));
@@ -36,7 +36,7 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
 
       <div className="space-y-2">
         {value.map((row, i) => (
-          <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2">
+          <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(110px,0.7fr)_auto] items-center gap-2">
             <label className="flex flex-col items-center gap-1 text-[10px] text-dark-400 cursor-pointer" title="Use this as the default storefront size">
               <input
                 type="radio"
@@ -51,6 +51,15 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
               value={row.ft}
               onChange={(e) => updateRow(i, 'ft', e.target.value)}
               placeholder="6x9 (ft)"
+              className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+            />
+            <input
+              value={row.price ?? ''}
+              onChange={(e) => updateRow(i, 'price', Number(e.target.value))}
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Total price"
               className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
             />
             <input
@@ -77,7 +86,7 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
       >
         <Plus size={13} /> Add Size
       </button>
-      <p className="text-dark-500 text-xs">The selected default size is used to calculate the total storefront price from material cost and margin.</p>
+      <p className="text-dark-500 text-xs">Enter the final total selling price for each size, including all manually calculated material costs and margin.</p>
     </div>
   );
 }

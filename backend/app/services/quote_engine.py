@@ -2,6 +2,38 @@ from sqlalchemy.orm import Session
 from app.models.models import RugCatalog, Material, PricingRule, MOQRule, ProductionTimeline, Tenant
 from typing import Optional
 import math
+import re
+
+
+def _parse_catalog_dimensions(value: object, metres_per_unit: float) -> Optional[tuple[float, float]]:
+    if not isinstance(value, str):
+        return None
+    parts = re.split(r"\s*[x×]\s*", value.strip().lower())
+    if len(parts) != 2:
+        return None
+    try:
+        return float(parts[0]) * metres_per_unit, float(parts[1]) * metres_per_unit
+    except ValueError:
+        return None
+
+
+def _catalog_size_price(rug: RugCatalog, size_w: float, size_h: float) -> Optional[float]:
+    """Return the vendor-entered total price for the requested standard size."""
+    tolerance_m = 0.025
+    for size in rug.sizes or []:
+        if not isinstance(size, dict) or size.get("price") is None:
+            continue
+        dimensions = _parse_catalog_dimensions(size.get("ft"), 0.3048)
+        if dimensions is None:
+            dimensions = _parse_catalog_dimensions(size.get("cm"), 0.01)
+        if dimensions is None:
+            continue
+        width, height = dimensions
+        direct = abs(width - size_w) <= tolerance_m and abs(height - size_h) <= tolerance_m
+        rotated = abs(width - size_h) <= tolerance_m and abs(height - size_w) <= tolerance_m
+        if direct or rotated:
+            return float(size["price"])
+    return None
 
 
 class QuoteEngine:
@@ -70,13 +102,32 @@ class QuoteEngine:
             tenant,
         )
 
-        # Effective selling price: use override (stored on quote) first, then rug-level, then tenant default
-        margin_pct = margin_override if margin_override is not None else (
-            rug.profit_margin_pct if rug.profit_margin_pct is not None else default_margin  # type: ignore[operator]
+        # Catalog price is the authoritative selling rate for catalog rugs.
+        # Material cost and margin remain available for stock/cost reporting,
+        # but must never replace a vendor-entered catalog price.
+        size_price = _catalog_size_price(rug, size_w, size_h)
+        if size_price is None:
+            return {"error": "This rug does not have a total price configured for the requested size"}
+        catalog_price_per_piece = round(
+            self._to_base(
+                size_price,
+                rug.base_price_currency or (tenant.base_currency if tenant else "INR"),
+                tenant,
+            ),
+            4,
         )
-        effective_price_per_sqm = round(mat_cost_base * (1 + margin_pct / 100), 4)
-        base_price_per_sqm = round(effective_price_per_sqm, 2)
-        subtotal = round(effective_price_per_sqm * total_sqm, 2)
+        # Report the realized margin implied by the authoritative total price. This
+        # keeps existing quote/order breakdown consumers useful without using
+        # the margin to calculate the selling price.
+        estimated_material_cost_per_piece = mat_cost_base * (bounding_sqm / qty) * waste_factor
+        margin_pct = (
+            round(((catalog_price_per_piece / estimated_material_cost_per_piece) - 1) * 100, 2)
+            if estimated_material_cost_per_piece > 0 else 0.0
+        )
+        # Retained as a derived compatibility/reporting field; it is not used
+        # to calculate the purchase price.
+        base_price_per_sqm = round(catalog_price_per_piece / size_sqm, 2) if size_sqm > 0 else 0.0
+        subtotal = round(catalog_price_per_piece * qty, 2)
 
         # Check material availability
         material_available = material.is_available and material.stock_meters >= required_sqm
@@ -199,13 +250,9 @@ class QuoteEngine:
         # Production timeline — use rush days only when rush is effective
         estimated_days = rush_candidate_days if rush_effective else standard_days
 
-        shape_label = {"circle": "circle", "oval": "oval"}.get(shape, "rectangle")
         breakdown = [
             {
-                "label": (
-                    f"Selling rate ({base_price_per_sqm:.2f}/sqm × {total_sqm:.2f} sqm {shape_label} area) "
-                    f"[{margin_pct:.0f}% margin on {float(material.cost_per_sqm):.2f}/sqm material]"  # type: ignore[arg-type]
-                ),
+                "label": f"Catalog price ({catalog_price_per_piece:.2f} × {qty} piece{'s' if qty != 1 else ''})",
                 "amount": subtotal,
             }
         ]
@@ -221,6 +268,7 @@ class QuoteEngine:
             "shape": shape,
             "size_sqm": size_sqm,
             "total_sqm": total_sqm,
+            "catalog_price_per_piece": catalog_price_per_piece,
             "base_price_per_sqm": base_price_per_sqm,
             "material_cost_per_sqm": mat_cost_base,
             "profit_margin_pct": margin_pct,

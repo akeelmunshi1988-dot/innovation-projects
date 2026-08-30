@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Clock, Layers, Package, Ruler,
-  DollarSign, Zap, CheckCircle, AlertTriangle, Edit2,
+  Zap, CheckCircle, AlertTriangle, Edit2,
   Trash2, X, Calculator, ChevronRight, ShoppingCart,
   TrendingUp, Star, RefreshCw, Upload, Image as ImageIcon,
   ArrowUp, ArrowDown, Maximize2,
@@ -16,7 +16,7 @@ import RichTextEditor from '../components/RichTextEditor';
 import SizesEditor from '../components/SizesEditor';
 import type { RugCatalog, Quote, QuoteCalculateResponse } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { fmtTenant, CURRENCIES } from '../utils/currency';
+import { fmtTenant } from '../utils/currency';
 import { catalogSizeAreaSqm, toMetres, inputUnit } from '../utils/size';
 import type { CatalogSize } from '../types';
 
@@ -68,15 +68,12 @@ export default function RugDetail() {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editAboutHtml, setEditAboutHtml] = useState('');
-  const [editPrice, setEditPrice] = useState('');
   const [editPile, setEditPile] = useState('');
   const [editWeave, setEditWeave] = useState('');
   const [editLead, setEditLead] = useState('');
   const [editImage, setEditImage] = useState('');
   const [editSizes, setEditSizes] = useState<CatalogSize[]>([]);
-  const [editMargin, setEditMargin] = useState('');
   const [editHsn, setEditHsn] = useState('');
-  const [editPriceCurrency, setEditPriceCurrency] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -104,15 +101,12 @@ export default function RugDetail() {
       setEditName(rugData.name);
       setEditDesc(rugData.description ?? '');
       setEditAboutHtml(rugData.about_content_html ?? '');
-      setEditPrice(String(rugData.base_price));
       setEditPile(rugData.pile_height ?? '');
       setEditWeave(rugData.weave_type ?? '');
       setEditLead(String(rugData.lead_time_days));
       setEditImage(rugData.image_url ?? '');
-      setEditSizes(rugData.sizes);
-      setEditMargin(rugData.profit_margin_pct != null ? String(rugData.profit_margin_pct) : '');
+      setEditSizes(rugData.sizes.map((size) => ({ ...size, price: size.price ?? rugData.base_price })));
       setEditHsn(rugData.hsn_code ?? '5703');
-      setEditPriceCurrency(rugData.base_price_currency ?? tenant.base_currency);
     } catch {
       setError('Failed to load rug details. Check the backend is running.');
     } finally {
@@ -156,19 +150,24 @@ export default function RugDetail() {
     setEditLoading(true);
     setEditError(null);
     try {
-      const sizes = editSizes.filter((s) => s.ft.trim()).map((s) => ({ ft: s.ft.trim(), cm: s.cm?.trim() || null }));
+      const sizes = editSizes.filter((s) => s.ft.trim()).map((s) => ({
+        ft: s.ft.trim(), cm: s.cm?.trim() || null, is_default: Boolean(s.is_default), price: Number(s.price),
+      }));
+      const defaultSize = sizes.find((size) => size.is_default) ?? sizes[0];
+      if (!defaultSize || sizes.some((size) => !Number.isFinite(size.price) || size.price < 0)) {
+        throw new Error('Enter a valid total price for every size and select a default size.');
+      }
       const updated = await updateRug(rug.id, {
         name: editName,
         description: editDesc || null,
         about_content_html: editAboutHtml || null,
-        base_price: parseFloat(editPrice),
-        base_price_currency: editPriceCurrency || tenant.base_currency,
+        base_price: defaultSize.price,
+        base_price_currency: tenant.base_currency,
         pile_height: editPile || null,
         weave_type: editWeave || null,
         lead_time_days: parseInt(editLead),
         image_url: editImage || null,
         sizes,
-        profit_margin_pct: editMargin !== '' ? parseFloat(editMargin) : null,
         hsn_code: editHsn || null,
       });
       setRug(updated);
@@ -327,10 +326,10 @@ export default function RugDetail() {
           </div>
           <div className="flex-shrink-0 bg-dark-900/80 backdrop-blur-sm border border-gold-600/30 rounded-xl px-4 py-2.5 text-right">
             <p className="text-gold-400 font-bold text-2xl leading-none">
-              {fmt(rug.material ? rug.material.cost_per_sqm * (1 + (rug.profit_margin_pct ?? (user?.tenant?.default_profit_margin_pct ?? 40)) / 100) : rug.base_price, rug.material?.cost_currency ?? rug.base_price_currency)}
+              {fmt(rug.base_price, rug.base_price_currency)}
             </p>
             <p className="text-dark-400 text-xs mt-0.5">
-              selling/m² · {rug.profit_margin_pct ?? (user?.tenant?.default_profit_margin_pct ?? 40)}% margin
+              total catalog price per rug
             </p>
           </div>
         </div>
@@ -729,8 +728,8 @@ export default function RugDetail() {
                     <span>{calcResult.total_sqm} m²</span>
                   </div>
                   <div className="flex justify-between text-cream-300">
-                    <span>Selling rate</span>
-                    <span>{fmt(calcResult.subtotal / calcResult.total_sqm, calcResult.price_currency)}/m²</span>
+                    <span>Catalog price per rug</span>
+                    <span>{fmt(calcResult.catalog_price_per_piece, calcResult.price_currency)}</span>
                   </div>
                   <div className="flex justify-between text-dark-400 text-xs">
                     <span>Your material cost</span>
@@ -836,31 +835,7 @@ export default function RugDetail() {
                 <p className="text-dark-500 text-xs">Rich content shown in the "About this rug" section on the storefront. Falls back to the plain description above when empty.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                    <DollarSign size={10} className="inline" /> Base Price / m²
-                  </label>
-                  <div className="flex gap-1.5">
-                    <input
-                      required
-                      type="number"
-                      step="0.01"
-                      value={editPrice}
-                      onChange={(e) => setEditPrice(e.target.value)}
-                      className="bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors flex-1 min-w-0"
-                    />
-                    <select
-                      value={editPriceCurrency}
-                      onChange={(e) => setEditPriceCurrency(e.target.value)}
-                      className="bg-dark-800 border border-dark-600 rounded-lg px-2 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors w-20"
-                    >
-                      {CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>{c.code}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+              <div>
                 <div className="space-y-1.5">
                   <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
                     <Clock size={10} className="inline" /> Expected Delivery (days)
@@ -873,30 +848,6 @@ export default function RugDetail() {
                     className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                  Profit Margin % <span className="text-dark-500 normal-case font-normal">(overrides tenant default)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    max="500"
-                    step="0.5"
-                    value={editMargin}
-                    onChange={(e) => setEditMargin(e.target.value)}
-                    placeholder={`Tenant default (${user?.tenant?.default_profit_margin_pct ?? 40}%)`}
-                    className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors pr-8 placeholder-dark-500"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 text-sm">%</span>
-                </div>
-                {editMargin && (
-                  <p className="text-dark-500 text-xs">
-                    Selling = material cost × {(1 + parseFloat(editMargin) / 100).toFixed(2)}×
-                  </p>
-                )}
               </div>
 
               <div className="space-y-1.5">

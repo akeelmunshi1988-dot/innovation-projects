@@ -849,7 +849,7 @@ export default function Quotes() {
                       {calcResult && (
                         <div className="bg-dark-800 border border-dark-600 rounded-xl p-3.5 mt-3 space-y-1.5">
                           <div className="flex items-center justify-between text-xs text-dark-400">
-                            <span>Subtotal ({calcResult.total_sqm.toFixed(2)} sqm × {fmtForCustomer(calcResult.base_price_per_sqm, calcResult.price_currency, adjustModal.customerCountry)}/sqm)</span>
+                            <span>Subtotal ({fmtForCustomer(calcResult.catalog_price_per_piece, calcResult.price_currency, adjustModal.customerCountry)} × {Math.round(calcResult.total_sqm / calcResult.size_sqm)} pcs)</span>
                             <span>{fmtForCustomer(calcResult.subtotal, calcResult.price_currency, adjustModal.customerCountry)}</span>
                           </div>
                           {calcResult.manual_discount > 0 && (

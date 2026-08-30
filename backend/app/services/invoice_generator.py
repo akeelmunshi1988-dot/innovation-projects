@@ -139,7 +139,7 @@ def generate_invoice_pdf(
     # Taxable value
     total_sqm = size_sqm * qty
     taxable_value = round(pre_gst_price, 2)
-    rate_per_sqm = round(pre_gst_price / total_sqm, 2) if total_sqm > 0 else 0.0
+    price_per_piece = round(pre_gst_price / qty, 2) if qty > 0 else 0.0
 
     if is_export or is_proforma:
         cgst = sgst = igst = 0.0
@@ -255,7 +255,7 @@ def generate_invoice_pdf(
     stat_cells = [
         [Paragraph("SIZE (PER PIECE)", stat_label), Paragraph(size_dims_str or f"{size_sqm:.2f} m²", stat_value)],
         [Paragraph("QUANTITY", stat_label), Paragraph(f"{qty} pc" + ("s" if qty != 1 else ""), stat_value)],
-        [Paragraph("RATE / M²", stat_label), Paragraph(f"{sym}{rate_per_sqm:,.2f}", stat_value)],
+        [Paragraph("PRICE / RUG", stat_label), Paragraph(f"{sym}{price_per_piece:,.2f}", stat_value)],
     ]
     if delivery_str:
         stat_cells.append([Paragraph("EST. DELIVERY", stat_label), Paragraph(delivery_str, stat_value)])
@@ -304,7 +304,7 @@ def generate_invoice_pdf(
                                        textColor=GOLD)
 
     calc_rows = [
-        [Paragraph(f"Rate: {sym}{rate_per_sqm:,.2f}/m² × {total_sqm:.2f} m²", calc_line),
+        [Paragraph(f"Price: {sym}{price_per_piece:,.2f} × {qty} rug{'s' if qty != 1 else ''}", calc_line),
          Paragraph(f"{sym}{taxable_value:,.2f}", calc_line)],
         [Paragraph("Pre-tax total", calc_line_muted),
          Paragraph(f"{sym}{taxable_value:,.2f}", calc_line_muted)],

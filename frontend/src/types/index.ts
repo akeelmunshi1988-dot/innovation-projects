@@ -94,6 +94,7 @@ export interface CatalogSize {
   ft: string;
   cm?: string | null;
   is_default?: boolean;
+  price: number;
 }
 
 export interface RugCatalog {
@@ -249,6 +250,7 @@ export interface QuoteBreakdownItem {
 export interface QuoteCalculateResponse {
   size_sqm: number;
   total_sqm: number;
+  catalog_price_per_piece: number;
   base_price_per_sqm: number;
   material_cost_per_sqm: number;
   profit_margin_pct: number;

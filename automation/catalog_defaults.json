@@ -1,0 +1,29 @@
+{
+  "api_base_url": "https://dreamrugscreation.in/api/v1",
+  "base_price_currency": "INR",
+  "lead_time_days": 21,
+  "pile_height": null,
+  "material_ids": {
+    "wool_silk_blend": 2,
+    "wool": 5,
+    "silk": 8,
+    "cotton": 3,
+    "synthetic": 4
+  },
+  "base_prices": {
+    "wool_silk_blend": 8500,
+    "wool": 4500,
+    "silk": 8500,
+    "cotton": 3200,
+    "synthetic": 1400
+  },
+  "sizes": [
+    {"ft": "2x3", "cm": null, "is_default": false},
+    {"ft": "3x5", "cm": null, "is_default": false},
+    {"ft": "4x6", "cm": null, "is_default": false},
+    {"ft": "5x8", "cm": null, "is_default": false},
+    {"ft": "6x9", "cm": null, "is_default": true},
+    {"ft": "8x10", "cm": null, "is_default": false}
+  ],
+  "mood_tags": ["artisan", "luxury", "timeless"]
+}

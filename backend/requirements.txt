@@ -17,3 +17,5 @@ pypdf>=5.0.0
 cachetools>=5.3.0
 requests>=2.31.0
 numpy>=1.26.0
+mcp==1.9.4
+sse-starlette==2.1.3
