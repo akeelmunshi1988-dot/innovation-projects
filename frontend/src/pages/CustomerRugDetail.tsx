@@ -640,7 +640,7 @@ export default function CustomerRugDetail() {
         <div id="rug-configurator" className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start scroll-mt-32 pt-8 border-t border-stone-100">
 
           {/* Long-form product description */}
-          <section className="lg:col-span-2 min-w-0">
+          <section className="lg:col-span-3 min-w-0">
             <h2 className="font-serif text-2xl font-light text-stone-900 mb-3">Description</h2>
             {rug.description ? (
               <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-line">{rug.description}</p>
@@ -658,7 +658,7 @@ export default function CustomerRugDetail() {
           </section>
 
           {/* Direct-purchase configurator */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2">
             <div className="space-y-5 w-full">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
