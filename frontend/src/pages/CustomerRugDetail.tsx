@@ -974,18 +974,28 @@ export default function CustomerRugDetail() {
               <div>
                 <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Requested Size *</label>
                 <div className="grid grid-cols-[1fr_1fr_110px] gap-2">
-                  <input type="number" min="0.1" step="0.1" value={quoteDetails.size_w}
-                    onChange={(e) => setQuoteDetails((current) => ({ ...current, size_w: e.target.value }))}
-                    placeholder="Width" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
-                  <input type="number" min="0.1" step="0.1" value={quoteDetails.size_h}
-                    onChange={(e) => setQuoteDetails((current) => ({ ...current, size_h: e.target.value }))}
-                    placeholder="Length" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
-                  <div className="relative">
+                  <div>
+                    <label className="text-stone-400 text-xs block mb-1" htmlFor="quote-size-width">Width</label>
+                    <input id="quote-size-width" type="number" min="0.1" step="0.1" value={quoteDetails.size_w}
+                      onChange={(e) => setQuoteDetails((current) => ({ ...current, size_w: e.target.value }))}
+                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                  <div>
+                    <label className="text-stone-400 text-xs block mb-1" htmlFor="quote-size-height">Height</label>
+                    <input id="quote-size-height" type="number" min="0.1" step="0.1" value={quoteDetails.size_h}
+                      onChange={(e) => setQuoteDetails((current) => ({ ...current, size_h: e.target.value }))}
+                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  </div>
+                  <div>
+                    <label className="text-stone-400 text-xs block mb-1" htmlFor="quote-size-unit">Unit</label>
+                    <div className="relative">
                     <select value={quoteDetails.unit} onChange={(e) => setQuoteDetails((current) => ({ ...current, unit: e.target.value }))}
+                      id="quote-size-unit"
                       className="w-full appearance-none border border-stone-200 bg-white px-2 pr-7 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
                       {SIZE_UNITS.filter((unit) => unit.code !== 'both').map((unit) => <option key={unit.code} value={unit.code}>{unit.label}</option>)}
                     </select>
                     <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-stone-400" />
+                    </div>
                   </div>
                 </div>
                 <p className="text-stone-400 text-xs mt-1">Enter the exact dimensions you want us to quote.</p>
