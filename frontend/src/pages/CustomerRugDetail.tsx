@@ -444,7 +444,7 @@ export default function CustomerRugDetail() {
           },
         ]}
       />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      <div className="w-[94vw] max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-stone-400 min-w-0">
