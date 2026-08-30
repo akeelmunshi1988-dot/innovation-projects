@@ -86,7 +86,7 @@ interface DrawerProps {
   onSaved: (rug: RugCatalog) => void;
 }
 
-function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
+export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerProps) {
   const { user } = useAuth();
   const tenant = user!.tenant;
 

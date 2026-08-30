@@ -9,16 +9,14 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import {
-  getRug, updateRug, deleteRug, calculateQuote, getQuotes,
-  addRugImage, updateRugImageOrder, deleteRugImage,
+  getRug, deleteRug, calculateQuote, getQuotes,
+  addRugImage, updateRugImageOrder, deleteRugImage, getInventory,
 } from '../services/api';
-import RichTextEditor from '../components/RichTextEditor';
-import SizesEditor from '../components/SizesEditor';
-import type { RugCatalog, Quote, QuoteCalculateResponse } from '../types';
+import type { RugCatalog, Quote, QuoteCalculateResponse, Material } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
 import { catalogSizeAreaSqm, toMetres, inputUnit } from '../utils/size';
-import type { CatalogSize } from '../types';
+import { CatalogDrawer } from './Catalog';
 
 const MATERIAL_BADGE: Record<string, string> = {
   wool:      'bg-amber-900/40 text-amber-300 border border-amber-700/40',
@@ -53,6 +51,7 @@ export default function RugDetail() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<Material[]>([]);
 
   // Calculator
   const [calcW, setCalcW] = useState(tenant.default_size_unit === 'cm' ? '90' : '3');
@@ -63,19 +62,8 @@ export default function RugDetail() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState<string | null>(null);
 
-  // Edit modal
+  // Shared catalog edit drawer
   const [editOpen, setEditOpen] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editAboutHtml, setEditAboutHtml] = useState('');
-  const [editPile, setEditPile] = useState('');
-  const [editWeave, setEditWeave] = useState('');
-  const [editLead, setEditLead] = useState('');
-  const [editImage, setEditImage] = useState('');
-  const [editSizes, setEditSizes] = useState<CatalogSize[]>([]);
-  const [editHsn, setEditHsn] = useState('');
-  const [editLoading, setEditLoading] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
 
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -91,22 +79,14 @@ export default function RugDetail() {
     setLoading(true);
     setError(null);
     try {
-      const [rugData, quotesPage] = await Promise.all([
+      const [rugData, quotesPage, materialData] = await Promise.all([
         getRug(parseInt(id)),
         getQuotes({ rug_catalog_id: parseInt(id), page_size: 200 }),
+        getInventory(),
       ]);
       setRug(rugData);
       setQuotes(quotesPage.items);
-      // seed edit form
-      setEditName(rugData.name);
-      setEditDesc(rugData.description ?? '');
-      setEditAboutHtml(rugData.about_content_html ?? '');
-      setEditPile(rugData.pile_height ?? '');
-      setEditWeave(rugData.weave_type ?? '');
-      setEditLead(String(rugData.lead_time_days));
-      setEditImage(rugData.image_url ?? '');
-      setEditSizes(rugData.sizes.map((size) => ({ ...size, price: size.price ?? rugData.base_price })));
-      setEditHsn(rugData.hsn_code ?? '5703');
+      setMaterials(materialData);
     } catch {
       setError('Failed to load rug details. Check the backend is running.');
     } finally {
@@ -140,42 +120,6 @@ export default function RugDetail() {
       setCalcError(err.response?.data?.detail || 'Calculation failed');
     } finally {
       setCalcLoading(false);
-    }
-  };
-
-  // ── Edit submit ──────────────────────────────────────────────────────────────
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rug) return;
-    setEditLoading(true);
-    setEditError(null);
-    try {
-      const sizes = editSizes.filter((s) => s.ft.trim()).map((s) => ({
-        ft: s.ft.trim(), cm: s.cm?.trim() || null, is_default: Boolean(s.is_default), price: Number(s.price),
-      }));
-      const defaultSize = sizes.find((size) => size.is_default) ?? sizes[0];
-      if (!defaultSize || sizes.some((size) => !Number.isFinite(size.price) || size.price < 0)) {
-        throw new Error('Enter a valid total price for every size and select a default size.');
-      }
-      const updated = await updateRug(rug.id, {
-        name: editName,
-        description: editDesc || null,
-        about_content_html: editAboutHtml || null,
-        base_price: defaultSize.price,
-        base_price_currency: tenant.base_currency,
-        pile_height: editPile || null,
-        weave_type: editWeave || null,
-        lead_time_days: parseInt(editLead),
-        image_url: editImage || null,
-        sizes,
-        hsn_code: editHsn || null,
-      });
-      setRug(updated);
-      setEditOpen(false);
-    } catch (err: any) {
-      setEditError(err.response?.data?.detail || 'Update failed');
-    } finally {
-      setEditLoading(false);
     }
   };
 
@@ -793,149 +737,17 @@ export default function RugDetail() {
         </div>
       </div>
 
-      {/* ── Edit Modal ── */}
+      {/* ── Shared catalog edit drawer ── */}
       {editOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-dark-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-dark-700">
-              <div>
-                <h3 className="text-cream-100 font-bold text-lg">Edit Rug</h3>
-                <p className="text-dark-400 text-xs mt-0.5">Update catalog details</p>
-              </div>
-              <button onClick={() => setEditOpen(false)} className="text-dark-400 hover:text-cream-200 p-1">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleEditSubmit} className="p-5 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">Name</label>
-                <input
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">Description</label>
-                <textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  rows={3}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm resize-none transition-colors"
-                />
-                <p className="text-dark-500 text-xs">Short plain-text summary — used for search and page meta description.</p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">About This Rug</label>
-                <RichTextEditor
-                  value={editAboutHtml}
-                  onChange={setEditAboutHtml}
-                  placeholder="Tell the story of this rug — craftsmanship, materials, inspiration…"
-                />
-                <p className="text-dark-500 text-xs">Rich content shown in the "About this rug" section on the storefront. Falls back to the plain description above when empty.</p>
-              </div>
-
-              <div>
-                <div className="space-y-1.5">
-                  <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                    <Clock size={10} className="inline" /> Expected Delivery (days)
-                  </label>
-                  <input
-                    required
-                    type="number"
-                    value={editLead}
-                    onChange={(e) => setEditLead(e.target.value)}
-                    className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">
-                  HSN Code <span className="text-dark-500 normal-case font-normal">(GST invoice)</span>
-                </label>
-                <select
-                  value={editHsn}
-                  onChange={(e) => setEditHsn(e.target.value)}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                >
-                  <option value="5701">5701 — Knotted (hand-knotted)</option>
-                  <option value="5702">5702 — Woven (not tufted)</option>
-                  <option value="5703">5703 — Tufted carpets</option>
-                  <option value="5704">5704 — Felt carpets</option>
-                  <option value="5705">5705 — Other carpets</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">Pile Height</label>
-                  <select
-                    value={editPile}
-                    onChange={(e) => setEditPile(e.target.value)}
-                    className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                  >
-                    <option value="">— none —</option>
-                    {['low', 'medium', 'high', 'flat'].map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">Weave Type</label>
-                  <input
-                    value={editWeave}
-                    onChange={(e) => setEditWeave(e.target.value)}
-                    placeholder="e.g. hand-knotted"
-                    className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                  />
-                </div>
-              </div>
-
-              <SizesEditor value={editSizes} onChange={setEditSizes} />
-
-              <div className="space-y-1.5">
-                <label className="text-cream-300 text-xs font-medium uppercase tracking-wider">Image URL</label>
-                <input
-                  value={editImage}
-                  onChange={(e) => setEditImage(e.target.value)}
-                  placeholder="https://…"
-                  className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2.5 text-cream-100 focus:outline-none focus:border-gold-600 text-sm transition-colors"
-                />
-              </div>
-
-              {editError && (
-                <div className="flex items-center gap-2 text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg p-2.5">
-                  <AlertTriangle size={13} /> {editError}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setEditOpen(false)}
-                  className="flex-1 bg-dark-800 hover:bg-dark-700 text-dark-300 font-medium py-2.5 rounded-xl text-sm transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editLoading}
-                  className="flex-1 bg-gold-600 hover:bg-gold-500 disabled:bg-dark-700 disabled:text-dark-500 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  {editLoading
-                    ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
-                    : 'Save Changes'
-                  }
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CatalogDrawer
+          editing={rug}
+          materials={materials}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            setRug(updated);
+            setEditOpen(false);
+          }}
+        />
       )}
 
       {/* ── Delete Confirm ── */}
