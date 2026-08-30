@@ -634,7 +634,10 @@ async def get_public_catalog(
                 "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
                 "room_types": r.room_types or [],
                 "mood_tags": r.mood_tags or [],
-                "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0) and r.material.is_available and r.material.stock_meters > 0),
+                # Storefront stock is controlled by the catalog item itself.
+                # Raw material stock is validated later for the customer's exact
+                # size/quantity and must not mark every made-to-order rug sold out.
+                "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0)),
                 "inventory_quantity": r.inventory_quantity,
             })
         result = {"items": items, "total": total, "has_more": offset + limit < total}
@@ -685,7 +688,7 @@ async def get_public_rug(rug_id_or_slug: str):
             "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
             "room_types": r.room_types or [],
             "mood_tags": r.mood_tags or [],
-            "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0) and r.material.is_available and r.material.stock_meters > 0),
+            "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0)),
             "inventory_quantity": r.inventory_quantity,
         }
         cache_set("catalog", result, cache_key)
