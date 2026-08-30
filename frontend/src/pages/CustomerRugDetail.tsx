@@ -653,7 +653,7 @@ export default function CustomerRugDetail() {
 
           {/* Direct-purchase configurator */}
           <div className="lg:col-span-5">
-            <div className="space-y-5 w-full max-w-2xl mx-auto">
+            <div className="space-y-5 w-full max-w-2xl ml-auto">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
