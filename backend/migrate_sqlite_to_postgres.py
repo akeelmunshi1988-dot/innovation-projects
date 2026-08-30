@@ -9,7 +9,7 @@ Usage:
 """
 
 import os
-from sqlalchemy import create_engine, func, insert, select, text
+from sqlalchemy import and_, create_engine, func, insert, select, text, update
 
 from app.core.database import Base
 from app.models import models  # noqa: F401
@@ -40,8 +40,31 @@ def run() -> None:
 
         for table in Base.metadata.sorted_tables:
             rows = [dict(row) for row in source_conn.execute(select(table)).mappings()]
+            # PostgreSQL checks non-deferrable self-FKs row by row. SQLite data
+            # can legitimately point forward within the same table (refresh-token
+            # rotation chains and revised quotes), so insert those columns as NULL
+            # and restore them after every row in the table exists.
+            self_fk_columns = {
+                fk.parent.name
+                for fk in table.foreign_keys
+                if fk.column.table is table
+            }
+            deferred_self_refs = []
+            if self_fk_columns:
+                primary_keys = [column.name for column in table.primary_key.columns]
+                for row in rows:
+                    references = {name: row.get(name) for name in self_fk_columns if row.get(name) is not None}
+                    if references:
+                        deferred_self_refs.append((
+                            {name: row[name] for name in primary_keys}, references,
+                        ))
+                        for name in references:
+                            row[name] = None
             if rows:
                 target_conn.execute(insert(table), rows)
+            for identity, references in deferred_self_refs:
+                predicate = and_(*(table.c[name] == value for name, value in identity.items()))
+                target_conn.execute(update(table).where(predicate).values(**references))
             print(f"  + {table.name}: {len(rows)} row(s)")
 
         # Explicit IDs were imported, so advance every serial/identity sequence.
