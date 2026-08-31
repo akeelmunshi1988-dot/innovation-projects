@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Layers, X, Plus, Minus } from 'lucide-react';
-import type { CatalogSize } from '../types';
+import type { CatalogSize, RugColorOption } from '../types';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -26,6 +26,7 @@ interface CatalogRug {
   mood_tags: string[];
   available: boolean;
   inventory_quantity?: number | null;
+  color_options: RugColorOption[];
 }
 
 const SORT_OPTIONS = [
@@ -56,6 +57,7 @@ export default function CustomerCatalog() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('default');
+  const [colorPreviewByRug, setColorPreviewByRug] = useState<Record<number, string>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { displayPrice } = useCurrency();
 
@@ -316,23 +318,27 @@ export default function CustomerCatalog() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
-              {items.map((rug) => (
+              {items.map((rug) => {
+                const previewImage = colorPreviewByRug[rug.id] || rug.image_url;
+                return (
                 <Link
                   key={rug.id}
                   to={`/catalog/${rug.slug}`}
                   className="group block"
+                  onMouseLeave={() => setColorPreviewByRug((current) => ({ ...current, [rug.id]: '' }))}
                 >
                   {/* Image — hovers to the first gallery/lifestyle shot when one exists */}
                   <div className="relative overflow-hidden bg-stone-100 aspect-[4/5]">
-                    {rug.image_url ? (
+                    {previewImage ? (
                       <>
                         <img
-                          src={rug.image_url}
+                          key={previewImage}
+                          src={previewImage}
                           alt={rug.name}
                           loading="lazy"
-                          className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images.length > 0 ? 'group-hover:opacity-0' : ''}`}
+                          className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images.length > 0 && !colorPreviewByRug[rug.id] ? 'group-hover:opacity-0' : ''}`}
                         />
-                        {rug.images.length > 0 && (
+                        {rug.images.length > 0 && !colorPreviewByRug[rug.id] && (
                           <img
                             src={rug.images[0].image_url}
                             alt=""
@@ -357,6 +363,18 @@ export default function CustomerCatalog() {
                   {/* Info */}
                   <div className="pt-4 space-y-1 text-center">
                     <h3 className="font-serif text-base font-light text-stone-900 leading-snug">{rug.name}</h3>
+                    {rug.color_options.length > 0 && (
+                      <div className="flex items-center justify-center gap-1.5 py-1" aria-label={`${rug.color_options.length} color options`}>
+                        {rug.color_options.slice(0, 6).map((color) => (
+                          <span key={color.name} title={`${color.name}${color.image_url ? ' — preview' : ''}`} tabIndex={color.image_url ? 0 : -1}
+                            onMouseEnter={() => color.image_url && setColorPreviewByRug((current) => ({ ...current, [rug.id]: color.image_url! }))}
+                            onFocus={() => color.image_url && setColorPreviewByRug((current) => ({ ...current, [rug.id]: color.image_url! }))}
+                            className={`w-3.5 h-3.5 rounded-full border border-black/10 ${color.image_url ? 'cursor-pointer ring-offset-1 focus:ring-1 focus:ring-stone-500 outline-none' : ''}`}
+                            style={{ backgroundColor: color.hex }} />
+                        ))}
+                        {rug.color_options.length > 6 && <span className="text-stone-400 text-[10px]">+{rug.color_options.length - 6}</span>}
+                      </div>
+                    )}
                     {rug.display_price != null && (
                       <p className="text-stone-500 text-sm">
                         {displayPrice(rug.display_price)}{rug.default_size && <span className="text-stone-400 text-xs"> · {rug.default_size.ft} ft</span>}
@@ -364,7 +382,7 @@ export default function CustomerCatalog() {
                     )}
                   </div>
                 </Link>
-              ))}
+              );})}
             </div>
           )}
 

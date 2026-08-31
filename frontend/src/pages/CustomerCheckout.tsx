@@ -10,7 +10,6 @@ import SocialLoginButtons from '../components/SocialLoginButtons';
 import { createPaymentOrder, verifyPayment, getPublicSettings, validatePromoCode } from '../services/api';
 import type { CheckoutResponse, PromoValidateResponse } from '../services/api';
 
-import { fmtExact } from '../utils/currency';
 import { fmtDims } from '../utils/size';
 import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
@@ -28,6 +27,7 @@ interface CheckoutItem {
   rush_order: boolean;
   shape?: string;
   notes?: string;
+  selected_color?: string;
   estimated_price: number;
   rush_surcharge?: number;
   pre_gst_price?: number;
@@ -54,7 +54,7 @@ export default function CustomerCheckout() {
   const navigate = useNavigate();
   const state = location.state as CheckoutState | null;
   const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
-  const { displayPrice, displayCurrency, baseCurrency } = useCurrency();
+  const { displayPrice, displayCurrency } = useCurrency();
   const { clearCart } = useCart();
 
   const [form, setForm] = useState({
@@ -145,7 +145,7 @@ export default function CustomerCheckout() {
   const items = state.items;
   const currency = items[0].price_currency || 'INR';
   const fmt = (n: number) => displayPrice(n, currency);
-  const showsConvertedEstimate = displayCurrency !== (currency || baseCurrency);
+  const showsConvertedEstimate = displayCurrency !== currency;
   // GST is zero-rated for export shipments — the country dropdown decides this live,
   // so the displayed total must track it even though `items` was priced at "Buy Now" /
   // "Add to Cart" time (before the destination was known). The actual amount charged is
@@ -207,6 +207,7 @@ export default function CustomerCheckout() {
         items: items.map((i) => ({
           rug_id: i.rug_id, size_w: i.size_w, size_h: i.size_h,
           qty: i.qty, rush_order: i.rush_order, shape: i.shape ?? 'rect', notes: i.notes,
+          selected_color: i.selected_color,
         })),
         name, email,
         phone: form.phone || undefined,
@@ -214,6 +215,7 @@ export default function CustomerCheckout() {
         shipping_address,
         country: form.country,
         promo_code: promoApplied?.code ?? null,
+        payment_currency: displayCurrency,
       };
 
       const paymentOrder = await createPaymentOrder(orderPayload, customerToken);
@@ -341,7 +343,7 @@ export default function CustomerCheckout() {
                       <div>
                         <p className="font-serif text-lg font-light text-stone-900">{item.rug_name}</p>
                         <p className="text-stone-400 text-sm mt-0.5">
-                          {itemSizeLabel(item)} · {item.qty} piece{item.qty !== 1 ? 's' : ''}{item.rush_order ? ' · Rush' : ''}
+                          {itemSizeLabel(item)}{item.selected_color ? ` · ${item.selected_color}` : ''} · {item.qty} piece{item.qty !== 1 ? 's' : ''}{item.rush_order ? ' · Rush' : ''}
                         </p>
                         {item.notes && <p className="text-stone-400 text-xs mt-0.5">{item.notes}</p>}
                       </div>
@@ -436,12 +438,12 @@ export default function CustomerCheckout() {
 
                 {showsConvertedEstimate && (
                   <p className="text-stone-400 text-xs">
-                    Converted estimate — you'll be charged {fmtExact(payableTotal, currency)} ({currency}) via UPI/Bank Transfer.
+                    Converted estimate — Razorpay will charge you in {displayCurrency}, the currency selected on this website.
                   </p>
                 )}
 
                 <p className="text-stone-400 text-xs leading-relaxed">
-                  Final price confirmed after production review. Payment via UPI/Bank Transfer.
+                  The final amount and currency are confirmed in the secure Razorpay checkout.
                 </p>
               </div>
             </div>

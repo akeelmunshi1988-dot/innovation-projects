@@ -30,6 +30,9 @@ from app.services import ai_realism
 from app.services import geo_ip
 from app.services.invoice_generator import generate_invoice_pdf
 from app.services.size_format import fmt_dims as _fmt_dims, email_dims_display
+from app.services.payment_currency import (
+    convert_amount, conversion_rate, normalized_payment_currency, to_smallest_unit,
+)
 from app.schemas.schemas import QuoteCustomerRespondRequest
 from app.core.logging_config import logger
 from app.api.routes.orders import _cancel_order_and_refund, _cancellation_eligibility_payload
@@ -647,6 +650,7 @@ async def get_public_catalog(
                 "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
                 "room_types": r.room_types or [],
                 "mood_tags": r.mood_tags or [],
+                "color_options": r.color_options or [],
                 # Storefront stock is controlled by the catalog item itself.
                 # Raw material stock is validated later for the customer's exact
                 # size/quantity and must not mark every made-to-order rug sold out.
@@ -701,6 +705,7 @@ async def get_public_rug(rug_id_or_slug: str):
             "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
             "room_types": r.room_types or [],
             "mood_tags": r.mood_tags or [],
+            "color_options": r.color_options or [],
             "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0)),
             "inventory_quantity": r.inventory_quantity,
         }
@@ -861,6 +866,7 @@ class QuoteRequestBody(BaseModel):
     budget_range: Optional[str] = Field(None, max_length=100)
     expected_delivery: Optional[str] = Field(None, max_length=50)
     reference_image_urls: Optional[list[str]] = Field(None, max_length=3)
+    selected_color: Optional[str] = Field(None, max_length=100)
 
 
 @router.post("/customer/request-quote")
@@ -872,6 +878,13 @@ async def request_quote(body: QuoteRequestBody, request: Request):
         rug = db.query(RugCatalog).filter(RugCatalog.id == body.rug_id, RugCatalog.tenant_id == tid).first()
         if not rug:
             raise HTTPException(status_code=404, detail="Rug not found")
+        available_colors = {
+            str(option.get("name")).strip()
+            for option in (rug.color_options or [])
+            if isinstance(option, dict) and option.get("name")
+        }
+        if available_colors and body.selected_color not in available_colors:
+            raise HTTPException(status_code=400, detail=f'Select an available color for "{rug.name}"')
 
         # Prefer authenticated customer so quotes appear in My Quotes
         customer = None
@@ -913,6 +926,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             Quote.custom_size_h == body.size_h,
             Quote.qty == body.qty,
             Quote.rush_order == body.rush_order,
+            Quote.selected_color == body.selected_color,
             Quote.status.in_(["draft", "sent"]),
         ).first()
 
@@ -958,6 +972,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
             rush_order=body.rush_order,
             status="draft",
             notes=body.notes,
+            selected_color=body.selected_color,
             room_type=body.room_type,
             material_preference=body.material_preference,
             budget_range=body.budget_range,
@@ -1129,6 +1144,7 @@ class CartItemBody(BaseModel):
     rush_order: bool = False
     shape: str = "rect"
     notes: Optional[str] = Field(None, max_length=2000)
+    selected_color: Optional[str] = Field(None, max_length=100)
 
 
 class OrderDetailsBase(BaseModel):
@@ -1140,6 +1156,7 @@ class OrderDetailsBase(BaseModel):
     shipping_address: str = Field(..., min_length=5, max_length=1000)
     country: str = Field("India", max_length=100)
     promo_code: Optional[str] = Field(None, max_length=50)
+    payment_currency: Optional[str] = Field(None, min_length=3, max_length=3)
 
 
 def _is_export_country(country: Optional[str]) -> bool:
@@ -1211,6 +1228,13 @@ def _price_cart_items(db: Session, tenant_id: Optional[int], items: List["CartIt
             raise HTTPException(status_code=404, detail=f"Rug {item.rug_id} not found")
         if not rug.is_available:
             raise HTTPException(status_code=409, detail=f'"{rug.name}" is currently out of stock')
+        available_colors = {
+            str(option.get("name")).strip()
+            for option in (rug.color_options or [])
+            if isinstance(option, dict) and option.get("name")
+        }
+        if available_colors and item.selected_color not in available_colors:
+            raise HTTPException(status_code=400, detail=f'Select an available color for "{rug.name}"')
         if rug.inventory_quantity is not None and rug.inventory_quantity < item.qty:
             raise HTTPException(status_code=409, detail=f'Only {rug.inventory_quantity} unit(s) of "{rug.name}" are available')
         material = db.query(Material).filter(Material.id == rug.material_id).first()
@@ -1232,6 +1256,31 @@ def _price_cart_items(db: Session, tenant_id: Optional[int], items: List["CartIt
             raise HTTPException(status_code=400, detail=f"\"{rug.name}\": {calc['error']}")
         priced.append({"item": item, "rug": rug, "material": material, "shape": shape, "calc": calc, "total_sqm": total_sqm})
     return priced
+
+
+_CALC_MONEY_FIELDS = (
+    "catalog_price_per_piece", "base_price_per_sqm", "material_cost_per_sqm",
+    "subtotal", "bulk_discount", "manual_discount", "rush_surcharge",
+    "size_surcharge", "shipping_cost", "pre_gst_price", "gst_amount",
+    "final_price", "price_per_piece",
+)
+
+
+def _convert_priced_items(priced: List[dict], tenant: Optional[Tenant], target_currency: str) -> float:
+    """Convert authoritative calculations before freezing the payment snapshot."""
+    base_currency = (tenant.base_currency if tenant else None) or "INR"
+    rate = conversion_rate(base_currency, target_currency, base_currency, tenant.exchange_rates if tenant else {})
+    for entry in priced:
+        calc = entry["calc"]
+        if rate != 1:
+            for field in _CALC_MONEY_FIELDS:
+                if calc.get(field) is not None:
+                    calc[field] = convert_amount(float(calc[field]), rate)
+            for line in calc.get("breakdown") or []:
+                if isinstance(line, dict) and line.get("amount") is not None:
+                    line["amount"] = convert_amount(float(line["amount"]), rate)
+        calc["price_currency"] = target_currency
+    return rate
 
 
 def _create_order_from_items(
@@ -1285,6 +1334,7 @@ def _create_order_from_items(
             price_currency=calc.get("price_currency") or (tenant.base_currency if tenant else "INR"),
             margin_pct=calc.get("profit_margin_pct"), gst_pct=calc.get("gst_pct"),
             rush_order=item.rush_order, status="accepted", notes=item.notes,
+            selected_color=item.selected_color,
             expected_delivery_days=int(calc.get("estimated_days") or rug.lead_time_days or 21),
         )
         db.add(quote)
@@ -1398,23 +1448,45 @@ async def create_payment_order(body: OrderDetailsBase, request: Request):
         shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
         priced = _price_cart_items(db, tenant_id, body.items, is_export=_is_export_country(body.country))
 
-        currency = priced[0]["calc"].get("price_currency") or "INR"
-        total_final_price = sum(p["calc"]["final_price"] for p in priced)
+        base_currency = (tenant.base_currency if tenant else None) or "INR"
+        try:
+            currency = normalized_payment_currency(body.payment_currency, base_currency)
+            payment_rate = conversion_rate(
+                base_currency, currency, base_currency,
+                tenant.exchange_rates if tenant else {},
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        total_base_price = sum(p["calc"]["final_price"] for p in priced)
 
         existing_customer = db.query(Customer).filter(Customer.email == body.email, Customer.tenant_id == tenant_id).first()
         promo, discount_amount = _apply_promo(
-            db, tenant_id, body.promo_code, total_final_price, existing_customer.id if existing_customer else None, shipping_cost,
+            db, tenant_id, body.promo_code, total_base_price, existing_customer.id if existing_customer else None, shipping_cost,
         )
+        _convert_priced_items(priced, tenant, currency)
+        total_final_price = sum(p["calc"]["final_price"] for p in priced)
+        shipping_cost = convert_amount(shipping_cost, payment_rate)
+        discount_amount = convert_amount(discount_amount, payment_rate)
         payable = max(0.0, total_final_price + shipping_cost - discount_amount)
-        amount_smallest = int(round(payable * 100))  # paise for INR
+        amount_smallest = to_smallest_unit(payable, currency)
 
         client = _rzp.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-        rzp_order = client.order.create({
-            "amount": amount_smallest,
-            "currency": currency,
-            "receipt": f"rcpt_{uuid.uuid4().hex[:16]}",
-            "payment_capture": 1,
-        })
+        try:
+            rzp_order = client.order.create({
+                "amount": amount_smallest,
+                "currency": currency,
+                "receipt": f"rcpt_{uuid.uuid4().hex[:16]}",
+                "payment_capture": 1,
+            })
+        except Exception as exc:
+            logger.warning("Razorpay order creation failed for currency=%s: %s", currency, exc)
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Razorpay could not start a {currency} payment. Confirm that "
+                    "International Payments and this currency are enabled on the Razorpay account."
+                ),
+            )
 
         # Snapshot checkout intent *before* the customer pays — see PaymentAttempt's
         # docstring. If /verify-payment never runs after Razorpay captures the

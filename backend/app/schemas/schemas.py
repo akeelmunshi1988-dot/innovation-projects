@@ -54,6 +54,12 @@ class RugSize(BaseModel):
     lead_time_days: Optional[int] = Field(None, ge=1, description="Expected delivery time for this size; falls back to the catalog default")
 
 
+class RugColorOption(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    hex: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
+    image_url: Optional[str] = Field(None, max_length=500)
+
+
 class RugCatalogBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -70,6 +76,7 @@ class RugCatalogBase(BaseModel):
     hsn_code: Optional[str] = "5703"
     room_types: Optional[List[str]] = None
     mood_tags: Optional[List[str]] = None
+    color_options: Optional[List[RugColorOption]] = None
     is_available: bool = True
 
 
@@ -93,6 +100,7 @@ class RugCatalogUpdate(BaseModel):
     hsn_code: Optional[str] = None
     room_types: Optional[List[str]] = None
     mood_tags: Optional[List[str]] = None
+    color_options: Optional[List[RugColorOption]] = None
     is_available: Optional[bool] = None
 
 
@@ -245,6 +253,7 @@ class QuoteBase(BaseModel):
     expected_delivery_days: Optional[int] = None
     status: str = "draft"
     notes: Optional[str] = None
+    selected_color: Optional[str] = None
     vendor_notes: Optional[str] = None
     customer_response_notes: Optional[str] = None
     is_custom_request: bool = False
@@ -276,6 +285,7 @@ class QuoteUpdate(BaseModel):
     expected_delivery_days: Optional[int] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    selected_color: Optional[str] = None
     vendor_notes: Optional[str] = None
     customer_response_notes: Optional[str] = None
 

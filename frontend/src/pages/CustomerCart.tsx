@@ -125,6 +125,7 @@ export default function CustomerCart() {
         rug_id: item.rug_id, rug_name: item.rug_name, image_url: item.image_url,
         size_w: item.size_w, size_h: item.size_h, qty: item.qty, rush_order: item.rush_order,
         shape: item.shape, notes: item.notes,
+        selected_color: item.selected_color,
         estimated_price: est.final_price, pre_gst_price: est.pre_gst_price,
         rush_surcharge: est.rush_surcharge,
         gst_pct: est.gst_pct, gst_amount: est.gst_amount, gst_inclusive: est.gst_inclusive,
@@ -192,7 +193,7 @@ export default function CustomerCart() {
                         </button>
                       </div>
                       <p className="text-stone-400 text-xs">
-                        {sizeLabel}{item.rush_order ? ' · Rush' : ''}
+                        {sizeLabel}{item.selected_color ? ` · ${item.selected_color}` : ''}{item.rush_order ? ' · Rush' : ''}
                       </p>
 
                       <div className="flex items-center justify-between pt-1">

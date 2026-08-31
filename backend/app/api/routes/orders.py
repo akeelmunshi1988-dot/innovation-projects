@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.models.models import Order, OrderItem, OrderStatusHistory, Quote, StaffUser, Customer, RugCatalog, Tenant
 from app.schemas.schemas import OrderCreate, OrderUpdate, OrderCombineRequest, Order as OrderSchema
 from app.services.quote_engine import QuoteEngine, build_manual_price_result
+from app.services.payment_currency import to_smallest_unit
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +274,7 @@ def _cancellation_eligibility_payload(order: Order, tenant: Optional[Tenant] = N
         "refund_pct": terms["refund_pct"],
         "has_payment": bool(order.razorpay_payment_id),
         "refund_amount": round(paid * terms["refund_pct"], 2),
-        "price_currency": (order.quote.price_currency if order.quote else None) or (tenant.base_currency if tenant else "INR"),
+        "price_currency": order.price_currency or (order.quote.price_currency if order.quote else None) or (tenant.base_currency if tenant else "INR"),
         "reason": terms["reason"],
     }
 
@@ -297,8 +298,9 @@ def _cancel_order_and_refund(db: Session, order: Order) -> Order:
             import razorpay
             client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
             try:
+                refund_currency = order.price_currency or (order.quote.price_currency if order.quote else None) or "INR"
                 refund = client.payment.refund(order.razorpay_payment_id, {
-                    "amount": int(round(amount * 100)),
+                    "amount": to_smallest_unit(amount, refund_currency),
                     "speed": "optimum",
                     "notes": {
                         "order_id": str(order.id),

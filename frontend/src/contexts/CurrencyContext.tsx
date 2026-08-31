@@ -8,7 +8,7 @@ interface CurrencyContextValue {
   displayCurrency: string;
   setDisplayCurrency: (code: string) => void;
   availableCurrencies: typeof CURRENCIES;
-  /** The tenant's real transactional currency — payments are always processed in this currency, regardless of displayCurrency. */
+  /** Tenant base currency used as the source for server-authoritative conversion. */
   baseCurrency: string;
   /** Convert + format a stored amount for display, given the currency it was stored in (defaults to tenant base currency). */
   displayPrice: (amount: number, itemCurrency?: string | null) => string;

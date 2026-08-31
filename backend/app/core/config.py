@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
     SQLITE_SOURCE_URL: Optional[str] = None  # one-time legacy import source; unused by the running application
     APP_NAME: str = "DreamRugsCreation"
-    DEBUG: bool = False
 
     JWT_SECRET: str = "loomcraft-dev-secret-change-in-production"
     JWT_ALGORITHM: str = "HS256"

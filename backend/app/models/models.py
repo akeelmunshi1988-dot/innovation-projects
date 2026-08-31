@@ -120,6 +120,7 @@ class RugCatalog(Base):
     hsn_code = Column(String(10), nullable=True, default="5703")  # HSN 5701-5705 for rugs
     room_types = Column(JSON, nullable=True)  # list[str] — "Shop by Space" tags, e.g. ["living_room", "bedroom"]
     mood_tags = Column(JSON, nullable=True)  # list[str] — "Shop by Mood" tags, e.g. ["warm_earthy", "quiet_luxury"]
+    color_options = Column(JSON, nullable=True)  # list[{"name": str, "hex": "#RRGGBB"}] — customer-selectable rug colorways
     is_available = Column(Boolean, nullable=False, default=True)  # vendor-controlled storefront sellability
     inventory_quantity = Column(Integer, nullable=True)  # finished rug units; NULL preserves legacy/untracked catalogs
 
@@ -230,6 +231,7 @@ class Quote(Base):
     expected_delivery_days = Column(Integer, nullable=True)  # vendor-editable override of the engine's estimated_days
     status = Column(String(50), default="draft")
     notes = Column(Text, nullable=True)
+    selected_color = Column(String(100), nullable=True)  # selected catalog colorway snapshot
     vendor_notes = Column(Text, nullable=True)            # message from vendor when sending/adjusting
     customer_response_notes = Column(Text, nullable=True) # customer reason when accepting/rejecting
     review_request_count = Column(Integer, default=0)     # how many times customer has requested re-review

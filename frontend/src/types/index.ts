@@ -98,6 +98,12 @@ export interface CatalogSize {
   lead_time_days?: number | null;
 }
 
+export interface RugColorOption {
+  name: string;
+  hex: string;
+  image_url?: string | null;
+}
+
 export interface RugCatalog {
   id: number;
   slug: string | null;
@@ -116,6 +122,7 @@ export interface RugCatalog {
   hsn_code: string | null;
   room_types: string[] | null;
   mood_tags: string[] | null;
+  color_options: RugColorOption[] | null;
   is_available: boolean;
   inventory_quantity: number | null;
   material?: Material;

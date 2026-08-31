@@ -19,7 +19,7 @@ import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
-import type { CatalogSize } from '../types';
+import type { CatalogSize, RugColorOption } from '../types';
 
 const QUOTE_ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
 const QUOTE_MATERIALS = [
@@ -53,6 +53,7 @@ interface RugDetail {
   available: boolean;
   inventory_quantity?: number | null;
   room_types: string[];
+  color_options: RugColorOption[];
 }
 
 interface PriceResult {
@@ -107,6 +108,7 @@ export default function CustomerRugDetail() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [sizeUnit, setSizeUnit] = useState('ft');
   const [activeSlide, setActiveSlide] = useState(0);
+  const [selectedColor, setSelectedColor] = useState('');
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
 
   const [form, setForm] = useState<QuoteForm>({
@@ -147,6 +149,7 @@ export default function CustomerRugDetail() {
     axios.get(`/api/customer/catalog/${slug}`)
       .then(({ data }) => {
         setRug(data);
+        setSelectedColor(data.color_options?.[0]?.name ?? '');
         if (data.slug && data.slug !== slug) {
           navigate(`/catalog/${data.slug}`, { replace: true });
         }
@@ -314,6 +317,7 @@ export default function CustomerRugDetail() {
         budget_range: quoteDetails.budget_range || null,
         expected_delivery: quoteDetails.expected_delivery || null,
         reference_image_urls: quoteDetails.reference_image_urls.length ? quoteDetails.reference_image_urls : null,
+        selected_color: selectedColor || null,
       }, { headers: customerToken ? { Authorization: `Bearer ${customerToken}` } : {} });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
       setSubmitted(true);
@@ -401,6 +405,8 @@ export default function CustomerRugDetail() {
 
   const currency = rug?.base_price_currency ?? priceResult?.price_currency ?? 'INR';
   const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
+  const selectedColorOption = rug.color_options.find((color) => color.name === selectedColor);
+  const coverImage = selectedColorOption?.image_url || rug.image_url;
   const scrollToConfigurator = () => {
     document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -413,14 +419,14 @@ export default function CustomerRugDetail() {
           rug.description ??
           `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size.`
         }
-        image={rug.image_url ?? undefined}
+        image={coverImage ?? undefined}
         jsonLd={[
           {
             '@context': 'https://schema.org',
             '@type': 'Product',
             name: rug.name,
             description: rug.description ?? undefined,
-            image: rug.image_url ?? undefined,
+            image: coverImage ?? undefined,
             material: rug.material,
             ...(rug.display_price != null ? {
               offers: {
@@ -495,14 +501,14 @@ export default function CustomerRugDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:items-stretch mb-10">
           {/* Cover shot — fixed, no slider */}
           <div className="lg:col-span-2 overflow-hidden bg-stone-100 aspect-[4/5] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
-            {rug.image_url ? (
+            {coverImage ? (
               <button
                 type="button"
-                onClick={() => setExpandedImage({ src: rug.image_url!, alt: rug.name })}
+                onClick={() => setExpandedImage({ src: coverImage, alt: `${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}` })}
                 aria-label={`Expand ${rug.name} image`}
                 className="block w-full h-full cursor-zoom-in"
               >
-                <img src={rug.image_url} alt={rug.name} className="w-full h-full object-cover" fetchPriority="high" />
+                <img key={coverImage} src={coverImage} alt={`${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}`} className="w-full h-full object-cover" fetchPriority="high" />
               </button>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -513,7 +519,7 @@ export default function CustomerRugDetail() {
 
           {/* Lifestyle photo — first gallery image; falls back to the cover shot if none uploaded yet */}
           {(() => {
-            const lifestyleImages = rug.images.length > 0 ? rug.images.map((img) => img.image_url) : (rug.image_url ? [rug.image_url] : []);
+            const lifestyleImages = rug.images.length > 0 ? rug.images.map((img) => img.image_url) : (coverImage ? [coverImage] : []);
             if (lifestyleImages.length === 0) {
               return (
                 <div className="lg:col-span-3 overflow-hidden bg-stone-100 aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
@@ -687,6 +693,29 @@ export default function CustomerRugDetail() {
 
                   <form onSubmit={(event) => event.preventDefault()} className="p-4 sm:p-5">
                     <div className="space-y-4">
+                    {rug.color_options.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Color</p>
+                        <div className="flex flex-wrap gap-2">
+                          {rug.color_options.map((color) => {
+                            const isSelected = selectedColor === color.name;
+                            return (
+                              <button
+                                key={color.name}
+                                type="button"
+                                onClick={() => { setSelectedColor(color.name); setActiveSlide(0); }}
+                                className={`flex items-center gap-2 border px-3 py-2 text-xs transition-colors ${isSelected ? 'border-stone-900 text-stone-900' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}
+                                aria-pressed={isSelected}
+                              >
+                                <span className="w-4 h-4 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
+                                {color.name}
+                                {isSelected && <CheckCircle size={12} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {/* Standard Sizes — only sizes with a value in the current unit are
                         offered; a size missing a vendor-entered cm value simply isn't
                         shown when browsing in cm, rather than falling back to a computed
@@ -836,10 +865,11 @@ export default function CustomerRugDetail() {
                                 onClick={() => {
                                   if (!priceResult.material_available) return;
                                   addItem({
-                                    rug_id: rug.id, rug_name: rug.name, image_url: rug.image_url,
+                                    rug_id: rug.id, rug_name: rug.name, image_url: coverImage,
                                     size_w: sizeWMetres, size_h: sizeHMetres, shape: form.shape,
                                     qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
                                     notes: form.notes || undefined,
+                                    selected_color: selectedColor || undefined,
                                   });
                                   setAddedToCart(true);
                                   setTimeout(() => setAddedToCart(false), 2500);
@@ -853,11 +883,12 @@ export default function CustomerRugDetail() {
                                 onClick={() => navigate('/checkout', {
                                   state: {
                                     items: [{
-                                      rug_id: rug.id, rug_name: rug.name, image_url: rug.image_url,
+                                      rug_id: rug.id, rug_name: rug.name, image_url: coverImage,
                                       size_w: sizeWMetres, size_h: sizeHMetres,
                                       qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
                                       shape: form.shape,
                                       notes: form.notes || undefined,
+                                      selected_color: selectedColor || undefined,
                                       estimated_price: priceResult.final_price,
                                       rush_surcharge: priceResult.rush_surcharge,
                                       pre_gst_price: priceResult.pre_gst_price,
@@ -938,7 +969,7 @@ export default function CustomerRugDetail() {
 
             <div className="p-5 space-y-5">
               <div className="flex gap-3 bg-stone-50 border border-stone-100 p-3">
-                {rug.image_url && <img src={rug.image_url} alt="" className="w-16 h-20 object-contain bg-white" />}
+                {coverImage && <img src={coverImage} alt="" className="w-16 h-20 object-contain bg-white" />}
                 <div className="min-w-0">
                   <p className="text-stone-900 text-sm font-medium">{rug.name}</p>
                   <p className="text-stone-500 text-xs mt-1">{rug.material}{rug.weave_type ? ` · ${rug.weave_type}` : ''}</p>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Search, Clock, Layers, RefreshCw, Plus, Pencil, Trash2, X, AlertTriangle, Check, Upload, Link2, Image as ImageIcon, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
 import axios from 'axios';
 import { getCatalog, createRug, updateRug, deleteRug, getInventory, addRugImage, updateRugImageOrder, deleteRugImage } from '../services/api';
-import type { RugCatalog, Material, RugImage, CatalogSize } from '../types';
+import type { RugCatalog, Material, RugImage, CatalogSize, RugColorOption } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
 import CornerCropModal from '../components/CornerCropModal';
@@ -46,12 +46,13 @@ type FormData = {
   mood_tags: string[];
   is_available: boolean;
   inventory_quantity: string;
+  color_options: RugColorOption[];
 };
 
 const BLANK: FormData = {
   name: '', description: '', about_content_html: '', material_id: '',
   pile_height: 'medium', weave_type: 'hand-knotted',
-  lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [], is_available: true, inventory_quantity: '',
+  lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [], is_available: true, inventory_quantity: '', color_options: [],
 };
 
 function rugToForm(r: RugCatalog): FormData {
@@ -75,6 +76,7 @@ function rugToForm(r: RugCatalog): FormData {
     mood_tags: r.mood_tags ?? [],
     is_available: r.is_available !== false,
     inventory_quantity: r.inventory_quantity == null ? '' : String(r.inventory_quantity),
+    color_options: r.color_options ?? [],
   };
 }
 
@@ -104,6 +106,28 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [galleryError, setGalleryError] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [colorUploadingIndex, setColorUploadingIndex] = useState<number | null>(null);
+
+  const handleColorImageUpload = async (index: number, file?: File) => {
+    if (!file) return;
+    setColorUploadingIndex(index);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await axios.post<{ url: string }>('/api/catalog/upload-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setForm((current) => ({
+        ...current,
+        color_options: current.color_options.map((item, i) => i === index ? { ...item, image_url: data.url } : item),
+      }));
+    } catch (err: any) {
+      setError(err.response?.data?.detail ?? 'Color image upload failed.');
+    } finally {
+      setColorUploadingIndex(null);
+    }
+  };
 
   const handleGalleryImageUpload = async (files: File[]) => {
     if (!editing || files.length === 0) return;
@@ -213,6 +237,19 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
       setSaving(false);
       return;
     }
+    const validColors = form.color_options
+      .map((color) => ({ name: color.name.trim(), hex: color.hex.toUpperCase(), image_url: color.image_url?.trim() || null }))
+      .filter((color) => color.name);
+    if (validColors.some((color) => !/^#[0-9A-F]{6}$/.test(color.hex))) {
+      setError('Every color option must have a valid six-digit hex color.');
+      setSaving(false);
+      return;
+    }
+    if (new Set(validColors.map((color) => color.name.toLowerCase())).size !== validColors.length) {
+      setError('Color option names must be unique.');
+      setSaving(false);
+      return;
+    }
     const payload = {
       name:                form.name.trim(),
       description:         form.description.trim() || null,
@@ -237,6 +274,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
       mood_tags:           form.mood_tags,
       is_available:        form.is_available,
       inventory_quantity:  form.inventory_quantity.trim() === '' ? null : Number(form.inventory_quantity),
+      color_options:        validColors,
     };
     try {
       const saved = editing
@@ -470,6 +508,75 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
 
           {/* Sizes */}
           <SizesEditor value={form.sizes} onChange={(sizes) => setForm((f) => ({ ...f, sizes }))} />
+
+          {/* Customer-selectable colorways */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Color Options</label>
+                <p className="text-dark-500 text-xs mt-0.5">Customers choose one colorway before adding this rug to cart.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm((current) => ({ ...current, color_options: [...current.color_options, { name: '', hex: '#8B5E3C', image_url: null }] }))}
+                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-dark-600 text-dark-300 hover:text-cream-200 hover:border-gold-600/50"
+              >
+                <Plus size={12} /> Add Color
+              </button>
+            </div>
+            {form.color_options.length === 0 ? (
+              <div className="border border-dashed border-dark-700 rounded-lg px-3 py-4 text-center text-dark-500 text-xs">No color options added yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {form.color_options.map((color, index) => (
+                  <div key={index} className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-lg border border-dark-700 p-2">
+                    <input
+                      type="color"
+                      value={/^#[0-9A-Fa-f]{6}$/.test(color.hex) ? color.hex : '#8B5E3C'}
+                      onChange={(e) => setForm((current) => ({ ...current, color_options: current.color_options.map((item, i) => i === index ? { ...item, hex: e.target.value.toUpperCase() } : item) }))}
+                      className="w-10 h-10 bg-dark-800 border border-dark-700 rounded-lg p-1 cursor-pointer"
+                      aria-label={`Swatch for color ${index + 1}`}
+                    />
+                    <input
+                      value={color.name}
+                      onChange={(e) => setForm((current) => ({ ...current, color_options: current.color_options.map((item, i) => i === index ? { ...item, name: e.target.value } : item) }))}
+                      placeholder="e.g. Rosewood"
+                      className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, color_options: current.color_options.filter((_, i) => i !== index) }))}
+                      className="p-2 text-dark-500 hover:text-red-400"
+                      aria-label={`Remove ${color.name || `color ${index + 1}`}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                    <input
+                      value={color.hex}
+                      onChange={(e) => setForm((current) => ({ ...current, color_options: current.color_options.map((item, i) => i === index ? { ...item, hex: e.target.value } : item) }))}
+                      placeholder="#8B5E3C"
+                      maxLength={7}
+                      className="w-24 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm font-mono focus:outline-none focus:border-gold-600/60"
+                    />
+                    <div className="col-span-2 flex items-center gap-2 min-w-0">
+                      {color.image_url && <img src={color.image_url} alt="" className="h-10 w-10 rounded object-cover bg-dark-800" />}
+                      <input
+                        value={color.image_url ?? ''}
+                        onChange={(e) => setForm((current) => ({ ...current, color_options: current.color_options.map((item, i) => i === index ? { ...item, image_url: e.target.value } : item) }))}
+                        placeholder="Color image URL"
+                        className="min-w-0 flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-xs placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+                      />
+                      <label className="cursor-pointer px-2.5 py-2 rounded-lg border border-dark-600 text-dark-300 hover:text-cream-200 text-xs whitespace-nowrap">
+                        {colorUploadingIndex === index ? 'Uploading…' : 'Upload Image'}
+                        <input type="file" accept="image/*" className="hidden" disabled={colorUploadingIndex !== null} onChange={(e) => handleColorImageUpload(index, e.target.files?.[0])} />
+                      </label>
+                      {color.image_url && <button type="button" onClick={() => setForm((current) => ({ ...current, color_options: current.color_options.map((item, i) => i === index ? { ...item, image_url: null } : item) }))} className="text-dark-500 hover:text-red-400 text-xs">Clear</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Shop by Space / Shop by Mood tags */}
           <div className="space-y-1.5">

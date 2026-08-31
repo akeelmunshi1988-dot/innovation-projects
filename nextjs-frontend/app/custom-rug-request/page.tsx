@@ -1,0 +1,3 @@
+import type { Metadata } from 'next';import { CustomRugForm } from '@/components/CustomRugForm';
+export const metadata:Metadata={title:'Request a Custom Rug',description:'Request a handcrafted rug made to your dimensions, material and design preferences.',alternates:{canonical:'/custom-rug-request'}};
+export default function Page(){return <div className="simple-page"><div className="eyebrow">Made for you</div><h1 className="section-title">Request a Custom Rug</h1><p className="muted" style={{marginBottom:40}}>Share your desired size and specifications. Our team will review them and prepare a personal quote.</p><CustomRugForm/></div>}

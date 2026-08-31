@@ -779,6 +779,7 @@ export interface CheckoutPayload {
   shipping_address: string;
   country: string;
   promo_code?: string | null;
+  payment_currency?: string;
 }
 
 export interface CheckoutResponseItem {

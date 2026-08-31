@@ -1,0 +1,1 @@
+import Link from 'next/link';export default function NotFound(){return <div className="simple-page" style={{textAlign:'center'}}><div className="eyebrow">404</div><h1 className="section-title">This page could not be found.</h1><Link className="button" href="/catalog">View collection</Link></div>}

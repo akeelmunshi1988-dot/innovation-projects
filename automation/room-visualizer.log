@@ -1402,3 +1402,1516 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-08-29 23:01:16,795 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
 2026-08-29 23:01:19,015 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/029/02-bedroom.png
 2026-08-29 23:01:19,019 INFO Generating dining-room for 029.jpg using filename details: 029
+2026-08-30 17:59:05,724 INFO Watching /Users/user/Downloads/GoogleDriveHarisPhotos
+2026-08-30 17:59:06,094 INFO Processing Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg
+2026-08-30 17:59:06,096 INFO Generating collection-main for Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg using filename details: Handknotted Indo Tibetan Material Wool Silk Mix
+2026-08-30 18:01:03,537 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:01:04,568 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix/00-collection-main-transparent.png
+2026-08-30 18:01:04,569 INFO Generating living-room for Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg using filename details: Handknotted Indo Tibetan Material Wool Silk Mix
+2026-08-30 18:02:47,609 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:02:49,735 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix/01-living-room.png
+2026-08-30 18:02:49,742 INFO Generating bedroom for Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg using filename details: Handknotted Indo Tibetan Material Wool Silk Mix
+2026-08-30 18:04:25,001 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:04:26,208 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix/02-bedroom.png
+2026-08-30 18:04:26,214 INFO Generating dining-room for Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg using filename details: Handknotted Indo Tibetan Material Wool Silk Mix
+2026-08-30 18:05:58,714 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:06:00,645 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix/03-dining-room.png
+2026-08-30 18:06:00,653 INFO Generating study for Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg using filename details: Handknotted Indo Tibetan Material Wool Silk Mix
+2026-08-30 18:07:32,186 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:07:34,297 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix/04-study.png
+2026-08-30 18:07:34,305 INFO Generating entryway for Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix.jpeg using filename details: Handknotted Indo Tibetan Material Wool Silk Mix
+2026-08-30 18:09:04,104 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:09:06,056 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handknotted-Indo-Tibetan-Material-Wool-Silk-Mix/05-entryway.png
+2026-08-30 18:09:17,526 INFO HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-08-30 18:10:40,508 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 18:10:40,554 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog "HTTP/1.1 200 OK"
+2026-08-30 18:10:40,557 INFO Created catalog rug Hand-Knotted Indo-Tibetan Wool-Silk Pink Rug with id 9
+2026-08-30 18:10:41,044 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 18:10:41,072 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/9/images "HTTP/1.1 200 OK"
+2026-08-30 18:10:41,073 INFO Added gallery image 01-living-room.png to catalog id 9
+2026-08-30 18:10:41,490 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 18:10:41,517 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/9/images "HTTP/1.1 200 OK"
+2026-08-30 18:10:41,521 INFO Added gallery image 02-bedroom.png to catalog id 9
+2026-08-30 18:10:42,013 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 18:10:42,039 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/9/images "HTTP/1.1 200 OK"
+2026-08-30 18:10:42,124 INFO Added gallery image 03-dining-room.png to catalog id 9
+2026-08-30 18:10:42,563 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 18:10:42,587 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/9/images "HTTP/1.1 200 OK"
+2026-08-30 18:10:42,590 INFO Added gallery image 04-study.png to catalog id 9
+2026-08-30 18:10:43,319 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 18:10:43,342 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/9/images "HTTP/1.1 200 OK"
+2026-08-30 18:10:43,344 INFO Added gallery image 05-entryway.png to catalog id 9
+2026-08-30 18:24:22,908 INFO Watching /Users/user/Downloads/GoogleDriveHarisPhotos
+2026-08-30 18:24:23,339 INFO Processing WhatsApp Image 2026-08-29 at 17.32.29.jpeg
+2026-08-30 18:24:23,340 INFO Generating collection-main for WhatsApp Image 2026-08-29 at 17.32.29.jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29
+2026-08-30 18:26:24,862 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 18:26:26,970 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29/00-collection-main-transparent.png
+2026-08-30 18:26:26,972 INFO Generating living-room for WhatsApp Image 2026-08-29 at 17.32.29.jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29
+2026-08-30 18:30:29,173 INFO Watching /Users/user/Downloads/GoogleDriveHarisPhotos
+2026-08-30 18:30:29,548 INFO Processing WhatsApp Image 2026-08-29 at 17.32.29.jpeg
+2026-08-30 18:30:29,548 INFO Generating collection-main for WhatsApp Image 2026-08-29 at 17.32.29.jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29
+2026-08-30 20:07:03,396 INFO Retrying request to /images/edits in 0.470075 seconds
+2026-08-30 20:09:07,066 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:09:11,564 ERROR Failed to process WhatsApp Image 2026-08-29 at 17.32.29.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 546, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 495, in process_image
+    output.write_bytes(base64.b64decode(response.data[0].b64_json))
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py", line 641, in write_bytes
+    with self.open(mode='wb') as f:
+         ~~~~~~~~~^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29/00-collection-main-transparent.png'
+2026-08-30 20:09:21,912 INFO Processing WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg
+2026-08-30 20:09:21,915 INFO Generating collection-main for WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29 (1)
+2026-08-30 20:11:29,303 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:11:30,402 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29 (1)/00-collection-main-transparent.png
+2026-08-30 20:11:30,417 INFO Generating living-room for WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29 (1)
+2026-08-30 20:13:20,107 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:13:24,754 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29 (1)/01-living-room.png
+2026-08-30 20:13:24,758 INFO Generating bedroom for WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29 (1)
+2026-08-30 20:15:01,569 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:15:03,747 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29 (1)/02-bedroom.png
+2026-08-30 20:15:03,751 INFO Generating dining-room for WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29 (1)
+2026-08-30 20:21:02,088 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:21:02,399 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29 (1)/03-dining-room.png
+2026-08-30 20:21:02,408 INFO Generating study for WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29 (1)
+2026-08-30 20:22:40,552 INFO Retrying request to /images/edits in 0.383660 seconds
+2026-08-30 20:24:20,743 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:24:22,549 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29 (1)/04-study.png
+2026-08-30 20:24:22,561 INFO Generating entryway for WhatsApp Image 2026-08-29 at 17.32.29 (1).jpeg using filename details: WhatsApp Image 2026 08 29 at 17.32.29 (1)
+2026-08-30 20:26:02,816 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-30 20:26:05,109 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 17.32.29 (1)/05-entryway.png
+2026-08-30 20:26:16,291 INFO HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+button returned:OK
+2026-08-30 20:27:22,790 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 20:27:23,242 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog "HTTP/1.1 200 OK"
+2026-08-30 20:27:23,248 INFO Created catalog rug Modern Green Pixel Patchwork Rug with id 10
+2026-08-30 20:27:24,876 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 20:27:24,919 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/10/images "HTTP/1.1 200 OK"
+2026-08-30 20:27:24,921 INFO Added gallery image 01-living-room.png to catalog id 10
+2026-08-30 20:27:26,543 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 20:27:26,582 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/10/images "HTTP/1.1 200 OK"
+2026-08-30 20:27:26,586 INFO Added gallery image 02-bedroom.png to catalog id 10
+2026-08-30 20:27:27,623 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 20:27:27,675 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/10/images "HTTP/1.1 200 OK"
+2026-08-30 20:27:27,679 INFO Added gallery image 03-dining-room.png to catalog id 10
+2026-08-30 20:27:28,674 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 20:27:28,702 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/10/images "HTTP/1.1 200 OK"
+2026-08-30 20:27:28,709 INFO Added gallery image 04-study.png to catalog id 10
+2026-08-30 20:27:29,936 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-30 20:27:30,043 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/10/images "HTTP/1.1 200 OK"
+2026-08-30 20:27:30,045 INFO Added gallery image 05-entryway.png to catalog id 10
+2026-08-31 14:15:48,455 INFO Processing WhatsApp Image 2026-08-29 at 13.28.48.jpeg
+2026-08-31 14:15:48,535 INFO Generating collection-main for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:17:46,354 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 14:17:49,525 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 13.28.48/00-collection-main-transparent.png
+2026-08-31 14:17:49,526 INFO Generating living-room for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:19:41,303 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 14:19:43,308 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 13.28.48/01-living-room.png
+2026-08-31 14:19:43,315 INFO Generating bedroom for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:21:39,792 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 14:21:40,301 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 13.28.48/02-bedroom.png
+2026-08-31 14:21:40,305 INFO Generating dining-room for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:23:35,228 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 14:23:37,091 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 13.28.48/03-dining-room.png
+2026-08-31 14:23:37,104 INFO Generating study for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:23:37,105 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 546, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 476, in process_image
+    with Image.open(source) as original, tempfile.NamedTemporaryFile(suffix=".png") as normalized_file:
+         ~~~~~~~~~~^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/PIL/Image.py", line 3639, in open
+    fp = builtins.open(filename, "rb")
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:23:47,682 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:23:58,233 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:24:08,761 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:24:19,299 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:24:29,845 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:24:40,361 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:24:50,764 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:25:01,280 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:25:11,829 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:25:22,374 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:25:32,902 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:25:43,443 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:25:53,937 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:26:04,475 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:26:15,030 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:26:25,588 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:26:36,118 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:26:46,585 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:26:57,118 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:27:07,651 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:27:18,201 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:27:28,736 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:27:39,267 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:27:49,813 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:28:00,326 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:28:10,856 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:28:21,400 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:28:31,950 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:28:42,476 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:28:53,015 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:29:03,549 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:29:14,095 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:29:24,616 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:29:35,149 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:29:45,686 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:29:56,228 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:30:06,782 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:30:17,279 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:30:27,832 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:30:38,371 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:30:48,915 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:30:59,463 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:31:10,029 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:31:20,562 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:31:31,105 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:31:41,653 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:31:52,211 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:32:02,761 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:32:13,309 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:32:23,864 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:32:34,305 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:32:44,812 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:32:55,363 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:33:05,913 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:33:16,458 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:33:26,944 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:33:37,496 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:33:48,002 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:33:58,543 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:34:09,080 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:34:19,600 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:34:30,144 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:34:40,692 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:34:51,232 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:35:01,778 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:35:12,326 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:35:22,873 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:35:33,425 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:35:43,947 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:35:54,488 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:36:05,022 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:36:15,547 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:36:26,034 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:36:36,561 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:36:47,095 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:36:57,640 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:37:08,190 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:37:18,725 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:37:29,274 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:37:39,803 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:37:50,358 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:38:00,822 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:38:11,373 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:38:21,920 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:38:32,458 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:38:42,856 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:38:53,354 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:39:03,886 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:39:14,418 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:39:24,959 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:39:35,513 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:39:46,045 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:39:56,573 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:40:07,121 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:40:17,670 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:40:28,083 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:40:38,645 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:40:49,196 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:40:59,717 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:41:10,256 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:41:20,783 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:41:31,335 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:41:41,874 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:41:52,370 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:42:02,901 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:42:13,398 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:42:23,960 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:42:34,525 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:42:45,073 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:42:55,610 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:43:06,155 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:43:16,717 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:43:27,267 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:43:37,677 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:43:48,204 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:43:58,752 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:44:09,305 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:44:19,797 ERROR Failed to process WhatsApp Image 2026-08-29 at 13.28.48.jpeg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 530, in run
+    current_fingerprint = fingerprint(source)
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 63, in fingerprint
+    with path.open("rb") as source:
+         ~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted: '/Users/user/Downloads/GoogleDriveHarisPhotos/WhatsApp Image 2026-08-29 at 13.28.48.jpeg'
+2026-08-31 14:48:47,890 INFO Processing WhatsApp Image 2026-08-29 at 13.28.48.jpeg
+2026-08-31 14:48:47,917 INFO Skipping existing output 00-collection-main-transparent.png
+2026-08-31 14:48:47,918 INFO Skipping existing output 01-living-room.png
+2026-08-31 14:48:47,919 INFO Skipping existing output 02-bedroom.png
+2026-08-31 14:48:47,921 INFO Skipping existing output 03-dining-room.png
+2026-08-31 14:48:47,924 INFO Generating study for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:50:52,711 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 14:50:53,464 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 13.28.48/04-study.png
+2026-08-31 14:50:53,468 INFO Generating entryway for WhatsApp Image 2026-08-29 at 13.28.48.jpeg using filename details: WhatsApp Image 2026 08 29 at 13.28.48
+2026-08-31 14:52:40,928 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 14:52:41,938 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/WhatsApp Image 2026-08-29 at 13.28.48/05-entryway.png
+2026-08-31 14:53:47,355 INFO HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-08-31 14:55:47,273 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 14:55:47,356 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog "HTTP/1.1 200 OK"
+2026-08-31 14:55:47,357 INFO Created catalog rug Hand-Tufted Earthstripe Textured Rug with id 11
+2026-08-31 14:55:47,632 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 14:55:47,697 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/11/images "HTTP/1.1 200 OK"
+2026-08-31 14:55:47,699 INFO Added gallery image 01-living-room.png to catalog id 11
+2026-08-31 14:55:48,012 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,036 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/11/images "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,038 INFO Added gallery image 02-bedroom.png to catalog id 11
+2026-08-31 14:55:48,256 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,288 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/11/images "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,290 INFO Added gallery image 03-dining-room.png to catalog id 11
+2026-08-31 14:55:48,498 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,532 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/11/images "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,538 INFO Added gallery image 04-study.png to catalog id 11
+2026-08-31 14:55:48,866 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,959 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/11/images "HTTP/1.1 200 OK"
+2026-08-31 14:55:48,962 INFO Added gallery image 05-entryway.png to catalog id 11
+2026-08-31 15:22:07,244 INFO Processing 027.jpg
+2026-08-31 15:22:07,343 INFO Generating collection-main for 027.jpg using filename details: 027
+2026-08-31 15:24:07,898 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:24:09,895 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/027/00-collection-main-transparent.png
+2026-08-31 15:24:09,898 INFO Generating living-room for 027.jpg using filename details: 027
+2026-08-31 15:24:09,898 ERROR Failed to process 027.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 546, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 476, in process_image
+    with Image.open(source) as original, tempfile.NamedTemporaryFile(suffix=".png") as normalized_file:
+         ~~~~~~~~~~^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/PIL/Image.py", line 3639, in open
+    fp = builtins.open(filename, "rb")
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/user/Downloads/GoogleDriveHarisPhotos/027.jpg'
+2026-08-31 15:24:20,255 INFO Processing Handwoven Flatweave Dhurrie, Material - Jute.jpg
+2026-08-31 15:24:20,260 INFO Generating collection-main for Handwoven Flatweave Dhurrie, Material - Jute.jpg using filename details: Handwoven Flatweave Dhurrie, Material   Jute
+2026-08-31 15:26:27,036 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:26:28,960 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handwoven Flatweave Dhurrie, Material - Jute/00-collection-main-transparent.png
+2026-08-31 15:26:28,961 INFO Generating living-room for Handwoven Flatweave Dhurrie, Material - Jute.jpg using filename details: Handwoven Flatweave Dhurrie, Material   Jute
+2026-08-31 15:28:28,525 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:28:29,596 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handwoven Flatweave Dhurrie, Material - Jute/01-living-room.png
+2026-08-31 15:28:29,602 INFO Generating bedroom for Handwoven Flatweave Dhurrie, Material - Jute.jpg using filename details: Handwoven Flatweave Dhurrie, Material   Jute
+2026-08-31 15:30:16,760 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:30:17,036 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handwoven Flatweave Dhurrie, Material - Jute/02-bedroom.png
+2026-08-31 15:30:17,039 INFO Generating dining-room for Handwoven Flatweave Dhurrie, Material - Jute.jpg using filename details: Handwoven Flatweave Dhurrie, Material   Jute
+2026-08-31 15:32:10,621 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:32:11,813 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handwoven Flatweave Dhurrie, Material - Jute/03-dining-room.png
+2026-08-31 15:32:11,820 INFO Generating study for Handwoven Flatweave Dhurrie, Material - Jute.jpg using filename details: Handwoven Flatweave Dhurrie, Material   Jute
+2026-08-31 15:34:24,986 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:34:25,235 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handwoven Flatweave Dhurrie, Material - Jute/04-study.png
+2026-08-31 15:34:25,237 INFO Generating entryway for Handwoven Flatweave Dhurrie, Material - Jute.jpg using filename details: Handwoven Flatweave Dhurrie, Material   Jute
+2026-08-31 15:36:28,097 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 200 OK"
+2026-08-31 15:36:29,486 INFO Saved /Users/user/Downloads/GoogleDriveHarisPhotos/RoomVisualizerOutputs/Handwoven Flatweave Dhurrie, Material - Jute/05-entryway.png
+2026-08-31 15:36:41,648 INFO HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-08-31 15:37:42,632 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 15:37:42,665 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog "HTTP/1.1 200 OK"
+2026-08-31 15:37:42,666 INFO Created catalog rug Handwoven Jute Dhurrie Rug with id 12
+2026-08-31 15:37:42,886 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 15:37:42,921 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/12/images "HTTP/1.1 200 OK"
+2026-08-31 15:37:42,929 INFO Added gallery image 01-living-room.png to catalog id 12
+2026-08-31 15:37:43,706 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 15:37:43,731 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/12/images "HTTP/1.1 200 OK"
+2026-08-31 15:37:43,733 INFO Added gallery image 02-bedroom.png to catalog id 12
+2026-08-31 15:37:45,195 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 15:37:45,219 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/12/images "HTTP/1.1 200 OK"
+2026-08-31 15:37:45,221 INFO Added gallery image 03-dining-room.png to catalog id 12
+2026-08-31 15:37:46,263 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 15:37:46,303 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/12/images "HTTP/1.1 200 OK"
+2026-08-31 15:37:46,309 INFO Added gallery image 04-study.png to catalog id 12
+2026-08-31 15:37:48,960 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/upload-image "HTTP/1.1 200 OK"
+2026-08-31 15:37:49,013 INFO HTTP Request: POST https://dreamrugscreation.in/api/v1/catalog/12/images "HTTP/1.1 200 OK"
+2026-08-31 15:37:49,015 INFO Added gallery image 05-entryway.png to catalog id 12
+2026-08-31 20:31:05,732 INFO Watching /Users/user/Downloads/GoogleDriveHarisPhotos

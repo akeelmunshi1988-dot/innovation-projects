@@ -11,6 +11,7 @@ export interface CartItem {
   qty: number;
   rush_order: boolean;
   notes?: string;
+  selected_color?: string;
 }
 
 interface CartContextValue {
@@ -37,6 +38,7 @@ function isSameConfiguration(a: Omit<CartItem, 'id'>, b: Omit<CartItem, 'id'>): 
     sameDimension(a.size_h, b.size_h) &&
     (a.shape || 'rect').toLowerCase() === (b.shape || 'rect').toLowerCase() &&
     normalizedNotes(a.notes) === normalizedNotes(b.notes)
+    && (a.selected_color ?? '') === (b.selected_color ?? '')
   );
 }
 

@@ -1,0 +1,1 @@
+export default function Page(){return <div className="simple-page"><div className="eyebrow">Your selection</div><h1 className="section-title">Shopping Bag</h1><p className="muted">Your shopping bag is empty.</p><a className="button" href="/catalog">Explore collection</a></div>}
