@@ -49,13 +49,24 @@ export interface Testimonial {
   is_active: boolean;
 }
 
+export interface ProjectGalleryImage {
+  id: number;
+  image_url: string;
+  sort_order: number;
+}
+
 export interface ProjectGalleryItem {
   id: number;
   image_url: string;
   caption: string | null;
   link_url: string | null;
+  description: string | null;
+  owner_name: string | null;
+  owner_message: string | null;
+  rating: number | null;
   sort_order: number;
   is_active: boolean;
+  images: ProjectGalleryImage[];
 }
 
 export interface PromoCode {
@@ -110,6 +121,7 @@ export interface RugCatalog {
   name: string;
   description: string | null;
   about_content_html: string | null;
+  additional_information_html: string | null;
   sizes: CatalogSize[];
   base_price: number;
   base_price_currency: string | null;

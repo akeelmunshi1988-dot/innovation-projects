@@ -306,9 +306,12 @@ async def get_public_settings():
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
             "hero_image_url": tenant.hero_image_url if tenant else None,
+            "hero_images": (tenant.hero_images or []) if tenant else [],
             "hero_eyebrow": tenant.hero_eyebrow if tenant else None,
             "hero_heading": tenant.hero_heading if tenant else None,
             "hero_cta_label": tenant.hero_cta_label if tenant else None,
+            "refund_cancellation_policy_html": tenant.refund_cancellation_policy_html if tenant else None,
+            "privacy_policy_html": tenant.privacy_policy_html if tenant else None,
             "default_size_unit": tenant.default_size_unit if tenant else "ft",
             "contact_emails": (tenant.contact_emails or []) if tenant else [],
             "contact_phones": (tenant.contact_phones or []) if tenant else [],
@@ -491,10 +494,63 @@ async def get_public_gallery_items():
                 "image_url": g.image_url,
                 "caption": g.caption,
                 "link_url": g.link_url,
+                # rating is small enough to include here too, for the star
+                # badge on homepage/listing tiles — but description/
+                # owner_name/owner_message/images are only ever needed on
+                # the single-project detail page, fetched separately via
+                # GET /customer/gallery-items/{id}. Still present (as
+                # null/empty) so the shared frontend ProjectGalleryItem type
+                # matches this response shape exactly.
+                "description": None,
+                "owner_name": None,
+                "owner_message": None,
+                "rating": g.rating,
+                "images": [],
             }
             for g in rows
         ]
         cache_set("gallery_items", result)
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/customer/gallery-items/{item_id}")
+async def get_public_gallery_item(item_id: int):
+    """Public, unauthenticated single-project detail page — the full
+    cover+gallery image set, description, and the owner's own message/
+    rating, unlike get_public_gallery_items()'s lightweight homepage-tile
+    shape above."""
+    cached = cache_get("gallery_items", key=f"item_{item_id}")
+    if cached is not None:
+        return cached
+    from app.models.models import ProjectGalleryItem
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        g = (
+            db.query(ProjectGalleryItem)
+            .filter(
+                ProjectGalleryItem.id == item_id,
+                ProjectGalleryItem.is_active == True,
+                ProjectGalleryItem.tenant_id == (tenant.id if tenant else None),
+            )
+            .first()
+        )
+        if not g:
+            raise HTTPException(status_code=404, detail="Project not found")
+        result = {
+            "id": g.id,
+            "image_url": g.image_url,
+            "caption": g.caption,
+            "link_url": g.link_url,
+            "description": g.description,
+            "owner_name": g.owner_name,
+            "owner_message": g.owner_message,
+            "rating": g.rating,
+            "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in g.images],
+        }
+        cache_set("gallery_items", result, key=f"item_{item_id}")
         return result
     finally:
         db.close()
@@ -691,6 +747,8 @@ async def get_public_rug(rug_id_or_slug: str):
             "name": r.name,
             "description": r.description,
             "about_content_html": r.about_content_html,
+            "additional_information_html": r.additional_information_html or (tenant.default_catalog_additional_information_html if tenant else None),
+            "has_additional_information_override": bool(r.additional_information_html),
             "weave_type": r.weave_type,
             "pile_height": r.pile_height,
             "material": r.material.name,

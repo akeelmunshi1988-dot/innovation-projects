@@ -42,9 +42,13 @@ class Tenant(Base):
     contact_hours = Column(String(200), nullable=True)    # e.g. "Mon-Sat, 9am-6pm"
     catalog_pdf_url = Column(String(300), nullable=True)   # downloadable lookbook/catalog shown on storefront
     hero_image_url = Column(String(500), nullable=True)    # storefront homepage hero background image; falls back to a curated default when unset
+    hero_images = Column(JSON, nullable=True)              # ordered list[{image_url, alt_text}] used by the homepage carousel
     hero_eyebrow = Column(String(100), nullable=True)       # small line above the hero headline, e.g. "20+ Years in the Making"; falls back to a default when unset
     hero_heading = Column(String(200), nullable=True)       # main hero headline text; falls back to a default when unset
     hero_cta_label = Column(String(50), nullable=True)      # hero CTA link text (always links to /catalog); falls back to a default when unset
+    refund_cancellation_policy_html = Column(Text, nullable=True)  # admin-managed public policy page
+    privacy_policy_html = Column(Text, nullable=True)              # admin-managed public privacy policy page
+    default_catalog_additional_information_html = Column(Text, nullable=True)  # common notes used by rugs without a product override
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
@@ -108,6 +112,7 @@ class RugCatalog(Base):
     slug = Column(String(220), nullable=True, index=True)  # URL-friendly identifier for /catalog/<slug> — unique per tenant, see uq_rug_slug_tenant
     description = Column(Text, nullable=True)
     about_content_html = Column(Text, nullable=True)  # admin-authored rich text for the catalog detail "About this rug" section — falls back to `description` (plain text) when empty
+    additional_information_html = Column(Text, nullable=True)  # admin-authored bullets, care notes, disclaimers, and other product information
     sizes = Column(JSON, nullable=False)  # list[{"ft": str, "cm": str | None}] — cm is vendor-entered, never computed from ft (see schemas.RugSize)
     base_price = Column(Float, nullable=False)
     base_price_currency = Column(String(10), nullable=True)     # currency base_price was entered in
@@ -139,6 +144,25 @@ class RugImage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     rug_catalog = relationship("RugCatalog", back_populates="images")
+
+
+class FAQ(Base):
+    __tablename__ = "faqs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    rug_catalog_id = Column(Integer, ForeignKey("rug_catalog.id", ondelete="CASCADE"), nullable=True, index=True)
+    question = Column(String(500), nullable=False)
+    answer = Column(Text, nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    rug_catalog = relationship("RugCatalog")
+
+    __table_args__ = (
+        Index("ix_faqs_tenant_rug_active_sort", "tenant_id", "rug_catalog_id", "is_active", "sort_order"),
+    )
 
 
 class PricingRule(Base):
@@ -489,12 +513,30 @@ class ProjectGalleryItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
-    image_url = Column(String(300), nullable=False)
+    image_url = Column(String(300), nullable=False)  # cover image — additional photos live in ProjectGalleryImage, same "cover + gallery" split as RugCatalog.image_url/RugImage
     caption = Column(String(150), nullable=True)
-    link_url = Column(String(300), nullable=True)
+    link_url = Column(String(300), nullable=True)  # optional external link; when unset, the customer-facing tile links to this project's own /project-gallery/:id detail page
+    description = Column(Text, nullable=True)  # project write-up shown on the single-project detail page
+    owner_name = Column(String(150), nullable=True)  # the rug owner/customer who left the message below
+    owner_message = Column(Text, nullable=True)  # a personal note from that customer about the finished project
+    rating = Column(Integer, nullable=True)  # 1-5, same scale as Testimonial.rating
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    images = relationship("ProjectGalleryImage", back_populates="project_gallery_item", order_by="ProjectGalleryImage.sort_order")
+
+
+class ProjectGalleryImage(Base):
+    __tablename__ = "project_gallery_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_gallery_item_id = Column(Integer, ForeignKey("project_gallery_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    image_url = Column(String(300), nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    project_gallery_item = relationship("ProjectGalleryItem", back_populates="images")
 
 
 class NewsletterSubscriber(Base):

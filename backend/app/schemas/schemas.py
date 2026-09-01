@@ -64,6 +64,7 @@ class RugCatalogBase(BaseModel):
     name: str
     description: Optional[str] = None
     about_content_html: Optional[str] = None
+    additional_information_html: Optional[str] = Field(None, max_length=100000)
     sizes: List[RugSize]
     base_price: float = Field(..., ge=0)
     base_price_currency: Optional[str] = None
@@ -88,6 +89,7 @@ class RugCatalogUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     about_content_html: Optional[str] = None
+    additional_information_html: Optional[str] = Field(None, max_length=100000)
     sizes: Optional[List[RugSize]] = None
     base_price: Optional[float] = None
     base_price_currency: Optional[str] = None
@@ -550,14 +552,18 @@ class TenantPublic(BaseModel):
     contact_hours: Optional[str] = None
     catalog_pdf_url: Optional[str] = None
     hero_image_url: Optional[str] = None
+    hero_images: List[dict] = []
     hero_eyebrow: Optional[str] = None
     hero_heading: Optional[str] = None
     hero_cta_label: Optional[str] = None
+    refund_cancellation_policy_html: Optional[str] = None
+    privacy_policy_html: Optional[str] = None
+    default_catalog_additional_information_html: Optional[str] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
 
-    @field_validator('certifications', mode='before')
+    @field_validator('certifications', 'hero_images', mode='before')
     @classmethod
     def _none_to_empty_certifications(cls, v):
         return v or []
@@ -595,9 +601,13 @@ class TenantUpdateRequest(BaseModel):
     contact_hours: Optional[str] = Field(None, max_length=200)
     catalog_pdf_url: Optional[str] = None
     hero_image_url: Optional[str] = None
+    hero_images: Optional[List[dict]] = None
     hero_eyebrow: Optional[str] = Field(None, max_length=100)
     hero_heading: Optional[str] = Field(None, max_length=200)
     hero_cta_label: Optional[str] = Field(None, max_length=50)
+    refund_cancellation_policy_html: Optional[str] = Field(None, max_length=100000)
+    privacy_policy_html: Optional[str] = Field(None, max_length=100000)
+    default_catalog_additional_information_html: Optional[str] = Field(None, max_length=100000)
     certifications: Optional[List[dict]] = None
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)
@@ -950,10 +960,32 @@ class Testimonial(TestimonialBase):
 
 # ── Project Gallery ────────────────────────────────────────────────────────────
 
+class ProjectGalleryImage(BaseModel):
+    id: int
+    image_url: str
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectGalleryImageCreate(BaseModel):
+    image_url: str
+    sort_order: int = 0
+
+
+class ProjectGalleryImageUpdate(BaseModel):
+    sort_order: int
+
+
 class ProjectGalleryItemBase(BaseModel):
     image_url: str
     caption: Optional[str] = None
     link_url: Optional[str] = None
+    description: Optional[str] = None
+    owner_name: Optional[str] = None
+    owner_message: Optional[str] = None
+    rating: Optional[int] = Field(None, ge=1, le=5)
     sort_order: int = 0
     is_active: bool = True
 
@@ -966,12 +998,17 @@ class ProjectGalleryItemUpdate(BaseModel):
     image_url: Optional[str] = None
     caption: Optional[str] = None
     link_url: Optional[str] = None
+    description: Optional[str] = None
+    owner_name: Optional[str] = None
+    owner_message: Optional[str] = None
+    rating: Optional[int] = Field(None, ge=1, le=5)
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
 
 
 class ProjectGalleryItem(ProjectGalleryItemBase):
     id: int
+    images: List[ProjectGalleryImage] = []
 
     class Config:
         from_attributes = True

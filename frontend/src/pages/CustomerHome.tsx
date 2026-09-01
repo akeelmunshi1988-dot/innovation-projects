@@ -108,6 +108,8 @@ export default function CustomerHome() {
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [businessName, setBusinessName] = useState('');
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [heroImages, setHeroImages] = useState<{ image_url: string; alt_text?: string }[]>([]);
+  const [heroSlide, setHeroSlide] = useState(0);
   const [heroImageLoaded, setHeroImageLoaded] = useState(false);
   const [heroEyebrow, setHeroEyebrow] = useState<string | null>(null);
   const [heroHeading, setHeroHeading] = useState<string | null>(null);
@@ -116,7 +118,6 @@ export default function CustomerHome() {
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
-  const [gallerySlide, setGallerySlide] = useState(0);
   const [testimonialSlide, setTestimonialSlide] = useState(0);
   const [shopTab, setShopTab] = useState<'space' | 'mood' | 'material'>('space');
   const { displayPrice } = useCurrency();
@@ -147,6 +148,7 @@ export default function CustomerHome() {
         setAiConsultantEnabled(data.ai_assistant_enabled);
         setBusinessName(data.business_name || '');
         setHeroImageUrl(data.hero_image_url || null);
+        setHeroImages(data.hero_images || []);
         setHeroEyebrow(data.hero_eyebrow || null);
         setHeroHeading(data.hero_heading || null);
         setHeroCtaLabel(data.hero_cta_label || null);
@@ -159,6 +161,12 @@ export default function CustomerHome() {
       .catch(() => setAiConsultantEnabled(true))
       .finally(() => setHeroImageLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (heroImages.length < 2) return;
+    const timer = window.setInterval(() => setHeroSlide(current => (current + 1) % heroImages.length), 6000);
+    return () => window.clearInterval(timer);
+  }, [heroImages.length]);
 
   useEffect(() => {
     axios.get('/api/customer/testimonials')
@@ -180,7 +188,9 @@ export default function CustomerHome() {
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
   const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
   const showCraftSection = SHOW_CRAFT_VIDEO ? Boolean(introVideo) : Boolean(craftImageUrl);
-  const heroImage = heroImageLoaded ? (heroImageUrl || HERO_IMAGE_URL) : null;
+  const slides = heroImages.length ? heroImages : [{ image_url: heroImageUrl || HERO_IMAGE_URL, alt_text: 'Handcrafted rug' }];
+  const activeHero = slides[heroSlide % slides.length];
+  const heroImage = heroImageLoaded ? activeHero.image_url : null;
 
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const organizationJsonLd = {
@@ -226,9 +236,10 @@ export default function CustomerHome() {
           <section className="relative w-full overflow-hidden aspect-[3/2] md:aspect-auto md:min-h-[640px] flex items-center justify-center">
             {heroImage ? (
               <img
+                key={heroImage}
                 src={heroImage}
-                alt="Handcrafted rug"
-                className="absolute inset-0 w-full h-full object-cover"
+                alt={activeHero.alt_text || 'Handcrafted rug'}
+                className="absolute inset-0 w-full h-full object-cover animate-[fadeIn_.7s_ease-out]"
                 fetchPriority="high"
                 loading="eager"
               />
@@ -247,6 +258,11 @@ export default function CustomerHome() {
                 {heroCtaLabel || 'Explore Collection'} <ArrowRight size={14} />
               </Link>
             </div>
+            {slides.length > 1 && <>
+              <button type="button" aria-label="Previous hero image" onClick={() => setHeroSlide(current => (current - 1 + slides.length) % slides.length)} className="absolute left-4 md:left-8 z-10 p-3 rounded-full bg-black/25 hover:bg-black/45 text-white"><ChevronLeft size={22}/></button>
+              <button type="button" aria-label="Next hero image" onClick={() => setHeroSlide(current => (current + 1) % slides.length)} className="absolute right-4 md:right-8 z-10 p-3 rounded-full bg-black/25 hover:bg-black/45 text-white"><ChevronRight size={22}/></button>
+              <div className="absolute bottom-6 inset-x-0 z-10 flex justify-center gap-2">{slides.map((_, index) => <button key={index} type="button" aria-label={`Show hero image ${index + 1}`} onClick={() => setHeroSlide(index)} className={`h-1.5 rounded-full transition-all ${index === heroSlide ? 'w-8 bg-white' : 'w-2 bg-white/55'}`}/>)}</div>
+            </>}
           </section>
 
           {/* Stat strip */}
@@ -759,68 +775,86 @@ export default function CustomerHome() {
         );
       })()}
 
-      {/* ── PROJECT GALLERY (slider, whole/uncropped images) ─────────────── */}
+      {/* ── PROJECT GALLERY (dark-canvas editorial mosaic) ────────────────
+          Reference: carpet.axiomthemes.com's homepage — a bold oversized
+          headline over a near-black ground, and a sparse, asymmetric photo
+          mosaic (two stacked tiles beside one tall tile, repeating) with
+          generous negative space rather than a tightly-packed grid. Ported
+          the visual language, not the markup — this section still reads
+          straight from the CMS-managed galleryItems/ProjectGalleryItem
+          list, same as the slider it replaces. Capped to 6 items (two
+          mosaic "triplets") so the homepage teaser stays a teaser; the
+          full set lives on /project-gallery, linked below. */}
       {galleryItems.length > 0 && (() => {
-        const current = Math.min(gallerySlide, galleryItems.length - 1);
-        const g = galleryItems[current];
-        const tile = (
-          <div className="relative bg-stone-100 w-full aspect-[4/3] md:aspect-[21/9] flex items-center justify-center">
-            <img
-              src={g.image_url}
-              alt={g.caption ?? ''}
-              className="w-full h-full object-contain"
-              loading="lazy"
-            />
-            {g.caption && (
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-900/60 via-transparent to-transparent flex items-end pointer-events-none">
-                <p className="text-white font-serif text-xl md:text-2xl font-light px-6 md:px-10 pb-6 md:pb-8">{g.caption}</p>
-              </div>
-            )}
-          </div>
-        );
+        const displayItems = galleryItems.slice(0, 6);
         return (
-          <section className="py-20">
-            <div className="w-[94vw] max-w-none mx-auto px-4 mb-12">
-              <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">Project Gallery</p>
-              <h2 className="font-serif text-4xl font-light text-stone-900">Rugs in Their New Homes</h2>
+          <section className="relative overflow-hidden bg-dark-950 py-24 md:py-32">
+            <div className="w-[94vw] max-w-none mx-auto px-4 mb-16 md:mb-24">
+              <p className="text-xs tracking-[0.3em] uppercase text-rug-400 mb-4">Project Gallery</p>
+              {/* Edge-to-edge, viewport-scaled type — the point of this
+                  reference is that the headline dominates the section at
+                  any screen size, not a modest capped heading, so this
+                  deliberately keeps scaling with vw all the way up rather
+                  than settling into a fixed max-width text size. Uses the
+                  storefront's own font-serif (Cormorant Garamond) at its
+                  bold weight rather than a separate display face, so this
+                  section still reads as the same typeface family as every
+                  other heading on the site — just scaled and weighted up. */}
+              <h2 className="font-serif font-bold uppercase text-white leading-[0.85] tracking-tight text-[13vw] xl:text-[9.5vw] 2xl:text-[132px]">
+                Rugs in Their<br />New Homes
+              </h2>
+              <Link
+                to="/project-gallery"
+                className="inline-flex items-center gap-2 mt-8 text-xs font-medium tracking-[0.15em] uppercase text-cream-100 hover:text-rug-400 transition-colors pb-1 border-b border-cream-100/30 hover:border-rug-400"
+              >
+                View Full Gallery <ArrowRight size={14} />
+              </Link>
             </div>
-            <div className="relative group">
-              {g.link_url ? (
-                <a href={g.link_url} target="_blank" rel="noreferrer" className="block">{tile}</a>
-              ) : (
-                tile
-              )}
-              {galleryItems.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setGallerySlide((current - 1 + galleryItems.length) % galleryItems.length)}
-                    aria-label="Previous project"
-                    className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGallerySlide((current + 1) % galleryItems.length)}
-                    aria-label="Next project"
-                    className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                    {galleryItems.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setGallerySlide(i)}
-                        aria-label={`Go to project ${i + 1}`}
-                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`}
-                      />
-                    ))}
+
+            {/* Sparse, asymmetric mosaic — a narrow column of two stacked
+                squares beside one tall tile, repeating per group of 3, with
+                wide empty gutters left deliberately unfilled (columns 5–6
+                and 10–12 of 12) so photos read as floating islands on the
+                dark canvas rather than a filled grid. */}
+            <div
+              className="w-[94vw] max-w-none mx-auto px-4 grid grid-cols-12 gap-x-6 md:gap-x-10 gap-y-8 md:gap-y-10 auto-rows-[110px] sm:auto-rows-[130px] lg:auto-rows-[150px]"
+            >
+              {displayItems.map((g, i) => {
+                const posInGroup = i % 3;
+                const group = Math.floor(i / 3);
+                const rowBase = group * 2 + 1;
+                const isTall = 2 === posInGroup;
+                const style: React.CSSProperties = isTall
+                  ? { gridColumn: '7 / span 4', gridRow: `${rowBase} / span 2` }
+                  : { gridColumn: '1 / span 3', gridRow: rowBase + (1 === posInGroup ? 1 : 0) };
+                const tile = (
+                  <div className="group relative w-full h-full overflow-hidden bg-dark-900">
+                    <img
+                      src={g.image_url}
+                      alt={g.caption ?? ''}
+                      className="w-full h-full object-cover scale-100 group-hover:scale-[1.06] transition-transform duration-[1200ms] ease-out"
+                      loading="lazy"
+                    />
+                    {g.caption && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-dark-950/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end">
+                        <p className="text-cream-100 font-serif text-lg font-light px-5 pb-4">{g.caption}</p>
+                      </div>
+                    )}
                   </div>
-                </>
-              )}
+                );
+                // link_url is an admin-set external override (e.g. a blog
+                // post about the project); when unset, the tile links to
+                // this project's own detail page instead of going nowhere.
+                return g.link_url ? (
+                  <a key={g.id} href={g.link_url} target="_blank" rel="noreferrer" style={style}>
+                    {tile}
+                  </a>
+                ) : (
+                  <Link key={g.id} to={`/project-gallery/${g.id}`} style={style}>
+                    {tile}
+                  </Link>
+                );
+              })}
             </div>
           </section>
         );

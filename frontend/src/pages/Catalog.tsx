@@ -36,6 +36,7 @@ type FormData = {
   name: string;
   description: string;
   about_content_html: string;
+  additional_information_html: string;
   material_id: string;
   pile_height: string;
   weave_type: string;
@@ -50,7 +51,7 @@ type FormData = {
 };
 
 const BLANK: FormData = {
-  name: '', description: '', about_content_html: '', material_id: '',
+  name: '', description: '', about_content_html: '', additional_information_html: '', material_id: '',
   pile_height: 'medium', weave_type: 'hand-knotted',
   lead_time_days: '21', image_url: '', sizes: [], room_types: [], mood_tags: [], is_available: true, inventory_quantity: '', color_options: [],
 };
@@ -61,6 +62,7 @@ function rugToForm(r: RugCatalog): FormData {
     name: r.name,
     description: r.description ?? '',
     about_content_html: r.about_content_html ?? '',
+    additional_information_html: r.additional_information_html ?? '',
     material_id: String(r.material_id),
     pile_height: r.pile_height ?? 'medium',
     weave_type: r.weave_type ?? 'hand-knotted',
@@ -254,6 +256,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
       name:                form.name.trim(),
       description:         form.description.trim() || null,
       about_content_html:  form.about_content_html || null,
+      additional_information_html: form.additional_information_html || null,
       material_id:         materialId,
       // Legacy columns remain populated from the default size for backwards
       // compatibility; pricing calculations read sizes[].price.
@@ -346,6 +349,17 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
               placeholder="Tell the story of this rug — craftsmanship, materials, inspiration…"
             />
             <p className="text-dark-500 text-xs">Rich content shown in the "About this rug" section on the storefront. Falls back to the plain description above when empty.</p>
+          </div>
+
+          {/* Gallery Images — needs an existing rug id, so unavailable until first saved */}
+          <div className="space-y-1">
+            <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Additional Notes &amp; Information Override</label>
+            <RichTextEditor
+              value={form.additional_information_html}
+              onChange={(html) => set('additional_information_html', html)}
+              placeholder="Add care instructions, important notes, bullet points, delivery details, disclaimers, or any other product information…"
+            />
+            <p className="text-dark-500 text-xs">Optional. Leave empty to use the common content from Business Settings. Add content here only when this rug needs different notes.</p>
           </div>
 
           {/* Gallery Images — needs an existing rug id, so unavailable until first saved */}

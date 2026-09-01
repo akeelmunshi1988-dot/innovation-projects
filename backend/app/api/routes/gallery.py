@@ -1,5 +1,6 @@
 import os
 import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -7,8 +8,11 @@ from typing import List
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
-from app.models.models import ProjectGalleryItem, StaffUser
-from app.schemas.schemas import ProjectGalleryItemCreate, ProjectGalleryItemUpdate, ProjectGalleryItem as ProjectGalleryItemSchema
+from app.models.models import ProjectGalleryItem, ProjectGalleryImage, StaffUser
+from app.schemas.schemas import (
+    ProjectGalleryItemCreate, ProjectGalleryItemUpdate, ProjectGalleryItem as ProjectGalleryItemSchema,
+    ProjectGalleryImageCreate, ProjectGalleryImageUpdate, ProjectGalleryImage as ProjectGalleryImageSchema,
+)
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "gallery")
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -104,3 +108,70 @@ def delete_gallery_item(
     db.commit()
     cache_clear("gallery_items")
     return {"message": "Gallery item deleted successfully"}
+
+
+# ── Project gallery images (mirrors catalog.py's rug-gallery-image routes) ──
+
+def get_tenant_gallery_image(db: Session, image_id: int, tenant_id: int) -> Optional[ProjectGalleryImage]:
+    """Looks up a gallery image while enforcing it belongs to a project in
+    this tenant's gallery — the join is the tenant check, since
+    ProjectGalleryImage has no tenant_id column of its own."""
+    return (
+        db.query(ProjectGalleryImage)
+        .join(ProjectGalleryItem, ProjectGalleryImage.project_gallery_item_id == ProjectGalleryItem.id)
+        .filter(ProjectGalleryImage.id == image_id, ProjectGalleryItem.tenant_id == tenant_id)
+        .first()
+    )
+
+
+@router.post("/gallery-items/{item_id}/images", response_model=ProjectGalleryImageSchema)
+def add_gallery_image(
+    item_id: int,
+    body: ProjectGalleryImageCreate,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    item = db.query(ProjectGalleryItem).filter(
+        ProjectGalleryItem.id == item_id,
+        ProjectGalleryItem.tenant_id == current_user.tenant_id,
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Gallery item not found")
+    image = ProjectGalleryImage(project_gallery_item_id=item_id, image_url=body.image_url, sort_order=body.sort_order)
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    cache_clear("gallery_items")
+    return image
+
+
+@router.patch("/gallery-items/images/{image_id}", response_model=ProjectGalleryImageSchema)
+def update_gallery_image(
+    image_id: int,
+    body: ProjectGalleryImageUpdate,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    image = get_tenant_gallery_image(db, image_id, current_user.tenant_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image.sort_order = body.sort_order
+    db.commit()
+    db.refresh(image)
+    cache_clear("gallery_items")
+    return image
+
+
+@router.delete("/gallery-items/images/{image_id}")
+def delete_gallery_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    image = get_tenant_gallery_image(db, image_id, current_user.tenant_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    db.delete(image)
+    db.commit()
+    cache_clear("gallery_items")
+    return {"message": "Image deleted successfully"}

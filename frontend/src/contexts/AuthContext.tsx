@@ -34,9 +34,13 @@ export interface TenantInfo {
   contact_hours: string | null;
   catalog_pdf_url: string | null;
   hero_image_url: string | null;
+  hero_images: { image_url: string; alt_text?: string }[];
   hero_eyebrow: string | null;
   hero_heading: string | null;
   hero_cta_label: string | null;
+  refund_cancellation_policy_html: string | null;
+  privacy_policy_html: string | null;
+  default_catalog_additional_information_html: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
   cancellation_window_hours: number;

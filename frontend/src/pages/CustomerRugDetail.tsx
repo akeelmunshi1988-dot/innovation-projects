@@ -38,6 +38,7 @@ interface RugDetail {
   name: string;
   description: string | null;
   about_content_html: string | null;
+  additional_information_html: string | null;
   weave_type: string | null;
   pile_height: string | null;
   material: string;
@@ -89,6 +90,7 @@ interface QuoteForm {
   notes: string;
   shape: RugShape;
 }
+interface ProductFAQ { id: number; question: string; answer: string; }
 
 
 export default function CustomerRugDetail() {
@@ -101,6 +103,8 @@ export default function CustomerRugDetail() {
   const [rug, setRug] = useState<RugDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [faqs, setFaqs] = useState<ProductFAQ[]>([]);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const [activeQuote, setActiveQuote] = useState<{ quote_id: number; status: string; final_price: number | null; price_currency: string } | null>(null);
 
@@ -157,6 +161,11 @@ export default function CustomerRugDetail() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (!rug?.id) return;
+    axios.get('/api/customer/faqs', { params: { rug_id: rug.id } }).then(({ data }) => setFaqs(data)).catch(() => setFaqs([]));
+  }, [rug?.id]);
 
   useEffect(() => {
     getPublicSettings()
@@ -448,6 +457,11 @@ export default function CustomerRugDetail() {
               { '@type': 'ListItem', position: 3, name: rug.name, item: `${window.location.origin}/catalog/${rug.slug}` },
             ],
           },
+          ...(faqs.length ? [{
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: faqs.map(item => ({ '@type': 'Question', name: item.question, acceptedAnswer: { '@type': 'Answer', text: item.answer } })),
+          }] : []),
         ]}
       />
       <div className="w-[94vw] max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -632,7 +646,7 @@ export default function CustomerRugDetail() {
               type="button"
               onClick={openQuoteRequest}
               disabled={!rug.available}
-              className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-sm py-4 transition-colors"
+              className="w-full storefront-cta-solid py-4"
             >
               Request a Quote
             </button>
@@ -640,7 +654,7 @@ export default function CustomerRugDetail() {
               type="button"
               onClick={scrollToConfigurator}
               disabled={!rug.available}
-              className="w-full border border-stone-300 hover:border-stone-900 disabled:border-stone-200 disabled:text-stone-300 text-stone-900 text-sm py-4 transition-colors"
+              className="w-full storefront-cta-outline disabled:border-stone-200 disabled:text-stone-300 py-4"
             >
               Add to Cart
             </button>
@@ -665,6 +679,16 @@ export default function CustomerRugDetail() {
             ) : (
               <p className="text-stone-400 text-sm">No additional description is available.</p>
             )}
+            {rug.additional_information_html && <div className="mt-10 pt-8 border-t border-stone-100">
+              <h2 className="font-serif text-2xl font-light text-stone-900 mb-4">Additional Notes &amp; Information</h2>
+              <div
+                className="prose-content text-stone-600"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.additional_information_html, {
+                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                }) }}
+              />
+            </div>}
           </section>
 
           {/* Direct-purchase configurator */}
@@ -925,6 +949,16 @@ export default function CustomerRugDetail() {
             </div>
           </div>
         </div>
+        {faqs.length > 0 && <section className="max-w-4xl border-t border-stone-100 pt-10 pb-4">
+          <p className="storefront-eyebrow text-stone-400">Helpful answers</p>
+          <h2 className="font-serif text-3xl font-light text-stone-900 mt-2 mb-6">Frequently Asked Questions</h2>
+          <div className="divide-y divide-stone-200 border-y border-stone-200">{faqs.map(item => <div key={item.id}>
+            <button type="button" onClick={() => setOpenFaq(openFaq === item.id ? null : item.id)} aria-expanded={openFaq === item.id} className="w-full flex items-center justify-between gap-4 py-5 text-left text-stone-900">
+              <span className="font-medium">{item.question}</span><ChevronDown size={18} className={`flex-shrink-0 transition-transform ${openFaq === item.id ? 'rotate-180' : ''}`}/>
+            </button>
+            {openFaq === item.id && <p className="pb-5 pr-10 text-stone-600 text-sm leading-relaxed whitespace-pre-line">{item.answer}</p>}
+          </div>)}</div>
+        </section>}
       </div>
 
       {/* Full-screen image preview */}

@@ -23,6 +23,7 @@ import type {
   Testimonial,
   AnnouncementMessage,
   ProjectGalleryItem,
+  ProjectGalleryImage,
   NewsletterSubscriber,
   PromoCode,
 } from '../types';
@@ -213,6 +214,20 @@ export const updateGalleryItem = async (id: number, g: Partial<ProjectGalleryIte
 
 export const deleteGalleryItem = async (id: number): Promise<void> => {
   await api.delete(`/gallery-items/${id}`);
+};
+
+export const addGalleryImage = async (itemId: number, imageUrl: string, sortOrder: number): Promise<ProjectGalleryImage> => {
+  const { data } = await api.post<ProjectGalleryImage>(`/gallery-items/${itemId}/images`, { image_url: imageUrl, sort_order: sortOrder });
+  return data;
+};
+
+export const updateGalleryImageOrder = async (imageId: number, sortOrder: number): Promise<ProjectGalleryImage> => {
+  const { data } = await api.patch<ProjectGalleryImage>(`/gallery-items/images/${imageId}`, { sort_order: sortOrder });
+  return data;
+};
+
+export const deleteGalleryImage = async (imageId: number): Promise<void> => {
+  await api.delete(`/gallery-items/images/${imageId}`);
 };
 
 // ── Newsletter ────────────────────────────────────────────────────────────────
@@ -679,9 +694,12 @@ export const getPublicSettings = async (): Promise<{
   business_name: string | null;
   logo_url: string | null;
   hero_image_url: string | null;
+  hero_images: { image_url: string; alt_text?: string }[];
   hero_eyebrow: string | null;
   hero_heading: string | null;
   hero_cta_label: string | null;
+  refund_cancellation_policy_html: string | null;
+  privacy_policy_html: string | null;
   default_size_unit: string;
   contact_emails: string[];
   contact_phones: string[];

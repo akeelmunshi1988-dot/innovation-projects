@@ -482,12 +482,25 @@ def update_tenant_settings(
         tenant.catalog_pdf_url = body.catalog_pdf_url
     if body.hero_image_url is not None:
         tenant.hero_image_url = body.hero_image_url or None
+    if body.hero_images is not None:
+        cleaned_images = []
+        for item in body.hero_images[:12]:
+            url = str(item.get("image_url", "")).strip()
+            if url:
+                cleaned_images.append({"image_url": url, "alt_text": str(item.get("alt_text", ""))[:200]})
+        tenant.hero_images = cleaned_images
     if body.hero_eyebrow is not None:
         tenant.hero_eyebrow = body.hero_eyebrow or None
     if body.hero_heading is not None:
         tenant.hero_heading = body.hero_heading or None
     if body.hero_cta_label is not None:
         tenant.hero_cta_label = body.hero_cta_label or None
+    if body.refund_cancellation_policy_html is not None:
+        tenant.refund_cancellation_policy_html = body.refund_cancellation_policy_html or None
+    if body.privacy_policy_html is not None:
+        tenant.privacy_policy_html = body.privacy_policy_html or None
+    if body.default_catalog_additional_information_html is not None:
+        tenant.default_catalog_additional_information_html = body.default_catalog_additional_information_html or None
     if body.certifications is not None:
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:
@@ -618,7 +631,12 @@ async def upload_hero_image(
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    tenant.hero_image_url = f"/static/branding/{filename}"
+    uploaded_url = f"/static/branding/{filename}"
+    images = list(tenant.hero_images or [])
+    images.append({"image_url": uploaded_url, "alt_text": ""})
+    tenant.hero_images = images
+    if not tenant.hero_image_url:
+        tenant.hero_image_url = uploaded_url
     db.commit()
     db.refresh(tenant)
     cache_clear("tenant")

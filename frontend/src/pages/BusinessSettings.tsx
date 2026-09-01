@@ -7,6 +7,7 @@ import { CURRENCIES } from '../utils/currency';
 import { SIZE_UNITS } from '../utils/size';
 import { getEmailTemplates, updateEmailTemplate } from '../services/api';
 import type { EmailTemplate } from '../types';
+import RichTextEditor from '../components/RichTextEditor';
 
 type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
 
@@ -67,6 +68,10 @@ export default function BusinessSettings() {
   const [heroEyebrow, setHeroEyebrow] = useState(tenant.hero_eyebrow ?? '');
   const [heroHeading, setHeroHeading] = useState(tenant.hero_heading ?? '');
   const [heroCtaLabel, setHeroCtaLabel] = useState(tenant.hero_cta_label ?? '');
+  const [heroImages, setHeroImages] = useState<{ image_url: string; alt_text?: string }[]>(tenant.hero_images?.length ? tenant.hero_images : (tenant.hero_image_url ? [{ image_url: tenant.hero_image_url, alt_text: '' }] : []));
+  const [refundPolicy, setRefundPolicy] = useState(tenant.refund_cancellation_policy_html ?? '');
+  const [privacyPolicy, setPrivacyPolicy] = useState(tenant.privacy_policy_html ?? '');
+  const [defaultCatalogInformation, setDefaultCatalogInformation] = useState(tenant.default_catalog_additional_information_html ?? '');
 
   // Pricing
   const [marginPct, setMarginPct] = useState(String(tenant.default_profit_margin_pct ?? 40));
@@ -205,6 +210,7 @@ export default function BusinessSettings() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       updateTenant(data);
+      setHeroImages(data.hero_images ?? []);
     } catch (err: any) {
       setHeroImageError(err.response?.data?.detail || 'Hero image upload failed.');
     } finally {
@@ -212,12 +218,14 @@ export default function BusinessSettings() {
     }
   };
 
-  const handleHeroImageRemove = async () => {
+  const handleHeroImageRemove = async (index: number) => {
     setUploadingHeroImage(true);
     setHeroImageError('');
     try {
-      const { data } = await axios.patch('/api/tenant/settings', { hero_image_url: '' });
+      const next = heroImages.filter((_, i) => i !== index);
+      const { data } = await axios.patch('/api/tenant/settings', { hero_images: next, hero_image_url: next[0]?.image_url ?? '' });
       updateTenant(data);
+      setHeroImages(next);
     } catch (err: any) {
       setHeroImageError(err.response?.data?.detail || 'Could not remove hero image.');
     } finally {
@@ -238,7 +246,11 @@ export default function BusinessSettings() {
     || sizeUnit !== (tenant.default_size_unit ?? 'ft')
     || heroEyebrow !== (tenant.hero_eyebrow ?? '')
     || heroHeading !== (tenant.hero_heading ?? '')
-    || heroCtaLabel !== (tenant.hero_cta_label ?? '');
+    || heroCtaLabel !== (tenant.hero_cta_label ?? '')
+    || refundPolicy !== (tenant.refund_cancellation_policy_html ?? '')
+    || privacyPolicy !== (tenant.privacy_policy_html ?? '')
+    || defaultCatalogInformation !== (tenant.default_catalog_additional_information_html ?? '')
+    || JSON.stringify(heroImages) !== JSON.stringify(tenant.hero_images?.length ? tenant.hero_images : (tenant.hero_image_url ? [{ image_url: tenant.hero_image_url, alt_text: '' }] : []));
   const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true);
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct || (parseFloat(shippingRate) || 0) !== (tenant.default_shipping_rate ?? 0) || (parseInt(cancellationWindowHours) || 0) !== (tenant.cancellation_window_hours ?? 24);
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '') || gstInclusive !== (tenant.gst_inclusive ?? false);
@@ -296,6 +308,10 @@ export default function BusinessSettings() {
         hero_eyebrow: heroEyebrow.trim(),
         hero_heading: heroHeading.trim(),
         hero_cta_label: heroCtaLabel.trim(),
+        hero_images: heroImages,
+        refund_cancellation_policy_html: refundPolicy,
+        privacy_policy_html: privacyPolicy,
+        default_catalog_additional_information_html: defaultCatalogInformation,
         contact_emails: contactEmails,
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
@@ -448,15 +464,17 @@ export default function BusinessSettings() {
 
             {/* Homepage Hero Background Image */}
             <div className="space-y-1.5">
-              <label className={labelCls}>Homepage Hero Background</label>
+              <label className={labelCls}>Homepage Hero Images</label>
+              <div className="flex flex-wrap gap-3 mb-3">
+                {heroImages.map((image, index) => (
+                  <div key={`${image.image_url}-${index}`} className="relative w-36 space-y-1.5">
+                    <img src={image.image_url} alt={image.alt_text || `Hero slide ${index + 1}`} className="w-36 h-20 rounded-lg border border-dark-700 object-cover" />
+                    <input value={image.alt_text ?? ''} maxLength={200} aria-label={`Slide ${index + 1} alt text`} placeholder="Image description" onChange={(e) => setHeroImages(heroImages.map((item, i) => i === index ? {...item, alt_text: e.target.value} : item))} className="w-full bg-dark-800 border border-dark-700 rounded px-2 py-1 text-cream-100 text-xs" />
+                    <button type="button" aria-label={`Remove slide ${index + 1}`} onClick={() => handleHeroImageRemove(index)} className="absolute -top-2 -right-2 rounded-full bg-dark-900 border border-dark-600 p-1 text-dark-300 hover:text-red-400"><X size={12}/></button>
+                  </div>
+                ))}
+              </div>
               <div className="flex items-center gap-3">
-                <div className="w-24 h-14 rounded-lg bg-dark-800 border border-dark-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {tenant.hero_image_url ? (
-                    <img src={tenant.hero_image_url} alt="Hero background" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-dark-600 text-xs">—</span>
-                  )}
-                </div>
                 <input
                   ref={heroImageInputRef}
                   type="file"
@@ -474,21 +492,11 @@ export default function BusinessSettings() {
                   disabled={uploadingHeroImage}
                   className="text-xs bg-dark-800 hover:bg-dark-700 border border-dark-600 text-cream-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {uploadingHeroImage ? 'Uploading…' : tenant.hero_image_url ? 'Replace image' : 'Upload image'}
+                  {uploadingHeroImage ? 'Uploading…' : 'Add image'}
                 </button>
-                {tenant.hero_image_url && (
-                  <button
-                    type="button"
-                    onClick={handleHeroImageRemove}
-                    disabled={uploadingHeroImage}
-                    className="text-xs text-dark-400 hover:text-red-400 transition-colors disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                )}
               </div>
               {heroImageError && <p className="text-red-400 text-xs">{heroImageError}</p>}
-              <p className={hintCls}>Full-bleed background behind the "Handcrafted Rugs. Made for Timeless Spaces." headline on your storefront homepage. JPEG, PNG, or WebP, max 10MB. Falls back to a default image when unset.</p>
+              <p className={hintCls}>Add up to 12 full-bleed slides. They rotate automatically in the order shown. Add descriptive alt text for accessibility and SEO.</p>
             </div>
 
             {/* Hero Text */}
@@ -529,6 +537,24 @@ export default function BusinessSettings() {
                 />
                 <p className={hintCls}>Links to the catalog. Leave blank to use the default.</p>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Refund &amp; Cancellation Policy</label>
+              <RichTextEditor value={refundPolicy} onChange={setRefundPolicy} placeholder="Explain cancellation eligibility, refund timing, custom-order restrictions, and how customers should contact you." />
+              <p className={hintCls}>Published at /refund-cancellation-policy and linked from the storefront footer.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Privacy Policy</label>
+              <RichTextEditor value={privacyPolicy} onChange={setPrivacyPolicy} placeholder="Explain what customer data you collect, how it is used, payment processing, cookies, retention, sharing, and customer rights." />
+              <p className={hintCls}>Published at /privacy-policy and linked from the storefront footer.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Default Product Notes &amp; Information</label>
+              <RichTextEditor value={defaultCatalogInformation} onChange={setDefaultCatalogInformation} placeholder="Add common care instructions, delivery notes, disclaimers, or other information that should appear on every product." />
+              <p className={hintCls}>Shown under Description on every rug unless that catalog has its own Additional Notes &amp; Information override.</p>
             </div>
 
             {/* Standard Size Unit */}

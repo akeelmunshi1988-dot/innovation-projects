@@ -32,6 +32,8 @@ const CustomerPortal = lazy(() => import('./pages/CustomerPortal'));
 const AboutUs = lazy(() => import('./pages/AboutUs'));
 const CustomerCatalog = lazy(() => import('./pages/CustomerCatalog'));
 const CustomerRugDetail = lazy(() => import('./pages/CustomerRugDetail'));
+const CustomerProjectGallery = lazy(() => import('./pages/CustomerProjectGallery'));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
 const CustomerCheckout = lazy(() => import('./pages/CustomerCheckout'));
 const CustomerCart = lazy(() => import('./pages/CustomerCart'));
 const CustomerCustomRugRequest = lazy(() => import('./pages/CustomerCustomRugRequest'));
@@ -48,6 +50,9 @@ const CustomerMyQuotes = lazy(() => import('./pages/CustomerMyQuotes'));
 const RugDetail = lazy(() => import('./pages/RugDetail'));
 const BillingSettings = lazy(() => import('./pages/BillingSettings'));
 const BusinessSettings = lazy(() => import('./pages/BusinessSettings'));
+const FAQs = lazy(() => import('./pages/FAQs'));
+const RefundCancellationPolicy = lazy(() => import('./pages/RefundCancellationPolicy'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
@@ -82,11 +87,15 @@ function App() {
           {/* Customer shop — root paths */}
           <Route path="/" element={<CustomerHome />} />
           <Route path="/about" element={<AboutUs />} />
+          <Route path="/refund-cancellation-policy" element={<RefundCancellationPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/catalog" element={<CustomerCatalog />} />
           <Route path="/catalog/space/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/mood/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/material/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
+          <Route path="/project-gallery" element={<CustomerProjectGallery />} />
+          <Route path="/project-gallery/:id" element={<ProjectDetail />} />
           <Route path="/cart" element={<CustomerCart />} />
           <Route path="/custom-rug-request" element={<CustomerCustomRugRequest />} />
           <Route path="/checkout" element={<CustomerCheckout />} />
@@ -132,6 +141,7 @@ function App() {
                     <Route path="api-access" element={<ApiAccess />} />
                     {FEATURE_FLAGS.SHOW_BILLING && <Route path="billing" element={<BillingSettings />} />}
                     <Route path="settings" element={<BusinessSettings />} />
+                    <Route path="faqs" element={<FAQs />} />
                     <Route path="*" element={<Navigate to="/admin" replace />} />
                   </Routes>
                 </Layout>

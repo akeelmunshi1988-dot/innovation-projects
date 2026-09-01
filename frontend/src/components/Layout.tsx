@@ -25,6 +25,7 @@ import {
   Tag,
   Key,
   Megaphone,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { path: '/admin/showcase-videos', label: 'Homepage Videos', icon: <Film size={18} /> },
   { path: '/admin/workshop-photos', label: 'Workshop Photos', icon: <Image size={18} /> },
   { path: '/admin/testimonials', label: 'Testimonials', icon: <Quote size={18} /> },
+  { path: '/admin/faqs', label: 'FAQs', icon: <HelpCircle size={18} /> },
   { path: '/admin/project-gallery', label: 'Project Gallery', icon: <LayoutGrid size={18} /> },
   { path: '/admin/newsletter-subscribers', label: 'Newsletter', icon: <Mail size={18} /> },
   { path: '/admin/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },

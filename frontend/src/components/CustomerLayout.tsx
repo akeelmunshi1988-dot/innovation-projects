@@ -576,6 +576,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 { to: '/login', label: 'Sign In' },
                 { to: '/my-orders', label: 'My Orders' },
                 { to: '/my-quotes', label: 'My Quotes' },
+                { to: '/refund-cancellation-policy', label: 'Refund & Cancellation' },
+                { to: '/privacy-policy', label: 'Privacy Policy' },
                 { to: '/admin/login', label: 'Staff Portal' },
               ].map((l) => (
                 <Link key={l.label} to={l.to}

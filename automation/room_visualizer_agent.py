@@ -32,12 +32,20 @@ ROOM_VARIANTS = (
     ("entryway", "a welcoming luxury entryway"),
 )
 COLLECTION_MAIN_FILENAME = "00-collection-main-transparent.png"
+MATERIAL_LABELS = {
+    "wool_silk_blend": "Wool & Silk Blend",
+    "wool": "Wool",
+    "silk": "Silk",
+    "cotton": "Cotton",
+    "jute": "Jute",
+    "synthetic": "Synthetic",
+}
 
 
 class CatalogMetadata(BaseModel):
     title: str = Field(min_length=3, max_length=120)
     description: str = Field(min_length=40, max_length=700)
-    material_key: Literal["wool_silk_blend", "wool", "silk", "cotton", "synthetic"]
+    material_key: Literal["wool_silk_blend", "wool", "silk", "cotton", "jute", "synthetic"]
     weave_type: str = Field(min_length=3, max_length=80)
 
 
@@ -93,6 +101,23 @@ def stable_images(watch_dir: Path) -> list[Path]:
         if first.st_size == second.st_size and first.st_mtime_ns == second.st_mtime_ns:
             images.append(path)
     return images
+
+
+def delete_completed_source(source: Path, watch_dir: Path) -> None:
+    """Delete only a supported source image directly inside the watched root.
+
+    This is deliberately called after output generation and catalog sync have
+    both succeeded. The resolved-parent check prevents deleting generated files
+    or anything outside the configured watch directory.
+    """
+    resolved_source = source.resolve()
+    resolved_watch_dir = watch_dir.resolve()
+    if resolved_source.parent != resolved_watch_dir:
+        raise ValueError(f"Refusing to delete source outside watch root: {resolved_source}")
+    if resolved_source.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        raise ValueError(f"Refusing to delete unsupported source file: {resolved_source}")
+    resolved_source.unlink()
+    logging.info("Deleted completed source image %s", resolved_source)
 
 
 def product_details(source: Path) -> str:
@@ -180,6 +205,80 @@ def load_catalog_config(path: Path) -> dict:
     return config
 
 
+def _size_area(size_label: str) -> float | None:
+    """Return square feet for a configured `W x H` label."""
+    try:
+        width, height = (float(value.strip()) for value in size_label.lower().replace("×", "x").split("x", 1))
+    except (TypeError, ValueError):
+        return None
+    return width * height if width > 0 and height > 0 else None
+
+
+def automatic_catalog_config(
+    metadata: CatalogMetadata,
+    defaults: dict,
+    source: Path,
+) -> tuple[CatalogMetadata, dict] | None:
+    """Build a complete API payload config without opening macOS dialogs.
+
+    Prices scale with rug area and receive a deterministic pseudo-random jitter,
+    so retries for the same source never silently change customer-facing prices.
+    Missing required configuration returns None and falls back to the questionnaire.
+    """
+    material_id = defaults.get("material_ids", {}).get(metadata.material_key)
+    base_price = defaults.get("base_prices", {}).get(metadata.material_key)
+    configured_sizes = defaults.get("sizes") or []
+    currency = str(defaults.get("base_price_currency") or "").strip().upper()
+    lead_time_days = defaults.get("lead_time_days")
+    if not (
+        metadata.title.strip()
+        and metadata.description.strip()
+        and metadata.weave_type.strip()
+        and isinstance(material_id, int) and material_id > 0
+        and isinstance(base_price, (int, float)) and base_price >= 0
+        and configured_sizes
+        and currency
+        and isinstance(lead_time_days, int) and lead_time_days > 0
+    ):
+        return None
+
+    normalized_sizes = [size for size in configured_sizes if isinstance(size, dict) and str(size.get("ft") or "").strip()]
+    if len(normalized_sizes) != len(configured_sizes):
+        return None
+    default_index = next((index for index, size in enumerate(normalized_sizes) if size.get("is_default")), 0)
+    default_area = _size_area(str(normalized_sizes[default_index]["ft"]))
+    if not default_area:
+        return None
+
+    randomization_pct = max(0.0, min(float(defaults.get("price_randomization_pct", 8)), 50.0))
+    sizes = []
+    for index, configured in enumerate(normalized_sizes):
+        label = str(configured["ft"]).strip()
+        area = _size_area(label)
+        if not area:
+            return None
+        digest = hashlib.sha256(f"{source.name}|{metadata.material_key}|{label}".encode("utf-8")).digest()
+        unit_fraction = int.from_bytes(digest[:4], "big") / 0xFFFFFFFF
+        jitter = 1 + ((unit_fraction * 2 - 1) * randomization_pct / 100)
+        randomized_price = max(0, round((float(base_price) * area / default_area * jitter) / 100) * 100)
+        sizes.append({
+            "ft": label,
+            "cm": configured.get("cm"),
+            "price": randomized_price,
+            "lead_time_days": configured.get("lead_time_days") or lead_time_days,
+            "is_default": index == default_index,
+        })
+
+    job_config = dict(defaults)
+    job_config["sizes"] = sizes
+    job_config["lead_time_days"] = sizes[default_index]["lead_time_days"]
+    job_config["base_prices"] = dict(defaults["base_prices"])
+    job_config["base_prices"][metadata.material_key] = sizes[default_index]["price"]
+    job_config.setdefault("room_types", [slug for slug, _ in ROOM_VARIANTS])
+    job_config.setdefault("mood_tags", [])
+    return metadata, job_config
+
+
 def macos_prompt(message: str, default: str = "") -> str | None:
     """Display one native text prompt; None means the user cancelled."""
     script = (
@@ -237,9 +336,12 @@ def collect_catalog_config(metadata: CatalogMetadata, defaults: dict) -> tuple[C
     if description is None:
         return None
     material_keys = list(defaults["material_ids"])
-    material_key = macos_choose("Select material", material_keys, metadata.material_key)
-    if material_key is None:
+    material_labels = [MATERIAL_LABELS.get(key, key.replace("_", " ").title()) for key in material_keys]
+    default_material_label = MATERIAL_LABELS.get(metadata.material_key, metadata.material_key.replace("_", " ").title())
+    selected_material_label = macos_choose("Select material", material_labels, default_material_label)
+    if selected_material_label is None:
         return None
+    material_key = material_keys[material_labels.index(selected_material_label)]
     weave_type = macos_prompt("Weave type", metadata.weave_type)
     if weave_type is None:
         return None
@@ -299,6 +401,23 @@ def collect_catalog_config(metadata: CatalogMetadata, defaults: dict) -> tuple[C
         title=title.strip(), description=description.strip(), material_key=material_key, weave_type=weave_type.strip(),
     )
     job_config = dict(defaults)
+    job_config["material_ids"] = dict(defaults["material_ids"])
+    if not job_config["material_ids"].get(material_key):
+        while True:
+            material_id_text = macos_prompt(
+                f"API material ID for {MATERIAL_LABELS.get(material_key, material_key)}",
+                "",
+            )
+            if material_id_text is None:
+                return None
+            try:
+                material_id = int(material_id_text)
+                if material_id < 1:
+                    raise ValueError
+                job_config["material_ids"][material_key] = material_id
+                break
+            except ValueError:
+                subprocess.run(["osascript", "-e", 'display alert "Enter a valid positive material ID."'], check=False)
     job_config.update({
         "sizes": sizes,
         "base_price_currency": currency.strip().upper(),
@@ -551,7 +670,15 @@ def run(args: argparse.Namespace) -> None:
                 entry["assets_processed"] = True
                 save_state(state_path, state)
 
-                questionnaire = collect_catalog_config(metadata, catalog_defaults)
+                questionnaire = (
+                    automatic_catalog_config(metadata, catalog_defaults, source)
+                    if catalog_defaults.get("auto_create_when_complete", False)
+                    else None
+                )
+                if questionnaire is not None:
+                    logging.info("Catalog fields complete for %s; creating automatically with generated size prices", source.name)
+                else:
+                    questionnaire = collect_catalog_config(metadata, catalog_defaults)
                 if questionnaire is None:
                     entry["catalog_prompt_cancelled"] = True
                     entry["catalog_synced"] = False
@@ -565,6 +692,7 @@ def run(args: argparse.Namespace) -> None:
                 sync_catalog(source, output_root, chosen_metadata, job_config, state, key, state_path)
                 entry["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
                 save_state(state_path, state)
+                delete_completed_source(source, watch_dir)
             except Exception:
                 logging.exception("Failed to process %s; it will be retried", source.name)
 

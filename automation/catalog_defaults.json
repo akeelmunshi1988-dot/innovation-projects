@@ -2,12 +2,15 @@
   "api_base_url": "https://dreamrugscreation.in/api/v1",
   "base_price_currency": "INR",
   "lead_time_days": 21,
+  "auto_create_when_complete": true,
+  "price_randomization_pct": 8,
   "pile_height": null,
   "material_ids": {
     "wool_silk_blend": 2,
     "wool": 5,
     "silk": 8,
     "cotton": 3,
+    "jute": 10,
     "synthetic": 4
   },
   "base_prices": {
@@ -15,6 +18,7 @@
     "wool": 4500,
     "silk": 8500,
     "cotton": 3200,
+    "jute": 3200,
     "synthetic": 1400
   },
   "sizes": [
