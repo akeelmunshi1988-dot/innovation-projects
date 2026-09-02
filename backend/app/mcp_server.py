@@ -2,8 +2,10 @@
 
 import base64
 import binascii
+import hashlib
 import hmac
 import ipaddress
+import json
 import mimetypes
 import os
 import socket
@@ -22,6 +24,10 @@ from app.core.database import SessionLocal
 from app.models.models import Material, RugCatalog
 from app.schemas.schemas import PublicCatalogCreate
 from app.services.mcp_oauth import READ_SCOPE, WRITE_SCOPE, valid_access_token
+
+
+CATALOG_IMAGE_MAX_BYTES = 20 * 1024 * 1024
+CATALOG_UPLOAD_CHUNK_BYTES = 512 * 1024
 
 
 mcp = FastMCP(
@@ -45,6 +51,62 @@ def _tenant_id() -> int:
 
 def _public_url(path: str) -> str:
     return f"{settings.BACKEND_URL.rstrip('/')}{path}"
+
+
+def _decode_base64(value: str, *, max_bytes: int, field_name: str) -> bytes:
+    encoded = value.strip()
+    if encoded.startswith("data:"):
+        header, separator, encoded = encoded.partition(",")
+        if not separator or ";base64" not in header.lower():
+            raise ValueError(f"{field_name} data URL must use base64 encoding")
+    if len(encoded) > ((max_bytes + 2) // 3) * 4 + 4:
+        raise ValueError(f"{field_name} exceeds its decoded size limit")
+    try:
+        contents = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(f"{field_name} is not valid standard base64") from exc
+    if len(contents) > max_bytes:
+        raise ValueError(f"{field_name} exceeds its decoded size limit")
+    return contents
+
+
+def _catalog_image_type(contents: bytes) -> tuple[str, str]:
+    if contents.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png", ".png"
+    if contents.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg", ".jpg"
+    if len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP":
+        return "image/webp", ".webp"
+    raise ValueError("Uploaded bytes are not a supported JPEG, PNG, or WebP image")
+
+
+def _store_catalog_image(contents: bytes) -> dict[str, Any]:
+    if not contents:
+        raise ValueError("Uploaded image is empty")
+    if len(contents) > CATALOG_IMAGE_MAX_BYTES:
+        raise ValueError("Uploaded image exceeds the 20 MB limit")
+    content_type, extension = _catalog_image_type(contents)
+    destination = Path(UPLOAD_DIR)
+    destination.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid.uuid4().hex}{extension}"
+    temporary = destination / f".{stored_name}.tmp"
+    temporary.write_bytes(contents)
+    temporary.replace(destination / stored_name)
+    stored_path = f"/static/rugs/{stored_name}"
+    return {
+        "path": stored_path,
+        "url": _public_url(stored_path),
+        "filename": stored_name,
+        "content_type": content_type,
+        "bytes": len(contents),
+        "sha256": hashlib.sha256(contents).hexdigest(),
+    }
+
+
+def _chunk_upload_dir(upload_id: str) -> Path:
+    if len(upload_id) != 32 or any(char not in "0123456789abcdef" for char in upload_id):
+        raise ValueError("Invalid chunked upload ID")
+    return Path(settings.MCP_UPLOAD_TMP_DIR) / upload_id
 
 
 def _safe_https_url(raw_url: str) -> str:
@@ -121,53 +183,123 @@ async def import_catalog_image(image_url: str, filename: str = "rug-image.png") 
     description=(
         "Upload one attached or generated catalog image directly into DreamRugsCreation storage. "
         "Pass the image bytes as standard base64 or a base64 data URL. Use this when an image has "
-        "no public HTTPS URL. JPEG, PNG, and WebP are accepted up to 20 MB. Call it separately for "
-        "the transparent main image and each of the five room visualizers, retaining every returned path."
+        "no public HTTPS URL and its encoded payload is small enough for one MCP message. For images "
+        "larger than 2 MB, use start_catalog_image_upload, upload_catalog_image_chunk, and "
+        "finish_catalog_image_upload instead. JPEG, PNG, and WebP are accepted up to 20 MB decoded."
     ),
     annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
 )
 def upload_catalog_image(filename: str, image_base64: str) -> dict[str, Any]:
     if not filename or len(filename) > 255:
         raise ValueError("filename is required and must be 255 characters or fewer")
-    encoded = image_base64.strip()
-    if encoded.startswith("data:"):
-        header, separator, encoded = encoded.partition(",")
-        if not separator or ";base64" not in header.lower():
-            raise ValueError("image data URL must use base64 encoding")
-    # A 20 MB binary becomes at most ~28 MB of base64. Reject oversized input
-    # before decoding so a tool call cannot create an avoidable memory spike.
-    if len(encoded) > 28 * 1024 * 1024:
-        raise ValueError("Encoded image exceeds the 20 MB decoded limit")
-    try:
-        contents = base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError("image_base64 is not valid standard base64") from exc
-    if not contents:
-        raise ValueError("Uploaded image is empty")
-    if len(contents) > 20 * 1024 * 1024:
-        raise ValueError("Uploaded image exceeds the 20 MB limit")
+    return _store_catalog_image(_decode_base64(
+        image_base64, max_bytes=CATALOG_IMAGE_MAX_BYTES, field_name="image_base64"
+    ))
 
-    if contents.startswith(b"\x89PNG\r\n\x1a\n"):
-        content_type, extension = "image/png", ".png"
-    elif contents.startswith(b"\xff\xd8\xff"):
-        content_type, extension = "image/jpeg", ".jpg"
-    elif len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP":
-        content_type, extension = "image/webp", ".webp"
-    else:
-        raise ValueError("Uploaded bytes are not a supported JPEG, PNG, or WebP image")
 
-    destination = Path(UPLOAD_DIR)
-    destination.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid.uuid4().hex}{extension}"
-    (destination / stored_name).write_bytes(contents)
-    stored_path = f"/static/rugs/{stored_name}"
-    return {
-        "path": stored_path,
-        "url": _public_url(stored_path),
-        "filename": stored_name,
-        "content_type": content_type,
-        "bytes": len(contents),
+@mcp.tool(
+    description=(
+        "Start a chunked catalog-image upload when upload_catalog_image would exceed the MCP message limit. "
+        "Provide the original filename, exact binary byte count, and optionally its lowercase SHA-256 hex digest. "
+        "The result gives an upload_id, required chunk count, and 512 KiB decoded chunk size."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+)
+def start_catalog_image_upload(filename: str, total_bytes: int, sha256: str | None = None) -> dict[str, Any]:
+    if not filename or len(filename) > 255:
+        raise ValueError("filename is required and must be 255 characters or fewer")
+    if total_bytes < 1 or total_bytes > CATALOG_IMAGE_MAX_BYTES:
+        raise ValueError("total_bytes must be between 1 byte and 20 MB")
+    if sha256 is not None and (len(sha256) != 64 or any(c not in "0123456789abcdef" for c in sha256)):
+        raise ValueError("sha256 must be a lowercase 64-character hexadecimal digest")
+    upload_id = uuid.uuid4().hex
+    upload_dir = _chunk_upload_dir(upload_id)
+    upload_dir.mkdir(parents=True, exist_ok=False)
+    total_chunks = (total_bytes + CATALOG_UPLOAD_CHUNK_BYTES - 1) // CATALOG_UPLOAD_CHUNK_BYTES
+    metadata = {
+        "filename": filename,
+        "total_bytes": total_bytes,
+        "total_chunks": total_chunks,
+        "sha256": sha256,
     }
+    (upload_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+    return {
+        "upload_id": upload_id,
+        "chunk_size_bytes": CATALOG_UPLOAD_CHUNK_BYTES,
+        "total_chunks": total_chunks,
+        "next_chunk_index": 0,
+    }
+
+
+@mcp.tool(
+    description=(
+        "Upload one base64 chunk for a chunked catalog image. Decode each consecutive 512 KiB slice of the "
+        "original binary file separately; do not split an already-base64-encoded string. Chunk indexes start at 0. "
+        "The final chunk may be smaller. Retry with the same index is safe only when the bytes are identical."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=True, openWorldHint=False),
+)
+def upload_catalog_image_chunk(upload_id: str, chunk_index: int, chunk_base64: str) -> dict[str, Any]:
+    upload_dir = _chunk_upload_dir(upload_id)
+    metadata_path = upload_dir / "metadata.json"
+    if not metadata_path.is_file():
+        raise ValueError("Chunked upload was not found or has expired")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if chunk_index < 0 or chunk_index >= metadata["total_chunks"]:
+        raise ValueError("chunk_index is outside the expected range")
+    contents = _decode_base64(
+        chunk_base64, max_bytes=CATALOG_UPLOAD_CHUNK_BYTES, field_name="chunk_base64"
+    )
+    expected = CATALOG_UPLOAD_CHUNK_BYTES
+    if chunk_index == metadata["total_chunks"] - 1:
+        expected = metadata["total_bytes"] - CATALOG_UPLOAD_CHUNK_BYTES * chunk_index
+    if len(contents) != expected:
+        raise ValueError(f"Chunk {chunk_index} decoded to {len(contents)} bytes; expected {expected}")
+    part_path = upload_dir / f"{chunk_index:06d}.part"
+    if part_path.exists() and part_path.read_bytes() != contents:
+        raise ValueError("A different payload was already stored for this chunk index")
+    if not part_path.exists():
+        part_path.write_bytes(contents)
+    received = len(list(upload_dir.glob("*.part")))
+    return {
+        "upload_id": upload_id,
+        "received_chunk_index": chunk_index,
+        "received_chunks": received,
+        "total_chunks": metadata["total_chunks"],
+        "complete": received == metadata["total_chunks"],
+    }
+
+
+@mcp.tool(
+    description=(
+        "Finish a chunked catalog-image upload after every chunk is present. This verifies chunk completeness, "
+        "exact byte count, optional SHA-256, and JPEG/PNG/WebP signature, then stores the final image and returns "
+        "the /static/rugs/... path. Retain that path for create_catalog_item."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+)
+def finish_catalog_image_upload(upload_id: str) -> dict[str, Any]:
+    upload_dir = _chunk_upload_dir(upload_id)
+    metadata_path = upload_dir / "metadata.json"
+    if not metadata_path.is_file():
+        raise ValueError("Chunked upload was not found or has expired")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    part_paths = [upload_dir / f"{index:06d}.part" for index in range(metadata["total_chunks"])]
+    missing = [index for index, path in enumerate(part_paths) if not path.is_file()]
+    if missing:
+        raise ValueError(f"Chunked upload is incomplete; missing chunk indexes: {missing}")
+    contents = b"".join(path.read_bytes() for path in part_paths)
+    if len(contents) != metadata["total_bytes"]:
+        raise ValueError("Combined upload byte count does not match total_bytes")
+    digest = hashlib.sha256(contents).hexdigest()
+    if metadata.get("sha256") and not hmac.compare_digest(digest, metadata["sha256"]):
+        raise ValueError("Combined upload SHA-256 does not match the declared digest")
+    result = _store_catalog_image(contents)
+    for path in part_paths:
+        path.unlink()
+    metadata_path.unlink()
+    upload_dir.rmdir()
+    return result
 
 
 @mcp.tool(
