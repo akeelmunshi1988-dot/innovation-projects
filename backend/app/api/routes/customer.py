@@ -320,6 +320,7 @@ async def get_public_settings():
             "currency": tenant.currency if tenant else "INR",
             "base_currency": tenant.base_currency if tenant else "INR",
             "exchange_rates": (tenant.exchange_rates or {}) if tenant else {},
+            "enabled_currencies": (tenant.enabled_currencies or []) if tenant else [],
             "catalog_pdf_url": tenant.catalog_pdf_url if tenant else None,
             "certifications": (tenant.certifications or []) if tenant else [],
             "default_shipping_rate": tenant.default_shipping_rate if tenant else None,

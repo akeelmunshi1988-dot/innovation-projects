@@ -47,9 +47,35 @@ class RugSize(BaseModel):
     no `cm` just isn't offered in cm mode on the customer-facing site."""
     ft: str
     cm: Optional[str] = None
+    master_size_id: Optional[int] = None
     is_default: bool = False
     price: float = Field(..., ge=0, description="Vendor-entered total selling price for one rug in this size")
     lead_time_days: Optional[int] = Field(None, ge=1, description="Expected delivery time for this size; falls back to the catalog default")
+
+
+class CatalogSizeMasterBase(BaseModel):
+    ft: str = Field(..., min_length=1, max_length=50)
+    cm: Optional[str] = Field(None, max_length=50)
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class CatalogSizeMasterCreate(CatalogSizeMasterBase):
+    pass
+
+
+class CatalogSizeMasterUpdate(BaseModel):
+    ft: Optional[str] = Field(None, min_length=1, max_length=50)
+    cm: Optional[str] = Field(None, max_length=50)
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class CatalogSizeMaster(CatalogSizeMasterBase):
+    id: int
+
+    class Config:
+        from_attributes = True
 
 
 class RugColorOption(BaseModel):
@@ -531,6 +557,7 @@ class TenantPublic(BaseModel):
     currency: str
     base_currency: str = "INR"
     exchange_rates: dict = {}
+    enabled_currencies: List[str] = []
     exchange_rates_auto: bool = True
     exchange_rates_updated_at: Optional[datetime] = None
     logo_url: Optional[str] = None
@@ -568,7 +595,7 @@ class TenantPublic(BaseModel):
     def _none_to_empty_certifications(cls, v):
         return v or []
 
-    @field_validator('contact_emails', 'contact_phones', mode='before')
+    @field_validator('contact_emails', 'contact_phones', 'enabled_currencies', mode='before')
     @classmethod
     def _none_to_empty_list(cls, v):
         return v if v is not None else []
@@ -581,6 +608,7 @@ class TenantUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     currency: Optional[str] = Field(None, min_length=3, max_length=3)
     exchange_rates: Optional[dict] = None
+    enabled_currencies: Optional[List[str]] = None
     exchange_rates_auto: Optional[bool] = None
     gstin: Optional[str] = Field(None, max_length=15)
     state_code: Optional[str] = None

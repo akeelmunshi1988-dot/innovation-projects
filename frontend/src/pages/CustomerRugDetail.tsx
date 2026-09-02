@@ -18,6 +18,7 @@ import { getPublicSettings } from '../services/api';
 import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 import type { CatalogSize, RugColorOption } from '../types';
 
@@ -110,7 +111,7 @@ export default function CustomerRugDetail() {
 
   const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const [activeSlide, setActiveSlide] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);

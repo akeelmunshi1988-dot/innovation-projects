@@ -102,11 +102,20 @@ export interface RugImage {
  * auto-computed from `ft`: it's exactly what the vendor typed on the catalog form,
  * or absent. */
 export interface CatalogSize {
+  master_size_id?: number | null;
   ft: string;
   cm?: string | null;
   is_default?: boolean;
   price: number;
   lead_time_days?: number | null;
+}
+
+export interface CatalogSizeMaster {
+  id: number;
+  ft: string;
+  cm?: string | null;
+  sort_order: number;
+  is_active: boolean;
 }
 
 export interface RugColorOption {

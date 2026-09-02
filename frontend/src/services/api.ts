@@ -708,6 +708,7 @@ export const getPublicSettings = async (): Promise<{
   currency: string;
   base_currency: string;
   exchange_rates: Record<string, number>;
+  enabled_currencies: string[];
   catalog_pdf_url: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;

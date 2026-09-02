@@ -22,6 +22,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const { customer, isCustomerAuthenticated } = useCustomerAuth();
   const [baseCurrency, setBaseCurrency] = useState('INR');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [availableCurrencies, setAvailableCurrencies] = useState(CURRENCIES);
   // Priority, highest first: an explicit pick the visitor already made (persisted) >
   // a logged-in customer's own saved country (authoritative) > a guest's IP-geolocated
   // country (best-effort) > a guess from their browser locale (no IP lookup) > the
@@ -39,6 +40,11 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setBaseCurrency(data.base_currency || 'INR');
         setExchangeRates(data.exchange_rates || {});
+        const enabled = data.enabled_currencies?.length
+          ? Array.from(new Set([...data.enabled_currencies, data.base_currency, data.currency]))
+          : CURRENCIES.map((currency) => currency.code);
+        const configured = CURRENCIES.filter((currency) => enabled.includes(currency.code));
+        setAvailableCurrencies(configured.length ? configured : CURRENCIES.filter((currency) => currency.code === (data.base_currency || 'INR')));
 
         if (localStorage.getItem(STORAGE_KEY)) return; // visitor's own choice always wins
         const tenantDefault = data.currency || 'INR';
@@ -88,7 +94,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   }, [baseCurrency, exchangeRates, displayCurrency]);
 
   return (
-    <CurrencyContext.Provider value={{ displayCurrency, setDisplayCurrency, availableCurrencies: CURRENCIES, baseCurrency, displayPrice }}>
+    <CurrencyContext.Provider value={{ displayCurrency, setDisplayCurrency, availableCurrencies, baseCurrency, displayPrice }}>
       {children}
     </CurrencyContext.Provider>
   );

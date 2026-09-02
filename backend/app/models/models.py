@@ -17,6 +17,7 @@ class Tenant(Base):
     currency = Column(String(10), default="INR")          # display / invoice currency
     base_currency = Column(String(10), default="INR")     # immutable reference currency for all stored values
     exchange_rates = Column(JSON, nullable=True)          # {"USD": 0.012, "EUR": 0.011} — all relative to base_currency
+    enabled_currencies = Column(JSON, nullable=True)      # currency codes exposed in the storefront selector
     exchange_rates_auto = Column(Boolean, default=True)   # True: refreshed automatically from live FX rates; False: vendor manages rates manually
     exchange_rates_updated_at = Column(DateTime(timezone=True), nullable=True)  # when exchange_rates was last refreshed (auto or manual)
     logo_url = Column(String(300), nullable=True)
@@ -132,6 +133,18 @@ class RugCatalog(Base):
     material = relationship("Material", back_populates="rugs")
     quotes = relationship("Quote", back_populates="rug_catalog")
     images = relationship("RugImage", back_populates="rug_catalog", order_by="RugImage.sort_order", cascade="all, delete-orphan")
+
+
+class CatalogSizeMaster(Base):
+    __tablename__ = "catalog_size_master"
+    __table_args__ = (UniqueConstraint("tenant_id", "ft", name="uq_catalog_size_master_tenant_ft"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    ft = Column(String(50), nullable=False)
+    cm = Column(String(50), nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
 
 
 class RugImage(Base):

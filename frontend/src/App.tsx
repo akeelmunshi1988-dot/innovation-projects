@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { CartProvider } from './contexts/CartContext';
+import { MeasurementProvider } from './contexts/MeasurementContext';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -24,6 +25,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const Catalog = lazy(() => import('./pages/Catalog'));
+const CatalogSizes = lazy(() => import('./pages/CatalogSizes'));
 const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -80,6 +82,7 @@ function App() {
     <AuthProvider>
       <CustomerAuthProvider>
       <CurrencyProvider>
+      <MeasurementProvider>
       <CartProvider>
       <BrowserRouter>
         <ScrollToTop />
@@ -128,6 +131,7 @@ function App() {
                     <Route index element={<Dashboard />} />
                     <Route path="assistant" element={<AIAssistant />} />
                     <Route path="catalog" element={<Catalog />} />
+                    <Route path="catalog-sizes" element={<CatalogSizes />} />
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
@@ -157,6 +161,7 @@ function App() {
         </Suspense>
       </BrowserRouter>
       </CartProvider>
+      </MeasurementProvider>
       </CurrencyProvider>
       </CustomerAuthProvider>
     </AuthProvider>

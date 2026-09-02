@@ -444,6 +444,8 @@ def update_tenant_settings(
         tenant.exchange_rates_updated_at = datetime.now(timezone.utc)
     if body.exchange_rates_auto is not None:
         tenant.exchange_rates_auto = body.exchange_rates_auto
+    if body.enabled_currencies is not None:
+        tenant.enabled_currencies = list(dict.fromkeys(code.upper() for code in body.enabled_currencies))
     if body.gstin is not None:
         tenant.gstin = body.gstin
     if body.default_profit_margin_pct is not None:

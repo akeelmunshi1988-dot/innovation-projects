@@ -10,6 +10,7 @@ import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import axios from 'axios';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
 
 const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
   pending:        { label: 'Order Placed',   color: 'text-amber-700 border-amber-200 bg-amber-50',    dot: 'bg-amber-400' },
@@ -519,7 +520,7 @@ export default function CustomerMyOrders() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const [tenantCurrency, setTenantCurrency] = useState({ currency: 'INR', base_currency: 'INR', exchange_rates: {} as Record<string, number> });
 
   useEffect(() => {

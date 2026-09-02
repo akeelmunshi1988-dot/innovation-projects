@@ -53,6 +53,7 @@ export default function BusinessSettings() {
   // General
   const [name, setName] = useState(tenant.name);
   const [currency, setCurrency] = useState(tenant.currency);
+  const [enabledCurrencies, setEnabledCurrencies] = useState<string[]>(tenant.enabled_currencies?.length ? tenant.enabled_currencies : CURRENCIES.map((item) => item.code));
   const [exchangeRatesAuto, setExchangeRatesAuto] = useState(tenant.exchange_rates_auto ?? true);
   const [refreshingRates, setRefreshingRates] = useState(false);
   const [refreshRatesError, setRefreshRatesError] = useState('');
@@ -251,7 +252,8 @@ export default function BusinessSettings() {
     || privacyPolicy !== (tenant.privacy_policy_html ?? '')
     || defaultCatalogInformation !== (tenant.default_catalog_additional_information_html ?? '')
     || JSON.stringify(heroImages) !== JSON.stringify(tenant.hero_images?.length ? tenant.hero_images : (tenant.hero_image_url ? [{ image_url: tenant.hero_image_url, alt_text: '' }] : []));
-  const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true);
+  const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true)
+    || JSON.stringify(enabledCurrencies) !== JSON.stringify(tenant.enabled_currencies?.length ? tenant.enabled_currencies : CURRENCIES.map((item) => item.code));
   const dirtyPricing  = parseFloat(marginPct) !== tenant.default_profit_margin_pct || parseFloat(rushPct) !== tenant.rush_surcharge_pct || parseFloat(lfThreshold) !== tenant.large_format_threshold_sqm || parseFloat(lfSurchargePct) !== tenant.large_format_surcharge_pct || (parseFloat(shippingRate) || 0) !== (tenant.default_shipping_rate ?? 0) || (parseInt(cancellationWindowHours) || 0) !== (tenant.cancellation_window_hours ?? 24);
   const dirtyGst      = gstin !== (tenant.gstin ?? '') || stateCode !== (tenant.state_code ?? '') || address !== (tenant.address ?? '') || lutNumber !== (tenant.lut_number ?? '') || gstInclusive !== (tenant.gst_inclusive ?? false);
   const dirtyContact  = JSON.stringify(contactEmails) !== JSON.stringify(tenant.contact_emails ?? [])
@@ -288,6 +290,7 @@ export default function BusinessSettings() {
       const { data } = await axios.patch('/api/tenant/settings', {
         name: name.trim() || undefined,
         currency,
+        enabled_currencies: enabledCurrencies,
         exchange_rates_auto: exchangeRatesAuto,
         ...(exchangeRatesAuto ? {} : { exchange_rates: rates }),
         gstin: gstin.trim() || undefined,
@@ -704,6 +707,32 @@ export default function BusinessSettings() {
                     )}
                   </button>
                 ))}
+              </div>
+
+              <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 space-y-3">
+                <div>
+                  <p className={subLabelCls}>Storefront Currency Master</p>
+                  <p className={hintCls + ' -mt-1'}>Choose which currencies customers can select. The base and display currencies remain enabled.</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {CURRENCIES.map((item) => {
+                    const required = item.code === tenant.base_currency || item.code === currency;
+                    const checked = required || enabledCurrencies.includes(item.code);
+                    return (
+                      <label key={item.code} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${checked ? 'border-gold-700/40 bg-gold-600/10 text-cream-200' : 'border-dark-700 text-dark-400'} ${required ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={required}
+                          onChange={(event) => setEnabledCurrencies((current) => event.target.checked ? [...current, item.code] : current.filter((code) => code !== item.code))}
+                          className="accent-gold-500"
+                        />
+                        <span>{item.symbol} {item.code}</span>
+                        {required && <span className="ml-auto text-[9px] text-dark-500">Required</span>}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Auto-refresh toggle */}

@@ -267,6 +267,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
       lead_time_days:      Number(defaultSize.lead_time_days),
       image_url:           form.image_url.trim() || null,
       sizes:               validSizes.map((s) => ({
+        master_size_id: s.master_size_id ?? null,
         ft: s.ft.trim(),
         cm: s.cm?.trim() || null,
         is_default: Boolean(s.is_default),

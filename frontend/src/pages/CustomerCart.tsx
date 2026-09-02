@@ -7,6 +7,7 @@ import SEO from '../components/SEO';
 import { useCart } from '../contexts/CartContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { fmtDims } from '../utils/size';
 import { getPublicSettings, validatePromoCode } from '../services/api';
 import type { PromoValidateResponse } from '../services/api';
@@ -33,7 +34,7 @@ export default function CustomerCart() {
   // Guards against out-of-order estimate responses: rapid qty clicks fire overlapping
   // batches, and a slow earlier batch resolving last would show a price for a stale qty.
   const estimateRunRef = React.useRef(0);
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const [shippingRate, setShippingRate] = useState(0);
 
   const [promoInput, setPromoInput] = useState('');
