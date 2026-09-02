@@ -70,6 +70,7 @@ The server currently exposes:
 
 - `list_catalog_materials`
 - `import_catalog_image`
+- `create_catalog_image_upload_url`
 - `upload_catalog_image`
 - `start_catalog_image_upload`
 - `upload_catalog_image_chunk`
@@ -81,9 +82,10 @@ The intended run is:
 
 1. Generate one upright, front-facing transparent main image.
 2. Generate five separate room visualizers.
-3. Store all six images. Use `upload_catalog_image` for small attached/generated
-   images, the start/chunk/finish tools for images whose base64 would exceed the
-   MCP message limit, or `import_catalog_image` for a public HTTPS URL.
+3. Store all six images. Prefer `create_catalog_image_upload_url` plus a direct
+   multipart upload when raw local bytes are available. Use `import_catalog_image`
+   for a public HTTPS URL, `upload_catalog_image` only for small base64 payloads,
+   and the start/chunk/finish tools only as a compatibility fallback.
 4. Ask for and confirm title, description, material, weave, price, and sizes.
 5. Call `create_catalog_item` once, passing the main image first and five room
    images in gallery order.

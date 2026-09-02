@@ -416,6 +416,36 @@ async def get_public_workshop_photos():
         db.close()
 
 
+@router.get("/customer/journey-steps")
+async def get_public_journey_steps():
+    """Public, unauthenticated 'Custom Rug Journey' timeline shown on the storefront homepage."""
+    cached = cache_get("journey_steps")
+    if cached is not None:
+        return cached
+    from app.models.models import RugJourneyStep
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        steps = (
+            db.query(RugJourneyStep)
+            .filter(RugJourneyStep.is_active == True, RugJourneyStep.tenant_id == (tenant.id if tenant else None))
+            .order_by(RugJourneyStep.sort_order.asc(), RugJourneyStep.id.asc())
+            .all()
+        )
+        result = [
+            {
+                "id": s.id,
+                "title": s.title,
+                "description": s.description,
+            }
+            for s in steps
+        ]
+        cache_set("journey_steps", result)
+        return result
+    finally:
+        db.close()
+
+
 @router.get("/customer/announcement-messages")
 async def get_public_announcement_messages():
     """Public, unauthenticated messages for the storefront's rotating top announcement bar."""

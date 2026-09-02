@@ -926,6 +926,33 @@ class WorkshopPhoto(WorkshopPhotoBase):
         from_attributes = True
 
 
+# ── Rug Journey Steps ────────────────────────────────────────────────────────
+
+class RugJourneyStepBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class RugJourneyStepCreate(RugJourneyStepBase):
+    pass
+
+
+class RugJourneyStepUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class RugJourneyStep(RugJourneyStepBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
 # ── Testimonials ───────────────────────────────────────────────────────────────
 
 class AnnouncementMessageBase(BaseModel):

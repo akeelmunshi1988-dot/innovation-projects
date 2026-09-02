@@ -493,6 +493,18 @@ class WorkshopPhoto(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class RugJourneyStep(Base):
+    __tablename__ = "rug_journey_steps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    title = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class AnnouncementMessage(Base):
     __tablename__ = "announcement_messages"
 
@@ -695,6 +707,19 @@ class McpOAuthToken(Base):
     resource = Column(String(1000), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class McpCatalogUploadGrant(Base):
+    """One-time, short-lived credential for direct multipart catalog uploads."""
+    __tablename__ = "mcp_catalog_upload_grants"
+
+    id = Column(Integer, primary_key=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

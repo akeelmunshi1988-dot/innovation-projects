@@ -60,6 +60,7 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
 const WorkshopPhotos = lazy(() => import('./pages/WorkshopPhotos'));
+const JourneySteps = lazy(() => import('./pages/JourneySteps'));
 const Testimonials = lazy(() => import('./pages/Testimonials'));
 const AnnouncementBar = lazy(() => import('./pages/AnnouncementBar'));
 const ProjectGallery = lazy(() => import('./pages/ProjectGallery'));
@@ -135,6 +136,7 @@ function App() {
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
+                    <Route path="journey-steps" element={<JourneySteps />} />
                     <Route path="testimonials" element={<Testimonials />} />
                     <Route path="announcement-bar" element={<AnnouncementBar />} />
                     <Route path="project-gallery" element={<ProjectGallery />} />

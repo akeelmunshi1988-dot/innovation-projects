@@ -29,6 +29,14 @@ export interface WorkshopPhoto {
   is_active: boolean;
 }
 
+export interface RugJourneyStep {
+  id: number;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface AnnouncementMessage {
   id: number;
   text: string;

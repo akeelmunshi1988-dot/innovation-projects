@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, ArrowDown, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, CornerDownLeft, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -52,11 +52,14 @@ interface WorkshopPhoto {
 }
 
 const HOW = [
-  { n: '01', title: 'Design',             desc: 'Share your vision, room dimensions, and style — our team translates it into a custom rug design.' },
-  { n: '02', title: 'Material',            desc: 'Choose from wool, silk, cotton, or synthetic fibres, each sourced for durability and colourfastness.' },
-  { n: '03', title: 'Weaving',             desc: 'Master artisans hand-knot every rug on traditional looms, weeks or months in the making.' },
-  { n: '04', title: 'Quality Inspection',  desc: 'Every piece is checked for weave density, accurate sizing, and dye consistency before it ships.' },
-  { n: '05', title: 'Global Delivery',     desc: 'Packed and shipped worldwide, with export documentation handled for you door to door.' },
+  { n: '01', title: 'Buyer Request',                 desc: 'Share your vision, room dimensions, and style — our team scopes your custom rug request.' },
+  { n: '02', title: 'CAD Approval',                  desc: 'A CAD rendering of your design is prepared and shared for sign-off before any material is touched.' },
+  { n: '03', title: 'Material Dyeing',                desc: 'Wool, silk, cotton, or synthetic fibres are dyed in-house to your approved colourway.' },
+  { n: '04', title: 'Color Check',                    desc: 'Dyed yarn is matched against the approved palette for consistency before weaving begins.' },
+  { n: '05', title: 'Weaving',                        desc: 'Master artisans hand-knot every rug on traditional looms, weeks or months in the making.' },
+  { n: '06', title: 'Finishing, Washing & Stretching', desc: 'Each rug is trimmed, washed, and stretched to its final shape and pile.' },
+  { n: '07', title: 'Quality Check',                  desc: 'Every piece is checked for weave density, accurate sizing, and dye consistency before it ships.' },
+  { n: '08', title: 'Packaging & Delivery',           desc: 'Packed and shipped worldwide, with export documentation handled for you door to door.' },
 ];
 
 const WHY_LOOMCRAFT = [
@@ -126,6 +129,7 @@ export default function CustomerHome() {
   const [heroCtaLabel, setHeroCtaLabel] = useState<string | null>(null);
   const [contactInfo, setContactInfo] = useState<{ email: string | null; phone: string | null; address: string | null }>({ email: null, phone: null, address: null });
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
+  const [journeySteps, setJourneySteps] = useState<{ id: number; title: string; description: string | null }[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
   const [testimonialSlide, setTestimonialSlide] = useState(0);
@@ -149,6 +153,12 @@ export default function CustomerHome() {
   useEffect(() => {
     axios.get('/api/customer/workshop-photos')
       .then(({ data }) => setWorkshopPhotos(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    axios.get('/api/customer/journey-steps')
+      .then(({ data }) => setJourneySteps(data))
       .catch(() => {});
   }, []);
 
@@ -197,6 +207,9 @@ export default function CustomerHome() {
   const gridVideos = videos.filter((v) => !introVideos.includes(v));
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
   const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
+  const journeyStepsDisplay = journeySteps.length > 0
+    ? journeySteps.map((s, i) => ({ n: String(i + 1).padStart(2, '0'), title: s.title, desc: s.description || '' }))
+    : HOW;
   const showCraftSection = SHOW_CRAFT_VIDEO ? Boolean(introVideo) : Boolean(craftImageUrl);
   const slides = heroImages.length ? heroImages : [{ image_url: heroImageUrl || HERO_IMAGE_URL, alt_text: 'Handcrafted rug' }];
   const activeHero = slides[heroSlide % slides.length];
@@ -526,36 +539,58 @@ export default function CustomerHome() {
       )}
 
 
-      {/* ── CUSTOM RUG JOURNEY (connected step flow) ─────────────────────── */}
-      <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <p className="storefront-eyebrow mb-2">The Process</p>
-          <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
-        </div>
+      {/* ── CUSTOM RUG JOURNEY (horizontal step flow, wraps into rows) ───── */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-cream-100 via-white to-cream-100 py-20">
+        <div
+          className="absolute inset-0 opacity-60 pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(circle, #ddbf9155 1px, transparent 1px)', backgroundSize: '26px 26px' }}
+        />
+        <div className="absolute -top-28 -left-20 w-80 h-80 bg-cream-400/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-28 -right-20 w-80 h-80 bg-stone-300/30 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row items-stretch">
-          {HOW.map((step, i) => (
-            <React.Fragment key={step.n}>
-              <div className="flex-1 flex flex-col items-center text-center bg-cream-200 px-5 py-8">
-                <div className="w-14 h-14 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-lg flex-shrink-0">
-                  {step.n}
+        <div className="relative w-[94vw] max-w-6xl mx-auto px-4">
+          <div className="text-center mb-20">
+            <p className="storefront-eyebrow mb-2">The Process</p>
+            <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-16">
+            {journeyStepsDisplay.map((step, i) => {
+              const isLast = i === journeyStepsDisplay.length - 1;
+              const isRowEnd = (i + 1) % 4 === 0;
+              return (
+                <div
+                  key={step.n}
+                  className={`group relative bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 px-6 pt-9 pb-6 overflow-hidden ${
+                    i % 2 === 1 ? 'lg:translate-y-6' : ''
+                  }`}
+                >
+                  <span className="absolute -top-4 right-2 font-serif text-7xl text-stone-100 group-hover:text-cream-300 transition-colors duration-300 select-none leading-none">
+                    {step.n}
+                  </span>
+
+                  <div className="relative w-11 h-11 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-sm mb-4">
+                    {step.n}
+                  </div>
+                  <h3 className="relative text-stone-900 font-medium text-base">{step.title}</h3>
+                  {step.desc && (
+                    <p className="relative text-stone-500 text-sm leading-relaxed mt-2">{step.desc}</p>
+                  )}
+
+                  {!isLast && !isRowEnd && (
+                    <div className="hidden lg:flex absolute top-1/2 -right-8 -translate-y-1/2 items-center justify-center text-cream-600 z-10">
+                      <ArrowRight size={20} strokeWidth={1.5} />
+                    </div>
+                  )}
+                  {!isLast && isRowEnd && (
+                    <div className="hidden lg:flex absolute -bottom-11 right-4 items-center justify-center text-cream-600 z-10">
+                      <CornerDownLeft size={20} strokeWidth={1.5} />
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-stone-900 font-medium text-base mt-5">{step.title}</h3>
-                <p className="text-stone-500 text-sm leading-relaxed mt-2 max-w-[220px]">{step.desc}</p>
-              </div>
-
-              {i < HOW.length - 1 && (
-                <>
-                  <div className="hidden lg:flex items-center justify-center flex-shrink-0 w-10 pt-7">
-                    <ArrowRight size={18} className="text-stone-300" />
-                  </div>
-                  <div className="flex lg:hidden items-center justify-center flex-shrink-0 h-10">
-                    <ArrowDown size={18} className="text-stone-300" />
-                  </div>
-                </>
-              )}
-            </React.Fragment>
-          ))}
+              );
+            })}
+          </div>
         </div>
       </section>
 
