@@ -16,7 +16,6 @@ class MaterialBase(BaseModel):
     cost_per_sqm: float = Field(..., ge=0)
     cost_currency: Optional[str] = None
     is_available: bool = True
-    inventory_quantity: Optional[int] = Field(None, ge=0)
 
 
 class MaterialCreate(MaterialBase):
@@ -31,7 +30,6 @@ class MaterialUpdate(BaseModel):
     cost_per_sqm: Optional[float] = None
     cost_currency: Optional[str] = None
     is_available: Optional[bool] = None
-    inventory_quantity: Optional[int] = Field(None, ge=0)
 
 
 class Material(MaterialBase):
@@ -78,6 +76,7 @@ class RugCatalogBase(BaseModel):
     room_types: Optional[List[str]] = None
     mood_tags: Optional[List[str]] = None
     color_options: Optional[List[RugColorOption]] = None
+    inventory_quantity: Optional[int] = Field(None, ge=0)
     is_available: bool = True
 
 
@@ -103,6 +102,7 @@ class RugCatalogUpdate(BaseModel):
     room_types: Optional[List[str]] = None
     mood_tags: Optional[List[str]] = None
     color_options: Optional[List[RugColorOption]] = None
+    inventory_quantity: Optional[int] = Field(None, ge=0)
     is_available: Optional[bool] = None
 
 
