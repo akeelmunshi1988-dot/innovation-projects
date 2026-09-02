@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     MCP_TENANT_ID: Optional[int] = 1  # connector is deliberately scoped to one tenant
     MCP_OAUTH_ACCESS_TOKEN_MINUTES: int = 60
     MCP_OAUTH_REFRESH_TOKEN_DAYS: int = 30
+    MCP_UPLOAD_TMP_DIR: str = "/tmp/dreamrugs-mcp-uploads"
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
     SQLITE_SOURCE_URL: Optional[str] = None  # one-time legacy import source; unused by the running application
     APP_NAME: str = "DreamRugsCreation"
