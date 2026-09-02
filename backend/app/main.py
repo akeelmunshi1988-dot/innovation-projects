@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes, api_clients, public_api, announcements, faqs
+from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -167,6 +167,7 @@ app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
 app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 app.include_router(api_clients.router, prefix="/api", tags=["API Clients"])
 app.include_router(public_api.router, prefix="/api", tags=["Public API"])
+app.include_router(mcp_oauth.router, tags=["MCP OAuth"])
 app.mount("/mcp", mcp_http_app)
 
 

@@ -169,6 +169,8 @@ OPENAI_API_KEY=sk-YOUR-OPENAI-KEY-HERE
 CATALOG_API_KEY=rug_live_YOUR-EXISTING-CATALOG-KEY
 MCP_CONNECTOR_TOKEN=REPLACE_WITH-A-SEPARATE-RANDOM-TOKEN
 MCP_TENANT_ID=1
+MCP_OAUTH_ACCESS_TOKEN_MINUTES=60
+MCP_OAUTH_REFRESH_TOKEN_DAYS=30
 DATABASE_URL=sqlite:////var/www/dreamrugscreation/innovation-projects/backend/rug_manufacture.db
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -343,6 +345,28 @@ server {
         proxy_read_timeout 900s;
         proxy_send_timeout 900s;
         client_max_body_size 55M;
+    }
+
+    # OAuth discovery documents used by ChatGPT before it starts login.
+    location ^~ /.well-known/oauth- {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # OAuth registration, staff consent, token exchange, and revocation.
+    location ^~ /oauth/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_buffering off;
+        proxy_cache off;
     }
 
     # Internal-only: backs the auth_request calls above. `internal;` means

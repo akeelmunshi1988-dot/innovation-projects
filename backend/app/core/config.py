@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     CATALOG_API_KEY: Optional[str] = None  # local room-visualizer agent credential for the authenticated public catalog API
     MCP_CONNECTOR_TOKEN: Optional[str] = None  # optional dedicated bearer token; falls back to CATALOG_API_KEY
     MCP_TENANT_ID: Optional[int] = 1  # connector is deliberately scoped to one tenant
+    MCP_OAUTH_ACCESS_TOKEN_MINUTES: int = 60
+    MCP_OAUTH_REFRESH_TOKEN_DAYS: int = 30
     DATABASE_URL: str = "sqlite:///./rug_manufacture.db"
     SQLITE_SOURCE_URL: Optional[str] = None  # one-time legacy import source; unused by the running application
     APP_NAME: str = "DreamRugsCreation"
