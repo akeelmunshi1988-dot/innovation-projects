@@ -1,5 +1,7 @@
 """Private DreamRugsCreation MCP server for ChatGPT/Codex connectors."""
 
+import base64
+import binascii
 import hmac
 import ipaddress
 import mimetypes
@@ -113,6 +115,59 @@ async def import_catalog_image(image_url: str, filename: str = "rug-image.png") 
     (destination / stored_name).write_bytes(contents)
     stored_path = f"/static/rugs/{stored_name}"
     return {"path": stored_path, "url": _public_url(stored_path)}
+
+
+@mcp.tool(
+    description=(
+        "Upload one attached or generated catalog image directly into DreamRugsCreation storage. "
+        "Pass the image bytes as standard base64 or a base64 data URL. Use this when an image has "
+        "no public HTTPS URL. JPEG, PNG, and WebP are accepted up to 20 MB. Call it separately for "
+        "the transparent main image and each of the five room visualizers, retaining every returned path."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+)
+def upload_catalog_image(filename: str, image_base64: str) -> dict[str, Any]:
+    if not filename or len(filename) > 255:
+        raise ValueError("filename is required and must be 255 characters or fewer")
+    encoded = image_base64.strip()
+    if encoded.startswith("data:"):
+        header, separator, encoded = encoded.partition(",")
+        if not separator or ";base64" not in header.lower():
+            raise ValueError("image data URL must use base64 encoding")
+    # A 20 MB binary becomes at most ~28 MB of base64. Reject oversized input
+    # before decoding so a tool call cannot create an avoidable memory spike.
+    if len(encoded) > 28 * 1024 * 1024:
+        raise ValueError("Encoded image exceeds the 20 MB decoded limit")
+    try:
+        contents = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("image_base64 is not valid standard base64") from exc
+    if not contents:
+        raise ValueError("Uploaded image is empty")
+    if len(contents) > 20 * 1024 * 1024:
+        raise ValueError("Uploaded image exceeds the 20 MB limit")
+
+    if contents.startswith(b"\x89PNG\r\n\x1a\n"):
+        content_type, extension = "image/png", ".png"
+    elif contents.startswith(b"\xff\xd8\xff"):
+        content_type, extension = "image/jpeg", ".jpg"
+    elif len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP":
+        content_type, extension = "image/webp", ".webp"
+    else:
+        raise ValueError("Uploaded bytes are not a supported JPEG, PNG, or WebP image")
+
+    destination = Path(UPLOAD_DIR)
+    destination.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid.uuid4().hex}{extension}"
+    (destination / stored_name).write_bytes(contents)
+    stored_path = f"/static/rugs/{stored_name}"
+    return {
+        "path": stored_path,
+        "url": _public_url(stored_path),
+        "filename": stored_name,
+        "content_type": content_type,
+        "bytes": len(contents),
+    }
 
 
 @mcp.tool(

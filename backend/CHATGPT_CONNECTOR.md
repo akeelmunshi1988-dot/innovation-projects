@@ -69,6 +69,7 @@ The server currently exposes:
 
 - `list_catalog_materials`
 - `import_catalog_image`
+- `upload_catalog_image`
 - `create_catalog_item`
 - `get_catalog_item`
 
@@ -76,7 +77,8 @@ The intended run is:
 
 1. Generate one upright, front-facing transparent main image.
 2. Generate five separate room visualizers.
-3. Import all six images with `import_catalog_image`.
+3. Store all six images. Use `upload_catalog_image` for attached/generated image
+   bytes, or `import_catalog_image` when an image already has a public HTTPS URL.
 4. Ask for and confirm title, description, material, weave, price, and sizes.
 5. Call `create_catalog_item` once, passing the main image first and five room
    images in gallery order.
