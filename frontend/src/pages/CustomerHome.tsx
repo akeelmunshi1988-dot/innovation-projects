@@ -97,6 +97,16 @@ const MOOD_TAGS = [
   { v: 'timeless_traditional', label: 'Timeless Traditional' },
 ];
 
+// Five-image editorial composition modelled on the reference. Each additional
+// set repeats the art-directed canvas so every CMS image remains visible.
+const GALLERY_MOSAIC_LAYOUTS = [
+  'col-span-2 aspect-[4/3] md:aspect-auto md:col-start-1 md:col-span-5 md:row-start-1 md:row-span-4',
+  'col-span-1 aspect-square md:aspect-auto md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-3',
+  'col-span-1 aspect-square md:aspect-auto md:col-start-1 md:col-span-3 md:row-start-6 md:row-span-3',
+  'col-span-1 aspect-[3/4] md:aspect-auto md:col-start-4 md:col-span-3 md:row-start-7 md:row-span-4',
+  'col-span-1 aspect-[3/4] md:aspect-auto md:col-start-7 md:col-span-5 md:row-start-5 md:row-span-6',
+] as const;
+
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
@@ -776,19 +786,17 @@ export default function CustomerHome() {
       })()}
 
       {/* ── PROJECT GALLERY (dark-canvas editorial mosaic) ────────────────
-          Reference: carpet.axiomthemes.com's homepage — a bold oversized
-          headline over a near-black ground, and a sparse, asymmetric photo
-          mosaic (two stacked tiles beside one tall tile, repeating) with
-          generous negative space rather than a tightly-packed grid. Ported
-          the visual language, not the markup — this section still reads
-          straight from the CMS-managed galleryItems/ProjectGalleryItem
-          list, same as the slider it replaces. Capped to 6 items (two
-          mosaic "triplets") so the homepage teaser stays a teaser; the
-          full set lives on /project-gallery, linked below. */}
+          Inspired by the loose, irregular image wall in the Carpet demo.
+          Every published project is rendered; the deterministic span pattern
+          creates a random-looking composition without layout shifts. */}
       {galleryItems.length > 0 && (() => {
-        const displayItems = galleryItems.slice(0, 6);
         return (
-          <section className="relative overflow-hidden bg-dark-950 py-24 md:py-32">
+          <section
+            className="relative overflow-hidden bg-[#0b1217] py-24 md:py-32"
+            style={{
+              backgroundImage: 'radial-gradient(circle at 18% 22%, rgba(255,255,255,.035), transparent 25%), linear-gradient(115deg, transparent 35%, rgba(255,255,255,.025) 35.1%, transparent 35.3%)',
+            }}
+          >
             <div className="w-[94vw] max-w-none mx-auto px-4 mb-16 md:mb-24">
               <p className="text-xs tracking-[0.3em] uppercase text-rug-400 mb-4">Project Gallery</p>
               {/* Edge-to-edge, viewport-scaled type — the point of this
@@ -800,7 +808,10 @@ export default function CustomerHome() {
                   bold weight rather than a separate display face, so this
                   section still reads as the same typeface family as every
                   other heading on the site — just scaled and weighted up. */}
-              <h2 className="font-serif font-bold uppercase text-white leading-[0.85] tracking-tight text-[13vw] xl:text-[9.5vw] 2xl:text-[132px]">
+              <h2
+                className="font-black uppercase text-[#c53d16] leading-[0.82] tracking-[-0.045em] text-[13vw] xl:text-[9.5vw] 2xl:text-[148px]"
+                style={{ fontFamily: "'Arial Narrow', 'Roboto Condensed', Impact, sans-serif", fontStretch: 'condensed' }}
+              >
                 Rugs in Their<br />New Homes
               </h2>
               <Link
@@ -811,50 +822,44 @@ export default function CustomerHome() {
               </Link>
             </div>
 
-            {/* Sparse, asymmetric mosaic — a narrow column of two stacked
-                squares beside one tall tile, repeating per group of 3, with
-                wide empty gutters left deliberately unfilled (columns 5–6
-                and 10–12 of 12) so photos read as floating islands on the
-                dark canvas rather than a filled grid. */}
-            <div
-              className="w-[94vw] max-w-none mx-auto px-4 grid grid-cols-12 gap-x-6 md:gap-x-10 gap-y-8 md:gap-y-10 auto-rows-[110px] sm:auto-rows-[130px] lg:auto-rows-[150px]"
-            >
-              {displayItems.map((g, i) => {
-                const posInGroup = i % 3;
-                const group = Math.floor(i / 3);
-                const rowBase = group * 2 + 1;
-                const isTall = 2 === posInGroup;
-                const style: React.CSSProperties = isTall
-                  ? { gridColumn: '7 / span 4', gridRow: `${rowBase} / span 2` }
-                  : { gridColumn: '1 / span 3', gridRow: rowBase + (1 === posInGroup ? 1 : 0) };
-                const tile = (
-                  <div className="group relative w-full h-full overflow-hidden bg-dark-900">
-                    <img
-                      src={g.image_url}
-                      alt={g.caption ?? ''}
-                      className="w-full h-full object-cover scale-100 group-hover:scale-[1.06] transition-transform duration-[1200ms] ease-out"
-                      loading="lazy"
-                    />
-                    {g.caption && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-dark-950/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end">
-                        <p className="text-cream-100 font-serif text-lg font-light px-5 pb-4">{g.caption}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-                // link_url is an admin-set external override (e.g. a blog
-                // post about the project); when unset, the tile links to
-                // this project's own detail page instead of going nowhere.
-                return g.link_url ? (
-                  <a key={g.id} href={g.link_url} target="_blank" rel="noreferrer" style={style}>
-                    {tile}
-                  </a>
-                ) : (
-                  <Link key={g.id} to={`/project-gallery/${g.id}`} style={style}>
-                    {tile}
-                  </Link>
-                );
-              })}
+            <div className="w-[94vw] max-w-none mx-auto px-2 md:px-4">
+              {Array.from({ length: Math.ceil(galleryItems.length / GALLERY_MOSAIC_LAYOUTS.length) }).map((_, groupIndex) => (
+                <div
+                  key={groupIndex}
+                  className="grid grid-cols-2 gap-4 mb-4 md:mb-16 md:grid-cols-12 md:grid-rows-[repeat(10,minmax(0,92px))] lg:grid-rows-[repeat(10,minmax(0,110px))] md:gap-0"
+                >
+                  {galleryItems
+                    .slice(groupIndex * GALLERY_MOSAIC_LAYOUTS.length, (groupIndex + 1) * GALLERY_MOSAIC_LAYOUTS.length)
+                    .map((g, i) => {
+                      const layout = GALLERY_MOSAIC_LAYOUTS[i];
+                      const tile = (
+                        <div className="group relative w-full h-full overflow-hidden bg-dark-900">
+                          <img
+                            src={g.image_url}
+                            alt={g.caption ?? ''}
+                            className="w-full h-full object-cover scale-100 group-hover:scale-[1.045] transition-transform duration-[1200ms] ease-out"
+                            loading="lazy"
+                          />
+                          {g.caption && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-dark-950/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end">
+                              <p className="text-cream-100 font-serif text-lg font-light px-5 pb-4">{g.caption}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                      const className = `${layout} md:p-3`;
+                      return g.link_url ? (
+                        <a key={g.id} href={g.link_url} target="_blank" rel="noreferrer" className={className}>
+                          {tile}
+                        </a>
+                      ) : (
+                        <Link key={g.id} to={`/project-gallery/${g.id}`} className={className}>
+                          {tile}
+                        </Link>
+                      );
+                    })}
+                </div>
+              ))}
             </div>
           </section>
         );

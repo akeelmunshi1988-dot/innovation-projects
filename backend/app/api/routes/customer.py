@@ -631,12 +631,13 @@ async def get_public_catalog(
     room_type: str = Query(None),
     mood: str = Query(None),
     material: str = Query(None),
+    weave: str = Query(None),
     pile: str = Query(None),
     search: str = Query(None),
     limit: int = Query(12, ge=1, le=60),
     offset: int = Query(0, ge=0),
 ):
-    cache_key = f"list:{sort}:{room_type or ''}:{mood or ''}:{material or ''}:{pile or ''}:{(search or '').lower()}:{limit}:{offset}"
+    cache_key = f"list:{sort}:{room_type or ''}:{mood or ''}:{material or ''}:{weave or ''}:{pile or ''}:{(search or '').lower()}:{limit}:{offset}"
     cached = cache_get("catalog", cache_key)
     if cached is not None:
         return cached
@@ -647,6 +648,8 @@ async def get_public_catalog(
         q = db.query(RugCatalog).join(Material).filter(RugCatalog.tenant_id == (tenant.id if tenant else None))
         if material and material != "all":
             q = q.filter(Material.type == material)
+        if weave and weave != "all":
+            q = q.filter(sqlfunc.lower(RugCatalog.weave_type) == weave.lower())
         if pile and pile != "all":
             q = q.filter(RugCatalog.pile_height == pile)
         if search:
