@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.models import Material, RugCatalog
 from app.schemas.schemas import PublicCatalogCreate
+from app.services.mcp_oauth import READ_SCOPE, WRITE_SCOPE, valid_access_token
 
 
 mcp = FastMCP(
@@ -213,7 +214,7 @@ def get_catalog_item(rug_id: int) -> dict[str, Any]:
 
 
 class ConnectorBearerAuth:
-    """Protect the mounted MCP endpoint with one private connector bearer token."""
+    """Accept OAuth access tokens, retaining the private token for diagnostics."""
 
     def __init__(self, app: Any):
         self.app = app
@@ -225,12 +226,26 @@ class ConnectorBearerAuth:
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
         authorization = headers.get(b"authorization", b"").decode("latin-1")
         supplied = authorization[7:] if authorization.lower().startswith("bearer ") else ""
-        if not expected or not supplied or not hmac.compare_digest(supplied, expected):
+        static_valid = bool(expected and supplied and hmac.compare_digest(supplied, expected))
+        oauth_valid = False
+        if supplied and not static_valid:
+            db = SessionLocal()
+            try:
+                token = valid_access_token(db, supplied)
+                oauth_valid = bool(token and {READ_SCOPE, WRITE_SCOPE}.issubset(set(token.scopes or [])))
+            finally:
+                db.close()
+        if not static_valid and not oauth_valid:
             body = b'{"error":"unauthorized connector"}'
+            metadata_url = f'{settings.BACKEND_URL.rstrip("/")}/.well-known/oauth-protected-resource/mcp/'
             await send({
                 "type": "http.response.start",
-                "status": 401 if expected else 503,
-                "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+                "status": 401,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"www-authenticate", f'Bearer resource_metadata="{metadata_url}"'.encode()),
+                ],
             })
             await send({"type": "http.response.body", "body": body})
             return

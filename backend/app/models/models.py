@@ -623,6 +623,68 @@ class ApiClient(Base):
     revoked_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class McpOAuthClient(Base):
+    """OAuth public client registered by ChatGPT through RFC 7591 DCR."""
+    __tablename__ = "mcp_oauth_clients"
+
+    id = Column(Integer, primary_key=True)
+    client_id = Column(String(128), nullable=False, unique=True, index=True)
+    client_name = Column(String(200), nullable=True)
+    redirect_uris = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class McpOAuthAuthorizationRequest(Base):
+    """Short-lived browser login transaction; the opaque ID is stored hashed."""
+    __tablename__ = "mcp_oauth_authorization_requests"
+
+    id = Column(Integer, primary_key=True)
+    transaction_hash = Column(String(64), nullable=False, unique=True, index=True)
+    client_id = Column(String(128), nullable=False, index=True)
+    redirect_uri = Column(String(1000), nullable=False)
+    state = Column(String(500), nullable=True)
+    scopes = Column(JSON, nullable=False)
+    code_challenge = Column(String(128), nullable=False)
+    resource = Column(String(1000), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class McpOAuthAuthorizationCode(Base):
+    __tablename__ = "mcp_oauth_authorization_codes"
+
+    id = Column(Integer, primary_key=True)
+    code_hash = Column(String(64), nullable=False, unique=True, index=True)
+    client_id = Column(String(128), nullable=False, index=True)
+    staff_user_id = Column(Integer, ForeignKey("staff_users.id"), nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    redirect_uri = Column(String(1000), nullable=False)
+    scopes = Column(JSON, nullable=False)
+    code_challenge = Column(String(128), nullable=False)
+    resource = Column(String(1000), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class McpOAuthToken(Base):
+    """Hashed OAuth access/refresh token. Raw credentials are never persisted."""
+    __tablename__ = "mcp_oauth_tokens"
+
+    id = Column(Integer, primary_key=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    token_type = Column(String(10), nullable=False)  # access | refresh
+    client_id = Column(String(128), nullable=False, index=True)
+    staff_user_id = Column(Integer, ForeignKey("staff_users.id"), nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    scopes = Column(JSON, nullable=False)
+    resource = Column(String(1000), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class AiChatMessage(Base):
     """One turn of the vendor AI Assistant conversation (app/services/ai_agent.py),
     persisted for history/audit — the frontend only holds the live conversation
