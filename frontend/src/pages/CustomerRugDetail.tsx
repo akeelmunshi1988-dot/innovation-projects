@@ -549,7 +549,7 @@ export default function CustomerRugDetail() {
         {/* Two-panel hero: portrait cover (left) + wide lifestyle photo (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:items-stretch mb-10">
           {/* Cover shot — fixed, no slider */}
-          <div className="lg:col-span-2 relative z-10 hover:z-30 group aspect-[4/5] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+          <div className="lg:col-span-2 relative z-10 hover:z-30 group aspect-[4/5] lg:aspect-auto lg:h-[42vw]">
             <div className="absolute inset-y-0 left-0 w-full overflow-hidden bg-stone-100 transition-[width,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(160%+1.25rem)] lg:group-hover:shadow-2xl">
             {coverImage ? (
               <button
@@ -573,7 +573,7 @@ export default function CustomerRugDetail() {
             const lifestyleImages = rug.images.length > 0 ? rug.images.map((img) => img.image_url) : (coverImage ? [coverImage] : []);
             if (lifestyleImages.length === 0) {
               return (
-                <div className="lg:col-span-3 overflow-hidden bg-stone-100 aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+                <div className="lg:col-span-3 overflow-hidden bg-stone-100 aspect-[4/3] lg:aspect-auto lg:h-[42vw]">
                   <div className="w-full h-full flex items-center justify-center">
                     <Layers size={48} className="text-stone-300" />
                   </div>
@@ -582,7 +582,7 @@ export default function CustomerRugDetail() {
             }
             const current = Math.min(activeSlide, lifestyleImages.length - 1);
             return (
-              <div className="lg:col-span-3 relative z-10 hover:z-30 group aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+              <div className="lg:col-span-3 relative z-10 hover:z-30 group aspect-[4/3] lg:aspect-auto lg:h-[42vw]">
                 <div className="absolute inset-y-0 right-0 w-full overflow-hidden bg-stone-100 transition-[width,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(140%+1.25rem)] lg:group-hover:shadow-2xl">
                 <button
                   type="button"
