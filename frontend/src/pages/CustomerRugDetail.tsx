@@ -112,6 +112,10 @@ export default function CustomerRugDetail() {
   const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const { sizeUnit, setSizeUnit } = useMeasurementUnit();
+  // Identifies the selected standard size independent of display unit (a size's
+  // `ft` value is always present, unlike `cm`) — see the size-seeding effect
+  // below for why the selection can't be tracked from form.size_w/size_h alone.
+  const [selectedSizeKey, setSelectedSizeKey] = useState<string | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
@@ -174,18 +178,36 @@ export default function CustomerRugDetail() {
       .catch(() => {});
   }, []);
 
+  // Reset the tracked selection when navigating to a different rug.
+  useEffect(() => {
+    setSelectedSizeKey(null);
+  }, [rug?.id]);
+
+  // Re-derives form.size_w/size_h from the selected size (falling back to the
+  // catalog default) every time the rug, the display unit, or the selection
+  // itself changes. Keying the lookup on selectedSizeKey (a size's `ft` value,
+  // always present) rather than re-matching form.size_w/size_h against the new
+  // unit's numbers is what makes this safe across a unit switch — matching by
+  // the *previous* unit's raw numbers against the *new* unit is exactly what
+  // silently left size_w/size_h holding stale, wrong-unit numbers (e.g. a `6`
+  // meant as feet getting reinterpreted as 6cm) whenever the selected size had
+  // no vendor-entered cm value, which is what broke pricing when toggling to
+  // cm on such rugs.
   useEffect(() => {
     if (!rug?.sizes.length) return;
-    const preferred = rug.sizes.find((size) => size.is_default) ?? rug.sizes[0];
-    const dimensions = catalogSizeDims(preferred, inputUnit(sizeUnit));
-    if (!dimensions) return;
+    const target = (selectedSizeKey ? rug.sizes.find((size) => size.ft === selectedSizeKey) : undefined)
+      ?? rug.sizes.find((size) => size.is_default) ?? rug.sizes[0];
+    const dimensions = catalogSizeDims(target, inputUnit(sizeUnit));
     setForm((current) => ({
       ...current,
-      size_w: String(dimensions[0]),
-      size_h: String(dimensions[1]),
+      size_w: dimensions ? String(dimensions[0]) : '',
+      size_h: dimensions ? String(dimensions[1]) : '',
       shape: 'rect',
     }));
-  }, [rug, sizeUnit]);
+    // A previous estimate is for the old unit's dimensions and no longer
+    // applies once we can't represent the selected size in the new unit.
+    if (!dimensions) setPriceResult(null);
+  }, [rug, sizeUnit, selectedSizeKey]);
 
   useEffect(() => {
     if (!expandedImage) return;
@@ -215,10 +237,8 @@ export default function CustomerRugDetail() {
   // form.size_w/size_h are entered in `sizeUnit`; quote pricing is denominated in metres.
   const sizeWMetres = toMetres(parseFloat(form.size_w), sizeUnit);
   const sizeHMetres = toMetres(parseFloat(effectiveSizeH), sizeUnit);
-  const selectedCatalogSize = rug?.sizes.find((size) => {
-    const dimensions = catalogSizeDims(size, inputUnit(sizeUnit));
-    return dimensions && form.size_w === String(dimensions[0]) && form.size_h === String(dimensions[1]);
-  }) ?? rug?.sizes.find((size) => size.is_default) ?? rug?.sizes[0];
+  const selectedCatalogSize = (selectedSizeKey ? rug?.sizes.find((size) => size.ft === selectedSizeKey) : undefined)
+    ?? rug?.sizes.find((size) => size.is_default) ?? rug?.sizes[0];
   const selectedLeadTimeDays = selectedCatalogSize?.lead_time_days ?? rug?.lead_time_days ?? 21;
 
   const calcPrice = async (selectedSize?: { size_w: string; size_h: string }) => {
@@ -778,6 +798,7 @@ export default function CustomerRugDetail() {
                               return (
                                 <button key={size.ft} type="button"
                                   onClick={() => {
+                                    setSelectedSizeKey(size.ft);
                                     setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
                                     setPriceResult(null);
                                     void calcPrice({ size_w: dispW, size_h: dispH });
