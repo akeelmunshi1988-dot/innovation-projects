@@ -28,30 +28,39 @@ const MEGA_MENU = {
   space: {
     heading: 'Shop by Space',
     links: [
-      { label: 'Living Room', to: '/catalog/space/living_room' },
-      { label: 'Bedroom', to: '/catalog/space/bedroom' },
-      { label: 'Dining Room', to: '/catalog/space/dining_room' },
-      { label: 'Entryway', to: '/catalog/space/entryway' },
+      { label: 'Living Room', to: '/collections/space/living_room' },
+      { label: 'Bedroom', to: '/collections/space/bedroom' },
+      { label: 'Dining Room', to: '/collections/space/dining_room' },
+      { label: 'Entryway', to: '/collections/space/entryway' },
     ],
   },
   mood: {
     heading: 'Shop by Mood',
     links: [
-      { label: 'Warm & Earthy', to: '/catalog/mood/warm_earthy' },
-      { label: 'Quiet Luxury', to: '/catalog/mood/quiet_luxury' },
-      { label: 'Modern Minimal', to: '/catalog/mood/modern_minimal' },
-      { label: 'Bohemian', to: '/catalog/mood/bohemian' },
-      { label: 'Bold & Artistic', to: '/catalog/mood/bold_artistic' },
-      { label: 'Timeless Traditional', to: '/catalog/mood/timeless_traditional' },
+      { label: 'Warm & Earthy', to: '/collections/mood/warm_earthy' },
+      { label: 'Quiet Luxury', to: '/collections/mood/quiet_luxury' },
+      { label: 'Modern Minimal', to: '/collections/mood/modern_minimal' },
+      { label: 'Bohemian', to: '/collections/mood/bohemian' },
+      { label: 'Bold & Artistic', to: '/collections/mood/bold_artistic' },
+      { label: 'Timeless Traditional', to: '/collections/mood/timeless_traditional' },
     ],
   },
   material: {
     heading: 'Shop by Material',
     links: [
-      { label: 'Wool', to: '/catalog/material/wool' },
-      { label: 'Silk', to: '/catalog/material/silk' },
-      { label: 'Cotton', to: '/catalog/material/cotton' },
-      { label: 'Synthetic', to: '/catalog/material/synthetic' },
+      { label: 'Wool', to: '/collections/material/wool' },
+      { label: 'Silk', to: '/collections/material/silk' },
+      { label: 'Cotton', to: '/collections/material/cotton' },
+      { label: 'Synthetic', to: '/collections/material/synthetic' },
+    ],
+  },
+  weave: {
+    heading: 'Shop by Weave Type',
+    links: [
+      { label: 'Hand Knotted', to: '/weaves/hand-knotted' },
+      { label: 'Hand Tufted', to: '/weaves/hand-tufted' },
+      { label: 'Flatweave', to: '/weaves/flatweave' },
+      { label: 'Machine Woven', to: '/weaves/machine-woven' },
     ],
   },
   quick: {
@@ -296,7 +305,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                       infoBarDismissed ? 'top-[70px]' : 'top-[102px]'
                     }`}
                   >
-                    <div className="w-[94vw] max-w-none mx-auto px-4 py-10 grid grid-cols-5 gap-10">
+                    <div className="w-[94vw] max-w-none mx-auto px-4 py-10 grid grid-cols-6 gap-8">
                       {(Object.keys(MEGA_MENU) as (keyof typeof MEGA_MENU)[]).map((key) => (
                         <div key={key} className="space-y-3">
                           <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{MEGA_MENU[key].heading}</p>
@@ -470,6 +479,16 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 {n.label}
               </Link>
             ))}
+            <div className="py-3 border-b border-stone-100">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 mb-2">Shop by Weave Type</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {MEGA_MENU.weave.links.map((item) => (
+                  <Link key={item.to} to={item.to} className="text-sm text-stone-600 hover:text-stone-900 transition-colors">
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
             <Link to="/cart"
               className="flex items-center gap-2 py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50"
             >

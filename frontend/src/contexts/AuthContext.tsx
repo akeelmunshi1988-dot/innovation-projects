@@ -13,6 +13,7 @@ export interface TenantInfo {
   currency: string;
   base_currency: string;
   exchange_rates: Record<string, number>;
+  enabled_currencies: string[];
   exchange_rates_auto: boolean;
   exchange_rates_updated_at: string | null;
   logo_url: string | null;

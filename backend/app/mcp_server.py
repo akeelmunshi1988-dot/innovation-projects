@@ -9,7 +9,9 @@ import json
 import mimetypes
 import os
 import socket
+import secrets
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -21,12 +23,12 @@ from mcp.types import ToolAnnotations
 from app.api.routes.catalog import UPLOAD_DIR, add_rug_image_row, create_rug_row
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.models.models import Material, RugCatalog
+from app.models.models import Material, RugCatalog, McpCatalogUploadGrant
 from app.schemas.schemas import PublicCatalogCreate
 from app.services.mcp_oauth import READ_SCOPE, WRITE_SCOPE, valid_access_token
+from app.services.catalog_image_storage import CATALOG_IMAGE_MAX_BYTES, store_catalog_image
 
 
-CATALOG_IMAGE_MAX_BYTES = 20 * 1024 * 1024
 CATALOG_UPLOAD_CHUNK_BYTES = 512 * 1024
 
 
@@ -70,37 +72,8 @@ def _decode_base64(value: str, *, max_bytes: int, field_name: str) -> bytes:
     return contents
 
 
-def _catalog_image_type(contents: bytes) -> tuple[str, str]:
-    if contents.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png", ".png"
-    if contents.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg", ".jpg"
-    if len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP":
-        return "image/webp", ".webp"
-    raise ValueError("Uploaded bytes are not a supported JPEG, PNG, or WebP image")
-
-
 def _store_catalog_image(contents: bytes) -> dict[str, Any]:
-    if not contents:
-        raise ValueError("Uploaded image is empty")
-    if len(contents) > CATALOG_IMAGE_MAX_BYTES:
-        raise ValueError("Uploaded image exceeds the 20 MB limit")
-    content_type, extension = _catalog_image_type(contents)
-    destination = Path(UPLOAD_DIR)
-    destination.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid.uuid4().hex}{extension}"
-    temporary = destination / f".{stored_name}.tmp"
-    temporary.write_bytes(contents)
-    temporary.replace(destination / stored_name)
-    stored_path = f"/static/rugs/{stored_name}"
-    return {
-        "path": stored_path,
-        "url": _public_url(stored_path),
-        "filename": stored_name,
-        "content_type": content_type,
-        "bytes": len(contents),
-        "sha256": hashlib.sha256(contents).hexdigest(),
-    }
+    return store_catalog_image(contents, settings.BACKEND_URL)
 
 
 def _chunk_upload_dir(upload_id: str) -> Path:
@@ -177,6 +150,41 @@ async def import_catalog_image(image_url: str, filename: str = "rug-image.png") 
     (destination / stored_name).write_bytes(contents)
     stored_path = f"/static/rugs/{stored_name}"
     return {"path": stored_path, "url": _public_url(stored_path)}
+
+
+@mcp.tool(
+    description=(
+        "Create a one-time multipart upload URL for a local catalog image. Use this instead of base64 or chunk tools "
+        "when the client can make a direct HTTP multipart POST. The URL expires in 10 minutes, accepts one field "
+        "named 'file', permits JPEG/PNG/WebP up to 20 MB, and returns the stored catalog path and URL."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=False),
+)
+def create_catalog_image_upload_url(filename: str) -> dict[str, Any]:
+    if not filename or len(filename) > 255:
+        raise ValueError("filename is required and must be 255 characters or fewer")
+    raw_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    db = SessionLocal()
+    try:
+        db.add(McpCatalogUploadGrant(
+            token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
+            tenant_id=_tenant_id(),
+            filename=filename,
+            expires_at=expires_at,
+        ))
+        db.commit()
+    finally:
+        db.close()
+    return {
+        "upload_url": f"{settings.BACKEND_URL.rstrip('/')}/api/mcp/catalog-image-upload/{raw_token}",
+        "method": "POST",
+        "content_type": "multipart/form-data",
+        "file_field": "file",
+        "max_bytes": CATALOG_IMAGE_MAX_BYTES,
+        "expires_at": expires_at.isoformat(),
+        "example": "curl -X POST -F 'file=@/absolute/path/image.png' '<upload_url>'",
+    }
 
 
 @mcp.tool(

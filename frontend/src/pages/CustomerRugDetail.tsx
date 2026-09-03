@@ -18,6 +18,7 @@ import { getPublicSettings } from '../services/api';
 import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 import type { CatalogSize, RugColorOption } from '../types';
 
@@ -110,7 +111,7 @@ export default function CustomerRugDetail() {
 
   const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const [activeSlide, setActiveSlide] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
@@ -740,38 +741,61 @@ export default function CustomerRugDetail() {
                         </div>
                       </div>
                     )}
-                    {/* Standard Sizes — only sizes with a value in the current unit are
-                        offered; a size missing a vendor-entered cm value simply isn't
-                        shown when browsing in cm, rather than falling back to a computed
-                        conversion (see utils/size.ts). */}
-                    {rug.sizes.filter((size) => catalogSizeDims(size, inputUnit(sizeUnit))).length > 0 && (
+                    {/* Standard Sizes — the unit toggle always stays visible (even with
+                        zero sizes for the currently-selected unit) so switching to cm
+                        on a rug with no vendor-entered cm values can't strand the user
+                        without a way back to ft. Only sizes with a value in the current
+                        unit are offered below it; a size missing a vendor-entered cm
+                        value simply isn't shown when browsing in cm, rather than falling
+                        back to a computed conversion (see utils/size.ts). */}
+                    {rug.sizes.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Standard Sizes</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {rug.sizes.map((size) => {
-                            const dims = catalogSizeDims(size, inputUnit(sizeUnit));
-                            if (!dims) return null;
-                            const dispW = String(dims[0]);
-                            const dispH = String(dims[1]);
-                            const isSelected = form.size_w === dispW && form.size_h === dispH;
-                            return (
-                              <button key={size.ft} type="button"
-                                onClick={() => {
-                                  setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
-                                  setPriceResult(null);
-                                  void calcPrice({ size_w: dispW, size_h: dispH });
-                                }}
-                                className={`border px-3 py-1.5 text-xs transition-colors ${
-                                  isSelected
-                                    ? 'bg-stone-900 border-stone-900 text-white'
-                                    : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Standard Sizes</p>
+                          <div className="flex items-center border border-stone-200 p-0.5 flex-shrink-0" aria-label="Measurement unit">
+                            {(['ft', 'cm'] as const).map((unit) => (
+                              <button
+                                key={unit}
+                                type="button"
+                                onClick={() => setSizeUnit(unit)}
+                                className={`px-2 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+                                  sizeUnit === unit ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-900'
                                 }`}
                               >
-                                {fmtSize(size, sizeUnit)}
+                                {unit}
                               </button>
-                            );
-                          })}
+                            ))}
+                          </div>
                         </div>
+                        {rug.sizes.filter((size) => catalogSizeDims(size, inputUnit(sizeUnit))).length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {rug.sizes.map((size) => {
+                              const dims = catalogSizeDims(size, inputUnit(sizeUnit));
+                              if (!dims) return null;
+                              const dispW = String(dims[0]);
+                              const dispH = String(dims[1]);
+                              const isSelected = form.size_w === dispW && form.size_h === dispH;
+                              return (
+                                <button key={size.ft} type="button"
+                                  onClick={() => {
+                                    setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
+                                    setPriceResult(null);
+                                    void calcPrice({ size_w: dispW, size_h: dispH });
+                                  }}
+                                  className={`border px-3 py-1.5 text-xs transition-colors ${
+                                    isSelected
+                                      ? 'bg-stone-900 border-stone-900 text-white'
+                                      : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
+                                  }`}
+                                >
+                                  {fmtSize(size, sizeUnit)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-stone-400 text-xs italic">No sizes listed in {sizeUnit.toUpperCase()} yet.</p>
+                        )}
                       </div>
                     )}
 

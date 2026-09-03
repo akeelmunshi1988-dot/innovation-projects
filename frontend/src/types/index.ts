@@ -29,6 +29,14 @@ export interface WorkshopPhoto {
   is_active: boolean;
 }
 
+export interface RugJourneyStep {
+  id: number;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface AnnouncementMessage {
   id: number;
   text: string;
@@ -102,11 +110,20 @@ export interface RugImage {
  * auto-computed from `ft`: it's exactly what the vendor typed on the catalog form,
  * or absent. */
 export interface CatalogSize {
+  master_size_id?: number | null;
   ft: string;
   cm?: string | null;
   is_default?: boolean;
   price: number;
   lead_time_days?: number | null;
+}
+
+export interface CatalogSizeMaster {
+  id: number;
+  ft: string;
+  cm?: string | null;
+  sort_order: number;
+  is_active: boolean;
 }
 
 export interface RugColorOption {

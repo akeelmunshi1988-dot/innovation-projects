@@ -320,6 +320,7 @@ async def get_public_settings():
             "currency": tenant.currency if tenant else "INR",
             "base_currency": tenant.base_currency if tenant else "INR",
             "exchange_rates": (tenant.exchange_rates or {}) if tenant else {},
+            "enabled_currencies": (tenant.enabled_currencies or []) if tenant else [],
             "catalog_pdf_url": tenant.catalog_pdf_url if tenant else None,
             "certifications": (tenant.certifications or []) if tenant else [],
             "default_shipping_rate": tenant.default_shipping_rate if tenant else None,
@@ -410,6 +411,36 @@ async def get_public_workshop_photos():
             for p in photos
         ]
         cache_set("workshop_photos", result)
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/customer/journey-steps")
+async def get_public_journey_steps():
+    """Public, unauthenticated 'Custom Rug Journey' timeline shown on the storefront homepage."""
+    cached = cache_get("journey_steps")
+    if cached is not None:
+        return cached
+    from app.models.models import RugJourneyStep
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        steps = (
+            db.query(RugJourneyStep)
+            .filter(RugJourneyStep.is_active == True, RugJourneyStep.tenant_id == (tenant.id if tenant else None))
+            .order_by(RugJourneyStep.sort_order.asc(), RugJourneyStep.id.asc())
+            .all()
+        )
+        result = [
+            {
+                "id": s.id,
+                "title": s.title,
+                "description": s.description,
+            }
+            for s in steps
+        ]
+        cache_set("journey_steps", result)
         return result
     finally:
         db.close()
@@ -631,12 +662,13 @@ async def get_public_catalog(
     room_type: str = Query(None),
     mood: str = Query(None),
     material: str = Query(None),
+    weave: str = Query(None),
     pile: str = Query(None),
     search: str = Query(None),
     limit: int = Query(12, ge=1, le=60),
     offset: int = Query(0, ge=0),
 ):
-    cache_key = f"list:{sort}:{room_type or ''}:{mood or ''}:{material or ''}:{pile or ''}:{(search or '').lower()}:{limit}:{offset}"
+    cache_key = f"list:{sort}:{room_type or ''}:{mood or ''}:{material or ''}:{weave or ''}:{pile or ''}:{(search or '').lower()}:{limit}:{offset}"
     cached = cache_get("catalog", cache_key)
     if cached is not None:
         return cached
@@ -647,6 +679,8 @@ async def get_public_catalog(
         q = db.query(RugCatalog).join(Material).filter(RugCatalog.tenant_id == (tenant.id if tenant else None))
         if material and material != "all":
             q = q.filter(Material.type == material)
+        if weave and weave != "all":
+            q = q.filter(sqlfunc.lower(RugCatalog.weave_type) == weave.lower())
         if pile and pile != "all":
             q = q.filter(RugCatalog.pile_height == pile)
         if search:

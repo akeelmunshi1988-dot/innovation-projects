@@ -6,6 +6,8 @@ import type { CatalogSize, RugColorOption } from '../types';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
+import { fmtSize } from '../utils/size';
 
 interface CatalogRug {
   id: number;
@@ -60,6 +62,7 @@ export default function CustomerCatalog() {
   const [colorPreviewByRug, setColorPreviewByRug] = useState<Record<number, string>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { displayPrice } = useCurrency();
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
 
   // The primary facet (room/mood/material) lives as a clean URL segment —
   // e.g. /catalog/space/bedroom — set by whichever `useParams` route matched.
@@ -222,6 +225,22 @@ export default function CustomerCatalog() {
                 </button>
               )}
 
+              {/* Measurement unit */}
+              <div className="flex items-center border border-stone-200 p-0.5" aria-label="Measurement unit">
+                {(['ft', 'cm'] as const).map((unit) => (
+                  <button
+                    key={unit}
+                    type="button"
+                    onClick={() => setSizeUnit(unit)}
+                    className={`px-2 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+                      sizeUnit === unit ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-900'
+                    }`}
+                  >
+                    {unit}
+                  </button>
+                ))}
+              </div>
+
               {/* Sort */}
               <select
                 value={sort}
@@ -377,7 +396,7 @@ export default function CustomerCatalog() {
                     )}
                     {rug.display_price != null && (
                       <p className="text-stone-500 text-sm">
-                        {displayPrice(rug.display_price)}{rug.default_size && <span className="text-stone-400 text-xs"> · {rug.default_size.ft} ft</span>}
+                        {displayPrice(rug.display_price)}{rug.default_size && fmtSize(rug.default_size, sizeUnit) && <span className="text-stone-400 text-xs"> · {fmtSize(rug.default_size, sizeUnit)}</span>}
                       </p>
                     )}
                   </div>

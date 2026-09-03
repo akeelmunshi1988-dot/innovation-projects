@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { CartProvider } from './contexts/CartContext';
+import { MeasurementProvider } from './contexts/MeasurementContext';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -24,6 +25,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const Catalog = lazy(() => import('./pages/Catalog'));
+const CatalogSizes = lazy(() => import('./pages/CatalogSizes'));
 const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -31,6 +33,7 @@ const Customers = lazy(() => import('./pages/Customers'));
 const CustomerPortal = lazy(() => import('./pages/CustomerPortal'));
 const AboutUs = lazy(() => import('./pages/AboutUs'));
 const CustomerCatalog = lazy(() => import('./pages/CustomerCatalog'));
+const WeaveTypePage = lazy(() => import('./pages/WeaveTypePage'));
 const CustomerRugDetail = lazy(() => import('./pages/CustomerRugDetail'));
 const CustomerProjectGallery = lazy(() => import('./pages/CustomerProjectGallery'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
@@ -57,6 +60,7 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
 const WorkshopPhotos = lazy(() => import('./pages/WorkshopPhotos'));
+const JourneySteps = lazy(() => import('./pages/JourneySteps'));
 const Testimonials = lazy(() => import('./pages/Testimonials'));
 const AnnouncementBar = lazy(() => import('./pages/AnnouncementBar'));
 const ProjectGallery = lazy(() => import('./pages/ProjectGallery'));
@@ -79,6 +83,7 @@ function App() {
     <AuthProvider>
       <CustomerAuthProvider>
       <CurrencyProvider>
+      <MeasurementProvider>
       <CartProvider>
       <BrowserRouter>
         <ScrollToTop />
@@ -93,6 +98,8 @@ function App() {
           <Route path="/catalog/space/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/mood/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/material/:value" element={<CustomerCatalog />} />
+          <Route path="/weaves/:weave" element={<WeaveTypePage />} />
+          <Route path="/collections/:facet/:value" element={<WeaveTypePage />} />
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/project-gallery" element={<CustomerProjectGallery />} />
           <Route path="/project-gallery/:id" element={<ProjectDetail />} />
@@ -125,9 +132,11 @@ function App() {
                     <Route index element={<Dashboard />} />
                     <Route path="assistant" element={<AIAssistant />} />
                     <Route path="catalog" element={<Catalog />} />
+                    <Route path="catalog-sizes" element={<CatalogSizes />} />
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
+                    <Route path="journey-steps" element={<JourneySteps />} />
                     <Route path="testimonials" element={<Testimonials />} />
                     <Route path="announcement-bar" element={<AnnouncementBar />} />
                     <Route path="project-gallery" element={<ProjectGallery />} />
@@ -154,6 +163,7 @@ function App() {
         </Suspense>
       </BrowserRouter>
       </CartProvider>
+      </MeasurementProvider>
       </CurrencyProvider>
       </CustomerAuthProvider>
     </AuthProvider>

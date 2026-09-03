@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, testimonials, gallery, newsletter, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth
+from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -47,6 +47,9 @@ async def log_requests(request: Request, call_next):
         request.client.host if request.client else "unknown"
     )
     request.state.request_id = request_id
+    logged_path = request.url.path
+    if logged_path.startswith("/api/mcp/catalog-image-upload/"):
+        logged_path = "/api/mcp/catalog-image-upload/[redacted]"
 
     def context() -> str:
         actor_type = getattr(request.state, "actor_type", "anonymous")
@@ -63,7 +66,7 @@ async def log_requests(request: Request, call_next):
         duration_ms = (time.time() - start) * 1000
         logger.exception(
             "%s method=%s path=%s status=500 duration_ms=%.0f unhandled_exception=true",
-            context(), request.method, request.url.path, duration_ms,
+            context(), request.method, logged_path, duration_ms,
         )
         raise
     duration_ms = (time.time() - start) * 1000
@@ -71,7 +74,7 @@ async def log_requests(request: Request, call_next):
     log = logger.warning if response.status_code >= 400 else logger.info
     log(
         "%s method=%s path=%s status=%s duration_ms=%.0f",
-        context(), request.method, request.url.path, response.status_code, duration_ms,
+        context(), request.method, logged_path, response.status_code, duration_ms,
     )
     return response
 
@@ -159,6 +162,7 @@ app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 app.include_router(email_templates.router, prefix="/api", tags=["Email Templates"])
 app.include_router(showcase.router, prefix="/api", tags=["Showcase Videos"])
 app.include_router(workshop.router, prefix="/api", tags=["Workshop Photos"])
+app.include_router(journey.router, prefix="/api", tags=["Rug Journey Steps"])
 app.include_router(testimonials.router, prefix="/api", tags=["Testimonials"])
 app.include_router(faqs.router, prefix="/api", tags=["FAQs"])
 app.include_router(announcements.router, prefix="/api", tags=["Announcements"])
@@ -168,6 +172,7 @@ app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 app.include_router(api_clients.router, prefix="/api", tags=["API Clients"])
 app.include_router(public_api.router, prefix="/api", tags=["Public API"])
 app.include_router(mcp_oauth.router, tags=["MCP OAuth"])
+app.include_router(mcp_uploads.router, prefix="/api", tags=["MCP Uploads"])
 app.mount("/mcp", mcp_http_app)
 
 

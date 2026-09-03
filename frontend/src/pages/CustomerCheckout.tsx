@@ -16,6 +16,7 @@ import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPoli
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
 
 interface CheckoutItem {
   rug_id: number;
@@ -86,7 +87,7 @@ export default function CustomerCheckout() {
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [showAuthPwd, setShowAuthPwd] = useState(false);
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const [shippingRate, setShippingRate] = useState(0);
   const [businessName, setBusinessName] = useState('Store');
 

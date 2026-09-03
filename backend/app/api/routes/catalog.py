@@ -11,10 +11,11 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
 from app.core.slugify import unique_rug_slug
-from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant
+from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant, CatalogSizeMaster
 from app.schemas.schemas import (
     RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
     RugImageCreate, RugImageUpdate, RugImage as RugImageSchema,
+    CatalogSizeMasterCreate, CatalogSizeMasterUpdate, CatalogSizeMaster as CatalogSizeMasterSchema,
 )
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "rugs")
@@ -22,6 +23,84 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 20
 
 router = APIRouter()
+
+
+@router.get("/catalog-sizes", response_model=List[CatalogSizeMasterSchema])
+def get_catalog_sizes(db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    """Return the tenant size master, backfilling legacy per-rug dimensions once."""
+    masters = db.query(CatalogSizeMaster).filter(CatalogSizeMaster.tenant_id == current_user.tenant_id).all()
+    by_ft = {size.ft.strip().lower(): size for size in masters}
+    changed = False
+    for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all():
+        normalized = []
+        for entry in (rug.sizes or []):
+            row = dict(entry)
+            key = str(row.get("ft") or "").strip().lower()
+            if not key:
+                continue
+            master = by_ft.get(key)
+            if master is None:
+                master = CatalogSizeMaster(tenant_id=current_user.tenant_id, ft=str(row["ft"]).strip(), cm=row.get("cm"), sort_order=len(by_ft))
+                db.add(master)
+                db.flush()
+                by_ft[key] = master
+                masters.append(master)
+            if row.get("master_size_id") != master.id:
+                row["master_size_id"] = master.id
+                changed = True
+            normalized.append(row)
+        if normalized != (rug.sizes or []):
+            rug.sizes = normalized
+    if changed or db.new:
+        db.commit()
+    return sorted(masters, key=lambda size: (size.sort_order, size.id))
+
+
+@router.post("/catalog-sizes", response_model=CatalogSizeMasterSchema)
+def create_catalog_size(body: CatalogSizeMasterCreate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    ft = body.ft.strip()
+    if db.query(CatalogSizeMaster).filter(CatalogSizeMaster.tenant_id == current_user.tenant_id, CatalogSizeMaster.ft == ft).first():
+        raise HTTPException(status_code=409, detail="That feet size already exists")
+    values = body.model_dump()
+    values.update({"ft": ft, "cm": body.cm.strip() if body.cm else None, "tenant_id": current_user.tenant_id})
+    master = CatalogSizeMaster(**values)
+    db.add(master)
+    db.flush()
+    for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all():
+        sizes = list(rug.sizes or [])
+        sizes.append({"master_size_id": master.id, "ft": master.ft, "cm": master.cm, "price": rug.base_price, "lead_time_days": rug.lead_time_days, "is_default": not sizes})
+        rug.sizes = sizes
+    db.commit()
+    db.refresh(master)
+    cache_clear("catalog")
+    return master
+
+
+@router.put("/catalog-sizes/{size_id}", response_model=CatalogSizeMasterSchema)
+def update_catalog_size(size_id: int, body: CatalogSizeMasterUpdate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    master = db.query(CatalogSizeMaster).filter(CatalogSizeMaster.id == size_id, CatalogSizeMaster.tenant_id == current_user.tenant_id).first()
+    if not master:
+        raise HTTPException(status_code=404, detail="Size not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(master, field, value.strip() if isinstance(value, str) else value)
+    for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all():
+        rug.sizes = [{**entry, "ft": master.ft, "cm": master.cm} if entry.get("master_size_id") == master.id else entry for entry in (rug.sizes or [])]
+    db.commit()
+    db.refresh(master)
+    cache_clear("catalog")
+    return master
+
+
+@router.delete("/catalog-sizes/{size_id}")
+def delete_catalog_size(size_id: int, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    master = db.query(CatalogSizeMaster).filter(CatalogSizeMaster.id == size_id, CatalogSizeMaster.tenant_id == current_user.tenant_id).first()
+    if not master:
+        raise HTTPException(status_code=404, detail="Size not found")
+    if any(any(entry.get("master_size_id") == size_id for entry in (rug.sizes or [])) for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id)):
+        raise HTTPException(status_code=409, detail="This size is associated with catalog rugs. Deactivate it instead.")
+    db.delete(master)
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/catalog/upload-image")

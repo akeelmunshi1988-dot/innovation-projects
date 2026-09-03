@@ -13,6 +13,7 @@ import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import type { GstSplit } from '../services/api';
+import { useMeasurementUnit } from '../contexts/MeasurementContext';
 
 interface CustomerQuote {
   quote_id: number;
@@ -554,7 +555,7 @@ export default function CustomerMyQuotes() {
   const [sortBy, setSortBy] = useState('date_desc');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const [tenantCurrency, setTenantCurrency] = useState({ currency: 'INR', base_currency: 'INR', exchange_rates: {} as Record<string, number> });
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, ArrowDown, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, CornerDownLeft, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -52,11 +52,14 @@ interface WorkshopPhoto {
 }
 
 const HOW = [
-  { n: '01', title: 'Design',             desc: 'Share your vision, room dimensions, and style — our team translates it into a custom rug design.' },
-  { n: '02', title: 'Material',            desc: 'Choose from wool, silk, cotton, or synthetic fibres, each sourced for durability and colourfastness.' },
-  { n: '03', title: 'Weaving',             desc: 'Master artisans hand-knot every rug on traditional looms, weeks or months in the making.' },
-  { n: '04', title: 'Quality Inspection',  desc: 'Every piece is checked for weave density, accurate sizing, and dye consistency before it ships.' },
-  { n: '05', title: 'Global Delivery',     desc: 'Packed and shipped worldwide, with export documentation handled for you door to door.' },
+  { n: '01', title: 'Buyer Request',                 desc: 'Share your vision, room dimensions, and style — our team scopes your custom rug request.' },
+  { n: '02', title: 'CAD Approval',                  desc: 'A CAD rendering of your design is prepared and shared for sign-off before any material is touched.' },
+  { n: '03', title: 'Material Dyeing',                desc: 'Wool, silk, cotton, or synthetic fibres are dyed in-house to your approved colourway.' },
+  { n: '04', title: 'Color Check',                    desc: 'Dyed yarn is matched against the approved palette for consistency before weaving begins.' },
+  { n: '05', title: 'Weaving',                        desc: 'Master artisans hand-knot every rug on traditional looms, weeks or months in the making.' },
+  { n: '06', title: 'Finishing, Washing & Stretching', desc: 'Each rug is trimmed, washed, and stretched to its final shape and pile.' },
+  { n: '07', title: 'Quality Check',                  desc: 'Every piece is checked for weave density, accurate sizing, and dye consistency before it ships.' },
+  { n: '08', title: 'Packaging & Delivery',           desc: 'Packed and shipped worldwide, with export documentation handled for you door to door.' },
 ];
 
 const WHY_LOOMCRAFT = [
@@ -97,6 +100,16 @@ const MOOD_TAGS = [
   { v: 'timeless_traditional', label: 'Timeless Traditional' },
 ];
 
+// Five-image editorial composition modelled on the reference. Each additional
+// set repeats the art-directed canvas so every CMS image remains visible.
+const GALLERY_MOSAIC_LAYOUTS = [
+  'col-span-2 aspect-[4/3] md:aspect-auto md:col-start-1 md:col-span-5 md:row-start-1 md:row-span-4',
+  'col-span-1 aspect-square md:aspect-auto md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-3',
+  'col-span-1 aspect-square md:aspect-auto md:col-start-1 md:col-span-3 md:row-start-6 md:row-span-3',
+  'col-span-1 aspect-[3/4] md:aspect-auto md:col-start-4 md:col-span-3 md:row-start-7 md:row-span-4',
+  'col-span-1 aspect-[3/4] md:aspect-auto md:col-start-7 md:col-span-5 md:row-start-5 md:row-span-6',
+] as const;
+
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
@@ -116,6 +129,7 @@ export default function CustomerHome() {
   const [heroCtaLabel, setHeroCtaLabel] = useState<string | null>(null);
   const [contactInfo, setContactInfo] = useState<{ email: string | null; phone: string | null; address: string | null }>({ email: null, phone: null, address: null });
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
+  const [journeySteps, setJourneySteps] = useState<{ id: number; title: string; description: string | null }[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
   const [testimonialSlide, setTestimonialSlide] = useState(0);
@@ -139,6 +153,12 @@ export default function CustomerHome() {
   useEffect(() => {
     axios.get('/api/customer/workshop-photos')
       .then(({ data }) => setWorkshopPhotos(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    axios.get('/api/customer/journey-steps')
+      .then(({ data }) => setJourneySteps(data))
       .catch(() => {});
   }, []);
 
@@ -187,6 +207,9 @@ export default function CustomerHome() {
   const gridVideos = videos.filter((v) => !introVideos.includes(v));
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
   const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
+  const journeyStepsDisplay = journeySteps.length > 0
+    ? journeySteps.map((s, i) => ({ n: String(i + 1).padStart(2, '0'), title: s.title, desc: s.description || '' }))
+    : HOW;
   const showCraftSection = SHOW_CRAFT_VIDEO ? Boolean(introVideo) : Boolean(craftImageUrl);
   const slides = heroImages.length ? heroImages : [{ image_url: heroImageUrl || HERO_IMAGE_URL, alt_text: 'Handcrafted rug' }];
   const activeHero = slides[heroSlide % slides.length];
@@ -516,36 +539,58 @@ export default function CustomerHome() {
       )}
 
 
-      {/* ── CUSTOM RUG JOURNEY (connected step flow) ─────────────────────── */}
-      <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <p className="storefront-eyebrow mb-2">The Process</p>
-          <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
-        </div>
+      {/* ── CUSTOM RUG JOURNEY (horizontal step flow, wraps into rows) ───── */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-cream-100 via-white to-cream-100 py-20">
+        <div
+          className="absolute inset-0 opacity-60 pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(circle, #ddbf9155 1px, transparent 1px)', backgroundSize: '26px 26px' }}
+        />
+        <div className="absolute -top-28 -left-20 w-80 h-80 bg-cream-400/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-28 -right-20 w-80 h-80 bg-stone-300/30 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row items-stretch">
-          {HOW.map((step, i) => (
-            <React.Fragment key={step.n}>
-              <div className="flex-1 flex flex-col items-center text-center bg-cream-200 px-5 py-8">
-                <div className="w-14 h-14 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-lg flex-shrink-0">
-                  {step.n}
+        <div className="relative w-[94vw] max-w-6xl mx-auto px-4">
+          <div className="text-center mb-20">
+            <p className="storefront-eyebrow mb-2">The Process</p>
+            <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-16">
+            {journeyStepsDisplay.map((step, i) => {
+              const isLast = i === journeyStepsDisplay.length - 1;
+              const isRowEnd = (i + 1) % 4 === 0;
+              return (
+                <div
+                  key={step.n}
+                  className={`group relative ${i % 2 === 1 ? 'lg:translate-y-6' : ''}`}
+                >
+                  <div className="relative bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 px-6 pt-9 pb-6 overflow-hidden">
+                    <span className="absolute -top-4 right-2 font-serif text-7xl text-stone-100 group-hover:text-cream-300 transition-colors duration-300 select-none leading-none">
+                      {step.n}
+                    </span>
+
+                    <div className="relative w-11 h-11 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-sm mb-4">
+                      {step.n}
+                    </div>
+                    <h3 className="relative text-stone-900 font-medium text-base">{step.title}</h3>
+                    {step.desc && (
+                      <p className="relative text-stone-500 text-sm leading-relaxed mt-2">{step.desc}</p>
+                    )}
+                  </div>
+
+                  {!isLast && !isRowEnd && (
+                    <div className="hidden lg:flex absolute top-1/2 -right-8 -translate-y-1/2 items-center justify-center text-cream-600 z-10">
+                      <ArrowRight size={20} strokeWidth={1.5} />
+                    </div>
+                  )}
+                  {!isLast && isRowEnd && (
+                    <div className="hidden lg:flex absolute -bottom-11 right-4 items-center justify-center text-cream-600 z-10">
+                      <CornerDownLeft size={20} strokeWidth={1.5} />
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-stone-900 font-medium text-base mt-5">{step.title}</h3>
-                <p className="text-stone-500 text-sm leading-relaxed mt-2 max-w-[220px]">{step.desc}</p>
-              </div>
-
-              {i < HOW.length - 1 && (
-                <>
-                  <div className="hidden lg:flex items-center justify-center flex-shrink-0 w-10 pt-7">
-                    <ArrowRight size={18} className="text-stone-300" />
-                  </div>
-                  <div className="flex lg:hidden items-center justify-center flex-shrink-0 h-10">
-                    <ArrowDown size={18} className="text-stone-300" />
-                  </div>
-                </>
-              )}
-            </React.Fragment>
-          ))}
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -776,19 +821,17 @@ export default function CustomerHome() {
       })()}
 
       {/* ── PROJECT GALLERY (dark-canvas editorial mosaic) ────────────────
-          Reference: carpet.axiomthemes.com's homepage — a bold oversized
-          headline over a near-black ground, and a sparse, asymmetric photo
-          mosaic (two stacked tiles beside one tall tile, repeating) with
-          generous negative space rather than a tightly-packed grid. Ported
-          the visual language, not the markup — this section still reads
-          straight from the CMS-managed galleryItems/ProjectGalleryItem
-          list, same as the slider it replaces. Capped to 6 items (two
-          mosaic "triplets") so the homepage teaser stays a teaser; the
-          full set lives on /project-gallery, linked below. */}
+          Inspired by the loose, irregular image wall in the Carpet demo.
+          Every published project is rendered; the deterministic span pattern
+          creates a random-looking composition without layout shifts. */}
       {galleryItems.length > 0 && (() => {
-        const displayItems = galleryItems.slice(0, 6);
         return (
-          <section className="relative overflow-hidden bg-dark-950 py-24 md:py-32">
+          <section
+            className="relative overflow-hidden bg-[#0b1217] py-24 md:py-32"
+            style={{
+              backgroundImage: 'radial-gradient(circle at 18% 22%, rgba(255,255,255,.035), transparent 25%), linear-gradient(115deg, transparent 35%, rgba(255,255,255,.025) 35.1%, transparent 35.3%)',
+            }}
+          >
             <div className="w-[94vw] max-w-none mx-auto px-4 mb-16 md:mb-24">
               <p className="text-xs tracking-[0.3em] uppercase text-rug-400 mb-4">Project Gallery</p>
               {/* Edge-to-edge, viewport-scaled type — the point of this
@@ -800,7 +843,10 @@ export default function CustomerHome() {
                   bold weight rather than a separate display face, so this
                   section still reads as the same typeface family as every
                   other heading on the site — just scaled and weighted up. */}
-              <h2 className="font-serif font-bold uppercase text-white leading-[0.85] tracking-tight text-[13vw] xl:text-[9.5vw] 2xl:text-[132px]">
+              <h2
+                className="font-black uppercase text-[#c53d16] leading-[0.82] tracking-[-0.045em] text-[13vw] xl:text-[9.5vw] 2xl:text-[148px]"
+                style={{ fontFamily: "'Arial Narrow', 'Roboto Condensed', Impact, sans-serif", fontStretch: 'condensed' }}
+              >
                 Rugs in Their<br />New Homes
               </h2>
               <Link
@@ -811,50 +857,44 @@ export default function CustomerHome() {
               </Link>
             </div>
 
-            {/* Sparse, asymmetric mosaic — a narrow column of two stacked
-                squares beside one tall tile, repeating per group of 3, with
-                wide empty gutters left deliberately unfilled (columns 5–6
-                and 10–12 of 12) so photos read as floating islands on the
-                dark canvas rather than a filled grid. */}
-            <div
-              className="w-[94vw] max-w-none mx-auto px-4 grid grid-cols-12 gap-x-6 md:gap-x-10 gap-y-8 md:gap-y-10 auto-rows-[110px] sm:auto-rows-[130px] lg:auto-rows-[150px]"
-            >
-              {displayItems.map((g, i) => {
-                const posInGroup = i % 3;
-                const group = Math.floor(i / 3);
-                const rowBase = group * 2 + 1;
-                const isTall = 2 === posInGroup;
-                const style: React.CSSProperties = isTall
-                  ? { gridColumn: '7 / span 4', gridRow: `${rowBase} / span 2` }
-                  : { gridColumn: '1 / span 3', gridRow: rowBase + (1 === posInGroup ? 1 : 0) };
-                const tile = (
-                  <div className="group relative w-full h-full overflow-hidden bg-dark-900">
-                    <img
-                      src={g.image_url}
-                      alt={g.caption ?? ''}
-                      className="w-full h-full object-cover scale-100 group-hover:scale-[1.06] transition-transform duration-[1200ms] ease-out"
-                      loading="lazy"
-                    />
-                    {g.caption && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-dark-950/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end">
-                        <p className="text-cream-100 font-serif text-lg font-light px-5 pb-4">{g.caption}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-                // link_url is an admin-set external override (e.g. a blog
-                // post about the project); when unset, the tile links to
-                // this project's own detail page instead of going nowhere.
-                return g.link_url ? (
-                  <a key={g.id} href={g.link_url} target="_blank" rel="noreferrer" style={style}>
-                    {tile}
-                  </a>
-                ) : (
-                  <Link key={g.id} to={`/project-gallery/${g.id}`} style={style}>
-                    {tile}
-                  </Link>
-                );
-              })}
+            <div className="w-[94vw] max-w-none mx-auto px-2 md:px-4">
+              {Array.from({ length: Math.ceil(galleryItems.length / GALLERY_MOSAIC_LAYOUTS.length) }).map((_, groupIndex) => (
+                <div
+                  key={groupIndex}
+                  className="grid grid-cols-2 gap-4 mb-4 md:mb-16 md:grid-cols-12 md:grid-rows-[repeat(10,minmax(0,92px))] lg:grid-rows-[repeat(10,minmax(0,110px))] md:gap-0"
+                >
+                  {galleryItems
+                    .slice(groupIndex * GALLERY_MOSAIC_LAYOUTS.length, (groupIndex + 1) * GALLERY_MOSAIC_LAYOUTS.length)
+                    .map((g, i) => {
+                      const layout = GALLERY_MOSAIC_LAYOUTS[i];
+                      const tile = (
+                        <div className="group relative w-full h-full overflow-hidden bg-dark-900">
+                          <img
+                            src={g.image_url}
+                            alt={g.caption ?? ''}
+                            className="w-full h-full object-cover scale-100 group-hover:scale-[1.045] transition-transform duration-[1200ms] ease-out"
+                            loading="lazy"
+                          />
+                          {g.caption && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-dark-950/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end">
+                              <p className="text-cream-100 font-serif text-lg font-light px-5 pb-4">{g.caption}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                      const className = `${layout} md:p-3`;
+                      return g.link_url ? (
+                        <a key={g.id} href={g.link_url} target="_blank" rel="noreferrer" className={className}>
+                          {tile}
+                        </a>
+                      ) : (
+                        <Link key={g.id} to={`/project-gallery/${g.id}`} className={className}>
+                          {tile}
+                        </Link>
+                      );
+                    })}
+                </div>
+              ))}
             </div>
           </section>
         );

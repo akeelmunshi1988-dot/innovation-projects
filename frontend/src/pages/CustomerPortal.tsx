@@ -10,6 +10,7 @@ import type { CatalogSize } from "../types";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { useCart } from "../contexts/CartContext";
+import { useMeasurementUnit } from "../contexts/MeasurementContext";
 
 type Point = [number, number];
 
@@ -114,7 +115,7 @@ export default function CustomerPortal() {
   }
   const [estimate, setEstimate]         = useState<EstimateResult | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
-  const [sizeUnit, setSizeUnit] = useState('ft');
+  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   const selectedStandardSize = selectedRug?.sizes.find((size) => {
     const dimensions = catalogSizeDims(size, inputUnit(sizeUnit));
     return dimensions && quoteForm.size_w === String(dimensions[0]) && quoteForm.size_h === String(dimensions[1]);

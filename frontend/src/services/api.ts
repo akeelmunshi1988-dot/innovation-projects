@@ -20,6 +20,7 @@ import type {
   EmailTemplate,
   ShowcaseVideo,
   WorkshopPhoto,
+  RugJourneyStep,
   Testimonial,
   AnnouncementMessage,
   ProjectGalleryItem,
@@ -151,6 +152,27 @@ export const updateWorkshopPhoto = async (id: number, photo: Partial<WorkshopPho
 
 export const deleteWorkshopPhoto = async (id: number): Promise<void> => {
   await api.delete(`/workshop-photos/${id}`);
+};
+
+// ── Rug Journey Steps ────────────────────────────────────────────────────────
+
+export const getJourneySteps = async (): Promise<RugJourneyStep[]> => {
+  const { data } = await api.get<RugJourneyStep[]>('/journey-steps');
+  return data;
+};
+
+export const createJourneyStep = async (step: Partial<RugJourneyStep>): Promise<RugJourneyStep> => {
+  const { data } = await api.post<RugJourneyStep>('/journey-steps', step);
+  return data;
+};
+
+export const updateJourneyStep = async (id: number, step: Partial<RugJourneyStep>): Promise<RugJourneyStep> => {
+  const { data } = await api.put<RugJourneyStep>(`/journey-steps/${id}`, step);
+  return data;
+};
+
+export const deleteJourneyStep = async (id: number): Promise<void> => {
+  await api.delete(`/journey-steps/${id}`);
 };
 
 // ── Announcement bar ─────────────────────────────────────────────────────────
@@ -708,6 +730,7 @@ export const getPublicSettings = async (): Promise<{
   currency: string;
   base_currency: string;
   exchange_rates: Record<string, number>;
+  enabled_currencies: string[];
   catalog_pdf_url: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
