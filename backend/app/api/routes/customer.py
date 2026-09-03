@@ -379,6 +379,7 @@ async def get_public_showcase_videos():
                 "video_url": v.video_url,
                 "poster_url": v.poster_url,
                 "is_intro": v.is_intro,
+                "tab_name": v.tab_name,
             }
             for v in videos
         ]

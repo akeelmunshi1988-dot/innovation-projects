@@ -336,22 +336,34 @@ export default function WeaveTypePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
-            {rugs.map((rug) => (
-              <Link key={rug.id} to={`/catalog/${rug.slug}`} className="group block">
-                <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden">
+            {rugs.map((rug, index) => {
+              const columnPosition = index % 3;
+              const expansionPosition = columnPosition === 0
+                ? 'lg:left-0 lg:origin-left'
+                : columnPosition === 1
+                  ? 'lg:left-1/2 lg:-translate-x-1/2 lg:origin-center'
+                  : 'lg:right-0 lg:origin-right';
+              return (
+              <Link key={rug.id} to={`/catalog/${rug.slug}`} className="group relative block hover:z-30 focus-within:z-30">
+                <div className="relative aspect-[4/5]">
+                <div className={`absolute inset-y-0 w-full bg-stone-100 overflow-hidden transition-[width,left,right,transform,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(200%+1.5rem)] lg:group-focus-within:w-[calc(200%+1.5rem)] lg:group-hover:shadow-2xl lg:group-focus-within:shadow-2xl ${expansionPosition}`}>
                   {rug.image_url ? (
-                    <img src={rug.image_url} alt={rug.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-[1.035] transition-transform duration-700" />
+                    <>
+                      <img src={rug.image_url} alt={rug.name} loading="lazy" className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images.length ? 'group-hover:opacity-0' : ''}`} />
+                      {rug.images.length > 0 && <img src={rug.images[0].image_url} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500" />}
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><Layers className="text-stone-300" /></div>
                   )}
                   {!rug.available && <span className="absolute top-4 left-4 bg-white/90 px-3 py-1 text-[10px] uppercase tracking-wider text-stone-600">Out of stock</span>}
+                </div>
                 </div>
                 <div className="pt-4 text-center space-y-1">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-stone-400">{rug.material} · {rug.weave_type}</p>
                   <h3 className="font-serif text-lg text-stone-900">{rug.name}</h3>
                 </div>
               </Link>
-            ))}
+            );})}
           </div>
         )}
       </section>

@@ -880,6 +880,7 @@ class ShowcaseVideoBase(BaseModel):
     sort_order: int = 0
     is_active: bool = True
     is_intro: bool = False
+    tab_name: Optional[str] = None
 
 
 class ShowcaseVideoCreate(ShowcaseVideoBase):
@@ -894,6 +895,7 @@ class ShowcaseVideoUpdate(BaseModel):
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
     is_intro: Optional[bool] = None
+    tab_name: Optional[str] = Field(None, max_length=100)
 
 
 class ShowcaseVideo(ShowcaseVideoBase):

@@ -12,10 +12,11 @@ type FormData = {
   sort_order: string;
   is_active: boolean;
   is_intro: boolean;
+  tab_name: string;
 };
 
-function blankForm(isIntro: boolean): FormData {
-  return { title: '', description: '', video_url: '', poster_url: '', sort_order: '0', is_active: true, is_intro: isIntro };
+function blankForm(isIntro: boolean, defaultTab = 'Craftsmanship'): FormData {
+  return { title: '', description: '', video_url: '', poster_url: '', sort_order: '0', is_active: true, is_intro: isIntro, tab_name: defaultTab };
 }
 
 function videoToForm(v: ShowcaseVideo): FormData {
@@ -27,18 +28,20 @@ function videoToForm(v: ShowcaseVideo): FormData {
     sort_order: String(v.sort_order),
     is_active: v.is_active,
     is_intro: v.is_intro,
+    tab_name: v.tab_name || 'Craftsmanship',
   };
 }
 
 interface DrawerProps {
   editing: ShowcaseVideo | null;
   defaultIsIntro: boolean;
+  tabNames: string[];
   onClose: () => void;
   onSaved: (video: ShowcaseVideo) => void;
 }
 
-function VideoDrawer({ editing, defaultIsIntro, onClose, onSaved }: DrawerProps) {
-  const [form, setForm] = useState<FormData>(editing ? videoToForm(editing) : blankForm(defaultIsIntro));
+function VideoDrawer({ editing, defaultIsIntro, tabNames, onClose, onSaved }: DrawerProps) {
+  const [form, setForm] = useState<FormData>(editing ? videoToForm(editing) : blankForm(defaultIsIntro, tabNames[0]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -100,6 +103,7 @@ function VideoDrawer({ editing, defaultIsIntro, onClose, onSaved }: DrawerProps)
       sort_order: parseInt(form.sort_order) || 0,
       is_active: form.is_active,
       is_intro: form.is_intro,
+      tab_name: form.is_intro ? null : form.tab_name.trim(),
     };
     try {
       const saved = editing
@@ -173,6 +177,23 @@ function VideoDrawer({ editing, defaultIsIntro, onClose, onSaved }: DrawerProps)
               className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
             />
           </div>
+
+          {!form.is_intro && (
+            <div className="space-y-1">
+              <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">See It Made Tab *</label>
+              <input
+                list="showcase-video-tabs"
+                value={form.tab_name}
+                onChange={(e) => set('tab_name', e.target.value)}
+                placeholder="e.g. Hand Knotting"
+                required
+                maxLength={100}
+                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600/60"
+              />
+              <datalist id="showcase-video-tabs">{tabNames.map((name) => <option key={name} value={name} />)}</datalist>
+              <p className="text-dark-500 text-xs">Choose an existing tab or type a new one. Maximum 10 tabs.</p>
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Description</label>
@@ -375,6 +396,7 @@ export default function ShowcaseVideos() {
   const [newVideoIsIntro, setNewVideoIsIntro] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ShowcaseVideo | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activeCraftTab, setActiveCraftTab] = useState('Craftsmanship');
 
   const fetchVideos = async () => {
     setLoading(true);
@@ -419,6 +441,9 @@ export default function ShowcaseVideos() {
 
   const introVideos = videos.filter((v) => v.is_intro);
   const craftVideos = videos.filter((v) => !v.is_intro);
+  const craftTabNames = Array.from(new Set(craftVideos.map((v) => v.tab_name || 'Craftsmanship')));
+  const selectedCraftTab = craftTabNames.includes(activeCraftTab) ? activeCraftTab : (craftTabNames[0] || 'Craftsmanship');
+  const selectedCraftVideos = craftVideos.filter((v) => (v.tab_name || 'Craftsmanship') === selectedCraftTab);
 
   return (
     <div className="p-6 space-y-8">
@@ -445,20 +470,31 @@ export default function ShowcaseVideos() {
         onDelete={setDeleteTarget}
       />
 
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {craftTabNames.map((name) => (
+            <button key={name} type="button" onClick={() => setActiveCraftTab(name)} className={`px-4 py-2 rounded-lg border text-sm transition-colors ${selectedCraftTab === name ? 'border-gold-500 bg-gold-600/10 text-cream-100' : 'border-dark-700 text-dark-400 hover:text-cream-200'}`}>
+              {name}
+            </button>
+          ))}
+          {craftTabNames.length < 10 && <span className="self-center text-dark-500 text-xs">Type a new tab name while adding a video ({craftTabNames.length}/10 used).</span>}
+        </div>
       <VideoSection
-        title="Behind the Craft Videos"
-        hint="Shown in the homepage hover grid, below the intro section."
-        videos={craftVideos}
+        title={`${selectedCraftTab} Videos`}
+        hint="Shown under this tab in the homepage See It Made section."
+        videos={selectedCraftVideos}
         loading={loading}
         onAdd={() => openAdd(false)}
         onEdit={openEdit}
         onDelete={setDeleteTarget}
       />
+      </div>
 
       {showDrawer && (
         <VideoDrawer
           editing={editing}
           defaultIsIntro={newVideoIsIntro}
+          tabNames={[selectedCraftTab, ...craftTabNames.filter((name) => name !== selectedCraftTab)]}
           onClose={() => { setShowDrawer(false); setEditing(null); }}
           onSaved={handleSaved}
         />
