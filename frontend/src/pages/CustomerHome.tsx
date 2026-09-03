@@ -118,7 +118,7 @@ export default function CustomerHome() {
   const [chatInput, setChatInput] = useState('');
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
   const [introIndex, setIntroIndex] = useState(0);
-  const [activeVideoTab, setActiveVideoTab] = useState('All Videos');
+  const [activeVideoTab, setActiveVideoTab] = useState('Craftsmanship');
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [businessName, setBusinessName] = useState('');
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
@@ -205,9 +205,9 @@ export default function CustomerHome() {
     ? videos.filter((v) => v.is_intro)
     : videos.slice(0, 1);
   const gridVideos = videos.filter((v) => !introVideos.includes(v));
-  const videoTabNames = Array.from(new Set(gridVideos.map((video) => video.tab_name || 'All Videos')));
-  const selectedVideoTab = videoTabNames.includes(activeVideoTab) ? activeVideoTab : (videoTabNames[0] || 'All Videos');
-  const visibleGridVideos = gridVideos.filter((video) => (video.tab_name || 'All Videos') === selectedVideoTab);
+  const videoTabNames = Array.from(new Set(gridVideos.map((video) => video.tab_name || 'Craftsmanship')));
+  const selectedVideoTab = videoTabNames.includes(activeVideoTab) ? activeVideoTab : (videoTabNames[0] || 'Craftsmanship');
+  const visibleGridVideos = gridVideos.filter((video) => (video.tab_name || 'Craftsmanship') === selectedVideoTab);
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
   const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
   const journeyStepsDisplay = journeySteps.length > 0

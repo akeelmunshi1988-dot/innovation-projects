@@ -169,7 +169,7 @@ def create_showcase_video(
 ):
     payload = video.model_dump()
     if not payload.get("is_intro"):
-        payload["tab_name"] = (payload.get("tab_name") or "All Videos").strip()
+        payload["tab_name"] = (payload.get("tab_name") or "Craftsmanship").strip()
         _validate_tab_limit(db, current_user.tenant_id, payload["tab_name"])
     else:
         payload["tab_name"] = None
@@ -198,7 +198,7 @@ def update_showcase_video(
     resulting_intro = changes.get("is_intro", video.is_intro)
     resulting_tab = changes.get("tab_name", video.tab_name)
     if not resulting_intro:
-        resulting_tab = (resulting_tab or "All Videos").strip()
+        resulting_tab = (resulting_tab or "Craftsmanship").strip()
         _validate_tab_limit(db, current_user.tenant_id, resulting_tab, video.id)
         changes["tab_name"] = resulting_tab
     else:

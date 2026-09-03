@@ -15,7 +15,7 @@ type FormData = {
   tab_name: string;
 };
 
-function blankForm(isIntro: boolean, defaultTab = 'All Videos'): FormData {
+function blankForm(isIntro: boolean, defaultTab = 'Craftsmanship'): FormData {
   return { title: '', description: '', video_url: '', poster_url: '', sort_order: '0', is_active: true, is_intro: isIntro, tab_name: defaultTab };
 }
 
@@ -28,7 +28,7 @@ function videoToForm(v: ShowcaseVideo): FormData {
     sort_order: String(v.sort_order),
     is_active: v.is_active,
     is_intro: v.is_intro,
-    tab_name: v.tab_name || 'All Videos',
+    tab_name: v.tab_name || 'Craftsmanship',
   };
 }
 
@@ -396,7 +396,7 @@ export default function ShowcaseVideos() {
   const [newVideoIsIntro, setNewVideoIsIntro] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ShowcaseVideo | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [activeCraftTab, setActiveCraftTab] = useState('All Videos');
+  const [activeCraftTab, setActiveCraftTab] = useState('Craftsmanship');
 
   const fetchVideos = async () => {
     setLoading(true);
@@ -441,9 +441,9 @@ export default function ShowcaseVideos() {
 
   const introVideos = videos.filter((v) => v.is_intro);
   const craftVideos = videos.filter((v) => !v.is_intro);
-  const craftTabNames = Array.from(new Set(craftVideos.map((v) => v.tab_name || 'All Videos')));
-  const selectedCraftTab = craftTabNames.includes(activeCraftTab) ? activeCraftTab : (craftTabNames[0] || 'All Videos');
-  const selectedCraftVideos = craftVideos.filter((v) => (v.tab_name || 'All Videos') === selectedCraftTab);
+  const craftTabNames = Array.from(new Set(craftVideos.map((v) => v.tab_name || 'Craftsmanship')));
+  const selectedCraftTab = craftTabNames.includes(activeCraftTab) ? activeCraftTab : (craftTabNames[0] || 'Craftsmanship');
+  const selectedCraftVideos = craftVideos.filter((v) => (v.tab_name || 'Craftsmanship') === selectedCraftTab);
 
   return (
     <div className="p-6 space-y-8">
