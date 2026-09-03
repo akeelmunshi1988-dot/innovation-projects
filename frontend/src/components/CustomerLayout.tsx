@@ -7,7 +7,6 @@ import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
-import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
 
@@ -110,7 +109,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const currencyRef = useRef<HTMLDivElement>(null);
   const { displayCurrency, setDisplayCurrency, availableCurrencies } = useCurrency();
   const { itemCount } = useCart();
-  const { sizeUnit, setSizeUnit } = useMeasurementUnit();
 
   useEffect(() => {
     if (!localStorage.getItem('cookie_consent')) setShowCookieBanner(true);
@@ -348,13 +346,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Right area */}
           <div className="hidden lg:flex items-center gap-5 ml-auto">
-            <div className="flex items-center border border-stone-200 p-0.5" aria-label="Measurement unit">
-              {(['ft', 'cm'] as const).map((unit) => (
-                <button key={unit} onClick={() => setSizeUnit(unit)} className={`px-2 py-1 text-[10px] uppercase tracking-wider transition-colors ${sizeUnit === unit ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-900'}`}>
-                  {unit}
-                </button>
-              ))}
-            </div>
             <div className="relative" ref={currencyRef}>
               <button
                 onClick={() => setCurrencyOpen((o) => !o)}
@@ -479,12 +470,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 >
                   {c.code}
                 </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 pb-3 mb-1 border-b border-stone-50">
-              <span className="text-stone-400 text-xs uppercase tracking-wider">Measurements</span>
-              {(['ft', 'cm'] as const).map((unit) => (
-                <button key={unit} onClick={() => setSizeUnit(unit)} className={`text-xs uppercase px-2 py-1 border ${sizeUnit === unit ? 'border-stone-900 text-stone-900 font-medium' : 'border-stone-200 text-stone-500'}`}>{unit}</button>
               ))}
             </div>
             {NAV.map((n) => (

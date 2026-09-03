@@ -561,21 +561,21 @@ export default function CustomerHome() {
               return (
                 <div
                   key={step.n}
-                  className={`group relative bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 px-6 pt-9 pb-6 overflow-hidden ${
-                    i % 2 === 1 ? 'lg:translate-y-6' : ''
-                  }`}
+                  className={`group relative ${i % 2 === 1 ? 'lg:translate-y-6' : ''}`}
                 >
-                  <span className="absolute -top-4 right-2 font-serif text-7xl text-stone-100 group-hover:text-cream-300 transition-colors duration-300 select-none leading-none">
-                    {step.n}
-                  </span>
+                  <div className="relative bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 px-6 pt-9 pb-6 overflow-hidden">
+                    <span className="absolute -top-4 right-2 font-serif text-7xl text-stone-100 group-hover:text-cream-300 transition-colors duration-300 select-none leading-none">
+                      {step.n}
+                    </span>
 
-                  <div className="relative w-11 h-11 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-sm mb-4">
-                    {step.n}
+                    <div className="relative w-11 h-11 rounded-full bg-stone-900 text-white flex items-center justify-center font-serif text-sm mb-4">
+                      {step.n}
+                    </div>
+                    <h3 className="relative text-stone-900 font-medium text-base">{step.title}</h3>
+                    {step.desc && (
+                      <p className="relative text-stone-500 text-sm leading-relaxed mt-2">{step.desc}</p>
+                    )}
                   </div>
-                  <h3 className="relative text-stone-900 font-medium text-base">{step.title}</h3>
-                  {step.desc && (
-                    <p className="relative text-stone-500 text-sm leading-relaxed mt-2">{step.desc}</p>
-                  )}
 
                   {!isLast && !isRowEnd && (
                     <div className="hidden lg:flex absolute top-1/2 -right-8 -translate-y-1/2 items-center justify-center text-cream-600 z-10">

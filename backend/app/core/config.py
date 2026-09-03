@@ -1,5 +1,13 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+# Absolute path so settings load correctly regardless of the process's cwd —
+# env_file was previously the relative string ".env", which silently resolved
+# against whatever directory the app happened to be launched from (e.g. repo
+# root instead of backend/) and fell back to every field's default un-warned,
+# including DATABASE_URL's sqlite fallback.
+_ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -49,7 +57,7 @@ class Settings(BaseSettings):
     LINKEDIN_CLIENT_SECRET: Optional[str] = None
 
     class Config:
-        env_file = ".env"
+        env_file = str(_ENV_FILE)
         case_sensitive = True
 
 
