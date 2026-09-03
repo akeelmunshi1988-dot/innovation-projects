@@ -335,17 +335,24 @@ export default function CustomerCatalog() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
-              {items.map((rug) => {
+              {items.map((rug, index) => {
                 const previewImage = colorPreviewByRug[rug.id] || rug.image_url;
+                const columnPosition = index % 3;
+                const expansionPosition = columnPosition === 0
+                  ? 'lg:left-0 lg:origin-left'
+                  : columnPosition === 1
+                    ? 'lg:left-1/2 lg:-translate-x-1/2 lg:origin-center'
+                    : 'lg:right-0 lg:origin-right';
                 return (
                 <Link
                   key={rug.id}
                   to={`/catalog/${rug.slug}`}
-                  className="group block"
+                  className="group relative block hover:z-30 focus-within:z-30"
                   onMouseLeave={() => setColorPreviewByRug((current) => ({ ...current, [rug.id]: '' }))}
                 >
                   {/* Image — hovers to the first gallery/lifestyle shot when one exists */}
-                  <div className="relative overflow-hidden bg-stone-100 aspect-[4/5]">
+                  <div className="relative aspect-[4/5]">
+                  <div className={`absolute inset-y-0 w-full overflow-hidden bg-stone-100 transition-[width,left,right,transform,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(200%+1.5rem)] lg:group-focus-within:w-[calc(200%+1.5rem)] lg:group-hover:shadow-2xl lg:group-focus-within:shadow-2xl ${expansionPosition}`}>
                     {previewImage ? (
                       <>
                         <img
@@ -375,6 +382,7 @@ export default function CustomerCatalog() {
                         <span className="text-stone-600 text-xs tracking-widest uppercase">Out of stock</span>
                       </div>
                     )}
+                  </div>
                   </div>
 
                   {/* Info */}

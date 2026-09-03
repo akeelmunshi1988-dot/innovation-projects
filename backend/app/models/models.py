@@ -480,6 +480,7 @@ class ShowcaseVideo(Base):
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_intro = Column(Boolean, default=False)  # shown in the rotating hero slot instead of the "Behind the Craft" grid
+    tab_name = Column(String(100), nullable=True)  # admin-managed "See It Made" tab; ignored for intro videos
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

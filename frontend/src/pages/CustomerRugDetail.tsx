@@ -106,6 +106,7 @@ export default function CustomerRugDetail() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
+  const [expandedImageIndex, setExpandedImageIndex] = useState(0);
 
   const [form, setForm] = useState<QuoteForm>({
     name: '', email: '', phone: '',
@@ -407,6 +408,23 @@ export default function CustomerRugDetail() {
   const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
   const selectedColorOption = rug.color_options.find((color) => color.name === selectedColor);
   const coverImage = selectedColorOption?.image_url || rug.image_url;
+  const previewImages = [
+    ...(coverImage ? [{ src: coverImage, alt: `${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}` }] : []),
+    ...rug.images
+      .filter((image) => image.image_url !== coverImage)
+      .map((image) => ({ src: image.image_url, alt: `${rug.name} in a room setting` })),
+  ];
+  const openImageCarousel = (src: string, alt: string) => {
+    const index = previewImages.findIndex((image) => image.src === src);
+    setExpandedImageIndex(index >= 0 ? index : 0);
+    setExpandedImage({ src, alt });
+  };
+  const showCarouselImage = (index: number) => {
+    if (!previewImages.length) return;
+    const normalizedIndex = (index + previewImages.length) % previewImages.length;
+    setExpandedImageIndex(normalizedIndex);
+    setExpandedImage(previewImages[normalizedIndex]);
+  };
   const scrollToConfigurator = () => {
     document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -531,11 +549,12 @@ export default function CustomerRugDetail() {
         {/* Two-panel hero: portrait cover (left) + wide lifestyle photo (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:items-stretch mb-10">
           {/* Cover shot — fixed, no slider */}
-          <div className="lg:col-span-2 overflow-hidden bg-stone-100 aspect-[4/5] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+          <div className="lg:col-span-2 relative z-10 hover:z-30 group aspect-[4/5] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+            <div className="absolute inset-y-0 left-0 w-full overflow-hidden bg-stone-100 transition-[width,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(160%+1.25rem)] lg:group-hover:shadow-2xl">
             {coverImage ? (
               <button
                 type="button"
-                onClick={() => setExpandedImage({ src: coverImage, alt: `${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}` })}
+                onClick={() => openImageCarousel(coverImage, `${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}`)}
                 aria-label={`Expand ${rug.name} image`}
                 className="block w-full h-full cursor-zoom-in"
               >
@@ -546,6 +565,7 @@ export default function CustomerRugDetail() {
                 <Layers size={48} className="text-stone-300" />
               </div>
             )}
+            </div>
           </div>
 
           {/* Lifestyle photo — first gallery image; falls back to the cover shot if none uploaded yet */}
@@ -562,10 +582,11 @@ export default function CustomerRugDetail() {
             }
             const current = Math.min(activeSlide, lifestyleImages.length - 1);
             return (
-              <div className="lg:col-span-3 relative overflow-hidden bg-stone-100 group aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+              <div className="lg:col-span-3 relative z-10 hover:z-30 group aspect-[4/3] lg:aspect-auto lg:h-[clamp(470px,42vw,650px)]">
+                <div className="absolute inset-y-0 right-0 w-full overflow-hidden bg-stone-100 transition-[width,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(140%+1.25rem)] lg:group-hover:shadow-2xl">
                 <button
                   type="button"
-                  onClick={() => setExpandedImage({ src: lifestyleImages[current], alt: `${rug.name} in a room setting` })}
+                  onClick={() => openImageCarousel(lifestyleImages[current], `${rug.name} in a room setting`)}
                   aria-label={`Expand ${rug.name} gallery image`}
                   className="block w-full h-full cursor-zoom-in"
                 >
@@ -604,6 +625,7 @@ export default function CustomerRugDetail() {
                     </div>
                   </>
                 )}
+                </div>
               </div>
             );
           })()}
@@ -875,6 +897,39 @@ export default function CustomerRugDetail() {
             className="w-full h-full object-contain"
             onClick={(event) => event.stopPropagation()}
           />
+          {previewImages.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); showCarouselImage(expandedImageIndex - 1); }}
+                aria-label="Previous image"
+                className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/90 hover:bg-white text-stone-900 transition-colors"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); showCarouselImage(expandedImageIndex + 1); }}
+                aria-label="Next image"
+                className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/90 hover:bg-white text-stone-900 transition-colors"
+              >
+                <ChevronRight size={22} />
+              </button>
+              <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full bg-stone-950/65 px-4 py-2" onClick={(event) => event.stopPropagation()}>
+                {previewImages.map((image, index) => (
+                  <button
+                    key={`${image.src}-${index}`}
+                    type="button"
+                    onClick={() => showCarouselImage(index)}
+                    aria-label={`Show image ${index + 1}`}
+                    aria-current={expandedImageIndex === index ? 'true' : undefined}
+                    className={`rounded-full transition-all ${expandedImageIndex === index ? 'w-6 h-2 bg-white' : 'w-2 h-2 bg-white/50 hover:bg-white/80'}`}
+                  />
+                ))}
+                <span className="ml-1 text-[11px] tabular-nums text-white/80">{expandedImageIndex + 1}/{previewImages.length}</span>
+              </div>
+            </>
+          )}
         </div>
       )}
 

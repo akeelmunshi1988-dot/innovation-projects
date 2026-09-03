@@ -14,6 +14,7 @@ interface ShowcaseVideo {
   video_url: string;
   poster_url: string | null;
   is_intro?: boolean;
+  tab_name?: string | null;
 }
 
 interface CatalogRug {
@@ -117,6 +118,7 @@ export default function CustomerHome() {
   const [chatInput, setChatInput] = useState('');
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
   const [introIndex, setIntroIndex] = useState(0);
+  const [activeVideoTab, setActiveVideoTab] = useState('All Videos');
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [businessName, setBusinessName] = useState('');
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
@@ -203,6 +205,9 @@ export default function CustomerHome() {
     ? videos.filter((v) => v.is_intro)
     : videos.slice(0, 1);
   const gridVideos = videos.filter((v) => !introVideos.includes(v));
+  const videoTabNames = Array.from(new Set(gridVideos.map((video) => video.tab_name || 'All Videos')));
+  const selectedVideoTab = videoTabNames.includes(activeVideoTab) ? activeVideoTab : (videoTabNames[0] || 'All Videos');
+  const visibleGridVideos = gridVideos.filter((video) => (video.tab_name || 'All Videos') === selectedVideoTab);
   const introVideo = introVideos[introIndex % (introVideos.length || 1)];
   const craftImageUrl = introVideo?.poster_url || workshopPhotos[0]?.image_url || null;
   const journeyStepsDisplay = journeySteps.length > 0
@@ -397,6 +402,22 @@ export default function CustomerHome() {
             <div className="mb-12">
               <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2">See It Made</p>
               <h2 className="font-serif text-4xl font-light text-stone-900">Behind the Craft</h2>
+              {videoTabNames.length > 0 && (
+                <div className="flex flex-wrap gap-x-7 gap-y-3 mt-8 border-b border-stone-200" role="tablist" aria-label="Craft video categories">
+                  {videoTabNames.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      role="tab"
+                      aria-selected={selectedVideoTab === name}
+                      onClick={() => setActiveVideoTab(name)}
+                      className={`pb-3 text-xs font-medium uppercase tracking-[0.14em] border-b-2 -mb-px transition-colors ${selectedVideoTab === name ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div
@@ -405,10 +426,10 @@ export default function CustomerHome() {
                   1: 'lg:grid-cols-1',
                   2: 'lg:grid-cols-2',
                   3: 'lg:grid-cols-3',
-                }[gridVideos.length] ?? 'lg:grid-cols-4'
+                }[visibleGridVideos.length] ?? 'lg:grid-cols-4'
               }`}
             >
-              {gridVideos.map((v) => (
+              {visibleGridVideos.map((v) => (
                 <CraftVideoCard key={v.id} video={v} />
               ))}
             </div>

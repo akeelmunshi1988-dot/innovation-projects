@@ -23,6 +23,23 @@ MAX_VIDEO_SIZE_MB = 50
 MAX_IMAGE_SIZE_MB = 5
 
 router = APIRouter()
+MAX_SHOWCASE_TABS = 10
+
+
+def _validate_tab_limit(db: Session, tenant_id: int, tab_name: Optional[str], exclude_video_id: Optional[int] = None) -> None:
+    name = (tab_name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Choose or enter a See It Made tab name.")
+    query = db.query(ShowcaseVideo.tab_name).filter(
+        ShowcaseVideo.tenant_id == tenant_id,
+        ShowcaseVideo.is_intro == False,
+        ShowcaseVideo.tab_name.isnot(None),
+    )
+    if exclude_video_id is not None:
+        query = query.filter(ShowcaseVideo.id != exclude_video_id)
+    names = {value.strip().casefold() for (value,) in query.distinct().all() if value and value.strip()}
+    if name.casefold() not in names and len(names) >= MAX_SHOWCASE_TABS:
+        raise HTTPException(status_code=400, detail=f"A maximum of {MAX_SHOWCASE_TABS} See It Made tabs is allowed.")
 
 
 def _remux_mov_to_mp4(mov_path: str, mp4_path: str) -> bool:
@@ -150,7 +167,13 @@ def create_showcase_video(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(get_current_user),
 ):
-    db_video = ShowcaseVideo(**video.model_dump(), tenant_id=current_user.tenant_id)
+    payload = video.model_dump()
+    if not payload.get("is_intro"):
+        payload["tab_name"] = (payload.get("tab_name") or "All Videos").strip()
+        _validate_tab_limit(db, current_user.tenant_id, payload["tab_name"])
+    else:
+        payload["tab_name"] = None
+    db_video = ShowcaseVideo(**payload, tenant_id=current_user.tenant_id)
     db.add(db_video)
     db.commit()
     db.refresh(db_video)
@@ -171,7 +194,16 @@ def update_showcase_video(
     ).first()
     if not video:
         raise HTTPException(status_code=404, detail="Showcase video not found")
-    for field, value in video_update.model_dump(exclude_unset=True).items():
+    changes = video_update.model_dump(exclude_unset=True)
+    resulting_intro = changes.get("is_intro", video.is_intro)
+    resulting_tab = changes.get("tab_name", video.tab_name)
+    if not resulting_intro:
+        resulting_tab = (resulting_tab or "All Videos").strip()
+        _validate_tab_limit(db, current_user.tenant_id, resulting_tab, video.id)
+        changes["tab_name"] = resulting_tab
+    else:
+        changes["tab_name"] = None
+    for field, value in changes.items():
         setattr(video, field, value)
     db.commit()
     db.refresh(video)

@@ -18,6 +18,7 @@ export interface ShowcaseVideo {
   sort_order: number;
   is_active: boolean;
   is_intro: boolean;
+  tab_name: string | null;
 }
 
 export interface WorkshopPhoto {
