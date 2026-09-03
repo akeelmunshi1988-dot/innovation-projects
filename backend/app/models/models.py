@@ -53,6 +53,7 @@ class Tenant(Base):
     rug_sample_information_html = Column(Text, nullable=True)   # shared storefront product accordion content
     rug_care_advice_html = Column(Text, nullable=True)           # shared storefront product accordion content
     rug_shipping_returns_html = Column(Text, nullable=True)      # shared storefront product accordion content
+    about_us_content_html = Column(Text, nullable=True)          # main editable narrative on the public About Us page
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable

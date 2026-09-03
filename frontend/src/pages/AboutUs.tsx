@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import DOMPurify from 'dompurify';
 import {
   ArrowRight, Clock, Gem, Hand, Leaf, Mail, MapPin,
   MessageCircle, Phone, Ruler, ShieldCheck, Sparkles,
@@ -8,6 +9,7 @@ import {
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
+import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 
 interface WorkshopPhoto {
   id: number;
@@ -62,6 +64,7 @@ export default function AboutUs() {
   const [contactAddress, setContactAddress] = useState<string | null>(null);
   const [contactHours, setContactHours] = useState<string | null>(null);
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
+  const [aboutUsContent, setAboutUsContent] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicSettings()
@@ -71,6 +74,7 @@ export default function AboutUs() {
         setContactPhones(data.contact_phones ?? []);
         setContactAddress(data.contact_address ?? null);
         setContactHours(data.contact_hours ?? null);
+        setAboutUsContent(data.about_us_content_html ?? null);
       })
       .catch(() => {});
   }, []);
@@ -164,17 +168,27 @@ export default function AboutUs() {
             <h2 className="storefront-heading text-4xl lg:text-5xl">
               Made slowly.<br />Lived with fully.
             </h2>
-            <div className="mt-8 space-y-5 text-stone-500 leading-relaxed">
-              <p>
-                We believe a rug should do more than complete a room. It should settle the
-                architecture, soften the way a space feels and become more personal with time.
-              </p>
-              <p>
-                Our workshop brings together inherited technique and a contemporary eye.
-                Working directly with skilled makers allows us to protect the integrity of the
-                craft while offering the freedom of custom scale, colour and material.
-              </p>
-            </div>
+            {aboutUsContent ? (
+              <div
+                className="prose-content mt-8 text-stone-500 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(aboutUsContent, {
+                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                }) }}
+              />
+            ) : (
+              <div className="mt-8 space-y-5 text-stone-500 leading-relaxed">
+                <p>
+                  We believe a rug should do more than complete a room. It should settle the
+                  architecture, soften the way a space feels and become more personal with time.
+                </p>
+                <p>
+                  Our workshop brings together inherited technique and a contemporary eye.
+                  Working directly with skilled makers allows us to protect the integrity of the
+                  craft while offering the freedom of custom scale, colour and material.
+                </p>
+              </div>
+            )}
             <div className="mt-9 pt-7 border-t border-stone-200 flex gap-4">
               <Gem size={20} className="text-stone-400 mt-1 flex-shrink-0" />
               <p className="font-serif text-xl sm:text-2xl text-stone-800 leading-snug">

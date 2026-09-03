@@ -327,6 +327,7 @@ async def get_public_settings():
             "rug_sample_information_html": tenant.rug_sample_information_html if tenant else None,
             "rug_care_advice_html": tenant.rug_care_advice_html if tenant else None,
             "rug_shipping_returns_html": tenant.rug_shipping_returns_html if tenant else None,
+            "about_us_content_html": tenant.about_us_content_html if tenant else None,
         }
         cache_set("settings", result)
         return result
