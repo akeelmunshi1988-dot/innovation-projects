@@ -10,6 +10,7 @@ import type { CatalogSize } from "../types";
 import { useCustomerAuth } from "../contexts/CustomerAuthContext";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { useCart } from "../contexts/CartContext";
+import { FEATURE_FLAGS } from "../config/featureFlags";
 import { useMeasurementUnit } from "../contexts/MeasurementContext";
 
 type Point = [number, number];
@@ -701,9 +702,9 @@ export default function CustomerPortal() {
                     <a href={resultImage} download="room-with-rug.jpg"
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs transition-colors"
                     ><Download size={11} /> Download</a>
-                    <button onClick={() => quoteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && <button onClick={() => quoteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                       className="flex items-center gap-1.5 px-4 py-1.5 storefront-cta-solid transition-colors"
-                    ><ShoppingBag size={11} /> Place Order</button>
+                    ><ShoppingBag size={11} /> Place Order</button>}
                   </div>
                 </div>
 
@@ -720,7 +721,7 @@ export default function CustomerPortal() {
                 </div>
 
                 {/* Bottom buttons */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className={`grid ${FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? 'grid-cols-4' : 'grid-cols-3'} gap-2`}>
                   <button onClick={() => { setCustomMode(false); if (selectedRug && roomFile && imageDims.w > 0) { const pts = defaultPoints(imageDims.w, imageDims.h); setPoints(pts); generateWith(pts, selectedRug, roomFile); } else { setResultImage(""); } }}
                     className="flex items-center justify-center gap-1.5 py-2.5 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs transition-colors"
                   ><RefreshCw size={12} /> Try Again</button>
@@ -730,9 +731,9 @@ export default function CustomerPortal() {
                   <a href={resultImage} download="room-with-rug.jpg"
                     className="flex items-center justify-center gap-1.5 py-2.5 border border-stone-200 hover:border-stone-400 text-stone-500 hover:text-stone-900 text-xs transition-colors"
                   ><Download size={12} /> Download</a>
-                  <button onClick={() => quoteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && <button onClick={() => quoteSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                     className="flex items-center justify-center gap-1.5 py-2.5 storefront-cta-solid transition-colors"
-                  ><ShoppingBag size={12} /> Place Order</button>
+                  ><ShoppingBag size={12} /> Place Order</button>}
                 </div>
               </>
             ) : selectedRug ? (
@@ -1318,7 +1319,7 @@ export default function CustomerPortal() {
                           </div>
                         )}
 
-                        <div className="flex gap-2">
+                        {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && <div className="flex gap-2">
                           <button type="button"
                             onClick={handleAddToCart}
                             disabled={!quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h)}
@@ -1335,16 +1336,16 @@ export default function CustomerPortal() {
                           >
                             <Zap size={13} /> Buy Now
                           </button>
-                        </div>
+                        </div>}
                         <button type="submit"
                           disabled={quoteSubmitting || !quoteForm.size_w || (quoteForm.shape !== 'circle' && !quoteForm.size_h) || (!isCustomerAuthenticated && (!quoteForm.name || !quoteForm.email))}
                           className="w-full border border-stone-200 hover:border-stone-500 text-stone-500 hover:text-stone-900 disabled:opacity-40 text-xs font-medium tracking-widest uppercase py-3 transition-colors flex items-center justify-center gap-2"
                         >
                           {quoteSubmitting
                             ? <><div className="w-4 h-4 border border-stone-400 border-t-stone-900 rounded-full animate-spin" /> Submitting…</>
-                            : <><Send size={13} /> Request a Quote Instead</>}
+                            : <><Send size={13} /> Request a Quote</>}
                         </button>
-                        <p className="text-stone-400 text-xs text-center">Cart/Buy Now go straight to checkout · Quote is free, no commitment</p>
+                        {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && <p className="text-stone-400 text-xs text-center">Cart/Buy Now go straight to checkout · Quote is free, no commitment</p>}
                       </div>
                     </form>
                   )}

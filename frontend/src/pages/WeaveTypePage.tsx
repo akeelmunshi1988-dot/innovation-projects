@@ -4,7 +4,6 @@ import axios from 'axios';
 import { ArrowRight, Layers, Search, X } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { useCurrency } from '../contexts/CurrencyContext';
 import type { CatalogSize } from '../types';
 
 interface WeaveRug {
@@ -176,7 +175,6 @@ export default function WeaveTypePage() {
   const [material, setMaterial] = useState('all');
   const [pile, setPile] = useState('all');
   const [sort, setSort] = useState('default');
-  const { displayPrice } = useCurrency();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -351,7 +349,6 @@ export default function WeaveTypePage() {
                 <div className="pt-4 text-center space-y-1">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-stone-400">{rug.material} · {rug.weave_type}</p>
                   <h3 className="font-serif text-lg text-stone-900">{rug.name}</h3>
-                  {rug.display_price != null && <p className="text-sm text-stone-500">{displayPrice(rug.display_price)}{rug.default_size && <span className="text-xs text-stone-400"> · {rug.default_size.ft} ft</span>}</p>}
                 </div>
               </Link>
             ))}

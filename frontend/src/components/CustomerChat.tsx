@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Sparkles, AlertTriangle, ChevronDown, HelpCircl
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
+import { FEATURE_FLAGS } from '../config/featureFlags';
 
 interface ChatAction {
   type: 'checkout' | 'quote';
@@ -317,31 +318,25 @@ export default function CustomerChat({ businessName }: { businessName?: string |
                                 <button
                                   onClick={() => {
                                     setOpen(false);
-                                    navigate('/checkout', {
-                                      state: { items: [{
-                                          rug_id: msg.action!.rug_id,
-                                          rug_name: msg.action!.rug_name,
-                                          size_w: msg.action!.size_w,
-                                          size_h: msg.action!.size_h,
-                                          qty: msg.action!.qty,
-                                          rush_order: msg.action!.rush_order,
-                                          notes: msg.action!.notes,
-                                          estimated_price: msg.action!.estimated_price,
-                                          rush_surcharge: msg.action!.rush_surcharge,
-                                          pre_gst_price: msg.action!.pre_gst_price,
-                                          gst_pct: msg.action!.gst_pct,
-                                          gst_amount: msg.action!.gst_amount,
-                                          gst_inclusive: msg.action!.gst_inclusive,
-                                          price_currency: msg.action!.price_currency ?? 'INR',
-                                          estimated_days: msg.action!.estimated_days ?? 21,
-                                        }] },
-                                    });
+                                    if (FEATURE_FLAGS.SHOW_DIRECT_PURCHASE) {
+                                      navigate('/checkout', { state: { items: [{
+                                        rug_id: msg.action!.rug_id, rug_name: msg.action!.rug_name,
+                                        size_w: msg.action!.size_w, size_h: msg.action!.size_h, qty: msg.action!.qty,
+                                        rush_order: msg.action!.rush_order, notes: msg.action!.notes,
+                                        estimated_price: msg.action!.estimated_price, rush_surcharge: msg.action!.rush_surcharge,
+                                        pre_gst_price: msg.action!.pre_gst_price, gst_pct: msg.action!.gst_pct,
+                                        gst_amount: msg.action!.gst_amount, gst_inclusive: msg.action!.gst_inclusive,
+                                        price_currency: msg.action!.price_currency ?? 'INR', estimated_days: msg.action!.estimated_days ?? 21,
+                                      }] } });
+                                    } else {
+                                      navigate(`/catalog/${msg.action!.rug_id}`);
+                                    }
                                   }}
                                   className="w-full flex items-center justify-between gap-2 bg-gold-600 hover:bg-gold-500 text-white text-xs font-medium px-3 py-2.5 rounded-lg transition-colors"
                                 >
                                   <div className="flex items-center gap-2">
-                                    <ShoppingBag size={13} />
-                                    <span>Proceed to Checkout</span>
+                                    {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? <ShoppingBag size={13} /> : <FileText size={13} />}
+                                    <span>{FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? 'Proceed to Checkout' : 'Request a Quote'}</span>
                                   </div>
                                   {msg.action.estimated_price != null && (
                                     <span className="font-semibold">

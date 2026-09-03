@@ -503,6 +503,12 @@ def update_tenant_settings(
         tenant.privacy_policy_html = body.privacy_policy_html or None
     if body.default_catalog_additional_information_html is not None:
         tenant.default_catalog_additional_information_html = body.default_catalog_additional_information_html or None
+    if body.rug_sample_information_html is not None:
+        tenant.rug_sample_information_html = body.rug_sample_information_html or None
+    if body.rug_care_advice_html is not None:
+        tenant.rug_care_advice_html = body.rug_care_advice_html or None
+    if body.rug_shipping_returns_html is not None:
+        tenant.rug_shipping_returns_html = body.rug_shipping_returns_html or None
     if body.certifications is not None:
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:

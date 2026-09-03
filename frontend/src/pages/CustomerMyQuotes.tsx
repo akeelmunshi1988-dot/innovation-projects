@@ -13,6 +13,7 @@ import { currencyForCountry } from '../utils/countries';
 import { fmtDims } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import type { GstSplit } from '../services/api';
+import { FEATURE_FLAGS } from '../config/featureFlags';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
 
 interface CustomerQuote {
@@ -389,7 +390,7 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
           {/* Place Order / Negotiate / Decline */}
           {quote.status === 'sent' && !responding && (
             <div className="space-y-2 pt-1">
-              {quote.rug_id && quote.size_w && quote.size_h && quote.final_price != null && (
+              {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && quote.rug_id && quote.size_w && quote.size_h && quote.final_price != null && (
                 <button
                   onClick={() => navigate('/checkout', {
                     state: {

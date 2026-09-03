@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Access Required — DreamRugsCreation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --cream-100: #fdfbf7;
+    --cream-200: #f9f4ec;
+    --stone-200: #e7e5e4;
+    --stone-400: #a8a29e;
+    --stone-500: #78716c;
+    --stone-900: #1c1917;
+    --red-600: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--cream-100);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--stone-900);
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid var(--stone-200);
+    border-radius: 4px;
+    padding: 40px 36px;
+    text-align: center;
+  }
+  .brand {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: 0.02em;
+    color: #85501b;
+    margin: 0 0 28px;
+  }
+  h1 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 500;
+    font-size: 24px;
+    margin: 0 0 12px;
+  }
+  p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--stone-500);
+    margin: 0 0 28px;
+  }
+  form { display: flex; flex-direction: column; gap: 14px; }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 1px solid var(--stone-200);
+    border-radius: 2px;
+    background: var(--cream-100);
+    color: var(--stone-900);
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--stone-900); }
+  button {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--stone-900);
+    color: #fff;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+  .error {
+    display: none;
+    font-size: 13px;
+    color: var(--red-600);
+    margin: -4px 0 4px;
+  }
+  .error.show { display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="brand">DreamRugsCreation</p>
+    <h1>Access Required</h1>
+    <p>This site is currently limited to invited access from your region. Enter your personal access token below to continue.</p>
+    <p class="error" id="error">That token wasn't recognized. Please check it and try again.</p>
+    <form id="form">
+      <input type="text" id="token" name="token" placeholder="Access token" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+      <button type="submit">Continue</button>
+    </form>
+  </div>
+  <script>
+    // If we're back here WITH a ?key= already in the URL, that attempt was
+    // rejected by the server (a valid key would have let the real site
+    // through instead of this page) — surface that instead of staying silent.
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('key')) {
+      document.getElementById('error').classList.add('show');
+    }
+
+    document.getElementById('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var token = document.getElementById('token').value.trim();
+      if (!token) return;
+      var redirectTo = params.get('redirect') || '/';
+      var target = new URL(redirectTo, window.location.origin);
+      target.searchParams.set('key', token);
+      window.location.href = target.toString();
+    });
+  </script>
+</body>
+</html>

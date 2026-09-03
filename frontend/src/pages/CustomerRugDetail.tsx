@@ -4,15 +4,13 @@ import axios from 'axios';
 import DOMPurify from 'dompurify';
 import {
   Layers, Send, CheckCircle, AlertTriangle, Zap, Eye,
-  ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink, ShoppingBag,
+  ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink,
   ChevronLeft, Upload, ChevronDown,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import SocialLoginButtons from '../components/SocialLoginButtons';
-import { fmtExact, currencySymbol } from '../utils/currency';
-import { useCurrency } from '../contexts/CurrencyContext';
-import { useCart } from '../contexts/CartContext';
+import { FEATURE_FLAGS } from '../config/featureFlags';
 import { fmtSize, catalogSizeDims, toMetres, inputUnit, SIZE_UNITS } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import { COUNTRIES, detectCountry } from '../utils/countries';
@@ -58,26 +56,6 @@ interface RugDetail {
   color_options: RugColorOption[];
 }
 
-interface PriceResult {
-  subtotal: number;
-  final_price: number;
-  price_per_piece: number;
-  bulk_discount: number;
-  rush_surcharge: number;
-  pre_gst_price: number;
-  gst_pct: number;
-  gst_amount: number;
-  gst_inclusive: boolean;
-  shipping_cost: number;
-  estimated_total: number;
-  material_available: boolean;
-  estimated_days: number;
-  standard_days: number;
-  rush_days: number;
-  rush_available: boolean;
-  price_currency?: string;
-}
-
 type RugShape = 'rect' | 'circle' | 'oval';
 
 interface QuoteForm {
@@ -93,24 +71,33 @@ interface QuoteForm {
 }
 interface ProductFAQ { id: number; question: string; answer: string; }
 
+interface SharedProductContent {
+  rug_sample_information_html: string | null;
+  rug_care_advice_html: string | null;
+  rug_shipping_returns_html: string | null;
+  catalog_pdf_url: string | null;
+}
+
 
 export default function CustomerRugDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
-  const { displayPrice } = useCurrency();
-  const { addItem } = useCart();
-  const [addedToCart, setAddedToCart] = useState(false);
   const [rug, setRug] = useState<RugDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [faqs, setFaqs] = useState<ProductFAQ[]>([]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [openProductInfo, setOpenProductInfo] = useState<string | null>('product');
+  const [sharedProductContent, setSharedProductContent] = useState<SharedProductContent>({
+    rug_sample_information_html: null,
+    rug_care_advice_html: null,
+    rug_shipping_returns_html: null,
+    catalog_pdf_url: null,
+  });
 
   const [activeQuote, setActiveQuote] = useState<{ quote_id: number; status: string; final_price: number | null; price_currency: string } | null>(null);
 
-  const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
-  const [calcLoading, setCalcLoading] = useState(false);
   const { sizeUnit, setSizeUnit } = useMeasurementUnit();
   // Identifies the selected standard size independent of display unit (a size's
   // `ft` value is always present, unlike `cm`) — see the size-seeding effect
@@ -135,11 +122,12 @@ export default function CustomerRugDetail() {
     name: customer?.name ?? '', email: customer?.email ?? '', phone: '', company: '',
     room_type: QUOTE_ROOM_TYPES[0], material_preference: 'no_preference', material_other: '',
     budget_range: QUOTE_BUDGETS[0], expected_delivery: QUOTE_DELIVERY[0], notes: '',
-    size_w: '', size_h: '', unit: 'ft',
+    size_w: '', size_h: '', unit: 'ft', qty: '1',
     reference_image_urls: [] as string[], uploading: false,
   });
 
-  // Auth modal (shown when unauthenticated user tries to submit)
+  // Optional auth modal. Guests can submit a quote without creating an account,
+  // but can sign in/register first if they want the request in My Quotes.
   const [authModal, setAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '', phone: '', company: '', country: detectCountry() });
@@ -174,7 +162,15 @@ export default function CustomerRugDetail() {
 
   useEffect(() => {
     getPublicSettings()
-      .then((data) => setSizeUnit(data.default_size_unit || 'ft'))
+      .then((data) => {
+        setSizeUnit(data.default_size_unit || 'ft');
+        setSharedProductContent({
+          rug_sample_information_html: data.rug_sample_information_html,
+          rug_care_advice_html: data.rug_care_advice_html,
+          rug_shipping_returns_html: data.rug_shipping_returns_html,
+          catalog_pdf_url: data.catalog_pdf_url,
+        });
+      })
       .catch(() => {});
   }, []);
 
@@ -206,7 +202,6 @@ export default function CustomerRugDetail() {
     }));
     // A previous estimate is for the old unit's dimensions and no longer
     // applies once we can't represent the selected size in the new unit.
-    if (!dimensions) setPriceResult(null);
   }, [rug, sizeUnit, selectedSizeKey]);
 
   useEffect(() => {
@@ -233,38 +228,9 @@ export default function CustomerRugDetail() {
     }).catch(() => {});
   }, [rug, isCustomerAuthenticated, customerToken]);
 
-  const effectiveSizeH = form.shape === 'circle' ? form.size_w : form.size_h;
-  // form.size_w/size_h are entered in `sizeUnit`; quote pricing is denominated in metres.
-  const sizeWMetres = toMetres(parseFloat(form.size_w), sizeUnit);
-  const sizeHMetres = toMetres(parseFloat(effectiveSizeH), sizeUnit);
   const selectedCatalogSize = (selectedSizeKey ? rug?.sizes.find((size) => size.ft === selectedSizeKey) : undefined)
     ?? rug?.sizes.find((size) => size.is_default) ?? rug?.sizes[0];
   const selectedLeadTimeDays = selectedCatalogSize?.lead_time_days ?? rug?.lead_time_days ?? 21;
-
-  const calcPrice = async (selectedSize?: { size_w: string; size_h: string }) => {
-    const selectedWidth = selectedSize?.size_w ?? form.size_w;
-    const selectedHeight = selectedSize?.size_h ?? form.size_h;
-    if (!rug || !selectedWidth || (form.shape !== 'circle' && !selectedHeight)) return;
-    setCalcLoading(true);
-    try {
-      const { data } = await axios.post(`/api/customer/catalog/${rug.id}/estimate`, {
-        size_w: toMetres(parseFloat(selectedWidth), sizeUnit),
-        size_h: toMetres(parseFloat(form.shape === 'circle' ? selectedWidth : selectedHeight), sizeUnit),
-        qty: parseInt(form.qty) || 1,
-        rush_order: form.rush_order,
-        shape: form.shape,
-      });
-      setPriceResult(data);
-      // Auto-clear rush if the estimate shows it saves no time
-      if (!data.rush_available && form.rush_order) {
-        setForm(f => ({ ...f, rush_order: false }));
-      }
-    } catch (err: any) {
-      console.error('Price estimate failed:', err.response?.data?.detail || err.message);
-    } finally {
-      setCalcLoading(false);
-    }
-  };
 
   const handleFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -298,10 +264,11 @@ export default function CustomerRugDetail() {
       material_preference: material,
       material_other: material === 'other' ? rug.material : '',
       budget_range: budget,
-      size_w: selectedSize ? String(catalogSizeDims(selectedSize, 'ft')?.[0] ?? '') : '',
-      size_h: selectedSize ? String(catalogSizeDims(selectedSize, 'ft')?.[1] ?? '') : '',
-      unit: 'ft',
-      expected_delivery: selectedLeadTimeDays <= 28 ? 'Within 4 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
+      size_w: form.size_w || (selectedSize ? String(catalogSizeDims(selectedSize, inputUnit(sizeUnit))?.[0] ?? '') : ''),
+      size_h: form.size_h || (selectedSize ? String(catalogSizeDims(selectedSize, inputUnit(sizeUnit))?.[1] ?? '') : ''),
+      unit: inputUnit(sizeUnit),
+      qty: form.qty || '1',
+      expected_delivery: form.rush_order ? 'ASAP / Rush' : selectedLeadTimeDays <= 28 ? 'Within 4 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
     }));
     setSubmitError(null);
     setQuoteModal(true);
@@ -338,8 +305,8 @@ export default function CustomerRugDetail() {
         rug_id: rug.id,
         size_w: toMetres(parseFloat(quoteDetails.size_w), quoteDetails.unit),
         size_h: toMetres(parseFloat(quoteDetails.size_h), quoteDetails.unit),
-        qty: 1,
-        rush_order: false,
+        qty: Math.max(1, parseInt(quoteDetails.qty) || 1),
+        rush_order: quoteDetails.expected_delivery === 'ASAP / Rush',
         shape: 'rect',
         notes: quoteDetails.notes || null,
         room_type: quoteDetails.room_type || null,
@@ -369,15 +336,18 @@ export default function CustomerRugDetail() {
       setSubmitError('Enter the requested rug width and length.');
       return;
     }
+    if (!(parseInt(quoteDetails.qty) > 0)) {
+      setSubmitError('Quantity must be at least 1.');
+      return;
+    }
     if (quoteDetails.material_preference === 'other' && !quoteDetails.material_other.trim()) {
       setSubmitError('Please specify the preferred material.');
       return;
     }
-    if (!isCustomerAuthenticated || !customer) {
-      setAuthModal(true);
-      return;
-    }
-    await doSubmitQuote(quoteDetails.name || customer.name, quoteDetails.email || customer.email);
+    await doSubmitQuote(
+      quoteDetails.name || customer?.name || '',
+      quoteDetails.email || customer?.email || '',
+    );
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -433,14 +403,45 @@ export default function CustomerRugDetail() {
     );
   }
 
-  const currency = rug?.base_price_currency ?? priceResult?.price_currency ?? 'INR';
+  const currency = rug.base_price_currency ?? 'INR';
   const hasSize = parseFloat(form.size_w) > 0 && (form.shape === 'circle' || parseFloat(form.size_h) > 0);
   const selectedColorOption = rug.color_options.find((color) => color.name === selectedColor);
   const coverImage = selectedColorOption?.image_url || rug.image_url;
   const scrollToConfigurator = () => {
     document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-
+  const productInfoSections = [
+    {
+      id: 'product',
+      label: 'Product Details',
+      html: `<ul>
+        <li><strong>Material:</strong> ${rug.material}</li>
+        <li><strong>Weave:</strong> ${rug.weave_type || 'Handcrafted'}</li>
+        <li><strong>Pile:</strong> ${rug.pile_height || 'Made to order'}</li>
+        <li><strong>Production time:</strong> approximately ${selectedLeadTimeDays} days</li>
+        ${selectedColor ? `<li><strong>Color:</strong> ${selectedColor}</li>` : ''}
+      </ul>${rug.additional_information_html || ''}`,
+      fallback: '',
+    },
+    {
+      id: 'sample',
+      label: 'Rug Sample',
+      html: sharedProductContent.rug_sample_information_html,
+      fallback: '<p>Contact our team to request a rug sample and confirm availability, cost, and delivery timing.</p>',
+    },
+    {
+      id: 'care',
+      label: 'Care Advice',
+      html: sharedProductContent.rug_care_advice_html,
+      fallback: '<p>Vacuum gently without a beater bar, rotate periodically, and use a professional rug cleaner for deep cleaning.</p>',
+    },
+    {
+      id: 'shipping',
+      label: 'Shipping & Returns',
+      html: sharedProductContent.rug_shipping_returns_html,
+      fallback: `<p>This rug is prepared to order with an estimated lead time of ${selectedLeadTimeDays} days. Contact us for destination-specific shipping and return details.</p>`,
+    },
+  ];
   return (
     <CustomerLayout>
       <SEO
@@ -511,11 +512,6 @@ export default function CustomerRugDetail() {
                 </p>
                 <p className="text-xs text-stone-400">
                   Quote #{activeQuote.quote_id}
-                  {activeQuote.final_price != null && activeQuote.status === 'sent' && (
-                    <> · <span className="font-medium text-stone-700">
-                      {currencySymbol(activeQuote.price_currency)}{fmtExact(activeQuote.final_price, activeQuote.price_currency)}
-                    </span></>
-                  )}
                 </p>
               </div>
             </div>
@@ -613,17 +609,11 @@ export default function CustomerRugDetail() {
           })()}
         </div>
 
-        {/* Product summary: details + attributes + actions, aligned like the reference */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12 items-start pb-4">
-          <section className="md:col-span-2 lg:col-span-5 space-y-4 min-w-0">
+        {/* Product information below the unchanged image gallery. */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-8 border-y border-stone-200">
+          <section className="lg:col-span-8 space-y-4 min-w-0">
             <div>
-              <h1 className="font-serif text-3xl font-light text-stone-900">{rug.name}</h1>
-              {rug.display_price != null && (
-                <div className="flex flex-wrap items-end gap-x-2 gap-y-1 mt-3">
-                  <p className="text-stone-900 font-medium text-xl">{displayPrice(rug.display_price, currency)}</p>
-                  {rug.default_size && <p className="text-stone-400 text-xs pb-0.5">for {fmtSize(rug.default_size, sizeUnit)}</p>}
-                </div>
-              )}
+              <h1 className="font-serif text-4xl font-light text-stone-900 tracking-tight">{rug.name}</h1>
             </div>
 
             {!rug.available && <p className="text-red-500 text-sm font-medium">Out of stock</p>}
@@ -632,37 +622,7 @@ export default function CustomerRugDetail() {
             )}
           </section>
 
-          <section className="lg:col-span-4 space-y-4 min-w-0" aria-label="Rug features">
-            <div className="flex items-center gap-3">
-              <span className="w-11 h-11 rounded-full border border-stone-200 flex items-center justify-center flex-shrink-0">
-                <Layers size={18} className="text-stone-500" />
-              </span>
-              <div>
-                <p className="font-serif text-lg leading-tight text-stone-900">{rug.material}</p>
-                <p className="text-stone-400 text-sm">{rug.material_type || 'Selected material'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-11 h-11 rounded-full border border-stone-200 flex items-center justify-center flex-shrink-0">
-                <CheckCircle size={18} className="text-stone-500" />
-              </span>
-              <div>
-                <p className="font-serif text-lg leading-tight text-stone-900 capitalize">{rug.weave_type || 'Handcrafted'}</p>
-                <p className="text-stone-400 text-sm">Made by skilled artisans</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-11 h-11 rounded-full border border-stone-200 flex items-center justify-center flex-shrink-0">
-                <Zap size={18} className="text-stone-500" />
-              </span>
-              <div>
-                <p className="font-serif text-lg leading-tight text-stone-900 capitalize">{rug.pile_height ? `${rug.pile_height} pile` : 'Made to order'}</p>
-                <p className="text-stone-400 text-sm">Estimated in {selectedLeadTimeDays} days</p>
-              </div>
-            </div>
-          </section>
-
-          <section className="lg:col-span-3 space-y-4 lg:pt-2">
+          <section className="lg:col-span-4 space-y-4">
             <button
               type="button"
               onClick={openQuoteRequest}
@@ -671,21 +631,18 @@ export default function CustomerRugDetail() {
             >
               Request a Quote
             </button>
-            <button
-              type="button"
-              onClick={scrollToConfigurator}
-              disabled={!rug.available}
-              className="w-full storefront-cta-outline disabled:border-stone-200 disabled:text-stone-300 py-4"
-            >
-              Add to Cart
-            </button>
+            {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
+              <button type="button" onClick={scrollToConfigurator} disabled={!rug.available} className="w-full storefront-cta-outline disabled:border-stone-200 disabled:text-stone-300 py-4">
+                Add to Cart
+              </button>
+            )}
           </section>
         </div>
 
-        <div id="rug-configurator" className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start scroll-mt-32 pt-8 border-t border-stone-100">
+        <div id="rug-configurator" className="scroll-mt-32 pt-8 border-t border-stone-100">
 
           {/* Long-form product description */}
-          <section className="lg:col-span-3 min-w-0">
+          <section className="max-w-4xl min-w-0">
             <h2 className="font-serif text-2xl font-light text-stone-900 mb-3">Description</h2>
             {rug.description ? (
               <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-line">{rug.description}</p>
@@ -700,29 +657,16 @@ export default function CustomerRugDetail() {
             ) : (
               <p className="text-stone-400 text-sm">No additional description is available.</p>
             )}
-            {rug.additional_information_html && <div className="mt-10 pt-8 border-t border-stone-100">
-              <h2 className="font-serif text-2xl font-light text-stone-900 mb-4">Additional Notes &amp; Information</h2>
-              <div
-                className="prose-content text-stone-600"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.additional_information_html, {
-                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
-                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
-                }) }}
-              />
-            </div>}
           </section>
 
           {/* Direct-purchase configurator */}
-          <div className="lg:col-span-2">
+          <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
             <div className="space-y-5 w-full">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
                   <h3 className="font-serif text-2xl font-light text-stone-900">Quote Requested</h3>
-                  <p className="text-stone-600 text-sm">
-                    Quote #{quoteResult.quote_id} — Total{' '}
-                    <span className="font-medium text-stone-900">{quoteResult.final_price != null ? displayPrice(quoteResult.final_price, currency) : '—'}</span>
-                  </p>
+                  <p className="text-stone-600 text-sm">Quote #{quoteResult.quote_id}</p>
                   <p className="text-stone-500 text-sm">We'll contact you within 24 hours to confirm details.</p>
                   <p className="text-stone-400 text-xs">Expected delivery: {quoteResult.lead_time_days} days</p>
                   <Link to="/catalog" className="inline-block text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
@@ -732,8 +676,8 @@ export default function CustomerRugDetail() {
               ) : (
                 <div className="border border-stone-200">
                   <div className="px-5 py-4 border-b border-stone-100">
-                    <h2 className="font-serif text-2xl font-light text-stone-900">Choose Size &amp; Purchase</h2>
-                    <p className="text-stone-400 text-sm mt-1">Select an available size for an instant estimate and direct checkout.</p>
+                    <h2 className="font-serif text-2xl font-light text-stone-900">Select Size</h2>
+                    <p className="text-stone-400 text-sm mt-1">Choose your preferred dimensions, then request a tailored quote.</p>
                   </div>
 
                   <form onSubmit={(event) => event.preventDefault()} className="p-4 sm:p-5">
@@ -788,31 +732,28 @@ export default function CustomerRugDetail() {
                           </div>
                         </div>
                         {rug.sizes.filter((size) => catalogSizeDims(size, inputUnit(sizeUnit))).length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {rug.sizes.map((size) => {
-                              const dims = catalogSizeDims(size, inputUnit(sizeUnit));
-                              if (!dims) return null;
-                              const dispW = String(dims[0]);
-                              const dispH = String(dims[1]);
-                              const isSelected = form.size_w === dispW && form.size_h === dispH;
-                              return (
-                                <button key={size.ft} type="button"
-                                  onClick={() => {
-                                    setSelectedSizeKey(size.ft);
-                                    setForm((f) => ({ ...f, size_w: dispW, size_h: dispH }));
-                                    setPriceResult(null);
-                                    void calcPrice({ size_w: dispW, size_h: dispH });
-                                  }}
-                                  className={`border px-3 py-1.5 text-xs transition-colors ${
-                                    isSelected
-                                      ? 'bg-stone-900 border-stone-900 text-white'
-                                      : 'border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900'
-                                  }`}
-                                >
-                                  {fmtSize(size, sizeUnit)}
-                                </button>
-                              );
-                            })}
+                          <div className="relative">
+                            <select
+                              aria-label="Select standard rug size"
+                              value={selectedCatalogSize && catalogSizeDims(selectedCatalogSize, inputUnit(sizeUnit)) ? selectedCatalogSize.ft : ''}
+                              onChange={(event) => {
+                                const size = rug.sizes.find((item) => item.ft === event.target.value);
+                                if (!size) return;
+                                const dims = catalogSizeDims(size, inputUnit(sizeUnit));
+                                if (!dims) return;
+                                const dispW = String(dims[0]);
+                                const dispH = String(dims[1]);
+                                setSelectedSizeKey(size.ft);
+                                setForm((current) => ({ ...current, size_w: dispW, size_h: dispH }));
+                              }}
+                              className="w-full appearance-none border border-stone-300 bg-white px-4 pr-10 py-3.5 text-stone-900 text-sm focus:outline-none focus:border-stone-900 transition-colors"
+                            >
+                              <option value="" disabled>Select size</option>
+                              {rug.sizes.map((size) => catalogSizeDims(size, inputUnit(sizeUnit)) ? (
+                                <option key={size.ft} value={size.ft}>{fmtSize(size, sizeUnit)}</option>
+                              ) : null)}
+                            </select>
+                            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone-500" />
                           </div>
                         ) : (
                           <p className="text-stone-400 text-xs italic">No sizes listed in {sizeUnit.toUpperCase()} yet.</p>
@@ -828,168 +769,73 @@ export default function CustomerRugDetail() {
                         />
                       </div>
                       <div className="flex items-end pb-0.5">
-                        {priceResult && !priceResult.rush_available ? (
-                          <div className="w-full">
-                            <div className="flex items-center gap-2 opacity-40 cursor-not-allowed">
-                              <div className="relative flex-shrink-0">
-                                <div className="w-9 h-5 rounded-full bg-stone-200">
-                                  <div className="absolute top-0.5 translate-x-0.5 w-4 h-4 rounded-full bg-white shadow" />
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-stone-700 text-xs font-medium">Rush</p>
-                                <p className="text-stone-400 text-xs">+25% fee</p>
-                              </div>
+                        <label className="flex items-center gap-2 cursor-pointer w-full">
+                          <div className="relative flex-shrink-0">
+                            <input type="checkbox" name="rush_order" checked={form.rush_order} onChange={handleFormChange} className="sr-only" />
+                            <div className={`w-9 h-5 rounded-full transition-colors ${form.rush_order ? 'bg-stone-900' : 'bg-stone-200'}`}>
+                              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.rush_order ? 'translate-x-5' : 'translate-x-0.5'}`} />
                             </div>
-                            <p className="text-amber-600 text-xs mt-1 leading-snug">
-                              Already at minimum production time ({priceResult.standard_days}d) — no rush benefit
-                            </p>
                           </div>
-                        ) : (
-                          <label className="flex items-center gap-2 cursor-pointer w-full">
-                            <div className="relative flex-shrink-0">
-                              <input type="checkbox" name="rush_order" checked={form.rush_order} onChange={handleFormChange} className="sr-only" />
-                              <div className={`w-9 h-5 rounded-full transition-colors ${form.rush_order ? 'bg-stone-900' : 'bg-stone-200'}`}>
-                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.rush_order ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-stone-700 text-xs font-medium">Rush</p>
-                              <p className="text-stone-400 text-xs">
-                                {priceResult
-                                  ? `${priceResult.standard_days}d → ${priceResult.rush_days}d · +25% fee`
-                                  : '+25% fee'}
-                              </p>
-                            </div>
-                          </label>
-                        )}
+                          <div>
+                            <p className="text-stone-700 text-xs font-medium">Rush</p>
+                            <p className="text-stone-400 text-xs">Request priority production</p>
+                          </div>
+                        </label>
                       </div>
                     </div>
 
-                    {/* Price estimate + Place Order */}
-                    {hasSize && (
-                      <div>
-                        <button type="button" onClick={() => void calcPrice()} disabled={calcLoading}
-                          className="w-full flex items-center justify-center gap-2 text-xs font-medium text-stone-600 hover:text-stone-900 border border-stone-200 hover:border-stone-400 px-3 py-2.5 transition-colors uppercase tracking-wider"
-                        >
-                          {calcLoading
-                            ? <div className="w-3.5 h-3.5 border border-stone-400 border-t-transparent rounded-full animate-spin" />
-                            : <Zap size={13} />}
-                          Estimate
-                        </button>
-                        {priceResult && (
-                          <div className="mt-2 border border-stone-100 bg-stone-50 p-3 space-y-1.5">
-                            {priceResult.bulk_discount > 0 && (
-                              <div className="flex justify-between text-xs">
-                                <span className="text-green-600">Bulk discount</span>
-                                <span className="text-green-600">−{displayPrice(priceResult.bulk_discount, priceResult.price_currency)}</span>
-                              </div>
-                            )}
-                            {priceResult.rush_surcharge > 0 && (
-                              <div className="flex justify-between text-xs">
-                                <span className="text-amber-600">Rush fee</span>
-                                <span className="text-amber-600">+{displayPrice(priceResult.rush_surcharge, priceResult.price_currency)}</span>
-                              </div>
-                            )}
-                            {priceResult.gst_inclusive && (
-                              <>
-                                <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
-                                  <span className="text-stone-400">Pre-tax</span>
-                                  <span className="text-stone-700">{displayPrice(priceResult.pre_gst_price, priceResult.price_currency)}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-stone-400">Tax ({priceResult.gst_pct?.toFixed(0)}%)</span>
-                                  <span className="text-stone-700">+{displayPrice(priceResult.gst_amount, priceResult.price_currency)}</span>
-                                </div>
-                              </>
-                            )}
-                            <div className="flex justify-between text-xs pt-1 border-t border-stone-200">
-                              <span className="text-stone-400">Shipping</span>
-                              <span className="text-stone-700">
-                                {priceResult.shipping_cost > 0 ? `+${displayPrice(priceResult.shipping_cost, priceResult.price_currency)}` : 'Free'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-sm font-medium pt-1 border-t border-stone-200">
-                              <span className="text-stone-900">Estimated Total</span>
-                              <span className="text-stone-900">{displayPrice(priceResult.estimated_total, priceResult.price_currency)}</span>
-                            </div>
-                            <p className="text-stone-400 text-xs">Expected delivery: ~{priceResult.estimated_days} days</p>
-                            {!priceResult.material_available && (
-                              <div className="border border-amber-200 bg-amber-50 p-3 space-y-2">
-                                <p className="text-amber-800 text-xs leading-relaxed">
-                                  Immediate checkout is unavailable for this size and quantity because current material stock is insufficient. This rug is still available for a custom quote.
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={openQuoteRequest}
-                                  className="text-xs font-medium uppercase tracking-wider text-stone-900 border-b border-stone-500 pb-0.5"
-                                >
-                                  Request a Quote
-                                </button>
-                              </div>
-                            )}
-                            <div className="flex flex-col sm:flex-row gap-2 mt-1">
-                              <button type="button"
-                                disabled={!priceResult.material_available}
-                                onClick={() => {
-                                  if (!priceResult.material_available) return;
-                                  addItem({
-                                    rug_id: rug.id, rug_name: rug.name, image_url: coverImage,
-                                    size_w: sizeWMetres, size_h: sizeHMetres, shape: form.shape,
-                                    qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
-                                    notes: form.notes || undefined,
-                                    selected_color: selectedColor || undefined,
-                                  });
-                                  setAddedToCart(true);
-                                  setTimeout(() => setAddedToCart(false), 2500);
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 border border-stone-300 hover:border-stone-900 disabled:border-stone-200 disabled:text-stone-300 text-stone-900 text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
-                              >
-                                {addedToCart ? <><CheckCircle size={13} className="text-green-600" /> Added</> : <><ShoppingBag size={13} /> Add to Cart</>}
-                              </button>
-                              <button type="button"
-                                disabled={!priceResult.material_available}
-                                onClick={() => navigate('/checkout', {
-                                  state: {
-                                    items: [{
-                                      rug_id: rug.id, rug_name: rug.name, image_url: coverImage,
-                                      size_w: sizeWMetres, size_h: sizeHMetres,
-                                      qty: parseInt(form.qty) || 1, rush_order: form.rush_order,
-                                      shape: form.shape,
-                                      notes: form.notes || undefined,
-                                      selected_color: selectedColor || undefined,
-                                      estimated_price: priceResult.final_price,
-                                      rush_surcharge: priceResult.rush_surcharge,
-                                      pre_gst_price: priceResult.pre_gst_price,
-                                      gst_pct: priceResult.gst_pct, gst_amount: priceResult.gst_amount,
-                                      gst_inclusive: priceResult.gst_inclusive,
-                                      price_currency: priceResult.price_currency ?? 'INR',
-                                      estimated_days: priceResult.estimated_days,
-                                    }],
-                                    name: form.name || undefined, email: form.email || undefined, phone: form.phone || undefined,
-                                  },
-                                })}
-                                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium tracking-widest uppercase py-2.5 transition-colors"
-                              >
-                                Buy Now
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {!hasSize && (
-                      <div className="border border-stone-200 px-4 py-5 text-center">
-                        <Zap size={18} className="mx-auto text-stone-300 mb-2" />
-                        <p className="text-stone-600 text-sm">Your estimate will appear here</p>
-                        <p className="text-stone-400 text-xs mt-1">Select a size above to continue.</p>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={openQuoteRequest}
+                      disabled={!rug.available || !hasSize}
+                      className="w-full storefront-cta-solid py-3.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Request a Quote
+                    </button>
 
                     </div>
                   </form>
                 </div>
+              )}
+            </div>
+
+            <div className="divide-y divide-stone-200 border-y border-stone-200">
+              {productInfoSections.map((section) => {
+                const expanded = openProductInfo === section.id;
+                const content = section.html || section.fallback;
+                return (
+                  <div key={section.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenProductInfo(expanded ? null : section.id)}
+                      aria-expanded={expanded}
+                      className="w-full flex items-center justify-between gap-4 py-5 text-left text-stone-900 hover:text-stone-600 transition-colors"
+                    >
+                      <span className="text-base font-medium">{section.label}</span>
+                      <span className="text-xl font-light leading-none" aria-hidden="true">{expanded ? '−' : '+'}</span>
+                    </button>
+                    {expanded && (
+                      <div
+                        className="prose-content text-stone-600 text-sm leading-relaxed pb-6 pr-6"
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content, {
+                          ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                          ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                        }) }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              {sharedProductContent.catalog_pdf_url && (
+                <a
+                  href={sharedProductContent.catalog_pdf_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-4 py-5 text-stone-900 hover:text-stone-600 transition-colors"
+                >
+                  <span className="text-base font-medium">Tearsheet</span>
+                  <ExternalLink size={15} />
+                </a>
               )}
             </div>
           </div>
@@ -1065,26 +911,60 @@ export default function CustomerRugDetail() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Full Name *</label>
-                    <input value={quoteDetails.name} onChange={(e) => setQuoteDetails((current) => ({ ...current, name: e.target.value }))}
-                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-stone-50 border border-stone-200 px-3 py-3">
+                    <div>
+                      <p className="text-stone-900 text-xs font-medium">Continue as a guest</p>
+                      <p className="text-stone-500 text-xs mt-0.5">No account is required to request a quote.</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button type="button" onClick={() => {
+                        setAuthMode('login');
+                        setAuthError('');
+                        setAuthForm((current) => ({ ...current, email: quoteDetails.email || current.email }));
+                        setAuthModal(true);
+                      }}
+                        className="border border-stone-300 px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-stone-700 hover:border-stone-900 hover:text-stone-900 transition-colors">
+                        Sign In
+                      </button>
+                      <button type="button" onClick={() => {
+                        setAuthMode('register');
+                        setAuthError('');
+                        setAuthForm((current) => ({
+                          ...current,
+                          name: quoteDetails.name || current.name,
+                          email: quoteDetails.email || current.email,
+                          phone: quoteDetails.phone || current.phone,
+                          company: quoteDetails.company || current.company,
+                        }));
+                        setAuthModal(true);
+                      }}
+                        className="bg-stone-900 px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-white hover:bg-stone-700 transition-colors">
+                        Register
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Email *</label>
-                    <input type="email" value={quoteDetails.email} onChange={(e) => setQuoteDetails((current) => ({ ...current, email: e.target.value }))}
-                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
-                  </div>
-                  <div>
-                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Phone / WhatsApp</label>
-                    <input value={quoteDetails.phone} onChange={(e) => setQuoteDetails((current) => ({ ...current, phone: e.target.value }))}
-                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
-                  </div>
-                  <div>
-                    <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Company</label>
-                    <input value={quoteDetails.company} onChange={(e) => setQuoteDetails((current) => ({ ...current, company: e.target.value }))}
-                      className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Full Name *</label>
+                      <input value={quoteDetails.name} onChange={(e) => setQuoteDetails((current) => ({ ...current, name: e.target.value }))}
+                        className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                    </div>
+                    <div>
+                      <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Email *</label>
+                      <input type="email" value={quoteDetails.email} onChange={(e) => setQuoteDetails((current) => ({ ...current, email: e.target.value }))}
+                        className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                    </div>
+                    <div>
+                      <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Phone / WhatsApp</label>
+                      <input value={quoteDetails.phone} onChange={(e) => setQuoteDetails((current) => ({ ...current, phone: e.target.value }))}
+                        className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                    </div>
+                    <div>
+                      <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Company</label>
+                      <input value={quoteDetails.company} onChange={(e) => setQuoteDetails((current) => ({ ...current, company: e.target.value }))}
+                        className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                    </div>
                   </div>
                 </div>
               )}
@@ -1120,6 +1000,17 @@ export default function CustomerRugDetail() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Quantity *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={quoteDetails.qty}
+                    onChange={(e) => setQuoteDetails((current) => ({ ...current, qty: e.target.value }))}
+                    className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400"
+                  />
+                </div>
                 <div>
                   <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Room / Purpose</label>
                   <div className="relative">
@@ -1210,8 +1101,8 @@ export default function CustomerRugDetail() {
               >
                 {submitting
                   ? <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
-                  : isCustomerAuthenticated ? <Send size={13} /> : <LogIn size={13} />}
-                {submitting ? 'Submitting…' : isCustomerAuthenticated ? 'Submit Quote Request' : 'Sign In & Submit'}
+                  : <Send size={13} />}
+                {submitting ? 'Submitting…' : 'Submit Quote Request'}
               </button>
             </div>
           </div>

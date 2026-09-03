@@ -310,7 +310,21 @@ server {
         auth_request /internal/access-check;
         auth_request_set $access_cookie $upstream_http_set_cookie;
         add_header Set-Cookie $access_cookie always;
+        # A blocked India visitor sees the token-entry page instead of a bare
+        # 403 — see frontend/public/access-required.html. `= ` (no code after
+        # it) rewrites the response to 200 so the page renders normally rather
+        # than as a browser error page; the redirect param round-trips the
+        # originally-requested URL so a valid token lands the visitor back on
+        # the page they wanted instead of always bouncing to the homepage.
+        error_page 403 = /access-required.html?redirect=$request_uri;
         try_files $uri $uri.html $uri/ /index.html;
+    }
+
+    # Serves the India-gate token-entry page itself — deliberately NOT behind
+    # auth_request (a blocked visitor must be able to reach the page that lets
+    # them submit a token in the first place, or they'd be locked in a loop).
+    location = /access-required.html {
+        try_files $uri =404;
     }
 
     # API -> FastAPI backend
@@ -372,9 +386,9 @@ server {
     # Internal-only: backs the auth_request calls above. `internal;` means
     # nginx refuses this location for any request that didn't originate from
     # an auth_request subrequest — it's not reachable directly from outside.
-    # See INDIA_ACCESS_KEY in the backend's .env / access_check() in
+    # See INDIA_ACCESS_KEYS in the backend's .env / access_check() in
     # app/main.py for what actually decides allow/block. No-op (never blocks
-    # anything) whenever INDIA_ACCESS_KEY isn't set.
+    # anything) whenever INDIA_ACCESS_KEYS isn't set.
     location = /internal/access-check {
         internal;
         proxy_pass http://127.0.0.1:8001/internal/access-check$is_args$args;
@@ -427,26 +441,44 @@ nginx -V 2>&1 | grep -o with-http_auth_request_module
 
 ### Using the India access gate (optional)
 
-Off by default — nothing above blocks anything unless `INDIA_ACCESS_KEY` is
-set in the backend's `.env` (Phase 7). To turn it on:
+Off by default — nothing above blocks anything unless `INDIA_ACCESS_KEYS` is
+set in the backend's `.env` (Phase 7). It's comma-separated so each person
+who needs access from India gets their own personal token rather than a
+shared secret. To turn it on:
 
 ```bash
-# generate a real key
-openssl rand -hex 24
-# add it to /var/www/dreamrugscreation/innovation-projects/backend/.env:
-#   INDIA_ACCESS_KEY=<the generated value>
+# generate one key per person, e.g. for 2 people:
+openssl rand -hex 24   # token for person A
+openssl rand -hex 24   # token for person B
+# add both to /var/www/dreamrugscreation/innovation-projects/backend/.env:
+#   INDIA_ACCESS_KEYS=<token-a>,<token-b>
 sudo systemctl restart dreamrugscreation
 ```
 
-Once set: visitors browsing from India get a 403 unless they hold the key —
-share `https://yourdomain.com/?key=<the value>` with whoever needs access.
-First load with a valid key sets a 30-day cookie, so it doesn't need to stay
-in the URL after that. Everyone browsing from outside India (including
-Googlebot, Bing, and link-preview bots) is unaffected either way.
+Once set: a visitor browsing from India who doesn't hold one of the keys
+never reaches any page of the site — every route lands them on
+`frontend/public/access-required.html` (a token-entry form, wired up via
+`error_page 403` in Phase 10's nginx config — that config block must be in
+place, and a frontend deploy must have shipped this file, for the gate to
+show anything other than a bare error). Submitting a valid token there
+redirects back to the page they originally requested with `?key=<token>`
+appended, which the backend accepts and turns into a 30-day cookie — from
+then on they can browse anywhere on the site without re-entering it. An
+invalid token redirects back to the same form with an inline error instead
+of silently doing nothing. You can still share
+`https://yourdomain.com/?key=<their token>` directly with each person
+instead of making them type it in, if you prefer — same 30-day cookie either
+way. Everyone browsing from outside India (including Googlebot, Bing, and
+link-preview bots) is unaffected either way and never sees this page.
 
-To turn it back off, clear `INDIA_ACCESS_KEY` in `.env` and restart the
-service — no nginx changes needed, the check endpoint itself just starts
-allowing everything again.
+To revoke one person's access without affecting the other, remove just their
+token from the comma-separated list and restart the service — their existing
+30-day cookie stops working on their next request since it no longer matches
+any allowed key.
+
+To turn the gate back off entirely, clear `INDIA_ACCESS_KEYS` in `.env` and
+restart the service — no nginx changes needed, the check endpoint itself
+just starts allowing everything again.
 
 ---
 
