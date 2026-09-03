@@ -50,6 +50,9 @@ class Tenant(Base):
     refund_cancellation_policy_html = Column(Text, nullable=True)  # admin-managed public policy page
     privacy_policy_html = Column(Text, nullable=True)              # admin-managed public privacy policy page
     default_catalog_additional_information_html = Column(Text, nullable=True)  # common notes used by rugs without a product override
+    rug_sample_information_html = Column(Text, nullable=True)   # shared storefront product accordion content
+    rug_care_advice_html = Column(Text, nullable=True)           # shared storefront product accordion content
+    rug_shipping_returns_html = Column(Text, nullable=True)      # shared storefront product accordion content
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable

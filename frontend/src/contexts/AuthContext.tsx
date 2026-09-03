@@ -42,6 +42,9 @@ export interface TenantInfo {
   refund_cancellation_policy_html: string | null;
   privacy_policy_html: string | null;
   default_catalog_additional_information_html: string | null;
+  rug_sample_information_html: string | null;
+  rug_care_advice_html: string | null;
+  rug_shipping_returns_html: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
   cancellation_window_hours: number;

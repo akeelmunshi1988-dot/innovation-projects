@@ -201,11 +201,12 @@ ACCESS_GATE_COOKIE = "drc_access"
 async def access_check(request: Request):
     """
     Used exclusively by nginx's `auth_request` directive (see DEPLOYMENT.md)
-    to gate the whole site — India-based visitors need INDIA_ACCESS_KEY,
-    everyone else passes through untouched. Not reachable from outside the
-    server (nginx's location for this is marked `internal`), and a no-op
-    (always 200) whenever INDIA_ACCESS_KEY isn't configured, so this is safe
-    to leave deployed without accidentally locking anyone out.
+    to gate the whole site — India-based visitors need one of the personal
+    tokens in INDIA_ACCESS_KEYS, everyone else passes through untouched. Not
+    reachable from outside the server (nginx's location for this is marked
+    `internal`), and a no-op (always 200) whenever INDIA_ACCESS_KEYS isn't
+    configured, so this is safe to leave deployed without accidentally
+    locking anyone out.
 
     Country lookup reuses the same cached ip-api.com call as
     /customer/detect-country (see geo_ip.py) — same free-tier budget, same
@@ -213,16 +214,18 @@ async def access_check(request: Request):
     visitor is from, we let them through rather than risk locking out real
     traffic on a flaky third-party API call.
     """
-    if not settings.INDIA_ACCESS_KEY:
+    allowed_keys = {k.strip() for k in (settings.INDIA_ACCESS_KEYS or "").split(",") if k.strip()}
+    if not allowed_keys:
         return Response(status_code=200)
 
-    if request.cookies.get(ACCESS_GATE_COOKIE) == settings.INDIA_ACCESS_KEY:
+    if request.cookies.get(ACCESS_GATE_COOKIE) in allowed_keys:
         return Response(status_code=200)
 
-    if request.query_params.get("key") == settings.INDIA_ACCESS_KEY:
+    key_param = request.query_params.get("key")
+    if key_param in allowed_keys:
         response = Response(status_code=200)
         response.set_cookie(
-            ACCESS_GATE_COOKIE, settings.INDIA_ACCESS_KEY,
+            ACCESS_GATE_COOKIE, key_param,
             max_age=60 * 60 * 24 * 30, httponly=True, secure=True, samesite="lax",
         )
         return response

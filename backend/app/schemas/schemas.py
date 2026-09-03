@@ -586,6 +586,9 @@ class TenantPublic(BaseModel):
     refund_cancellation_policy_html: Optional[str] = None
     privacy_policy_html: Optional[str] = None
     default_catalog_additional_information_html: Optional[str] = None
+    rug_sample_information_html: Optional[str] = None
+    rug_care_advice_html: Optional[str] = None
+    rug_shipping_returns_html: Optional[str] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
@@ -636,6 +639,9 @@ class TenantUpdateRequest(BaseModel):
     refund_cancellation_policy_html: Optional[str] = Field(None, max_length=100000)
     privacy_policy_html: Optional[str] = Field(None, max_length=100000)
     default_catalog_additional_information_html: Optional[str] = Field(None, max_length=100000)
+    rug_sample_information_html: Optional[str] = Field(None, max_length=100000)
+    rug_care_advice_html: Optional[str] = Field(None, max_length=100000)
+    rug_shipping_returns_html: Optional[str] = Field(None, max_length=100000)
     certifications: Optional[List[dict]] = None
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)

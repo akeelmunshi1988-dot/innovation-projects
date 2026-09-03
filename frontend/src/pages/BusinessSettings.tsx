@@ -73,6 +73,9 @@ export default function BusinessSettings() {
   const [refundPolicy, setRefundPolicy] = useState(tenant.refund_cancellation_policy_html ?? '');
   const [privacyPolicy, setPrivacyPolicy] = useState(tenant.privacy_policy_html ?? '');
   const [defaultCatalogInformation, setDefaultCatalogInformation] = useState(tenant.default_catalog_additional_information_html ?? '');
+  const [rugSampleInformation, setRugSampleInformation] = useState(tenant.rug_sample_information_html ?? '');
+  const [rugCareAdvice, setRugCareAdvice] = useState(tenant.rug_care_advice_html ?? '');
+  const [rugShippingReturns, setRugShippingReturns] = useState(tenant.rug_shipping_returns_html ?? '');
 
   // Pricing
   const [marginPct, setMarginPct] = useState(String(tenant.default_profit_margin_pct ?? 40));
@@ -251,6 +254,9 @@ export default function BusinessSettings() {
     || refundPolicy !== (tenant.refund_cancellation_policy_html ?? '')
     || privacyPolicy !== (tenant.privacy_policy_html ?? '')
     || defaultCatalogInformation !== (tenant.default_catalog_additional_information_html ?? '')
+    || rugSampleInformation !== (tenant.rug_sample_information_html ?? '')
+    || rugCareAdvice !== (tenant.rug_care_advice_html ?? '')
+    || rugShippingReturns !== (tenant.rug_shipping_returns_html ?? '')
     || JSON.stringify(heroImages) !== JSON.stringify(tenant.hero_images?.length ? tenant.hero_images : (tenant.hero_image_url ? [{ image_url: tenant.hero_image_url, alt_text: '' }] : []));
   const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true)
     || JSON.stringify(enabledCurrencies) !== JSON.stringify(tenant.enabled_currencies?.length ? tenant.enabled_currencies : CURRENCIES.map((item) => item.code));
@@ -315,6 +321,9 @@ export default function BusinessSettings() {
         refund_cancellation_policy_html: refundPolicy,
         privacy_policy_html: privacyPolicy,
         default_catalog_additional_information_html: defaultCatalogInformation,
+        rug_sample_information_html: rugSampleInformation,
+        rug_care_advice_html: rugCareAdvice,
+        rug_shipping_returns_html: rugShippingReturns,
         contact_emails: contactEmails,
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
@@ -558,6 +567,25 @@ export default function BusinessSettings() {
               <label className={labelCls}>Default Product Notes &amp; Information</label>
               <RichTextEditor value={defaultCatalogInformation} onChange={setDefaultCatalogInformation} placeholder="Add common care instructions, delivery notes, disclaimers, or other information that should appear on every product." />
               <p className={hintCls}>Shown under Description on every rug unless that catalog has its own Additional Notes &amp; Information override.</p>
+            </div>
+
+            <div className="border-t border-dark-700 pt-6 space-y-5">
+              <div>
+                <h3 className="text-cream-100 font-semibold text-sm">Product Detail Information</h3>
+                <p className={hintCls}>Common content shown in expandable sections on every storefront rug detail page.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Rug Sample</label>
+                <RichTextEditor value={rugSampleInformation} onChange={setRugSampleInformation} placeholder="Explain how customers can request a rug sample, any fees, delivery times, and return conditions." />
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Care Advice</label>
+                <RichTextEditor value={rugCareAdvice} onChange={setRugCareAdvice} placeholder="Add cleaning, vacuuming, stain treatment, rotation, and professional-care guidance." />
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Shipping &amp; Returns</label>
+                <RichTextEditor value={rugShippingReturns} onChange={setRugShippingReturns} placeholder="Explain shipping times, delivery coverage, charges, returns, and custom-order restrictions." />
+              </div>
             </div>
 
             {/* Standard Size Unit */}

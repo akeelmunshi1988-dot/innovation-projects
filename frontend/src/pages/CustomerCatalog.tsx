@@ -5,7 +5,6 @@ import { Search, Layers, X, Plus, Minus } from 'lucide-react';
 import type { CatalogSize, RugColorOption } from '../types';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { useCurrency } from '../contexts/CurrencyContext';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { fmtSize } from '../utils/size';
 
@@ -61,7 +60,6 @@ export default function CustomerCatalog() {
   const [sort, setSort] = useState('default');
   const [colorPreviewByRug, setColorPreviewByRug] = useState<Record<number, string>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const { displayPrice } = useCurrency();
   const { sizeUnit, setSizeUnit } = useMeasurementUnit();
 
   // The primary facet (room/mood/material) lives as a clean URL segment —
@@ -393,11 +391,6 @@ export default function CustomerCatalog() {
                         ))}
                         {rug.color_options.length > 6 && <span className="text-stone-400 text-[10px]">+{rug.color_options.length - 6}</span>}
                       </div>
-                    )}
-                    {rug.display_price != null && (
-                      <p className="text-stone-500 text-sm">
-                        {displayPrice(rug.display_price)}{rug.default_size && fmtSize(rug.default_size, sizeUnit) && <span className="text-stone-400 text-xs"> · {fmtSize(rug.default_size, sizeUnit)}</span>}
-                      </p>
                     )}
                   </div>
                 </Link>

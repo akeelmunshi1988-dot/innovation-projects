@@ -7,4 +7,6 @@
 export const FEATURE_FLAGS = {
   /** Billing menu + /admin/billing page. Off for now. */
   SHOW_BILLING: false,
+  /** Customer cart, checkout, and direct-order CTAs. Off keeps the shop quote-only. */
+  SHOW_DIRECT_PURCHASE: false,
 };

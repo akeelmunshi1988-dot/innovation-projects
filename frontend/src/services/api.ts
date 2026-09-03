@@ -734,6 +734,9 @@ export const getPublicSettings = async (): Promise<{
   catalog_pdf_url: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
+  rug_sample_information_html: string | null;
+  rug_care_advice_html: string | null;
+  rug_shipping_returns_html: string | null;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;

@@ -7,6 +7,7 @@ import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
+import { FEATURE_FLAGS } from '../config/featureFlags';
 import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
 
@@ -375,14 +376,12 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
               )}
             </div>
 
-            <Link to="/cart" className="relative text-stone-500 hover:text-stone-900 transition-colors">
-              <ShoppingCart size={18} />
-              {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-stone-900 text-white text-[10px] leading-4 text-center">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
+            {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
+              <Link to="/cart" className="relative text-stone-500 hover:text-stone-900 transition-colors">
+                <ShoppingCart size={18} />
+                {itemCount > 0 && <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-stone-900 text-white text-[10px] leading-4 text-center">{itemCount}</span>}
+              </Link>
+            )}
 
             {(isCustomerAuthenticated && customer) || isAdminBrowsing ? (
               <div className="relative" ref={dropdownRef}>
@@ -489,12 +488,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 ))}
               </div>
             </div>
-            <Link to="/cart"
-              className="flex items-center gap-2 py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50"
-            >
-              <ShoppingCart size={14} /> Cart{itemCount > 0 ? ` (${itemCount})` : ''}
-            </Link>
-
+            {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
+              <Link to="/cart" className="flex items-center gap-2 py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50">
+                <ShoppingCart size={14} /> Cart{itemCount > 0 ? ` (${itemCount})` : ''}
+              </Link>
+            )}
             {(isCustomerAuthenticated && customer) || isAdminBrowsing ? (
               <div className="pt-3 space-y-1">
                 <div className="flex items-center gap-2.5 py-2 border-b border-stone-100">

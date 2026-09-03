@@ -103,9 +103,9 @@ function App() {
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/project-gallery" element={<CustomerProjectGallery />} />
           <Route path="/project-gallery/:id" element={<ProjectDetail />} />
-          <Route path="/cart" element={<CustomerCart />} />
+          <Route path="/cart" element={FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? <CustomerCart /> : <Navigate to="/catalog" replace />} />
           <Route path="/custom-rug-request" element={<CustomerCustomRugRequest />} />
-          <Route path="/checkout" element={<CustomerCheckout />} />
+          <Route path="/checkout" element={FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? <CustomerCheckout /> : <Navigate to="/catalog" replace />} />
           <Route path="/order/:id" element={<CustomerOrderConfirm />} />
           <Route path="/my-orders" element={<CustomerMyOrders />} />
           <Route path="/my-quotes" element={<CustomerMyQuotes />} />

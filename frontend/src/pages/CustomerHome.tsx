@@ -4,7 +4,6 @@ import axios from 'axios';
 import { ArrowRight, CornerDownLeft, Layers, Zap, Play, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
-import { useCurrency } from '../contexts/CurrencyContext';
 import { getPublicSettings } from '../services/api';
 import type { Testimonial, ProjectGalleryItem, CatalogSize } from '../types';
 
@@ -134,7 +133,6 @@ export default function CustomerHome() {
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
   const [testimonialSlide, setTestimonialSlide] = useState(0);
   const [shopTab, setShopTab] = useState<'space' | 'mood' | 'material'>('space');
-  const { displayPrice } = useCurrency();
 
   useEffect(() => {
     setCatalogLoading(true);
@@ -256,7 +254,7 @@ export default function CustomerHome() {
       {/* ── HERO (full-bleed image, text centered directly on the image) ─── */}
       {SHOW_HERO && (
         <>
-          <section className="relative w-full overflow-hidden aspect-[3/2] md:aspect-auto md:min-h-[640px] flex items-center justify-center">
+          <section className="relative w-full overflow-hidden h-[calc(100svh-8rem)] min-h-[520px] md:h-[calc(100svh-9rem)] md:min-h-[640px] flex items-center justify-center">
             {heroImage ? (
               <img
                 key={heroImage}
@@ -481,9 +479,8 @@ export default function CustomerHome() {
 
                 {/* Info */}
                 <div className="pt-4 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
                     <h3 className="font-serif text-lg font-light text-stone-900 leading-snug">{rug.name}</h3>
-                    {rug.display_price != null && <p className="text-stone-900 text-sm font-medium flex-shrink-0">{displayPrice(rug.display_price)}{rug.default_size && <span className="text-stone-400 text-xs"> · {rug.default_size.ft} ft</span>}</p>}
                   </div>
                   <p className="text-stone-400 text-sm capitalize">
                     {[rug.material, rug.weave_type].filter(Boolean).join(' · ')}
@@ -548,7 +545,7 @@ export default function CustomerHome() {
         <div className="absolute -top-28 -left-20 w-80 h-80 bg-cream-400/30 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-28 -right-20 w-80 h-80 bg-stone-300/30 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative w-[94vw] max-w-6xl mx-auto px-4">
+        <div className="relative w-[94vw] max-w-none mx-auto px-4">
           <div className="text-center mb-20">
             <p className="storefront-eyebrow mb-2">The Process</p>
             <h2 className="storefront-heading text-4xl">Custom Rug Journey</h2>
@@ -714,9 +711,6 @@ export default function CustomerHome() {
                 </div>
                 <div className="pt-4 space-y-1 text-center">
                   <h3 className="font-serif text-base font-light text-stone-900 leading-snug">{rug.name}</h3>
-                  {rug.display_price != null && <p className="text-stone-500 text-sm">
-                    {displayPrice(rug.display_price)}{rug.default_size && <span className="text-stone-400 text-xs"> · {rug.default_size.ft} ft</span>}
-                  </p>}
                 </div>
               </Link>
             ))}
