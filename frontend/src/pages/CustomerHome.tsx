@@ -420,18 +420,19 @@ export default function CustomerHome() {
               )}
             </div>
 
-            <div
-              className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
-                {
-                  1: 'lg:grid-cols-1',
-                  2: 'lg:grid-cols-2',
-                  3: 'lg:grid-cols-3',
-                }[visibleGridVideos.length] ?? 'lg:grid-cols-4'
-              }`}
-            >
-              {visibleGridVideos.map((v) => (
-                <CraftVideoCard key={v.id} video={v} />
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {visibleGridVideos.map((v, index) => {
+                const columnPosition = index % 4;
+                const expansionPosition = columnPosition === 0
+                  ? 'lg:left-0 lg:origin-left'
+                  : columnPosition === 3
+                    ? 'lg:right-0 lg:origin-right'
+                    : 'lg:left-1/2 lg:-translate-x-1/2 lg:origin-center';
+
+                return (
+                  <CraftVideoCard key={v.id} video={v} expansionPosition={expansionPosition} />
+                );
+              })}
             </div>
           </div>
         </section>
@@ -966,7 +967,7 @@ export default function CustomerHome() {
   );
 }
 
-function CraftVideoCard({ video }: { video: ShowcaseVideo }) {
+function CraftVideoCard({ video, expansionPosition }: { video: ShowcaseVideo; expansionPosition: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -983,11 +984,12 @@ function CraftVideoCard({ video }: { video: ShowcaseVideo }) {
 
   return (
     <div
-      className="group relative overflow-hidden bg-stone-100 aspect-[3/4] cursor-pointer"
+      className="group relative aspect-[3/4] cursor-pointer hover:z-30 focus-within:z-30"
       onMouseEnter={play}
       onMouseLeave={stop}
       onClick={() => (isPlaying ? stop() : play())}
     >
+      <div className={`absolute inset-y-0 w-full overflow-hidden bg-stone-100 transition-[width,left,right,transform,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(200%+1rem)] lg:group-focus-within:w-[calc(200%+1rem)] lg:group-hover:shadow-2xl lg:group-focus-within:shadow-2xl ${expansionPosition}`}>
       {video.poster_url ? (
         <img
           src={video.poster_url}
@@ -1024,6 +1026,7 @@ function CraftVideoCard({ video }: { video: ShowcaseVideo }) {
         {video.description && (
           <p className="text-stone-300 text-xs mt-0.5 line-clamp-1">{video.description}</p>
         )}
+      </div>
       </div>
     </div>
   );

@@ -9,10 +9,11 @@ import { getEmailTemplates, updateEmailTemplate } from '../services/api';
 import type { EmailTemplate } from '../types';
 import RichTextEditor from '../components/RichTextEditor';
 
-type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
+type Tab = 'general' | 'about' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general',   label: 'General',         icon: <Building2 size={15} /> },
+  { id: 'about',     label: 'About Us',        icon: <FileText size={15} /> },
   { id: 'currency',  label: 'Currency',        icon: <DollarSign size={15} /> },
   { id: 'pricing',   label: 'Pricing',         icon: <TrendingUp size={15} /> },
   { id: 'gst',       label: 'GST & Tax',       icon: <FileText size={15} /> },
@@ -76,6 +77,7 @@ export default function BusinessSettings() {
   const [rugSampleInformation, setRugSampleInformation] = useState(tenant.rug_sample_information_html ?? '');
   const [rugCareAdvice, setRugCareAdvice] = useState(tenant.rug_care_advice_html ?? '');
   const [rugShippingReturns, setRugShippingReturns] = useState(tenant.rug_shipping_returns_html ?? '');
+  const [aboutUsContent, setAboutUsContent] = useState(tenant.about_us_content_html ?? '');
 
   // Pricing
   const [marginPct, setMarginPct] = useState(String(tenant.default_profit_margin_pct ?? 40));
@@ -267,10 +269,12 @@ export default function BusinessSettings() {
     || contactAddress !== (tenant.contact_address ?? '')
     || contactHours !== (tenant.contact_hours ?? '')
     || JSON.stringify(certifications) !== JSON.stringify(tenant.certifications ?? []);
-  const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
+  const dirtyAbout    = aboutUsContent !== (tenant.about_us_content_html ?? '');
+  const isDirty       = dirtyGeneral || dirtyAbout || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
 
   const tabDirty: Record<Tab, boolean> = {
     general: dirtyGeneral,
+    about: dirtyAbout,
     currency: dirtyCurrency,
     pricing: dirtyPricing,
     gst: dirtyGst,
@@ -324,6 +328,7 @@ export default function BusinessSettings() {
         rug_sample_information_html: rugSampleInformation,
         rug_care_advice_html: rugCareAdvice,
         rug_shipping_returns_html: rugShippingReturns,
+        about_us_content_html: aboutUsContent,
         contact_emails: contactEmails,
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
@@ -686,6 +691,26 @@ export default function BusinessSettings() {
               </div>
             </div>
 
+            <SaveBar />
+          </div>
+        )}
+
+        {/* ── About Us ────────────────────────────────────────────────────────── */}
+        {tab === 'about' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-cream-100 font-semibold text-base">About Us Page</h2>
+              <p className="text-dark-500 text-xs mt-0.5">Manage the main editorial story shown on the public About Us page.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className={labelCls}>About Us Content</label>
+              <RichTextEditor
+                value={aboutUsContent}
+                onChange={setAboutUsContent}
+                placeholder="Tell customers about your workshop, heritage, materials, craftspeople, and approach to rug making."
+              />
+              <p className={hintCls}>Supports headings, paragraphs, lists, emphasis, and links. Leave blank to use the existing default story.</p>
+            </div>
             <SaveBar />
           </div>
         )}

@@ -737,6 +737,7 @@ export const getPublicSettings = async (): Promise<{
   rug_sample_information_html: string | null;
   rug_care_advice_html: string | null;
   rug_shipping_returns_html: string | null;
+  about_us_content_html: string | null;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;

@@ -509,6 +509,8 @@ def update_tenant_settings(
         tenant.rug_care_advice_html = body.rug_care_advice_html or None
     if body.rug_shipping_returns_html is not None:
         tenant.rug_shipping_returns_html = body.rug_shipping_returns_html or None
+    if body.about_us_content_html is not None:
+        tenant.about_us_content_html = body.about_us_content_html or None
     if body.certifications is not None:
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:
