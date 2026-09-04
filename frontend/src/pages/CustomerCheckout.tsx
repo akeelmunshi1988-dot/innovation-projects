@@ -344,7 +344,7 @@ export default function CustomerCheckout() {
                       <div>
                         <p className="font-serif text-lg font-light text-stone-900">{item.rug_name}</p>
                         <p className="text-stone-400 text-sm mt-0.5">
-                          {itemSizeLabel(item)}{item.selected_color ? ` · ${item.selected_color}` : ''} · {item.qty} piece{item.qty !== 1 ? 's' : ''}{item.rush_order ? ' · Rush' : ''}
+                          {itemSizeLabel(item)}{item.selected_color ? ` · ${item.selected_color}` : ''} · {item.qty} piece{item.qty !== 1 ? 's' : ''}{item.rush_order ? ' · Early Delivery' : ''}
                         </p>
                         {item.notes && <p className="text-stone-400 text-xs mt-0.5">{item.notes}</p>}
                       </div>
@@ -362,7 +362,7 @@ export default function CustomerCheckout() {
                   )}
                   {rushTotal > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-amber-600">Rush production cost</span>
+                      <span className="text-amber-600">Early delivery cost</span>
                       <span className="text-amber-600">+{fmt(rushTotal)}</span>
                     </div>
                   )}

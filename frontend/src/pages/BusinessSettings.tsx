@@ -9,11 +9,10 @@ import { getEmailTemplates, updateEmailTemplate } from '../services/api';
 import type { EmailTemplate } from '../types';
 import RichTextEditor from '../components/RichTextEditor';
 
-type Tab = 'general' | 'about' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
+type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general',   label: 'General',         icon: <Building2 size={15} /> },
-  { id: 'about',     label: 'About Us',        icon: <FileText size={15} /> },
   { id: 'currency',  label: 'Currency',        icon: <DollarSign size={15} /> },
   { id: 'pricing',   label: 'Pricing',         icon: <TrendingUp size={15} /> },
   { id: 'gst',       label: 'GST & Tax',       icon: <FileText size={15} /> },
@@ -73,11 +72,6 @@ export default function BusinessSettings() {
   const [heroImages, setHeroImages] = useState<{ image_url: string; alt_text?: string }[]>(tenant.hero_images?.length ? tenant.hero_images : (tenant.hero_image_url ? [{ image_url: tenant.hero_image_url, alt_text: '' }] : []));
   const [refundPolicy, setRefundPolicy] = useState(tenant.refund_cancellation_policy_html ?? '');
   const [privacyPolicy, setPrivacyPolicy] = useState(tenant.privacy_policy_html ?? '');
-  const [defaultCatalogInformation, setDefaultCatalogInformation] = useState(tenant.default_catalog_additional_information_html ?? '');
-  const [rugSampleInformation, setRugSampleInformation] = useState(tenant.rug_sample_information_html ?? '');
-  const [rugCareAdvice, setRugCareAdvice] = useState(tenant.rug_care_advice_html ?? '');
-  const [rugShippingReturns, setRugShippingReturns] = useState(tenant.rug_shipping_returns_html ?? '');
-  const [aboutUsContent, setAboutUsContent] = useState(tenant.about_us_content_html ?? '');
 
   // Pricing
   const [marginPct, setMarginPct] = useState(String(tenant.default_profit_margin_pct ?? 40));
@@ -255,10 +249,6 @@ export default function BusinessSettings() {
     || heroCtaLabel !== (tenant.hero_cta_label ?? '')
     || refundPolicy !== (tenant.refund_cancellation_policy_html ?? '')
     || privacyPolicy !== (tenant.privacy_policy_html ?? '')
-    || defaultCatalogInformation !== (tenant.default_catalog_additional_information_html ?? '')
-    || rugSampleInformation !== (tenant.rug_sample_information_html ?? '')
-    || rugCareAdvice !== (tenant.rug_care_advice_html ?? '')
-    || rugShippingReturns !== (tenant.rug_shipping_returns_html ?? '')
     || JSON.stringify(heroImages) !== JSON.stringify(tenant.hero_images?.length ? tenant.hero_images : (tenant.hero_image_url ? [{ image_url: tenant.hero_image_url, alt_text: '' }] : []));
   const dirtyCurrency = currency !== tenant.currency || ratesChanged || exchangeRatesAuto !== (tenant.exchange_rates_auto ?? true)
     || JSON.stringify(enabledCurrencies) !== JSON.stringify(tenant.enabled_currencies?.length ? tenant.enabled_currencies : CURRENCIES.map((item) => item.code));
@@ -269,12 +259,10 @@ export default function BusinessSettings() {
     || contactAddress !== (tenant.contact_address ?? '')
     || contactHours !== (tenant.contact_hours ?? '')
     || JSON.stringify(certifications) !== JSON.stringify(tenant.certifications ?? []);
-  const dirtyAbout    = aboutUsContent !== (tenant.about_us_content_html ?? '');
-  const isDirty       = dirtyGeneral || dirtyAbout || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
+  const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
 
   const tabDirty: Record<Tab, boolean> = {
     general: dirtyGeneral,
-    about: dirtyAbout,
     currency: dirtyCurrency,
     pricing: dirtyPricing,
     gst: dirtyGst,
@@ -324,11 +312,6 @@ export default function BusinessSettings() {
         hero_images: heroImages,
         refund_cancellation_policy_html: refundPolicy,
         privacy_policy_html: privacyPolicy,
-        default_catalog_additional_information_html: defaultCatalogInformation,
-        rug_sample_information_html: rugSampleInformation,
-        rug_care_advice_html: rugCareAdvice,
-        rug_shipping_returns_html: rugShippingReturns,
-        about_us_content_html: aboutUsContent,
         contact_emails: contactEmails,
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
@@ -568,31 +551,6 @@ export default function BusinessSettings() {
               <p className={hintCls}>Published at /privacy-policy and linked from the storefront footer.</p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className={labelCls}>Default Product Notes &amp; Information</label>
-              <RichTextEditor value={defaultCatalogInformation} onChange={setDefaultCatalogInformation} placeholder="Add common care instructions, delivery notes, disclaimers, or other information that should appear on every product." />
-              <p className={hintCls}>Shown under Description on every rug unless that catalog has its own Additional Notes &amp; Information override.</p>
-            </div>
-
-            <div className="border-t border-dark-700 pt-6 space-y-5">
-              <div>
-                <h3 className="text-cream-100 font-semibold text-sm">Product Detail Information</h3>
-                <p className={hintCls}>Common content shown in expandable sections on every storefront rug detail page.</p>
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelCls}>Rug Sample</label>
-                <RichTextEditor value={rugSampleInformation} onChange={setRugSampleInformation} placeholder="Explain how customers can request a rug sample, any fees, delivery times, and return conditions." />
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelCls}>Care Advice</label>
-                <RichTextEditor value={rugCareAdvice} onChange={setRugCareAdvice} placeholder="Add cleaning, vacuuming, stain treatment, rotation, and professional-care guidance." />
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelCls}>Shipping &amp; Returns</label>
-                <RichTextEditor value={rugShippingReturns} onChange={setRugShippingReturns} placeholder="Explain shipping times, delivery coverage, charges, returns, and custom-order restrictions." />
-              </div>
-            </div>
-
             {/* Standard Size Unit */}
             <div className="space-y-3">
               <div>
@@ -695,25 +653,6 @@ export default function BusinessSettings() {
           </div>
         )}
 
-        {/* ── About Us ────────────────────────────────────────────────────────── */}
-        {tab === 'about' && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-cream-100 font-semibold text-base">About Us Page</h2>
-              <p className="text-dark-500 text-xs mt-0.5">Manage the main editorial story shown on the public About Us page.</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className={labelCls}>About Us Content</label>
-              <RichTextEditor
-                value={aboutUsContent}
-                onChange={setAboutUsContent}
-                placeholder="Tell customers about your workshop, heritage, materials, craftspeople, and approach to rug making."
-              />
-              <p className={hintCls}>Supports headings, paragraphs, lists, emphasis, and links. Leave blank to use the existing default story.</p>
-            </div>
-            <SaveBar />
-          </div>
-        )}
 
         {/* ── Currency ────────────────────────────────────────────────────────── */}
         {tab === 'currency' && (

@@ -47,13 +47,37 @@ class Tenant(Base):
     hero_eyebrow = Column(String(100), nullable=True)       # small line above the hero headline, e.g. "20+ Years in the Making"; falls back to a default when unset
     hero_heading = Column(String(200), nullable=True)       # main hero headline text; falls back to a default when unset
     hero_cta_label = Column(String(50), nullable=True)      # hero CTA link text (always links to /catalog); falls back to a default when unset
+    homepage_full_bleed_image_url = Column(String(500), nullable=True)  # wide image directly below the homepage introduction
+    homepage_full_bleed_alt_text = Column(String(200), nullable=True)
+    homepage_full_bleed_enabled = Column(Boolean, default=True)
+    homepage_values_eyebrow = Column(String(100), nullable=True)
+    homepage_values_headline = Column(String(250), nullable=True)
+    homepage_values_headline_accent = Column(String(250), nullable=True)
+    homepage_values_description = Column(Text, nullable=True)
+    homepage_values_items = Column(JSON, nullable=True)  # ordered list[{icon,title,description}]
+    homepage_values_enabled = Column(Boolean, default=True)
+    homepage_intro_title_line_one = Column(String(100), nullable=True)
+    homepage_intro_title_line_two = Column(String(100), nullable=True)
+    homepage_intro_label = Column(String(100), nullable=True)
+    homepage_intro_description = Column(Text, nullable=True)
+    homepage_intro_cta_label = Column(String(60), nullable=True)
+    homepage_intro_cta_url = Column(String(300), nullable=True)
+    homepage_intro_enabled = Column(Boolean, default=True)
+    homepage_contact_image_url = Column(String(500), nullable=True)
+    homepage_contact_image_alt = Column(String(200), nullable=True)
+    homepage_contact_heading = Column(String(200), nullable=True)
+    homepage_contact_consent_text = Column(String(300), nullable=True)
+    homepage_contact_button_label = Column(String(60), nullable=True)
+    homepage_contact_success_message = Column(String(300), nullable=True)
+    homepage_contact_enabled = Column(Boolean, default=True)
     refund_cancellation_policy_html = Column(Text, nullable=True)  # admin-managed public policy page
     privacy_policy_html = Column(Text, nullable=True)              # admin-managed public privacy policy page
     default_catalog_additional_information_html = Column(Text, nullable=True)  # common notes used by rugs without a product override
     rug_sample_information_html = Column(Text, nullable=True)   # shared storefront product accordion content
     rug_care_advice_html = Column(Text, nullable=True)           # shared storefront product accordion content
     rug_shipping_returns_html = Column(Text, nullable=True)      # shared storefront product accordion content
-    about_us_content_html = Column(Text, nullable=True)          # main editable narrative on the public About Us page
+    about_us_content_html = Column(Text, nullable=True)          # main editable narrative (Story section body) on the public About Us page
+    about_page = Column(JSON, nullable=True)  # structured /about content: {hero, credentials, story, process, principles, founder, cta} — each an object with an `enabled` flag; see schemas.AboutPageContent. Missing keys fall back to the frontend's aboutPageDefaults.
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
@@ -147,6 +171,28 @@ class CatalogSizeMaster(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     ft = Column(String(50), nullable=False)
     cm = Column(String(50), nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
+class WeaveTypeMaster(Base):
+    __tablename__ = "weave_type_master"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_weave_type_master_tenant_name"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
+class PileHeightMaster(Base):
+    __tablename__ = "pile_height_master"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_pile_height_master_tenant_name"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(50), nullable=False)
     sort_order = Column(Integer, nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
 
@@ -485,6 +531,22 @@ class ShowcaseVideo(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class CustomRugPageImage(Base):
+    __tablename__ = "custom_rug_page_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(150), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_custom_rug_page_images_tenant_sort", "tenant_id", "sort_order"),
+    )
+
+
 class WorkshopPhoto(Base):
     __tablename__ = "workshop_photos"
 
@@ -583,6 +645,25 @@ class NewsletterSubscriber(Base):
         # Admin subscriber list filters tenant_id and sorts by subscribed_at —
         # see app/api/routes/newsletter.py. Unbounded growth (one row per signup).
         Index("ix_newsletter_tenant_subscribed", "tenant_id", "subscribed_at"),
+    )
+
+
+class HomepageEnquiry(Base):
+    __tablename__ = "homepage_enquiries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(150), nullable=False)
+    email = Column(String(200), nullable=False)
+    subject = Column(String(250), nullable=False)
+    message = Column(Text, nullable=False)
+    consent = Column(Boolean, nullable=False, default=True)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_homepage_enquiries_tenant_created", "tenant_id", "created_at"),
+        Index("ix_homepage_enquiries_tenant_read", "tenant_id", "is_read"),
     )
 
 

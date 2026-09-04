@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.cache import cache_clear
 from app.models.models import Material, InventoryTransaction, StaffUser
 from app.schemas.schemas import (
     Material as MaterialSchema,
@@ -60,6 +61,7 @@ def create_material_row(db: Session, data: dict, tenant_id: int) -> Material:
     db_material = Material(**data, tenant_id=tenant_id)
     db.add(db_material)
     db.commit()
+    cache_clear("settings")  # storefront "Materials" stat counts available materials
     db.refresh(db_material)
     return db_material
 
@@ -68,6 +70,7 @@ def update_material_row(db: Session, material: Material, updates: dict) -> Mater
     for field, value in updates.items():
         setattr(material, field, value)
     db.commit()
+    cache_clear("settings")  # storefront "Materials" stat counts available materials
     db.refresh(material)
     return material
 
@@ -76,6 +79,7 @@ def delete_material_row(db: Session, material: Material) -> None:
     try:
         db.delete(material)
         db.commit()
+        cache_clear("settings")  # storefront "Materials" stat counts available materials
     except Exception:
         db.rollback()
         raise HTTPException(
@@ -142,6 +146,7 @@ def restock_material_row(db: Session, material: Material, qty_meters: float, ten
     )
     db.add(transaction)
     db.commit()
+    cache_clear("settings")  # restock flips is_available -> True; storefront "Materials" stat counts available materials
     db.refresh(material)
     return material
 

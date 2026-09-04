@@ -27,7 +27,7 @@ const QUOTE_MATERIALS = [
   { value: 'no_preference', label: 'No preference' }, { value: 'other', label: 'Other' },
 ];
 const QUOTE_BUDGETS = ['Under ₹25,000', '₹25,000 – ₹50,000', '₹50,000 – ₹1,00,000', '₹1,00,000 – ₹2,50,000', 'Above ₹2,50,000', 'Not sure yet'];
-const QUOTE_DELIVERY = ['No preference', 'ASAP / Rush', 'Within 4 weeks', '1–2 months', '2–3 months or more'];
+const QUOTE_DELIVERY = ['No preference', 'ASAP / Early Delivery', 'Within 4 weeks', '1–2 months', '2–3 months or more'];
 const MAX_QUOTE_IMAGES = 3;
 
 
@@ -88,7 +88,7 @@ export default function CustomerRugDetail() {
   const [notFound, setNotFound] = useState(false);
   const [faqs, setFaqs] = useState<ProductFAQ[]>([]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [openProductInfo, setOpenProductInfo] = useState<string | null>('product');
+  const [openProductInfo, setOpenProductInfo] = useState<string | null>(null);
   const [sharedProductContent, setSharedProductContent] = useState<SharedProductContent>({
     rug_sample_information_html: null,
     rug_care_advice_html: null,
@@ -269,7 +269,7 @@ export default function CustomerRugDetail() {
       size_h: form.size_h || (selectedSize ? String(catalogSizeDims(selectedSize, inputUnit(sizeUnit))?.[1] ?? '') : ''),
       unit: inputUnit(sizeUnit),
       qty: form.qty || '1',
-      expected_delivery: form.rush_order ? 'ASAP / Rush' : selectedLeadTimeDays <= 28 ? 'Within 4 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
+      expected_delivery: form.rush_order ? 'ASAP / Early Delivery' : selectedLeadTimeDays <= 28 ? 'Within 4 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
     }));
     setSubmitError(null);
     setQuoteModal(true);
@@ -307,7 +307,7 @@ export default function CustomerRugDetail() {
         size_w: toMetres(parseFloat(quoteDetails.size_w), quoteDetails.unit),
         size_h: toMetres(parseFloat(quoteDetails.size_h), quoteDetails.unit),
         qty: Math.max(1, parseInt(quoteDetails.qty) || 1),
-        rush_order: quoteDetails.expected_delivery === 'ASAP / Rush',
+        rush_order: quoteDetails.expected_delivery === 'ASAP / Early Delivery',
         shape: 'rect',
         notes: quoteDetails.notes || null,
         room_type: quoteDetails.room_type || null,
@@ -436,7 +436,6 @@ export default function CustomerRugDetail() {
         <li><strong>Material:</strong> ${rug.material}</li>
         <li><strong>Weave:</strong> ${rug.weave_type || 'Handcrafted'}</li>
         <li><strong>Pile:</strong> ${rug.pile_height || 'Made to order'}</li>
-        <li><strong>Production time:</strong> approximately ${selectedLeadTimeDays} days</li>
         ${selectedColor ? `<li><strong>Color:</strong> ${selectedColor}</li>` : ''}
       </ul>${rug.additional_information_html || ''}`,
       fallback: '',
@@ -799,7 +798,7 @@ export default function CustomerRugDetail() {
                             </div>
                           </div>
                           <div>
-                            <p className="text-stone-700 text-xs font-medium">Rush</p>
+                            <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
                             <p className="text-stone-400 text-xs">Request priority production</p>
                           </div>
                         </label>

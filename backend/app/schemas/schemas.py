@@ -78,6 +78,29 @@ class CatalogSizeMaster(CatalogSizeMasterBase):
         from_attributes = True
 
 
+class CatalogAttributeMasterBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class CatalogAttributeMasterCreate(CatalogAttributeMasterBase):
+    pass
+
+
+class CatalogAttributeMasterUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class CatalogAttributeMaster(CatalogAttributeMasterBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
 class RugColorOption(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     hex: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
@@ -546,6 +569,95 @@ class InventoryTransaction(InventoryTransactionBase):
 
 # ── Tenant ───────────────────────────────────────────────────────────────────
 
+class AboutHero(BaseModel):
+    enabled: bool = True
+    eyebrow: Optional[str] = Field(None, max_length=160)
+    heading: Optional[str] = Field(None, max_length=400)
+    body: Optional[str] = Field(None, max_length=2000)
+    cta_label: Optional[str] = Field(None, max_length=80)
+    image_url: Optional[str] = Field(None, max_length=500)
+    image_alt: Optional[str] = Field(None, max_length=200)
+
+
+class AboutCredentialItem(BaseModel):
+    title: Optional[str] = Field(None, max_length=160)
+    subtitle: Optional[str] = Field(None, max_length=300)
+
+
+class AboutCredentials(BaseModel):
+    enabled: bool = True
+    items: List[AboutCredentialItem] = []
+
+
+class AboutStory(BaseModel):
+    # The body copy is stored separately as tenant.about_us_content_html (rich text).
+    enabled: bool = True
+    eyebrow: Optional[str] = Field(None, max_length=160)
+    heading: Optional[str] = Field(None, max_length=400)
+    quote: Optional[str] = Field(None, max_length=600)
+
+
+class AboutProcessStep(BaseModel):
+    number: Optional[str] = Field(None, max_length=8)
+    title: Optional[str] = Field(None, max_length=160)
+    text: Optional[str] = Field(None, max_length=1000)
+
+
+class AboutProcess(BaseModel):
+    enabled: bool = True
+    eyebrow: Optional[str] = Field(None, max_length=160)
+    heading: Optional[str] = Field(None, max_length=400)
+    intro: Optional[str] = Field(None, max_length=1000)
+    steps: List[AboutProcessStep] = []
+
+
+class AboutPrincipleItem(BaseModel):
+    icon: Optional[str] = Field(None, max_length=40)
+    title: Optional[str] = Field(None, max_length=160)
+    text: Optional[str] = Field(None, max_length=1000)
+
+
+class AboutPrinciples(BaseModel):
+    enabled: bool = True
+    eyebrow: Optional[str] = Field(None, max_length=160)
+    heading: Optional[str] = Field(None, max_length=400)
+    intro: Optional[str] = Field(None, max_length=1000)
+    items: List[AboutPrincipleItem] = []
+
+
+class AboutFounder(BaseModel):
+    enabled: bool = True
+    eyebrow: Optional[str] = Field(None, max_length=160)
+    heading: Optional[str] = Field(None, max_length=400)
+    body: Optional[str] = Field(None, max_length=3000)
+    name: Optional[str] = Field(None, max_length=160)
+    role: Optional[str] = Field(None, max_length=160)
+    caption: Optional[str] = Field(None, max_length=240)
+    image_url: Optional[str] = Field(None, max_length=500)
+    image_alt: Optional[str] = Field(None, max_length=200)
+
+
+class AboutCta(BaseModel):
+    enabled: bool = True
+    eyebrow: Optional[str] = Field(None, max_length=240)
+    heading: Optional[str] = Field(None, max_length=400)
+    body: Optional[str] = Field(None, max_length=1000)
+    primary_label: Optional[str] = Field(None, max_length=80)
+    secondary_label: Optional[str] = Field(None, max_length=80)
+
+
+class AboutPageContent(BaseModel):
+    """Structured content for the public /about page. Every section is optional;
+    the storefront merges whatever is present over its built-in default copy."""
+    hero: Optional[AboutHero] = None
+    credentials: Optional[AboutCredentials] = None
+    story: Optional[AboutStory] = None
+    process: Optional[AboutProcess] = None
+    principles: Optional[AboutPrinciples] = None
+    founder: Optional[AboutFounder] = None
+    cta: Optional[AboutCta] = None
+
+
 class TenantPublic(BaseModel):
     id: int
     name: str
@@ -583,6 +695,29 @@ class TenantPublic(BaseModel):
     hero_eyebrow: Optional[str] = None
     hero_heading: Optional[str] = None
     hero_cta_label: Optional[str] = None
+    homepage_full_bleed_image_url: Optional[str] = None
+    homepage_full_bleed_alt_text: Optional[str] = None
+    homepage_full_bleed_enabled: bool = True
+    homepage_values_eyebrow: Optional[str] = None
+    homepage_values_headline: Optional[str] = None
+    homepage_values_headline_accent: Optional[str] = None
+    homepage_values_description: Optional[str] = None
+    homepage_values_items: List[dict] = []
+    homepage_values_enabled: bool = True
+    homepage_intro_title_line_one: Optional[str] = None
+    homepage_intro_title_line_two: Optional[str] = None
+    homepage_intro_label: Optional[str] = None
+    homepage_intro_description: Optional[str] = None
+    homepage_intro_cta_label: Optional[str] = None
+    homepage_intro_cta_url: Optional[str] = None
+    homepage_intro_enabled: bool = True
+    homepage_contact_image_url: Optional[str] = None
+    homepage_contact_image_alt: Optional[str] = None
+    homepage_contact_heading: Optional[str] = None
+    homepage_contact_consent_text: Optional[str] = None
+    homepage_contact_button_label: Optional[str] = None
+    homepage_contact_success_message: Optional[str] = None
+    homepage_contact_enabled: bool = True
     refund_cancellation_policy_html: Optional[str] = None
     privacy_policy_html: Optional[str] = None
     default_catalog_additional_information_html: Optional[str] = None
@@ -590,11 +725,12 @@ class TenantPublic(BaseModel):
     rug_care_advice_html: Optional[str] = None
     rug_shipping_returns_html: Optional[str] = None
     about_us_content_html: Optional[str] = None
+    about_page: Optional[AboutPageContent] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
 
-    @field_validator('certifications', 'hero_images', mode='before')
+    @field_validator('certifications', 'hero_images', 'homepage_values_items', mode='before')
     @classmethod
     def _none_to_empty_certifications(cls, v):
         return v or []
@@ -637,6 +773,29 @@ class TenantUpdateRequest(BaseModel):
     hero_eyebrow: Optional[str] = Field(None, max_length=100)
     hero_heading: Optional[str] = Field(None, max_length=200)
     hero_cta_label: Optional[str] = Field(None, max_length=50)
+    homepage_full_bleed_image_url: Optional[str] = Field(None, max_length=500)
+    homepage_full_bleed_alt_text: Optional[str] = Field(None, max_length=200)
+    homepage_full_bleed_enabled: Optional[bool] = None
+    homepage_values_eyebrow: Optional[str] = Field(None, max_length=100)
+    homepage_values_headline: Optional[str] = Field(None, max_length=250)
+    homepage_values_headline_accent: Optional[str] = Field(None, max_length=250)
+    homepage_values_description: Optional[str] = Field(None, max_length=1000)
+    homepage_values_items: Optional[List[dict]] = None
+    homepage_values_enabled: Optional[bool] = None
+    homepage_intro_title_line_one: Optional[str] = Field(None, max_length=100)
+    homepage_intro_title_line_two: Optional[str] = Field(None, max_length=100)
+    homepage_intro_label: Optional[str] = Field(None, max_length=100)
+    homepage_intro_description: Optional[str] = Field(None, max_length=1500)
+    homepage_intro_cta_label: Optional[str] = Field(None, max_length=60)
+    homepage_intro_cta_url: Optional[str] = Field(None, max_length=300)
+    homepage_intro_enabled: Optional[bool] = None
+    homepage_contact_image_url: Optional[str] = Field(None, max_length=500)
+    homepage_contact_image_alt: Optional[str] = Field(None, max_length=200)
+    homepage_contact_heading: Optional[str] = Field(None, max_length=200)
+    homepage_contact_consent_text: Optional[str] = Field(None, max_length=300)
+    homepage_contact_button_label: Optional[str] = Field(None, max_length=60)
+    homepage_contact_success_message: Optional[str] = Field(None, max_length=300)
+    homepage_contact_enabled: Optional[bool] = None
     refund_cancellation_policy_html: Optional[str] = Field(None, max_length=100000)
     privacy_policy_html: Optional[str] = Field(None, max_length=100000)
     default_catalog_additional_information_html: Optional[str] = Field(None, max_length=100000)
@@ -644,6 +803,7 @@ class TenantUpdateRequest(BaseModel):
     rug_care_advice_html: Optional[str] = Field(None, max_length=100000)
     rug_shipping_returns_html: Optional[str] = Field(None, max_length=100000)
     about_us_content_html: Optional[str] = Field(None, max_length=100000)
+    about_page: Optional[AboutPageContent] = None
     certifications: Optional[List[dict]] = None
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)
@@ -909,6 +1069,31 @@ class ShowcaseVideo(ShowcaseVideoBase):
 
 # ── Workshop Photos ────────────────────────────────────────────────────────────
 
+class CustomRugPageImageBase(BaseModel):
+    title: str = Field(..., min_length=1, max_length=150)
+    image_url: str = Field(..., min_length=1, max_length=500)
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class CustomRugPageImageCreate(CustomRugPageImageBase):
+    pass
+
+
+class CustomRugPageImageUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=150)
+    image_url: Optional[str] = Field(None, min_length=1, max_length=500)
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class CustomRugPageImage(CustomRugPageImageBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
 class WorkshopPhotoBase(BaseModel):
     caption: str
     description: Optional[str] = None
@@ -1091,6 +1276,22 @@ class NewsletterSubscriber(BaseModel):
     email: str
     source: Optional[str] = None
     subscribed_at: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── Homepage enquiries ─────────────────────────────────────────────────────────
+
+class HomepageEnquiry(BaseModel):
+    id: int
+    name: str
+    email: str
+    subject: str
+    message: str
+    consent: bool
+    is_read: bool
+    created_at: Optional[Any] = None
 
     class Config:
         from_attributes = True
