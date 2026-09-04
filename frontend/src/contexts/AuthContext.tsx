@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { refreshAccessToken } from '../services/authRefresh';
+import type { AboutPageContent } from '../data/aboutPageContent';
 
 export interface TenantInfo {
   id: number;
@@ -35,10 +36,33 @@ export interface TenantInfo {
   contact_hours: string | null;
   catalog_pdf_url: string | null;
   hero_image_url: string | null;
-  hero_images: { image_url: string; alt_text?: string }[];
+  hero_images: { image_url: string; alt_text?: string; eyebrow?: string; headline?: string; button_text?: string }[];
   hero_eyebrow: string | null;
   hero_heading: string | null;
   hero_cta_label: string | null;
+  homepage_full_bleed_image_url: string | null;
+  homepage_full_bleed_alt_text: string | null;
+  homepage_full_bleed_enabled: boolean;
+  homepage_values_eyebrow: string | null;
+  homepage_values_headline: string | null;
+  homepage_values_headline_accent: string | null;
+  homepage_values_description: string | null;
+  homepage_values_items: { icon: string; title: string; description: string }[];
+  homepage_values_enabled: boolean;
+  homepage_intro_title_line_one: string | null;
+  homepage_intro_title_line_two: string | null;
+  homepage_intro_label: string | null;
+  homepage_intro_description: string | null;
+  homepage_intro_cta_label: string | null;
+  homepage_intro_cta_url: string | null;
+  homepage_intro_enabled: boolean;
+  homepage_contact_image_url: string | null;
+  homepage_contact_image_alt: string | null;
+  homepage_contact_heading: string | null;
+  homepage_contact_consent_text: string | null;
+  homepage_contact_button_label: string | null;
+  homepage_contact_success_message: string | null;
+  homepage_contact_enabled: boolean;
   refund_cancellation_policy_html: string | null;
   privacy_policy_html: string | null;
   default_catalog_additional_information_html: string | null;
@@ -46,6 +70,7 @@ export interface TenantInfo {
   rug_care_advice_html: string | null;
   rug_shipping_returns_html: string | null;
   about_us_content_html: string | null;
+  about_page: AboutPageContent | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
   cancellation_window_hours: number;

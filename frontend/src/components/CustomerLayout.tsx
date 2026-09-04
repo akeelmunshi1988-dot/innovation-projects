@@ -5,7 +5,6 @@ import axios from 'axios';
 import CustomerChat from './CustomerChat';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { getPublicSettings } from '../services/api';
@@ -19,7 +18,7 @@ const FOOTER_LOGO_URL = '/static/branding/44203c3d28564ce58a5df25f86fb78f5.png';
 const NAV = [
   { path: '/', label: 'Home' },
   { path: '/catalog', label: 'Collection' },
-  { path: '/custom-rug-request', label: 'Custom Rug' },
+  { path: '/custom-rug-request', label: 'Customize Your Rug' },
   { path: '/about', label: 'About Us' },
 ];
 
@@ -93,7 +92,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [chatEnabled, setChatEnabled] = useState(true);
   const [businessName, setBusinessName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [currencyOpen, setCurrencyOpen] = useState(false);
   const [catalogPdfUrl, setCatalogPdfUrl] = useState<string | null>(null);
   const [certifications, setCertifications] = useState<{ label: string; image_url: string }[]>([]);
   const [contactEmails, setContactEmails] = useState<string[]>([]);
@@ -107,8 +105,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [announceIndex, setAnnounceIndex] = useState(0);
   const [announceFading, setAnnounceFading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const currencyRef = useRef<HTMLDivElement>(null);
-  const { displayCurrency, setDisplayCurrency, availableCurrencies } = useCurrency();
   const { itemCount } = useCart();
 
   useEffect(() => {
@@ -225,16 +221,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, [dropdownOpen]);
 
-  useEffect(() => {
-    if (!currencyOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (currencyRef.current && !currencyRef.current.contains(e.target as Node))
-        setCurrencyOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [currencyOpen]);
-
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
 
@@ -347,35 +333,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Right area */}
           <div className="hidden lg:flex items-center gap-5 ml-auto">
-            <div className="relative" ref={currencyRef}>
-              <button
-                onClick={() => setCurrencyOpen((o) => !o)}
-                className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-900 transition-colors"
-              >
-                {displayCurrency}
-                <ChevronDown size={12} className={`transition-transform text-stone-400 ${currencyOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {currencyOpen && (
-                <div className="absolute right-0 top-full mt-3 w-60 bg-white border border-stone-200 shadow-lg z-50 py-1">
-                  {availableCurrencies.map((c) => (
-                    <button
-                      key={c.code}
-                      onClick={() => { setDisplayCurrency(c.code); setCurrencyOpen(false); }}
-                      className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
-                        displayCurrency === c.code ? 'text-stone-900 font-medium bg-stone-50' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
-                      }`}
-                    >
-                      <span className="flex items-baseline gap-1.5">
-                        <span>{c.code}</span>
-                        <span className="text-stone-400 text-xs">{c.country}</span>
-                      </span>
-                      <span className="text-stone-400">{c.symbol}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
               <Link to="/cart" className="relative text-stone-500 hover:text-stone-900 transition-colors">
                 <ShoppingCart size={18} />
@@ -457,20 +414,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {/* Mobile nav */}
         {mobileOpen && (
           <div className="lg:hidden bg-white border-t border-stone-100 px-6 py-5 space-y-1">
-            <div className="flex items-center gap-2 pb-3 mb-1 border-b border-stone-50 flex-wrap">
-              <span className="text-stone-400 text-xs uppercase tracking-wider">Currency</span>
-              {availableCurrencies.map((c) => (
-                <button
-                  key={c.code}
-                  onClick={() => setDisplayCurrency(c.code)}
-                  className={`text-xs px-2 py-1 border transition-colors ${
-                    displayCurrency === c.code ? 'border-stone-900 text-stone-900 font-medium' : 'border-stone-200 text-stone-500'
-                  }`}
-                >
-                  {c.code}
-                </button>
-              ))}
-            </div>
             {NAV.map((n) => (
               <Link key={n.path} to={n.path}
                 className="block py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50"

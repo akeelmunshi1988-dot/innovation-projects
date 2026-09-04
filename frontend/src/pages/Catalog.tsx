@@ -3,15 +3,13 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Search, Clock, Layers, RefreshCw, Plus, Pencil, Trash2, X, AlertTriangle, Check, Upload, Link2, Image as ImageIcon, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
 import axios from 'axios';
 import { getCatalog, createRug, updateRug, deleteRug, getInventory, addRugImage, updateRugImageOrder, deleteRugImage } from '../services/api';
-import type { RugCatalog, Material, RugImage, CatalogSize, RugColorOption } from '../types';
+import type { RugCatalog, Material, RugImage, CatalogSize, RugColorOption, CatalogAttributeMaster } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtTenant } from '../utils/currency';
 import CornerCropModal from '../components/CornerCropModal';
 import RichTextEditor from '../components/RichTextEditor';
 import SizesEditor from '../components/SizesEditor';
 
-const PILE_OPTIONS   = ['low', 'medium', 'high', 'flat'];
-const WEAVE_OPTIONS  = ['hand-knotted', 'hand-tufted', 'flatweave', 'machine-woven'];
 const ROOM_TYPE_OPTIONS = ['living_room', 'bedroom', 'dining_room', 'entryway'];
 const MOOD_TAG_OPTIONS  = ['warm_earthy', 'quiet_luxury', 'modern_minimal', 'bohemian', 'bold_artistic', 'timeless_traditional'];
 const tagLabel = (v: string) => v.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
@@ -109,6 +107,27 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
   const [galleryError, setGalleryError] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [colorUploadingIndex, setColorUploadingIndex] = useState<number | null>(null);
+  const [weaveTypes, setWeaveTypes] = useState<CatalogAttributeMaster[]>([]);
+  const [pileHeights, setPileHeights] = useState<CatalogAttributeMaster[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      axios.get<CatalogAttributeMaster[]>('/api/catalog-weave-types'),
+      axios.get<CatalogAttributeMaster[]>('/api/catalog-pile-heights'),
+    ]).then(([weaves, piles]) => {
+      setWeaveTypes(weaves.data);
+      setPileHeights(piles.data);
+      if (!editing) {
+        setForm(current => ({
+          ...current,
+          weave_type: weaves.data.find(item => item.is_active)?.name || '',
+          pile_height: piles.data.find(item => item.is_active)?.name || '',
+        }));
+      }
+    }).catch(() => {
+      setError('Could not load the weave and pile master values.');
+    });
+  }, []);
 
   const handleColorImageUpload = async (index: number, file?: File) => {
     if (!file) return;
@@ -505,7 +524,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
                 className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600/60"
               >
                 <option value="">None</option>
-                {PILE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                {pileHeights.filter(option => option.is_active || option.name === form.pile_height).map(option => <option key={option.id} value={option.name}>{tagLabel(option.name)}</option>)}
               </select>
             </div>
             <div className="space-y-1">
@@ -516,7 +535,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
                 className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600/60"
               >
                 <option value="">None</option>
-                {WEAVE_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
+                {weaveTypes.filter(option => option.is_active || option.name === form.weave_type).map(option => <option key={option.id} value={option.name}>{tagLabel(option.name)}</option>)}
               </select>
             </div>
           </div>

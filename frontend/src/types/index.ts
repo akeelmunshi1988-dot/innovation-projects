@@ -100,6 +100,17 @@ export interface NewsletterSubscriber {
   subscribed_at: string | null;
 }
 
+export interface HomepageEnquiry {
+  id: number;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  consent: boolean;
+  is_read: boolean;
+  created_at: string | null;
+}
+
 export interface RugImage {
   id: number;
   image_url: string;
@@ -123,6 +134,13 @@ export interface CatalogSizeMaster {
   id: number;
   ft: string;
   cm?: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface CatalogAttributeMaster {
+  id: number;
+  name: string;
   sort_order: number;
   is_active: boolean;
 }

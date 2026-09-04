@@ -26,6 +26,7 @@ import type {
   ProjectGalleryItem,
   ProjectGalleryImage,
   NewsletterSubscriber,
+  HomepageEnquiry,
   PromoCode,
 } from '../types';
 
@@ -267,6 +268,22 @@ export const exportNewsletterSubscribers = async (): Promise<void> => {
   a.download = 'newsletter_subscribers.csv';
   a.click();
   URL.revokeObjectURL(url);
+};
+
+// ── Homepage enquiries ───────────────────────────────────────────────────────
+
+export const getHomepageEnquiries = async (): Promise<HomepageEnquiry[]> => {
+  const { data } = await api.get<HomepageEnquiry[]>('/homepage-enquiries');
+  return data;
+};
+
+export const markHomepageEnquiryRead = async (id: number): Promise<HomepageEnquiry> => {
+  const { data } = await api.patch<HomepageEnquiry>(`/homepage-enquiries/${id}/read`);
+  return data;
+};
+
+export const deleteHomepageEnquiry = async (id: number): Promise<void> => {
+  await api.delete(`/homepage-enquiries/${id}`);
 };
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -716,10 +733,33 @@ export const getPublicSettings = async (): Promise<{
   business_name: string | null;
   logo_url: string | null;
   hero_image_url: string | null;
-  hero_images: { image_url: string; alt_text?: string }[];
+  hero_images: { image_url: string; alt_text?: string; eyebrow?: string; headline?: string; button_text?: string }[];
   hero_eyebrow: string | null;
   hero_heading: string | null;
   hero_cta_label: string | null;
+  homepage_full_bleed_image_url: string | null;
+  homepage_full_bleed_alt_text: string | null;
+  homepage_full_bleed_enabled: boolean;
+  homepage_values_eyebrow: string | null;
+  homepage_values_headline: string | null;
+  homepage_values_headline_accent: string | null;
+  homepage_values_description: string | null;
+  homepage_values_items: { icon: string; title: string; description: string }[];
+  homepage_values_enabled: boolean;
+  homepage_intro_title_line_one: string | null;
+  homepage_intro_title_line_two: string | null;
+  homepage_intro_label: string | null;
+  homepage_intro_description: string | null;
+  homepage_intro_cta_label: string | null;
+  homepage_intro_cta_url: string | null;
+  homepage_intro_enabled: boolean;
+  homepage_contact_image_url: string | null;
+  homepage_contact_image_alt: string | null;
+  homepage_contact_heading: string | null;
+  homepage_contact_consent_text: string | null;
+  homepage_contact_button_label: string | null;
+  homepage_contact_success_message: string | null;
+  homepage_contact_enabled: boolean;
   refund_cancellation_policy_html: string | null;
   privacy_policy_html: string | null;
   default_size_unit: string;
@@ -738,6 +778,8 @@ export const getPublicSettings = async (): Promise<{
   rug_care_advice_html: string | null;
   rug_shipping_returns_html: string | null;
   about_us_content_html: string | null;
+  about_page: import('../data/aboutPageContent').AboutPageContent | null;
+  materials_count: number;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
   return data;

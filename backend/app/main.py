@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
+from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -71,6 +71,17 @@ async def log_requests(request: Request, call_next):
         raise
     duration_ms = (time.time() - start) * 1000
     response.headers["X-Request-ID"] = request_id
+
+    # Dynamic API payloads (catalog, settings, gallery, showcase, …) embed
+    # image URLs and other admin-editable content. A browser or CDN must never
+    # keep serving them after an admin edit: the in-process TTL cache
+    # (app/core/cache.py), busted on every write, is the only layer allowed to
+    # cache these. Uploaded files under /static are the opposite — their
+    # filenames are content-addressed (fresh UUID per upload), so they keep the
+    # long "immutable" cache set in CachedStaticFiles and a modified image is
+    # simply a new URL.
+    if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
+        response.headers["Cache-Control"] = "no-store"
     log = logger.warning if response.status_code >= 400 else logger.info
     log(
         "%s method=%s path=%s status=%s duration_ms=%.0f",
@@ -99,6 +110,7 @@ os.makedirs(os.path.join(STATIC_DIR, "workshop"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "testimonials"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "gallery"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "custom-requests"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "custom-rug-page"), exist_ok=True)
 app.mount("/static", CachedStaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -168,6 +180,8 @@ app.include_router(faqs.router, prefix="/api", tags=["FAQs"])
 app.include_router(announcements.router, prefix="/api", tags=["Announcements"])
 app.include_router(gallery.router, prefix="/api", tags=["Project Gallery"])
 app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
+app.include_router(enquiries.router, prefix="/api", tags=["Homepage Enquiries"])
+app.include_router(custom_rug_page.router, prefix="/api", tags=["Customize Your Rug Images"])
 app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 app.include_router(api_clients.router, prefix="/api", tags=["API Clients"])
 app.include_router(public_api.router, prefix="/api", tags=["Public API"])

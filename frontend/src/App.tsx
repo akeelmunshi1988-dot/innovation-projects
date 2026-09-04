@@ -26,6 +26,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const Catalog = lazy(() => import('./pages/Catalog'));
 const CatalogSizes = lazy(() => import('./pages/CatalogSizes'));
+const CatalogAttributes = lazy(() => import('./pages/CatalogAttributes'));
+const CustomRugPageImages = lazy(() => import('./pages/CustomRugPageImages'));
 const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -59,6 +61,13 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
+const HeroSlides = lazy(() => import('./pages/HeroSlides'));
+const HomepageFullBleedImage = lazy(() => import('./pages/HomepageFullBleedImage'));
+const HomepageIntroduction = lazy(() => import('./pages/HomepageIntroduction'));
+const HomepageValues = lazy(() => import('./pages/HomepageValues'));
+const HomepageContact = lazy(() => import('./pages/HomepageContact'));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
+const AboutPageAdmin = lazy(() => import('./pages/AboutPage'));
 const WorkshopPhotos = lazy(() => import('./pages/WorkshopPhotos'));
 const JourneySteps = lazy(() => import('./pages/JourneySteps'));
 const Testimonials = lazy(() => import('./pages/Testimonials'));
@@ -133,8 +142,17 @@ function App() {
                     <Route path="assistant" element={<AIAssistant />} />
                     <Route path="catalog" element={<Catalog />} />
                     <Route path="catalog-sizes" element={<CatalogSizes />} />
+                    <Route path="catalog-attributes" element={<CatalogAttributes />} />
+                    <Route path="custom-rug-page-images" element={<CustomRugPageImages />} />
+                    <Route path="product-detail-page" element={<ProductDetailPage />} />
+                    <Route path="about-page" element={<AboutPageAdmin />} />
                     <Route path="catalog/:id" element={<RugDetail />} />
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
+                    <Route path="hero-slides" element={<HeroSlides />} />
+                    <Route path="homepage-full-bleed" element={<HomepageFullBleedImage />} />
+                    <Route path="homepage-introduction" element={<HomepageIntroduction />} />
+                    <Route path="homepage-values" element={<HomepageValues />} />
+                    <Route path="homepage-contact" element={<HomepageContact />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
                     <Route path="journey-steps" element={<JourneySteps />} />
                     <Route path="testimonials" element={<Testimonials />} />

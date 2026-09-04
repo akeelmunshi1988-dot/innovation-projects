@@ -200,7 +200,7 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Type</p>
               <p className={`text-sm ${quote.rush_order ? 'text-amber-600' : 'text-stone-500'}`}>
-                {quote.rush_order ? 'Rush' : 'Standard'}
+                {quote.rush_order ? 'Early Delivery' : 'Standard'}
               </p>
             </div>
             <div>
@@ -280,7 +280,7 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
 
               {quote.rush_order && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-amber-600">Rush surcharge</span>
+                  <span className="text-amber-600">Early delivery surcharge</span>
                   <span className="text-amber-600">included</span>
                 </div>
               )}
@@ -480,7 +480,7 @@ function QuoteCard({ quote, sizeUnit, tenantCurrency, onRefresh }: { quote: Cust
                         className="mt-0.5 flex-shrink-0 accent-amber-600"
                       />
                       <div>
-                        <p className="text-amber-800 text-xs font-medium">Remove rush fee (−25%)</p>
+                        <p className="text-amber-800 text-xs font-medium">Remove early delivery fee (−25%)</p>
                         <p className="text-amber-600 text-xs mt-0.5">Switch to standard delivery to reduce the total price</p>
                       </div>
                     </label>

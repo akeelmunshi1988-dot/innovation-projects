@@ -11,11 +11,12 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
 from app.core.slugify import unique_rug_slug
-from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant, CatalogSizeMaster
+from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant, CatalogSizeMaster, WeaveTypeMaster, PileHeightMaster
 from app.schemas.schemas import (
     RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
     RugImageCreate, RugImageUpdate, RugImage as RugImageSchema,
     CatalogSizeMasterCreate, CatalogSizeMasterUpdate, CatalogSizeMaster as CatalogSizeMasterSchema,
+    CatalogAttributeMasterCreate, CatalogAttributeMasterUpdate, CatalogAttributeMaster as CatalogAttributeMasterSchema,
 )
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "rugs")
@@ -23,6 +24,124 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 20
 
 router = APIRouter()
+
+DEFAULT_WEAVE_TYPES = ["hand-knotted", "hand-tufted", "flatweave", "machine-woven"]
+DEFAULT_PILE_HEIGHTS = ["low", "medium", "high", "flat"]
+
+
+def _attribute_masters(db: Session, tenant_id: int, model, rug_field: str, defaults: List[str]):
+    """Return a complete tenant master, backfilling current catalog values and defaults."""
+    masters = db.query(model).filter(model.tenant_id == tenant_id).all()
+    known = {item.name.strip().lower() for item in masters}
+    legacy_values = {
+        str(value[0]).strip()
+        for value in db.query(getattr(RugCatalog, rug_field)).filter(RugCatalog.tenant_id == tenant_id).all()
+        if value[0] and str(value[0]).strip()
+    }
+    for name in [*defaults, *sorted(legacy_values)]:
+        if name.lower() not in known:
+            db.add(model(tenant_id=tenant_id, name=name, sort_order=len(known)))
+            known.add(name.lower())
+    if db.new:
+        db.commit()
+        masters = db.query(model).filter(model.tenant_id == tenant_id).all()
+    return sorted(masters, key=lambda item: (item.sort_order, item.id))
+
+
+def _create_attribute(body, db: Session, current_user: StaffUser, model):
+    name = body.name.strip()
+    if model is PileHeightMaster and len(name) > 50:
+        raise HTTPException(status_code=422, detail="Pile height must be 50 characters or fewer")
+    duplicate = db.query(model).filter(model.tenant_id == current_user.tenant_id).all()
+    if any(item.name.strip().lower() == name.lower() for item in duplicate):
+        raise HTTPException(status_code=409, detail="That value already exists")
+    item = model(tenant_id=current_user.tenant_id, name=name, sort_order=body.sort_order, is_active=body.is_active)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def _update_attribute(item_id: int, body, db: Session, current_user: StaffUser, model, rug_field: str):
+    item = db.query(model).filter(model.id == item_id, model.tenant_id == current_user.tenant_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Master value not found")
+    values = body.model_dump(exclude_unset=True)
+    old_name = item.name
+    if "name" in values:
+        name = values["name"].strip()
+        if model is PileHeightMaster and len(name) > 50:
+            raise HTTPException(status_code=422, detail="Pile height must be 50 characters or fewer")
+        peers = db.query(model).filter(model.tenant_id == current_user.tenant_id, model.id != item_id).all()
+        if any(peer.name.strip().lower() == name.lower() for peer in peers):
+            raise HTTPException(status_code=409, detail="That value already exists")
+        values["name"] = name
+    for field, value in values.items():
+        setattr(item, field, value)
+    if item.name != old_name:
+        db.query(RugCatalog).filter(
+            RugCatalog.tenant_id == current_user.tenant_id,
+            getattr(RugCatalog, rug_field) == old_name,
+        ).update({getattr(RugCatalog, rug_field): item.name}, synchronize_session=False)
+    db.commit()
+    db.refresh(item)
+    cache_clear("catalog")
+    return item
+
+
+def _delete_attribute(item_id: int, db: Session, current_user: StaffUser, model, rug_field: str):
+    item = db.query(model).filter(model.id == item_id, model.tenant_id == current_user.tenant_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Master value not found")
+    in_use = db.query(RugCatalog).filter(
+        RugCatalog.tenant_id == current_user.tenant_id,
+        getattr(RugCatalog, rug_field) == item.name,
+    ).first()
+    if in_use:
+        raise HTTPException(status_code=409, detail="This value is used by catalog rugs. Deactivate it instead.")
+    db.delete(item)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/catalog-weave-types", response_model=List[CatalogAttributeMasterSchema])
+def get_catalog_weave_types(db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _attribute_masters(db, current_user.tenant_id, WeaveTypeMaster, "weave_type", DEFAULT_WEAVE_TYPES)
+
+
+@router.post("/catalog-weave-types", response_model=CatalogAttributeMasterSchema)
+def create_catalog_weave_type(body: CatalogAttributeMasterCreate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _create_attribute(body, db, current_user, WeaveTypeMaster)
+
+
+@router.put("/catalog-weave-types/{item_id}", response_model=CatalogAttributeMasterSchema)
+def update_catalog_weave_type(item_id: int, body: CatalogAttributeMasterUpdate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _update_attribute(item_id, body, db, current_user, WeaveTypeMaster, "weave_type")
+
+
+@router.delete("/catalog-weave-types/{item_id}")
+def delete_catalog_weave_type(item_id: int, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _delete_attribute(item_id, db, current_user, WeaveTypeMaster, "weave_type")
+
+
+@router.get("/catalog-pile-heights", response_model=List[CatalogAttributeMasterSchema])
+def get_catalog_pile_heights(db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _attribute_masters(db, current_user.tenant_id, PileHeightMaster, "pile_height", DEFAULT_PILE_HEIGHTS)
+
+
+@router.post("/catalog-pile-heights", response_model=CatalogAttributeMasterSchema)
+def create_catalog_pile_height(body: CatalogAttributeMasterCreate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _create_attribute(body, db, current_user, PileHeightMaster)
+
+
+@router.put("/catalog-pile-heights/{item_id}", response_model=CatalogAttributeMasterSchema)
+def update_catalog_pile_height(item_id: int, body: CatalogAttributeMasterUpdate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _update_attribute(item_id, body, db, current_user, PileHeightMaster, "pile_height")
+
+
+@router.delete("/catalog-pile-heights/{item_id}")
+def delete_catalog_pile_height(item_id: int, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _delete_attribute(item_id, db, current_user, PileHeightMaster, "pile_height")
 
 
 @router.get("/catalog-sizes", response_model=List[CatalogSizeMasterSchema])
@@ -208,6 +327,16 @@ def create_rug_row(db: Session, data: dict, tenant_id: int) -> RugCatalog:
     ).first()
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
+    _attribute_masters(db, tenant_id, WeaveTypeMaster, "weave_type", DEFAULT_WEAVE_TYPES)
+    _attribute_masters(db, tenant_id, PileHeightMaster, "pile_height", DEFAULT_PILE_HEIGHTS)
+    for field, model in (("weave_type", WeaveTypeMaster), ("pile_height", PileHeightMaster)):
+        value = data.get(field)
+        if value and not db.query(model).filter(
+            model.tenant_id == tenant_id,
+            model.name == value,
+            model.is_active == True,
+        ).first():
+            raise HTTPException(status_code=422, detail=f"Select an active {field.replace('_', ' ')} from the master list")
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     data = dict(data)
     data["base_price_currency"] = data.get("base_price_currency") or (tenant.base_currency if tenant else None)
@@ -221,6 +350,16 @@ def create_rug_row(db: Session, data: dict, tenant_id: int) -> RugCatalog:
 
 
 def update_rug_row(db: Session, rug: RugCatalog, updates: dict) -> RugCatalog:
+    _attribute_masters(db, rug.tenant_id, WeaveTypeMaster, "weave_type", DEFAULT_WEAVE_TYPES)
+    _attribute_masters(db, rug.tenant_id, PileHeightMaster, "pile_height", DEFAULT_PILE_HEIGHTS)
+    for field, model in (("weave_type", WeaveTypeMaster), ("pile_height", PileHeightMaster)):
+        value = updates.get(field)
+        if value and not db.query(model).filter(
+            model.tenant_id == rug.tenant_id,
+            model.name == value,
+            model.is_active == True,
+        ).first():
+            raise HTTPException(status_code=422, detail=f"Select an active {field.replace('_', ' ')} from the master list")
     for field, value in updates.items():
         setattr(rug, field, value)
     db.commit()

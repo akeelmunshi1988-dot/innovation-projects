@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt, PromoCode
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt, PromoCode, HomepageEnquiry
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services import ai_realism
@@ -300,8 +300,17 @@ async def get_public_settings():
     db = SessionLocal()
     try:
         tenant = db.query(Tenant).first()
+        materials_count = (
+            db.query(Material)
+            .filter(
+                Material.tenant_id == (tenant.id if tenant else None),
+                Material.is_available == True,
+            )
+            .count()
+        )
         result = {
             "ai_assistant_enabled": tenant.ai_assistant_customer_enabled if tenant else True,
+            "materials_count": materials_count,
             "ai_room_enhance_enabled": bool(settings.OPENAI_API_KEY),
             "business_name": tenant.name if tenant else None,
             "logo_url": tenant.logo_url if tenant else None,
@@ -310,6 +319,29 @@ async def get_public_settings():
             "hero_eyebrow": tenant.hero_eyebrow if tenant else None,
             "hero_heading": tenant.hero_heading if tenant else None,
             "hero_cta_label": tenant.hero_cta_label if tenant else None,
+            "homepage_full_bleed_image_url": tenant.homepage_full_bleed_image_url if tenant else None,
+            "homepage_full_bleed_alt_text": tenant.homepage_full_bleed_alt_text if tenant else None,
+            "homepage_full_bleed_enabled": tenant.homepage_full_bleed_enabled if tenant else True,
+            "homepage_values_eyebrow": tenant.homepage_values_eyebrow if tenant else None,
+            "homepage_values_headline": tenant.homepage_values_headline if tenant else None,
+            "homepage_values_headline_accent": tenant.homepage_values_headline_accent if tenant else None,
+            "homepage_values_description": tenant.homepage_values_description if tenant else None,
+            "homepage_values_items": (tenant.homepage_values_items or []) if tenant else [],
+            "homepage_values_enabled": tenant.homepage_values_enabled if tenant else True,
+            "homepage_intro_title_line_one": tenant.homepage_intro_title_line_one if tenant else None,
+            "homepage_intro_title_line_two": tenant.homepage_intro_title_line_two if tenant else None,
+            "homepage_intro_label": tenant.homepage_intro_label if tenant else None,
+            "homepage_intro_description": tenant.homepage_intro_description if tenant else None,
+            "homepage_intro_cta_label": tenant.homepage_intro_cta_label if tenant else None,
+            "homepage_intro_cta_url": tenant.homepage_intro_cta_url if tenant else None,
+            "homepage_intro_enabled": tenant.homepage_intro_enabled if tenant else True,
+            "homepage_contact_image_url": tenant.homepage_contact_image_url if tenant else None,
+            "homepage_contact_image_alt": tenant.homepage_contact_image_alt if tenant else None,
+            "homepage_contact_heading": tenant.homepage_contact_heading if tenant else None,
+            "homepage_contact_consent_text": tenant.homepage_contact_consent_text if tenant else None,
+            "homepage_contact_button_label": tenant.homepage_contact_button_label if tenant else None,
+            "homepage_contact_success_message": tenant.homepage_contact_success_message if tenant else None,
+            "homepage_contact_enabled": tenant.homepage_contact_enabled if tenant else True,
             "refund_cancellation_policy_html": tenant.refund_cancellation_policy_html if tenant else None,
             "privacy_policy_html": tenant.privacy_policy_html if tenant else None,
             "default_size_unit": tenant.default_size_unit if tenant else "ft",
@@ -328,6 +360,7 @@ async def get_public_settings():
             "rug_care_advice_html": tenant.rug_care_advice_html if tenant else None,
             "rug_shipping_returns_html": tenant.rug_shipping_returns_html if tenant else None,
             "about_us_content_html": tenant.about_us_content_html if tenant else None,
+            "about_page": (tenant.about_page or None) if tenant else None,
         }
         cache_set("settings", result)
         return result
@@ -530,15 +563,11 @@ async def get_public_gallery_items():
                 "image_url": g.image_url,
                 "caption": g.caption,
                 "link_url": g.link_url,
-                # rating is small enough to include here too, for the star
-                # badge on homepage/listing tiles — but description/
-                # owner_name/owner_message/images are only ever needed on
-                # the single-project detail page, fetched separately via
-                # GET /customer/gallery-items/{id}. Still present (as
-                # null/empty) so the shared frontend ProjectGalleryItem type
-                # matches this response shape exactly.
+                # Rating and owner name power the aggregate social-proof block
+                # on the homepage. The longer project copy and image gallery
+                # remain exclusive to the detail response.
                 "description": None,
-                "owner_name": None,
+                "owner_name": g.owner_name,
                 "owner_message": None,
                 "rating": g.rating,
                 "images": [],
@@ -614,6 +643,42 @@ async def subscribe_newsletter(body: NewsletterSubscribeBody):
             db.add(NewsletterSubscriber(email=body.email, source=body.source, tenant_id=tenant_id))
             db.commit()
         return {"message": "Subscribed"}
+    finally:
+        db.close()
+
+
+class HomepageEnquiryBody(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    email: EmailStr
+    subject: str = Field(..., min_length=1, max_length=250)
+    message: str = Field(..., min_length=1, max_length=5000)
+    consent: bool
+
+
+@router.post("/customer/homepage-enquiries", status_code=201)
+async def create_homepage_enquiry(body: HomepageEnquiryBody):
+    """Capture an enquiry submitted from the public homepage contact section."""
+    if not body.consent:
+        raise HTTPException(status_code=422, detail="Consent is required before sending an enquiry.")
+
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        if not tenant:
+            raise HTTPException(status_code=503, detail="The contact form is not available right now.")
+        enquiry = HomepageEnquiry(
+            tenant_id=tenant.id,
+            name=body.name.strip(),
+            email=str(body.email).strip().lower(),
+            subject=body.subject.strip(),
+            message=body.message.strip(),
+            consent=True,
+        )
+        if not enquiry.name or not enquiry.subject or not enquiry.message:
+            raise HTTPException(status_code=422, detail="Please complete every field.")
+        db.add(enquiry)
+        db.commit()
+        return {"message": "Enquiry received"}
     finally:
         db.close()
 

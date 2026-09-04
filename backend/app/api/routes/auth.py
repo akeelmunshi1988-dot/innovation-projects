@@ -489,7 +489,13 @@ def update_tenant_settings(
         for item in body.hero_images[:12]:
             url = str(item.get("image_url", "")).strip()
             if url:
-                cleaned_images.append({"image_url": url, "alt_text": str(item.get("alt_text", ""))[:200]})
+                cleaned_images.append({
+                    "image_url": url,
+                    "alt_text": str(item.get("alt_text", ""))[:200],
+                    "eyebrow": str(item.get("eyebrow", ""))[:100],
+                    "headline": str(item.get("headline", ""))[:200],
+                    "button_text": str(item.get("button_text", ""))[:50],
+                })
         tenant.hero_images = cleaned_images
     if body.hero_eyebrow is not None:
         tenant.hero_eyebrow = body.hero_eyebrow or None
@@ -497,6 +503,61 @@ def update_tenant_settings(
         tenant.hero_heading = body.hero_heading or None
     if body.hero_cta_label is not None:
         tenant.hero_cta_label = body.hero_cta_label or None
+    if body.homepage_full_bleed_image_url is not None:
+        tenant.homepage_full_bleed_image_url = body.homepage_full_bleed_image_url or None
+    if body.homepage_full_bleed_alt_text is not None:
+        tenant.homepage_full_bleed_alt_text = body.homepage_full_bleed_alt_text or None
+    if body.homepage_full_bleed_enabled is not None:
+        tenant.homepage_full_bleed_enabled = body.homepage_full_bleed_enabled
+    if body.homepage_values_eyebrow is not None:
+        tenant.homepage_values_eyebrow = body.homepage_values_eyebrow or None
+    if body.homepage_values_headline is not None:
+        tenant.homepage_values_headline = body.homepage_values_headline or None
+    if body.homepage_values_headline_accent is not None:
+        tenant.homepage_values_headline_accent = body.homepage_values_headline_accent or None
+    if body.homepage_values_description is not None:
+        tenant.homepage_values_description = body.homepage_values_description or None
+    if body.homepage_values_items is not None:
+        cleaned_values = []
+        for item in body.homepage_values_items[:6]:
+            title = str(item.get("title", "")).strip()[:100]
+            if title:
+                cleaned_values.append({
+                    "icon": str(item.get("icon", "scissors"))[:30],
+                    "title": title,
+                    "description": str(item.get("description", "")).strip()[:300],
+                })
+        tenant.homepage_values_items = cleaned_values
+    if body.homepage_values_enabled is not None:
+        tenant.homepage_values_enabled = body.homepage_values_enabled
+    if body.homepage_intro_title_line_one is not None:
+        tenant.homepage_intro_title_line_one = body.homepage_intro_title_line_one or None
+    if body.homepage_intro_title_line_two is not None:
+        tenant.homepage_intro_title_line_two = body.homepage_intro_title_line_two or None
+    if body.homepage_intro_label is not None:
+        tenant.homepage_intro_label = body.homepage_intro_label or None
+    if body.homepage_intro_description is not None:
+        tenant.homepage_intro_description = body.homepage_intro_description or None
+    if body.homepage_intro_cta_label is not None:
+        tenant.homepage_intro_cta_label = body.homepage_intro_cta_label or None
+    if body.homepage_intro_cta_url is not None:
+        tenant.homepage_intro_cta_url = body.homepage_intro_cta_url or None
+    if body.homepage_intro_enabled is not None:
+        tenant.homepage_intro_enabled = body.homepage_intro_enabled
+    if body.homepage_contact_image_url is not None:
+        tenant.homepage_contact_image_url = body.homepage_contact_image_url or None
+    if body.homepage_contact_image_alt is not None:
+        tenant.homepage_contact_image_alt = body.homepage_contact_image_alt or None
+    if body.homepage_contact_heading is not None:
+        tenant.homepage_contact_heading = body.homepage_contact_heading or None
+    if body.homepage_contact_consent_text is not None:
+        tenant.homepage_contact_consent_text = body.homepage_contact_consent_text or None
+    if body.homepage_contact_button_label is not None:
+        tenant.homepage_contact_button_label = body.homepage_contact_button_label or None
+    if body.homepage_contact_success_message is not None:
+        tenant.homepage_contact_success_message = body.homepage_contact_success_message or None
+    if body.homepage_contact_enabled is not None:
+        tenant.homepage_contact_enabled = body.homepage_contact_enabled
     if body.refund_cancellation_policy_html is not None:
         tenant.refund_cancellation_policy_html = body.refund_cancellation_policy_html or None
     if body.privacy_policy_html is not None:
@@ -511,6 +572,10 @@ def update_tenant_settings(
         tenant.rug_shipping_returns_html = body.rug_shipping_returns_html or None
     if body.about_us_content_html is not None:
         tenant.about_us_content_html = body.about_us_content_html or None
+    if body.about_page is not None:
+        # The admin "About Page" editor always submits the whole structure, so a
+        # straight replace is correct — no field-by-field merge needed.
+        tenant.about_page = body.about_page.model_dump()
     if body.certifications is not None:
         tenant.certifications = body.certifications
     if body.default_shipping_rate is not None:
@@ -643,10 +708,82 @@ async def upload_hero_image(
         raise HTTPException(status_code=404, detail="Tenant not found")
     uploaded_url = f"/static/branding/{filename}"
     images = list(tenant.hero_images or [])
-    images.append({"image_url": uploaded_url, "alt_text": ""})
+    images.append({
+        "image_url": uploaded_url,
+        "alt_text": "",
+        "eyebrow": "",
+        "headline": "",
+        "button_text": "",
+    })
     tenant.hero_images = images
     if not tenant.hero_image_url:
         tenant.hero_image_url = uploaded_url
+    db.commit()
+    db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")
+    return TenantPublic.model_validate(tenant)
+
+
+@router.post("/tenant/homepage-full-bleed-image", response_model=TenantPublic)
+async def upload_homepage_full_bleed_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Upload the single wide image displayed below the homepage introduction."""
+    if file.content_type not in ALLOWED_HERO_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
+
+    contents = await file.read()
+    if len(contents) > MAX_HERO_IMAGE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_HERO_IMAGE_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant.homepage_full_bleed_image_url = f"/static/branding/{filename}"
+    tenant.homepage_full_bleed_enabled = True
+    db.commit()
+    db.refresh(tenant)
+    cache_clear("tenant")
+    cache_clear("settings")
+    return TenantPublic.model_validate(tenant)
+
+
+@router.post("/tenant/homepage-contact-image", response_model=TenantPublic)
+async def upload_homepage_contact_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Upload the image displayed beside the homepage enquiry form."""
+    if file.content_type not in ALLOWED_HERO_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
+
+    contents = await file.read()
+    if len(contents) > MAX_HERO_IMAGE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_HERO_IMAGE_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant.homepage_contact_image_url = f"/static/branding/{filename}"
+    tenant.homepage_contact_enabled = True
     db.commit()
     db.refresh(tenant)
     cache_clear("tenant")
@@ -667,6 +804,31 @@ async def upload_certification_image(
         raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_FAVICON_SIZE_MB}MB allowed.")
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "png"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return {"url": f"/static/branding/{filename}"}
+
+
+@router.post("/tenant/about-image")
+async def upload_about_image(
+    file: UploadFile = File(...),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Image for a section of the public About page (hero background, founder photo).
+    Returns the URL only — the caller stores it inside the `about_page` structure
+    and persists it with the next PATCH /tenant/settings."""
+    if file.content_type not in ALLOWED_HERO_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
+
+    contents = await file.read()
+    if len(contents) > MAX_HERO_IMAGE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_HERO_IMAGE_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
     filename = f"{uuid.uuid4().hex}.{ext}"
     os.makedirs(BRANDING_DIR, exist_ok=True)
     filepath = os.path.join(BRANDING_DIR, filename)

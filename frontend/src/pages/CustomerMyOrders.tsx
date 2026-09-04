@@ -178,7 +178,7 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency, onCa
             <div>
               <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Type</p>
               <p className={`text-sm ${order.rush_order ? 'text-amber-600' : 'text-stone-500'}`}>
-                {order.rush_order ? 'Rush' : 'Standard'}
+                {order.rush_order ? 'Early Delivery' : 'Standard'}
               </p>
             </div>
             {order.material_name && (
@@ -340,7 +340,7 @@ function OrderCard({ order, email, customerToken, sizeUnit, tenantCurrency, onCa
                 )}
                 {order.rush_order && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-amber-600">Rush surcharge</span>
+                    <span className="text-amber-600">Early delivery surcharge</span>
                     <span className="text-amber-600">included</span>
                   </div>
                 )}

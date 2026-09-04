@@ -194,7 +194,7 @@ export default function CustomerCart() {
                         </button>
                       </div>
                       <p className="text-stone-400 text-xs">
-                        {sizeLabel}{item.selected_color ? ` · ${item.selected_color}` : ''}{item.rush_order ? ' · Rush' : ''}
+                        {sizeLabel}{item.selected_color ? ` · ${item.selected_color}` : ''}{item.rush_order ? ' · Early Delivery' : ''}
                       </p>
 
                       <div className="flex items-center justify-between pt-1">
@@ -281,7 +281,7 @@ export default function CustomerCart() {
                   </div>
                   {rushTotal > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-stone-400">Rush production</span>
+                      <span className="text-stone-400">Early delivery</span>
                       <span className="text-stone-600">+{displayPrice(rushTotal, primaryCurrency)}</span>
                     </div>
                   )}

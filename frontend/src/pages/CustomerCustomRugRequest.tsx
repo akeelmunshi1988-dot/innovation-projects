@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ChevronRight, CheckCircle, Upload, X, AlertTriangle, Send, Plus, Trash2 } from 'lucide-react';
@@ -34,7 +34,7 @@ const BUDGET_THRESHOLDS = [25000, 50000, 100000, 250000];
 
 const DELIVERY_EXPECTATIONS = [
   'No preference',
-  'ASAP / Rush',
+  'ASAP / Early Delivery',
   'Within 4 weeks',
   '1–2 months',
   '2–3 months or more',
@@ -43,14 +43,11 @@ const DELIVERY_EXPECTATIONS = [
 const MAX_IMAGES = 3;
 const MAX_RUGS = 10;
 
-// Mirrors the "Custom Rug Journey" section on the homepage — same steps, same copy.
-const JOURNEY_STEPS = [
-  { n: '01', title: 'Design', image: '/static/journey/design.jpg' },
-  { n: '02', title: 'Material', image: '/static/materials/wool.jpg' },
-  { n: '03', title: 'Weaving', image: '/static/journey/weaving.jpg' },
-  { n: '04', title: 'Quality Inspection', image: '/static/workshop/087b47494cc84953bc275b7f951d0216.jpg' },
-  { n: '05', title: 'Global Delivery', image: '/static/journey/delivery.jpg' },
-];
+interface CustomRugPageImage {
+  id: number;
+  title: string;
+  image_url: string;
+}
 
 interface RugSpec {
   room_type: string;
@@ -95,6 +92,13 @@ export default function CustomerCustomRugRequest() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState<{ quote_ids: number[]; message: string } | null>(null);
+  const [pageImages, setPageImages] = useState<CustomRugPageImage[]>([]);
+
+  useEffect(() => {
+    axios.get<CustomRugPageImage[]>('/api/customer/custom-rug-page-images')
+      .then(({ data }) => setPageImages(data.slice(0, 10)))
+      .catch(() => setPageImages([]));
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -199,13 +203,16 @@ export default function CustomerCustomRugRequest() {
     `Above ${t3}`,
     'Not sure yet',
   ];
+  const imageSplitIndex = Math.ceil(pageImages.length / 2);
+  const leftPageImages = pageImages.slice(0, imageSplitIndex);
+  const rightPageImages = pageImages.slice(imageSplitIndex);
 
-  const stepTile = (step: typeof JOURNEY_STEPS[number]) => (
-    <div key={step.n} className="text-center">
-      <div className="relative overflow-hidden bg-stone-100 aspect-square">
-        <img src={step.image} alt={step.title} className="w-full h-full object-cover" loading="lazy" />
+  const stepTile = (step: CustomRugPageImage, index: number) => (
+    <div key={step.id} className="text-center">
+      <div className="relative aspect-square overflow-hidden bg-stone-100">
+        <img src={step.image_url} alt={step.title} className="h-full w-full object-cover" loading="lazy" />
         <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/90 text-stone-900 text-[10px] font-medium flex items-center justify-center">
-          {step.n}
+          {String(index + 1).padStart(2, '0')}
         </span>
       </div>
       <p className="text-stone-700 text-sm font-medium leading-tight mt-2">{step.title}</p>
@@ -216,37 +223,39 @@ export default function CustomerCustomRugRequest() {
     <CustomerLayout>
       <SEO title="Request a Custom Rug" description="Tell us about the rug you have in mind — size, material, style, and budget — and our team will send you a personalized quote." />
       <div className="w-[94vw] max-w-none mx-auto px-4 py-12">
-      <div className="grid grid-cols-1 lg:grid-cols-[160px_1fr_160px] gap-8 items-start">
+      <div className="mx-auto mb-6 flex max-w-[1560px] items-center gap-2 text-xs text-stone-400">
+        <Link to="/" className="transition-colors hover:text-stone-900">Home</Link>
+        <ChevronRight size={11} />
+        <span className="text-stone-600">Request a Custom Rug</span>
+      </div>
 
-        {/* Left: steps 1–3 */}
-        <div className="hidden lg:flex flex-col gap-8 sticky top-24">
-          {JOURNEY_STEPS.slice(0, 3).map(stepTile)}
+      <section className="mx-auto max-w-[1560px] bg-[#f2efe5] px-6 py-14 sm:px-10 lg:px-16 lg:py-20">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">
+          Bespoke Design
+        </p>
+        <h1 className="mt-8 max-w-6xl font-sans text-[clamp(3.25rem,7.2vw,7.5rem)] font-medium uppercase leading-[0.88] tracking-[-0.055em] text-[#171c28]">
+          <span className="block">Request a</span>
+          <span className="block text-[#aaa8a0]">Custom Rug.</span>
+        </h1>
+        <p className="mt-12 max-w-2xl text-base leading-relaxed text-stone-500 lg:ml-auto lg:mt-14 lg:text-lg">
+          No catalog item in mind? Tell us about your space and vision — size, material, colors,
+          budget — and our team will get back to you with a personalized quote within 24–48 hours.
+          Need more than one rug? Add as many as you like below — we'll quote them together.
+        </p>
+      </section>
+
+      {pageImages.length > 0 && (
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:hidden">
+          {pageImages.map(stepTile)}
         </div>
+      )}
 
-        <div className="space-y-8">
+      <div className="mx-auto mt-8 grid max-w-[1560px] items-start gap-8 xl:grid-cols-[minmax(180px,260px)_minmax(0,896px)_minmax(180px,260px)] xl:justify-center">
+        <aside className="sticky top-6 hidden space-y-6 xl:block" aria-label="Custom rug inspiration images">
+          {leftPageImages.map((image, index) => stepTile(image, index))}
+        </aside>
 
-        <div className="flex items-center gap-2 text-xs text-stone-400">
-          <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>
-          <ChevronRight size={11} />
-          <span className="text-stone-600">Request a Custom Rug</span>
-        </div>
-
-        <div className="pb-6 border-b border-stone-100">
-          <p className="storefront-eyebrow mb-2">Bespoke Design</p>
-          <h1 className="storefront-heading text-4xl">Request a Custom Rug</h1>
-          <p className="text-stone-500 text-sm mt-3 leading-relaxed max-w-lg">
-            No catalog item in mind? Tell us about your space and vision — size, material, colors,
-            budget — and our team will get back to you with a personalized quote within 24–48 hours.
-            Need more than one rug? Add as many as you like below — we'll quote them together.
-          </p>
-        </div>
-
-        {/* Mobile-only compact journey strip — side columns above take over on lg+ */}
-        <div className="grid grid-cols-5 gap-3 lg:hidden">
-          {JOURNEY_STEPS.map(stepTile)}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-6">
 
           {!isCustomerAuthenticated && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -416,13 +425,9 @@ export default function CustomerCustomRugRequest() {
             {submitting ? 'Submitting…' : rugs.length > 1 ? `Submit Request (${rugs.length} Rugs)` : 'Submit Request'}
           </button>
         </form>
-        </div>
-
-        {/* Right: steps 4–5 */}
-        <div className="hidden lg:flex flex-col gap-8 sticky top-24">
-          {JOURNEY_STEPS.slice(3, 5).map(stepTile)}
-        </div>
-
+        <aside className="sticky top-6 hidden space-y-6 xl:block" aria-label="More custom rug inspiration images">
+          {rightPageImages.map((image, index) => stepTile(image, imageSplitIndex + index))}
+        </aside>
       </div>
       </div>
     </CustomerLayout>

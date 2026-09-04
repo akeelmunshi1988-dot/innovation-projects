@@ -62,6 +62,7 @@ export default {
       fontFamily: {
         serif: ['Cormorant Garamond', 'Georgia', 'Cambria', 'serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        condensed: ['Oswald', 'Arial Narrow', 'sans-serif'],
       },
     },
   },
