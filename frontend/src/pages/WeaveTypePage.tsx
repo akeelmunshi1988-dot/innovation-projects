@@ -4,6 +4,7 @@ import axios from 'axios';
 import { ArrowRight, Layers, Search, X } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import CollectionImageGrid, { useCollectionDisplay } from '../components/CollectionImageGrid';
 import type { CatalogSize } from '../types';
 
 interface WeaveRug {
@@ -164,10 +165,20 @@ export default function WeaveTypePage() {
   const { weave = '', facet = '', value = '' } = useParams<{ weave?: string; facet?: string; value?: string }>();
   const isWeavePage = Boolean(weave);
   const categoryKey = isWeavePage ? weave : `${facet}/${value}`;
-  const details = isWeavePage ? WEAVES[categoryKey] : COLLECTIONS[categoryKey];
+  const details = isWeavePage ? WEAVES[categoryKey] || {
+    name: weave.replace(/[-_]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()),
+    eyebrow: 'Discover the collection',
+    intro: 'Explore rug designs in this weave, with sizes and finishes to suit your space.',
+    story: 'Browse the collection below to discover individual designs, materials, and available sizes. Each product page includes the details you need to choose your rug.',
+    bestFor: 'Explore individual rugs for room suggestions',
+    character: 'Discover the texture and finish of each design',
+    making: 'See individual product details',
+    care: 'Follow the care instructions for your rug',
+  } : COLLECTIONS[categoryKey];
   const categoryLabel = isWeavePage
     ? 'Weave Type'
     : facet === 'space' ? 'Space' : facet === 'mood' ? 'Mood' : 'Material';
+  const display = useCollectionDisplay(isWeavePage ? `weave/${weave}` : categoryKey);
   const [rugs, setRugs] = useState<WeaveRug[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -198,11 +209,10 @@ export default function WeaveTypePage() {
       .then(({ data }) => setRugs(data.items))
       .catch(() => setRugs([]))
       .finally(() => setLoading(false));
-  }, [weave, facet, value, details, isWeavePage, material, pile, sort, debouncedSearch]);
+  }, [weave, facet, value, isWeavePage, material, pile, sort, debouncedSearch]);
 
   if (!details) return <Navigate to="/catalog" replace />;
 
-  const heroImage = rugs[0]?.images[0]?.image_url || rugs[0]?.image_url;
 
   return (
     <CustomerLayout>
@@ -211,20 +221,7 @@ export default function WeaveTypePage() {
         description={`${details.intro} Learn what makes this category distinctive and shop our available collection.`}
       />
 
-      <section className="relative min-h-[60vh] md:min-h-[72vh] bg-[#0b1217] overflow-hidden flex items-end">
-        {heroImage && <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-35" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1217] via-[#0b1217]/55 to-[#0b1217]/20" />
-        <div className="relative w-[94vw] mx-auto px-4 py-16 md:py-24">
-          <p className="text-[#d8582f] text-xs uppercase tracking-[0.3em] mb-5">Shop by {categoryLabel}</p>
-          <h1
-            className="text-white uppercase font-black leading-[0.78] tracking-[-0.045em] text-[14vw] md:text-[10vw]"
-            style={{ fontFamily: "'Arial Narrow', 'Roboto Condensed', Impact, sans-serif" }}
-          >
-            {details.name}
-          </h1>
-          <p className="mt-8 max-w-xl text-cream-100/80 text-base md:text-lg leading-relaxed">{details.intro}</p>
-        </div>
-      </section>
+      <CollectionImageGrid images={display.images} title={`${details.name} Rugs`} eyebrow={`Shop by ${categoryLabel}`} />
 
       <section className="bg-[#f4f0e6] py-20 md:py-28">
         <div className="w-[94vw] max-w-none mx-auto px-4">
@@ -252,7 +249,7 @@ export default function WeaveTypePage() {
         </div>
       </section>
 
-      <section className="w-[94vw] mx-auto px-4 py-20 md:py-28">
+      <section id="collection-rugs" className="w-[94vw] mx-auto px-4 py-20 md:py-28 scroll-mt-24">
         <div className="flex flex-wrap items-end justify-between gap-5 mb-12">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-stone-400 mb-3">Explore the collection</p>

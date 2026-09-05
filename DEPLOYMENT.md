@@ -620,3 +620,30 @@ scp root@YOUR_SERVER_IP:/var/www/dreamrugscreation/innovation-projects/backend/r
 | SSL certificate | Free (Let's Encrypt) |
 | Anthropic API | Pay per use |
 | **Total fixed** | **~$9/mo** |
+
+### Collection landing-page display images
+
+Run `alembic upgrade head` with the production backend environment before publishing
+this feature (revision `20260905_0023` creates `collection_displays`), then restart
+the backend and deploy a new frontend build. In **Catalog → Catalog display images**,
+select a category, choose the left/centre/right photos, and save its grid.
+**All rugs (default)** supplies images for `/catalog` and collection pages without
+category overrides. The three-image styling is always active; blank slots fall
+back to catalog photos and then bundled craft images.
+
+These uploads reuse `backend/static/rugs`. The service user must own and be able
+to write that directory; when deploying as root, preserve upload-directory ownership.
+For the current server, a targeted repair is:
+
+```bash
+APP_USER=$(systemctl show dreamrugscreation -p User --value)
+if [ -n "$APP_USER" ]; then
+  sudo chown "$APP_USER" /var/www/dreamrugscreation-projects/backend/static/rugs
+  sudo chmod 755 /var/www/dreamrugscreation-projects/backend/static/rugs
+fi
+```
+
+Homepage Introduction also includes **Trusted by — customer text** (revision
+`20260905_0024`). Enter e.g. `100+ customers`; clearing the field restores the
+rated-project count. Apply `alembic upgrade head` before restarting the backend
+and publishing the frontend build.

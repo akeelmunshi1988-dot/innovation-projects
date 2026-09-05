@@ -716,6 +716,7 @@ class TenantPublic(BaseModel):
     homepage_intro_description: Optional[str] = None
     homepage_intro_cta_label: Optional[str] = None
     homepage_intro_cta_url: Optional[str] = None
+    homepage_intro_trusted_by_text: Optional[str] = None
     homepage_intro_enabled: bool = True
     homepage_contact_image_url: Optional[str] = None
     homepage_contact_image_alt: Optional[str] = None
@@ -794,6 +795,7 @@ class TenantUpdateRequest(BaseModel):
     homepage_intro_description: Optional[str] = Field(None, max_length=1500)
     homepage_intro_cta_label: Optional[str] = Field(None, max_length=60)
     homepage_intro_cta_url: Optional[str] = Field(None, max_length=300)
+    homepage_intro_trusted_by_text: Optional[str] = Field(None, max_length=100)
     homepage_intro_enabled: Optional[bool] = None
     homepage_contact_image_url: Optional[str] = Field(None, max_length=500)
     homepage_contact_image_alt: Optional[str] = Field(None, max_length=200)

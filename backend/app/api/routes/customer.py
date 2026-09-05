@@ -334,6 +334,7 @@ async def get_public_settings():
             "homepage_intro_description": tenant.homepage_intro_description if tenant else None,
             "homepage_intro_cta_label": tenant.homepage_intro_cta_label if tenant else None,
             "homepage_intro_cta_url": tenant.homepage_intro_cta_url if tenant else None,
+            "homepage_intro_trusted_by_text": tenant.homepage_intro_trusted_by_text if tenant else None,
             "homepage_intro_enabled": tenant.homepage_intro_enabled if tenant else True,
             "homepage_contact_image_url": tenant.homepage_contact_image_url if tenant else None,
             "homepage_contact_image_alt": tenant.homepage_contact_image_alt if tenant else None,

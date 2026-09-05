@@ -542,6 +542,8 @@ def update_tenant_settings(
         tenant.homepage_intro_cta_label = body.homepage_intro_cta_label or None
     if body.homepage_intro_cta_url is not None:
         tenant.homepage_intro_cta_url = body.homepage_intro_cta_url or None
+    if body.homepage_intro_trusted_by_text is not None:
+        tenant.homepage_intro_trusted_by_text = body.homepage_intro_trusted_by_text.strip() or None
     if body.homepage_intro_enabled is not None:
         tenant.homepage_intro_enabled = body.homepage_intro_enabled
     if body.homepage_contact_image_url is not None:

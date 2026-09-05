@@ -62,6 +62,7 @@ class Tenant(Base):
     homepage_intro_description = Column(Text, nullable=True)
     homepage_intro_cta_label = Column(String(60), nullable=True)
     homepage_intro_cta_url = Column(String(300), nullable=True)
+    homepage_intro_trusted_by_text = Column(String(100), nullable=True)
     homepage_intro_enabled = Column(Boolean, default=True)
     homepage_contact_image_url = Column(String(500), nullable=True)
     homepage_contact_image_alt = Column(String(200), nullable=True)
@@ -828,3 +829,13 @@ class AiChatMessage(Base):
     __table_args__ = (
         Index("ix_ai_chat_messages_tenant_session", "tenant_id", "session_id", "created_at"),
     )
+
+
+class CollectionDisplay(Base):
+    __tablename__ = "collection_displays"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    category = Column(String(150), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=False)
+    images = Column(JSON, nullable=False)
+    __table_args__ = (UniqueConstraint("tenant_id", "category", name="uq_collection_display_tenant_category"),)

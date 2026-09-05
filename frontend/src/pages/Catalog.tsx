@@ -9,6 +9,7 @@ import { fmtTenant } from '../utils/currency';
 import CornerCropModal from '../components/CornerCropModal';
 import RichTextEditor from '../components/RichTextEditor';
 import SizesEditor from '../components/SizesEditor';
+import CatalogDisplayImages from './CatalogDisplayImages';
 
 const ROOM_TYPE_OPTIONS = ['living_room', 'bedroom', 'dining_room', 'entryway'];
 const MOOD_TAG_OPTIONS  = ['warm_earthy', 'quiet_luxury', 'modern_minimal', 'bohemian', 'bold_artistic', 'timeless_traditional'];
@@ -813,7 +814,7 @@ function DeleteDialog({ rug, onCancel, onConfirm, deleting }: DeleteDialogProps)
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-const Catalog: React.FC = () => {
+const CatalogList: React.FC = () => {
   const { user } = useAuth();
   const tenant = user!.tenant;
   const fmt = (n: number, currency?: string | null) => fmtTenant(n, tenant, currency);
@@ -1068,4 +1069,15 @@ const Catalog: React.FC = () => {
   );
 };
 
-export default Catalog;
+export default function Catalog() {
+  const [tab, setTab] = useState<'list' | 'display'>('list');
+  const [displayVisited, setDisplayVisited] = useState(false);
+  return <>
+    <div className="flex gap-2 border-b border-dark-700 px-6 pt-6" aria-label="Catalog sections">
+      <button type="button" onClick={() => setTab('list')} aria-pressed={tab === 'list'} className={`px-4 py-3 text-sm border-b-2 ${tab === 'list' ? 'border-gold-500 text-gold-400' : 'border-transparent text-dark-400'}`}>Catalog list</button>
+      <button type="button" onClick={() => { setDisplayVisited(true); setTab('display'); }} aria-pressed={tab === 'display'} className={`px-4 py-3 text-sm border-b-2 ${tab === 'display' ? 'border-gold-500 text-gold-400' : 'border-transparent text-dark-400'}`}>Catalog display images</button>
+    </div>
+    <div hidden={tab !== 'list'}><CatalogList /></div>
+    {displayVisited && <div hidden={tab !== 'display'}><CatalogDisplayImages /></div>}
+  </>;
+}
