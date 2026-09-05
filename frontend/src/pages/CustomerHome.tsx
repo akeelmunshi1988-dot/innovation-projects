@@ -922,14 +922,14 @@ export default function CustomerHome() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10">
             {catalog.slice(0, 5).map((rug) => (
               <Link key={rug.id} to={`/catalog/${rug.slug}`} className="group block">
-                <div className="relative overflow-hidden bg-stone-100 aspect-[3/4.5]">
+                <div className="relative overflow-hidden bg-transparent aspect-[3/4.5]">
                   {rug.image_url ? (
                     <>
                       <img
                         src={rug.image_url}
                         alt={rug.name}
                         loading="lazy"
-                        className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
+                        className={`w-full h-full object-contain transition-opacity duration-500 ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
                       />
                       {rug.images?.length > 0 && (
                         <img
@@ -937,7 +937,7 @@ export default function CustomerHome() {
                           alt=""
                           aria-hidden="true"
                           loading="lazy"
-                          className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                          className="absolute inset-0 w-full h-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                         />
                       )}
                     </>
