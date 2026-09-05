@@ -1211,7 +1211,7 @@ class CustomRugRequestItem(BaseModel):
     budget_range: Optional[str] = Field(None, max_length=100)
     expected_delivery: Optional[str] = Field(None, max_length=50)
     notes: Optional[str] = Field(None, max_length=1500)
-    reference_image_urls: Optional[List[str]] = Field(None, max_length=3)
+    reference_image_urls: Optional[List[str]] = Field(None, max_length=15)
 
 
 class CustomRugRequestBody(BaseModel):

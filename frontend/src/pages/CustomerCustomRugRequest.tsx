@@ -40,7 +40,7 @@ const DELIVERY_EXPECTATIONS = [
   '2–3 months or more',
 ];
 
-const MAX_IMAGES = 3;
+const MAX_IMAGES = 15;
 const MAX_RUGS = 10;
 
 interface CustomRugPageImage {
