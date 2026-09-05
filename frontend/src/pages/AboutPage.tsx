@@ -16,6 +16,50 @@ const fieldClass =
   'w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2.5 text-sm text-cream-100 placeholder-dark-500 focus:border-gold-600/60 focus:outline-none';
 const labelClass = 'block text-xs font-semibold uppercase tracking-wider text-cream-300';
 
+// Defined at module scope (not inside AboutPage) so their identity stays stable across
+// re-renders — nesting these inside the component made React remount the entire subtree
+// (losing focus/input state) on every keystroke, since a new function reference means a
+// new component type to React on each render.
+const SectionToggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+      enabled ? 'bg-gold-600 text-white' : 'bg-dark-700 text-dark-300'
+    }`}
+  >
+    {enabled ? <Eye size={13} /> : <EyeOff size={13} />} {enabled ? 'Visible' : 'Hidden'}
+  </button>
+);
+
+const Card = ({
+  title,
+  enabled,
+  onToggle,
+  children,
+}: {
+  title: string;
+  enabled: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) => (
+  <section className="space-y-4 rounded-xl border border-dark-700 bg-dark-900 p-5">
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-sm font-semibold text-cream-100">{title}</h2>
+      <SectionToggle enabled={enabled} onToggle={onToggle} />
+    </div>
+    {children}
+  </section>
+);
+
+const Field = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (
+  <label className="block space-y-1.5">
+    <span className={labelClass}>{label}</span>
+    {children}
+    {hint && <span className="block text-xs text-dark-500">{hint}</span>}
+  </label>
+);
+
 export default function AboutPage() {
   const { user, updateTenant } = useAuth();
   const tenant = user!.tenant;
@@ -92,41 +136,8 @@ export default function AboutPage() {
     }
   };
 
-  const SectionToggle = ({ section }: { section: keyof AboutPageContent }) => {
-    const on = (content[section] as { enabled: boolean }).enabled;
-    return (
-      <button
-        type="button"
-        onClick={() => patchSection(section, { enabled: !on } as never)}
-        className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-          on ? 'bg-gold-600 text-white' : 'bg-dark-700 text-dark-300'
-        }`}
-      >
-        {on ? <Eye size={13} /> : <EyeOff size={13} />} {on ? 'Visible' : 'Hidden'}
-      </button>
-    );
-  };
-
-  const Card = ({ title, section, children }: { title: string; section: keyof AboutPageContent; children: React.ReactNode }) => (
-    <section className="space-y-4 rounded-xl border border-dark-700 bg-dark-900 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-cream-100">{title}</h2>
-        <SectionToggle section={section} />
-      </div>
-      {children}
-    </section>
-  );
-
-  const Field = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (
-    <label className="block space-y-1.5">
-      <span className={labelClass}>{label}</span>
-      {children}
-      {hint && <span className="block text-xs text-dark-500">{hint}</span>}
-    </label>
-  );
-
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
+    <div className="mx-auto w-[94vw] max-w-none space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-cream-100">About Page</h1>
@@ -147,7 +158,7 @@ export default function AboutPage() {
       {error && <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{error}</div>}
 
       {/* Hero */}
-      <Card title="Hero" section="hero">
+      <Card title="Hero" enabled={content.hero.enabled} onToggle={() => patchSection('hero', { enabled: !content.hero.enabled })}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Eyebrow">
             <input value={content.hero.eyebrow} onChange={(e) => patchSection('hero', { eyebrow: e.target.value })} maxLength={160} className={fieldClass} />
@@ -182,7 +193,7 @@ export default function AboutPage() {
       </Card>
 
       {/* Credentials strip */}
-      <Card title="Credentials strip" section="credentials">
+      <Card title="Credentials strip" enabled={content.credentials.enabled} onToggle={() => patchSection('credentials', { enabled: !content.credentials.enabled })}>
         <div className="space-y-3">
           {content.credentials.items.map((item: AboutCredentialItem, index) => (
             <div key={index} className="rounded-lg border border-dark-700 bg-dark-800 p-3">
@@ -205,7 +216,7 @@ export default function AboutPage() {
       </Card>
 
       {/* Story */}
-      <Card title="Story" section="story">
+      <Card title="Story" enabled={content.story.enabled} onToggle={() => patchSection('story', { enabled: !content.story.enabled })}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Eyebrow"><input value={content.story.eyebrow} onChange={(e) => patchSection('story', { eyebrow: e.target.value })} maxLength={160} className={fieldClass} /></Field>
           <Field label="Heading" hint="Line breaks preserved."><textarea value={content.story.heading} onChange={(e) => patchSection('story', { heading: e.target.value })} maxLength={400} rows={2} className={`${fieldClass} resize-y`} /></Field>
@@ -245,7 +256,7 @@ export default function AboutPage() {
       </Card>
 
       {/* Process */}
-      <Card title="Process" section="process">
+      <Card title="Process" enabled={content.process.enabled} onToggle={() => patchSection('process', { enabled: !content.process.enabled })}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Eyebrow"><input value={content.process.eyebrow} onChange={(e) => patchSection('process', { eyebrow: e.target.value })} maxLength={160} className={fieldClass} /></Field>
           <Field label="Heading" hint="Line breaks preserved."><textarea value={content.process.heading} onChange={(e) => patchSection('process', { heading: e.target.value })} maxLength={400} rows={2} className={`${fieldClass} resize-y`} /></Field>
@@ -289,7 +300,7 @@ export default function AboutPage() {
       </Card>
 
       {/* Principles */}
-      <Card title="Principles" section="principles">
+      <Card title="Principles" enabled={content.principles.enabled} onToggle={() => patchSection('principles', { enabled: !content.principles.enabled })}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Eyebrow"><input value={content.principles.eyebrow} onChange={(e) => patchSection('principles', { eyebrow: e.target.value })} maxLength={160} className={fieldClass} /></Field>
           <Field label="Heading"><input value={content.principles.heading} onChange={(e) => patchSection('principles', { heading: e.target.value })} maxLength={400} className={fieldClass} /></Field>
@@ -320,7 +331,7 @@ export default function AboutPage() {
       </Card>
 
       {/* Founder */}
-      <Card title="Founder note" section="founder">
+      <Card title="Founder note" enabled={content.founder.enabled} onToggle={() => patchSection('founder', { enabled: !content.founder.enabled })}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Eyebrow"><input value={content.founder.eyebrow} onChange={(e) => patchSection('founder', { eyebrow: e.target.value })} maxLength={160} className={fieldClass} /></Field>
           <Field label="Heading"><input value={content.founder.heading} onChange={(e) => patchSection('founder', { heading: e.target.value })} maxLength={400} className={fieldClass} /></Field>
@@ -351,7 +362,7 @@ export default function AboutPage() {
       </Card>
 
       {/* CTA */}
-      <Card title="Closing call-to-action" section="cta">
+      <Card title="Closing call-to-action" enabled={content.cta.enabled} onToggle={() => patchSection('cta', { enabled: !content.cta.enabled })}>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Eyebrow"><input value={content.cta.eyebrow} onChange={(e) => patchSection('cta', { eyebrow: e.target.value })} maxLength={240} className={fieldClass} /></Field>
           <Field label="Heading"><input value={content.cta.heading} onChange={(e) => patchSection('cta', { heading: e.target.value })} maxLength={400} className={fieldClass} /></Field>
