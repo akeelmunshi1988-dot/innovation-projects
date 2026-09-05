@@ -25,6 +25,7 @@ const SITE_URL = (process.env.SITE_URL || 'https://dreamrugscreation.in').replac
 // Only needed to look up rug names/descriptions/images for /catalog/:id and the
 // business name for /about — points at the backend API, not the frontend.
 const API_URL = (process.env.PRERENDER_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+const REQUIRE_API = process.env.REQUIRE_PRERENDER_API === 'true';
 
 const template = fs.readFileSync(path.join(DIST, 'index.html'), 'utf-8');
 
@@ -65,13 +66,16 @@ function renderHead({ title, description, routePath, image, jsonLd, noindex }) {
   return tags.join('\n    ');
 }
 
-function writeRoute(routePath, headHtml) {
+function writeRoute(routePath, headHtml, bodyHtml = '') {
   // Drop the generic <title>/<meta description> baked into the built index.html so
   // they don't sit next to our route-specific ones.
   let html = template
     .replace(/<title>.*?<\/title>/s, '')
     .replace(/<meta\s+name="description"[^>]*>\s*/i, '');
   html = html.replace('</head>', `    ${headHtml}\n  </head>`);
+  if (bodyHtml) {
+    html = html.replace('<div id="root"></div>', `<div id="root"><main data-prerendered-content>${bodyHtml}</main></div>`);
+  }
 
   // Written as <route>.html (a *file*, not <route>/index.html) so nginx's
   // `try_files $uri $uri.html ...` finds it as a direct file match. A directory
@@ -102,6 +106,7 @@ async function main() {
     settings = await fetchJson(`${API_URL}/api/customer/settings`);
   } catch (err) {
     console.warn(`  ! Could not reach API at ${API_URL} for business settings (${err.message}). Using defaults.`);
+    if (REQUIRE_API) throw new Error(`Required prerender API is unavailable: ${err.message}`);
   }
   const businessName = settings?.business_name || SITE_NAME;
   const heroImage = settings?.hero_image_url || null;
@@ -112,6 +117,7 @@ async function main() {
     name: businessName,
     url: `${SITE_URL}/`,
     ...(heroImage ? { image: absoluteUrl(heroImage) } : {}),
+    ...(settings?.logo_url ? { logo: absoluteUrl(settings.logo_url) } : {}),
     ...(settings?.contact_emails?.[0] || settings?.contact_phones?.[0]
       ? {
           contactPoint: {
@@ -131,15 +137,16 @@ async function main() {
     description: "Premium handcrafted rugs custom-made to your exact size, material, and design — wool, silk, cotton, and synthetic weaves from India's finest workshops. Visualize any rug in your room before you order.",
     image: heroImage,
     jsonLd: organizationJsonLd,
-  }));
+  }), '<h1>Handcrafted Custom Rugs, Made to Order</h1><p>Premium handcrafted rugs custom-made to your exact size, material, and design in wool, silk, cotton, and considered blends.</p><nav><a href="/catalog">Explore the rug collection</a> <a href="/custom-rug-request">Request a custom rug</a> <a href="/about">About our workshop</a></nav>');
 
   writeRoute('/about', renderHead({
     routePath: '/about',
     title: `About ${businessName}`,
     description: `Learn about ${businessName}'s craftsmanship, workshop, and the master weavers behind every handmade custom rug.`,
-  }));
+    image: settings?.about_page?.hero?.image_url,
+  }), `<h1>About ${esc(businessName)}</h1><p>Discover our craftsmanship, workshop, materials, and the master weavers behind every handmade custom rug.</p><a href="/custom-rug-request">Begin a custom rug</a>`);
 
-  writeRoute('/catalog', renderHead({
+  const catalogHead = renderHead({
     routePath: '/catalog',
     title: 'Rug Collection — Wool, Silk, Cotton & Synthetic',
     description: 'Browse our full collection of handcrafted rugs in wool, silk, cotton, and synthetic weaves. Every design available in custom sizes, made to order.',
@@ -151,7 +158,20 @@ async function main() {
         { '@type': 'ListItem', position: 2, name: 'Catalog', item: `${SITE_URL}/catalog` },
       ],
     },
-  }));
+  });
+  writeRoute('/catalog', catalogHead, '<h1>Handcrafted Rug Collection</h1><p>Browse made-to-order rugs in wool, silk, cotton, and considered blends.</p>');
+
+  writeRoute('/custom-rug-request', renderHead({
+    routePath: '/custom-rug-request',
+    title: 'Request a Custom Rug',
+    description: 'Request a made-to-order rug designed for your room, dimensions, material preferences, colours, and budget.',
+  }), '<h1>Request a Custom Rug</h1><p>Share your dimensions, material preferences, colours, references, and budget with our rug-making team.</p><a href="/catalog">Explore the collection</a>');
+
+  writeRoute('/project-gallery', renderHead({
+    routePath: '/project-gallery',
+    title: 'Custom Rug Projects',
+    description: 'Explore completed custom rug projects and handcrafted rugs in residential and commercial interiors.',
+  }), '<h1>Custom Rug Projects</h1><p>See handcrafted rugs made for real residential and commercial spaces.</p><a href="/custom-rug-request">Start your project</a>');
 
   writeRoute('/pricing', renderHead({
     routePath: '/pricing',
@@ -165,30 +185,37 @@ async function main() {
   // won't have baked-in meta for these routes until the next build with the API
   // reachable.
   try {
-    const rugs = await fetchJson(`${API_URL}/api/customer/catalog`);
+    const catalogPayload = await fetchJson(`${API_URL}/api/customer/catalog?limit=60`);
+    const rugs = Array.isArray(catalogPayload) ? catalogPayload : catalogPayload.items;
+    if (!Array.isArray(rugs)) throw new Error('Catalog API returned an unexpected response shape');
+    writeRoute('/catalog', catalogHead, `<h1>Handcrafted Rug Collection</h1><p>Browse made-to-order rugs in wool, silk, cotton, and considered blends.</p><ul>${rugs.map((rug) => `<li><a href="/catalog/${esc(rug.slug || String(rug.id))}">${esc(rug.name)}</a></li>`).join('')}</ul>`);
     for (const rug of rugs) {
       const slug = rug.slug || String(rug.id);
       const description = rug.description
         ?? `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size.`;
+      const productImage = rug.images?.[0]?.image_url || rug.image_url;
       writeRoute(`/catalog/${slug}`, renderHead({
         routePath: `/catalog/${slug}`,
         title: rug.name,
         description,
-        image: rug.image_url,
+        image: productImage,
         jsonLd: [
           {
             '@context': 'https://schema.org',
             '@type': 'Product',
             name: rug.name,
             description,
-            image: absoluteUrl(rug.image_url) ?? undefined,
+            image: absoluteUrl(productImage) ?? undefined,
             material: rug.material,
-            offers: {
-              '@type': 'Offer',
-              price: rug.base_price_per_sqm,
-              priceCurrency: rug.base_price_currency || 'INR',
-              availability: rug.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-            },
+            url: `${SITE_URL}/catalog/${slug}`,
+            brand: { '@type': 'Brand', name: businessName },
+            ...(rug.display_price != null ? { offers: {
+                '@type': 'Offer',
+                price: rug.display_price,
+                priceCurrency: rug.base_price_currency || 'INR',
+                availability: rug.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                url: `${SITE_URL}/catalog/${slug}`,
+              } } : {}),
           },
           {
             '@context': 'https://schema.org',
@@ -200,11 +227,46 @@ async function main() {
             ],
           },
         ],
-      }));
+      }), `<article><nav><a href="/">Home</a> &gt; <a href="/catalog">Collection</a></nav><h1>${esc(rug.name)}</h1>${productImage ? `<img src="${esc(absoluteUrl(productImage))}" alt="${esc(rug.name)}">` : ''}<p>${esc(description)}</p><dl><dt>Material</dt><dd>${esc(rug.material || '')}</dd>${rug.weave_type ? `<dt>Weave</dt><dd>${esc(rug.weave_type)}</dd>` : ''}</dl><a href="/custom-rug-request">Request this rug in your size</a></article>`);
     }
     console.log(`  (${rugs.length} rug detail page(s) prerendered)`);
   } catch (err) {
     console.warn(`  ! Could not reach API at ${API_URL} for /catalog/:id pages (${err.message}). Skipping.`);
+    if (REQUIRE_API) throw new Error(`Required product prerender failed: ${err.message}`);
+  }
+
+  try {
+    const projects = await fetchJson(`${API_URL}/api/customer/gallery-items`);
+    if (!Array.isArray(projects)) throw new Error('Project gallery API returned an unexpected response shape');
+    writeRoute('/project-gallery', renderHead({
+      routePath: '/project-gallery',
+      title: 'Custom Rug Projects',
+      description: 'Explore completed custom rug projects and handcrafted rugs in residential and commercial interiors.',
+    }), `<h1>Custom Rug Projects</h1><p>See handcrafted rugs made for real residential and commercial spaces.</p><ul>${projects.map((project) => `<li><a href="/project-gallery/${project.id}">${esc(project.caption || `Custom rug project ${project.id}`)}</a></li>`).join('')}</ul>`);
+
+    for (const summary of projects) {
+      const project = await fetchJson(`${API_URL}/api/customer/gallery-items/${summary.id}`);
+      const title = project.caption || `Custom Rug Project ${project.id}`;
+      const description = project.description || 'A completed made-to-order rug project in its finished interior.';
+      writeRoute(`/project-gallery/${project.id}`, renderHead({
+        routePath: `/project-gallery/${project.id}`,
+        title,
+        description,
+        image: project.image_url,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'ImageObject',
+          name: title,
+          description,
+          contentUrl: absoluteUrl(project.image_url),
+          creator: { '@type': 'Organization', name: businessName },
+        },
+      }), `<article><nav><a href="/">Home</a> &gt; <a href="/project-gallery">Project Gallery</a></nav><h1>${esc(title)}</h1><img src="${esc(absoluteUrl(project.image_url))}" alt="${esc(title)}"><p>${esc(description)}</p><a href="/custom-rug-request">Start a custom rug project</a></article>`);
+    }
+    console.log(`  (${projects.length} project detail page(s) prerendered)`);
+  } catch (err) {
+    console.warn(`  ! Could not prerender project pages (${err.message}).`);
+    if (REQUIRE_API) throw new Error(`Required project prerender failed: ${err.message}`);
   }
 
   console.log('Prerender complete.');
@@ -212,6 +274,7 @@ async function main() {
 
 main().catch((err) => {
   console.error('Prerender failed:', err);
-  // Non-fatal: the SPA build itself already succeeded and works without this step.
-  process.exitCode = 0;
+  // Local builds may proceed without the API. Production sets
+  // REQUIRE_PRERENDER_API=true so broken product metadata blocks deployment.
+  process.exitCode = REQUIRE_API ? 1 : 0;
 });

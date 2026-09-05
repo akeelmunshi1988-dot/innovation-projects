@@ -459,6 +459,8 @@ export default function CustomerRugDetail() {
       fallback: `<p>This rug is prepared to order with an estimated lead time of ${selectedLeadTimeDays} days. Contact us for destination-specific shipping and return details.</p>`,
     },
   ];
+  const canonicalProductUrl = `${window.location.origin}/catalog/${rug.slug}`;
+  const structuredImageUrl = coverImage ? new URL(coverImage, window.location.origin).toString() : undefined;
   return (
     <CustomerLayout>
       <SEO
@@ -474,8 +476,10 @@ export default function CustomerRugDetail() {
             '@type': 'Product',
             name: rug.name,
             description: rug.description ?? undefined,
-            image: coverImage ?? undefined,
+            image: structuredImageUrl,
             material: rug.material,
+            url: canonicalProductUrl,
+            brand: { '@type': 'Brand', name: 'DreamRugsCreation' },
             ...(rug.display_price != null ? {
               offers: {
                 '@type': 'Offer',
@@ -484,6 +488,7 @@ export default function CustomerRugDetail() {
                 availability: rug.available
                   ? 'https://schema.org/InStock'
                   : 'https://schema.org/OutOfStock',
+                url: canonicalProductUrl,
               },
             } : {}),
           },
