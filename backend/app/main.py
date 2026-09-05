@@ -259,7 +259,13 @@ async def access_check(request: Request):
     return Response(status_code=403)
 
 
-STATIC_SITEMAP_ROUTES = ["/", "/about", "/catalog"]
+STATIC_SITEMAP_ROUTES = [
+    "/",
+    "/about",
+    "/catalog",
+    "/custom-rug-request",
+    "/project-gallery",
+]
 
 
 @app.get("/sitemap.xml")
@@ -271,7 +277,7 @@ async def sitemap():
     Phase 10 — since nginx's `location /` otherwise serves the frontend's
     SPA shell for any path it doesn't recognize as a static file.
     """
-    from app.models.models import RugCatalog
+    from app.models.models import ProjectGalleryItem, RugCatalog
 
     base_url = settings.FRONTEND_URL.rstrip("/")
     db = SessionLocal()
@@ -280,11 +286,18 @@ async def sitemap():
             r.slug or str(r.id)
             for r in db.query(RugCatalog.id, RugCatalog.slug).all()
         ]
+        project_ids = [
+            row.id
+            for row in db.query(ProjectGalleryItem.id)
+            .filter(ProjectGalleryItem.is_active == True)
+            .all()
+        ]
     finally:
         db.close()
 
     urls = [f"{base_url}{path}" for path in STATIC_SITEMAP_ROUTES]
     urls += [f"{base_url}/catalog/{slug}" for slug in rug_slugs]
+    urls += [f"{base_url}/project-gallery/{project_id}" for project_id in project_ids]
 
     entries = "\n".join(f"  <url><loc>{url}</loc></url>" for url in urls)
     xml = (

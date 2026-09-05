@@ -106,6 +106,7 @@ names/images and your business name:
 ```bash
 SITE_URL=https://yourdomain.com \
 PRERENDER_API_URL=http://127.0.0.1:8000 \
+REQUIRE_PRERENDER_API=true \
 npm run build
 ```
 
