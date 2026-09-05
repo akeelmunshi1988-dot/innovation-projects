@@ -929,7 +929,7 @@ export default function CustomerHome() {
                         src={rug.image_url}
                         alt={rug.name}
                         loading="lazy"
-                        className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
+                        className={`w-full h-full object-contain bg-white transition-opacity duration-500 ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
                       />
                       {rug.images?.length > 0 && (
                         <img
@@ -937,7 +937,7 @@ export default function CustomerHome() {
                           alt=""
                           aria-hidden="true"
                           loading="lazy"
-                          className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                          className="absolute inset-0 w-full h-full object-contain bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                         />
                       )}
                     </>
