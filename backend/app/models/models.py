@@ -62,6 +62,7 @@ class Tenant(Base):
     homepage_intro_description = Column(Text, nullable=True)
     homepage_intro_cta_label = Column(String(60), nullable=True)
     homepage_intro_cta_url = Column(String(300), nullable=True)
+    storefront_menu_labels = Column(JSON, nullable=True)
     homepage_intro_trusted_by_text = Column(String(100), nullable=True)
     homepage_intro_enabled = Column(Boolean, default=True)
     homepage_contact_image_url = Column(String(500), nullable=True)

@@ -9,68 +9,12 @@ import { useCart } from '../contexts/CartContext';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
+import { NAV, MEGA_MENU } from '../data/storefrontMenu';
 
 // Full logo lockup (mark + wordmark + tagline) — used in the footer where there's
 // room for it to read clearly; the header uses just the icon mark (tenant.logo_url)
 // since the nav bar is too short for the wordmark to stay legible.
 const FOOTER_LOGO_URL = '/static/branding/44203c3d28564ce58a5df25f86fb78f5.png';
-
-const NAV = [
-  { path: '/', label: 'Home' },
-  { path: '/catalog', label: 'Collection' },
-  { path: '/custom-rug-request', label: 'Customize Your Rug' },
-  { path: '/about', label: 'About Us' },
-];
-
-// Mega menu shown on hovering "Collection" — mirrors the same Space/Mood/Material
-// facets used on the homepage tabs and the catalog page's own filter pills.
-const MEGA_MENU = {
-  space: {
-    heading: 'Shop by Space',
-    links: [
-      { label: 'Living Room', to: '/collections/space/living_room' },
-      { label: 'Bedroom', to: '/collections/space/bedroom' },
-      { label: 'Dining Room', to: '/collections/space/dining_room' },
-      { label: 'Entryway', to: '/collections/space/entryway' },
-    ],
-  },
-  mood: {
-    heading: 'Shop by Mood',
-    links: [
-      { label: 'Warm & Earthy', to: '/collections/mood/warm_earthy' },
-      { label: 'Quiet Luxury', to: '/collections/mood/quiet_luxury' },
-      { label: 'Modern Minimal', to: '/collections/mood/modern_minimal' },
-      { label: 'Bohemian', to: '/collections/mood/bohemian' },
-      { label: 'Bold & Artistic', to: '/collections/mood/bold_artistic' },
-      { label: 'Timeless Traditional', to: '/collections/mood/timeless_traditional' },
-    ],
-  },
-  material: {
-    heading: 'Shop by Material',
-    links: [
-      { label: 'Wool', to: '/collections/material/wool' },
-      { label: 'Silk', to: '/collections/material/silk' },
-      { label: 'Cotton', to: '/collections/material/cotton' },
-      { label: 'Synthetic', to: '/collections/material/synthetic' },
-    ],
-  },
-  weave: {
-    heading: 'Shop by Weave Type',
-    links: [
-      { label: 'Hand Knotted', to: '/weaves/hand-knotted' },
-      { label: 'Hand Tufted', to: '/weaves/hand-tufted' },
-      { label: 'Flatweave', to: '/weaves/flatweave' },
-      { label: 'Machine Woven', to: '/weaves/machine-woven' },
-    ],
-  },
-  quick: {
-    heading: 'Quick Links',
-    links: [
-      { label: 'All Rugs', to: '/catalog' },
-      { label: 'Custom Rug Request', to: '/custom-rug-request' },
-    ],
-  },
-};
 
 const USER_MENU = [
   { path: '/my-orders', label: 'My Orders', icon: <Package size={13} /> },
@@ -86,6 +30,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const navigate = useNavigate();
   const { customer, isCustomerAuthenticated, customerLogout } = useCustomerAuth();
   const { user: adminUser, isAuthenticated: isAdminAuthenticated } = useAuth();
+  const [menuLabels, setMenuLabels] = useState<Record<string, string>>({});
+  const menuTitle = (key: string, fallback: string) => menuLabels[key]?.trim() || fallback;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -141,6 +87,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   useEffect(() => {
     getPublicSettings()
       .then((data) => {
+        setMenuLabels(data.storefront_menu_labels || {});
         setChatEnabled(data.ai_assistant_enabled);
         setBusinessName(data.business_name || 'Store');
         setLogoUrl(data.logo_url);
@@ -275,7 +222,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                       : 'text-stone-500 hover:text-stone-900 border-transparent hover:border-stone-300'
                   }`}
                 >
-                  {n.label}
+                  {menuTitle(`nav:${n.path}`, n.label)}
                 </Link>
               );
 
@@ -295,11 +242,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                     <div className="w-[94vw] max-w-none mx-auto px-4 py-10 grid grid-cols-6 gap-8">
                       {(Object.keys(MEGA_MENU) as (keyof typeof MEGA_MENU)[]).map((key) => (
                         <div key={key} className="space-y-3">
-                          <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{MEGA_MENU[key].heading}</p>
+                          <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{menuTitle(`heading:${key}`, MEGA_MENU[key].heading)}</p>
                           <div className="space-y-2.5">
                             {MEGA_MENU[key].links.map((l) => (
                               <Link key={l.to} to={l.to} className="block text-stone-500 hover:text-stone-900 text-sm transition-colors">
-                                {l.label}
+                                {menuTitle(`link:${l.to}`, l.label)}
                               </Link>
                             ))}
                           </div>
@@ -418,7 +365,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
               <Link key={n.path} to={n.path}
                 className="block py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50"
               >
-                {n.label}
+                {menuTitle(`nav:${n.path}`, n.label)}
               </Link>
             ))}
             <div className="py-3 border-b border-stone-100">
@@ -519,10 +466,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 { to: '/catalog/material/silk', label: 'Silk' },
                 { to: '/catalog/material/cotton', label: 'Cotton' },
               ].map((l) => (
-                <Link key={l.label} to={l.to}
+                <Link key={l.to} to={l.to}
                   className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
                 >
-                  {l.label}
+                  {menuTitle(`link:${l.to}`, l.label)}
                 </Link>
               ))}
             </div>
@@ -540,10 +487,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 { to: '/privacy-policy', label: 'Privacy Policy' },
                 { to: '/admin/login', label: 'Staff Portal' },
               ].map((l) => (
-                <Link key={l.label} to={l.to}
+                <Link key={l.to} to={l.to}
                   className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
                 >
-                  {l.label}
+                  {menuTitle(`link:${l.to}`, l.label)}
                 </Link>
               ))}
             </div>

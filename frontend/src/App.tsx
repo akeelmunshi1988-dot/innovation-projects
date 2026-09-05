@@ -63,6 +63,7 @@ const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
 const HeroSlides = lazy(() => import('./pages/HeroSlides'));
 const HomepageFullBleedImage = lazy(() => import('./pages/HomepageFullBleedImage'));
+const WebsiteMenu = lazy(() => import('./pages/WebsiteMenu'));
 const HomepageIntroduction = lazy(() => import('./pages/HomepageIntroduction'));
 const HomepageValues = lazy(() => import('./pages/HomepageValues'));
 const HomepageContact = lazy(() => import('./pages/HomepageContact'));
@@ -150,6 +151,7 @@ function App() {
                     <Route path="showcase-videos" element={<ShowcaseVideos />} />
                     <Route path="hero-slides" element={<HeroSlides />} />
                     <Route path="homepage-full-bleed" element={<HomepageFullBleedImage />} />
+                    <Route path="website-menu" element={<WebsiteMenu />} />
                     <Route path="homepage-introduction" element={<HomepageIntroduction />} />
                     <Route path="homepage-values" element={<HomepageValues />} />
                     <Route path="homepage-contact" element={<HomepageContact />} />

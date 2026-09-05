@@ -1,3 +1,4 @@
+import { productAccordionSections } from '../utils/productAccordion';
 import axios from 'axios';
 import { refreshAccessToken } from './authRefresh';
 import type {
@@ -753,6 +754,7 @@ export const getPublicSettings = async (): Promise<{
   homepage_intro_description: string | null;
   homepage_intro_cta_label: string | null;
   homepage_intro_cta_url: string | null;
+  storefront_menu_labels: Record<string, string> | null;
   homepage_intro_trusted_by_text: string | null;
   homepage_intro_enabled: boolean;
   homepage_contact_image_url: string | null;
@@ -782,7 +784,7 @@ export const getPublicSettings = async (): Promise<{
   materials_count: number;
 }> => {
   const { data } = await axios.get('/api/customer/settings');
-  return data;
+  return { ...data, product_accordion_sections: productAccordionSections(data) };
 };
 
 /** Best-effort IP -> country guess for guests, used only to pick a default display

@@ -647,3 +647,8 @@ Homepage Introduction also includes **Trusted by — customer text** (revision
 `20260905_0024`). Enter e.g. `100+ customers`; clearing the field restores the
 rated-project count. Apply `alembic upgrade head` before restarting the backend
 and publishing the frontend build.
+
+**Admin → Website Menu** edits storefront main navigation and collection dropdown
+titles. Revision `20260905_0026` adds `storefront_menu_labels`; apply migrations
+before restarting the backend. Blank titles use the defaults, including
+“Create Your Bespoke Rug” for the custom rug request link.
