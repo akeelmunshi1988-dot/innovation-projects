@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
   { path: '/admin/product-detail-page', label: 'Product Detail Page', icon: <FileText size={18} /> },
   { path: '/admin/announcement-bar', label: 'Announcement Bar', icon: <Megaphone size={18} /> },
   { path: '/admin/hero-slides', label: 'Homepage Hero', icon: <Image size={18} /> },
+  { path: '/admin/website-menu', label: 'Website Menu', icon: <FileText size={18} /> },
   { path: '/admin/homepage-introduction', label: 'Homepage Introduction', icon: <FileText size={18} /> },
   { path: '/admin/homepage-full-bleed', label: 'Full-Bleed Image', icon: <Image size={18} /> },
   { path: '/admin/homepage-values', label: 'Homepage Values', icon: <LayoutGrid size={18} /> },

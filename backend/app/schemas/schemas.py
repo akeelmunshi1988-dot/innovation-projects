@@ -716,6 +716,7 @@ class TenantPublic(BaseModel):
     homepage_intro_description: Optional[str] = None
     homepage_intro_cta_label: Optional[str] = None
     homepage_intro_cta_url: Optional[str] = None
+    storefront_menu_labels: Optional[dict[str, str]] = None
     homepage_intro_trusted_by_text: Optional[str] = None
     homepage_intro_enabled: bool = True
     homepage_contact_image_url: Optional[str] = None
@@ -750,6 +751,15 @@ class TenantPublic(BaseModel):
 
 
 class TenantUpdateRequest(BaseModel):
+    @field_validator("storefront_menu_labels")
+    @classmethod
+    def validate_menu_labels(cls, labels):
+        if labels is None:
+            return None
+        if any(len(key) > 150 or len(value.strip()) > 60 for key, value in labels.items()):
+            raise ValueError("Menu titles must be 60 characters or fewer")
+        return {key: value.strip() for key, value in labels.items() if value.strip()}
+
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     currency: Optional[str] = Field(None, min_length=3, max_length=3)
     exchange_rates: Optional[dict] = None
@@ -793,6 +803,7 @@ class TenantUpdateRequest(BaseModel):
     homepage_intro_description: Optional[str] = Field(None, max_length=1500)
     homepage_intro_cta_label: Optional[str] = Field(None, max_length=60)
     homepage_intro_cta_url: Optional[str] = Field(None, max_length=300)
+    storefront_menu_labels: Optional[dict[str, str]] = Field(None, max_length=40)
     homepage_intro_trusted_by_text: Optional[str] = Field(None, max_length=100)
     homepage_intro_enabled: Optional[bool] = None
     homepage_contact_image_url: Optional[str] = Field(None, max_length=500)
