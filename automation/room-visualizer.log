@@ -51244,3 +51244,1125 @@ openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect A
 2026-09-05 15:32:18,977 INFO Skipping existing output 00-collection-main-transparent.png
 2026-09-05 15:32:18,977 INFO Skipping existing output 01-living-room.png
 2026-09-05 15:32:18,977 INFO Generating bedroom for Hand-knotted Indo-Tibetan - Wool & Bamboo Silk Mix.webp using filename details: Hand knotted Indo Tibetan   Wool & Bamboo Silk Mix
+2026-09-05 15:34:59,075 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:34:59,089 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool & Bamboo Silk Mix.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:34:59,109 INFO Processing Hand-knotted Indo-Tibetan - Wool & Viscose Silk.jpg
+2026-09-05 15:34:59,109 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool & Viscose Silk.jpg using filename details: Hand knotted Indo Tibetan   Wool & Viscose Silk
+2026-09-05 15:35:20,420 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:35:20,450 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool & Viscose Silk.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:35:20,463 INFO Processing Hand-knotted Indo-Tibetan - Wool (2).jpg
+2026-09-05 15:35:20,464 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool (2).jpg using filename details: Hand knotted Indo Tibetan   Wool (2)
+2026-09-05 15:35:22,060 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:35:22,062 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool (2).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:35:22,068 INFO Processing Hand-knotted Indo-Tibetan - Wool (3).jpg
+2026-09-05 15:35:22,068 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool (3).jpg using filename details: Hand knotted Indo Tibetan   Wool (3)
+2026-09-05 15:35:23,523 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:35:23,526 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool (3).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:35:23,543 INFO Processing Hand-knotted Indo-Tibetan - Wool.jpg
+2026-09-05 15:35:23,543 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool.jpg using filename details: Hand knotted Indo Tibetan   Wool
+2026-09-05 15:36:07,054 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:36:07,073 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:36:07,089 INFO Processing Hand-knotted Jute Carpet - Jute.webp
+2026-09-05 15:36:07,090 INFO Generating collection-main for Hand-knotted Jute Carpet - Jute.webp using filename details: Hand knotted Jute Carpet   Jute
+2026-09-05 15:36:56,666 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:36:56,673 ERROR Failed to process Hand-knotted Jute Carpet - Jute.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:36:56,682 INFO Processing Hand-knotted Sumac Rug - Jute (2).jpg
+2026-09-05 15:36:56,682 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute (2).jpg using filename details: Hand knotted Sumac Rug   Jute (2)
+2026-09-05 15:37:16,926 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:16,938 ERROR Failed to process Hand-knotted Sumac Rug - Jute (2).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:16,948 INFO Processing Hand-knotted Sumac Rug - Jute (3).webp
+2026-09-05 15:37:16,948 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute (3).webp using filename details: Hand knotted Sumac Rug   Jute (3)
+2026-09-05 15:37:26,713 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:26,721 ERROR Failed to process Hand-knotted Sumac Rug - Jute (3).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:26,734 INFO Processing Hand-knotted Sumac Rug - Jute (4).webp
+2026-09-05 15:37:26,734 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute (4).webp using filename details: Hand knotted Sumac Rug   Jute (4)
+2026-09-05 15:37:31,392 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:31,396 ERROR Failed to process Hand-knotted Sumac Rug - Jute (4).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:31,405 INFO Processing Hand-knotted Sumac Rug - Jute.webp
+2026-09-05 15:37:31,406 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute.webp using filename details: Hand knotted Sumac Rug   Jute
+2026-09-05 15:37:32,280 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:32,284 ERROR Failed to process Hand-knotted Sumac Rug - Jute.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:32,293 INFO Processing Hand-knotted Sumac Rug - Wool.webp
+2026-09-05 15:37:32,293 INFO Generating collection-main for Hand-knotted Sumac Rug - Wool.webp using filename details: Hand knotted Sumac Rug   Wool
+2026-09-05 15:37:33,929 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:33,937 ERROR Failed to process Hand-knotted Sumac Rug - Wool.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:33,949 INFO Processing Handknotted Woollen Carpet - Wool (2).webp
+2026-09-05 15:37:33,949 INFO Generating collection-main for Handknotted Woollen Carpet - Wool (2).webp using filename details: Handknotted Woollen Carpet   Wool (2)
+2026-09-05 15:37:35,357 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:35,362 ERROR Failed to process Handknotted Woollen Carpet - Wool (2).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:35,370 INFO Processing Handknotted Woollen Carpet - Wool (3).webp
+2026-09-05 15:37:35,370 INFO Generating collection-main for Handknotted Woollen Carpet - Wool (3).webp using filename details: Handknotted Woollen Carpet   Wool (3)
+2026-09-05 15:37:39,156 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:39,161 ERROR Failed to process Handknotted Woollen Carpet - Wool (3).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:39,173 INFO Processing Handknotted Woollen Carpet - Wool.jpg
+2026-09-05 15:37:39,173 INFO Generating collection-main for Handknotted Woollen Carpet - Wool.jpg using filename details: Handknotted Woollen Carpet   Wool
+2026-09-05 15:37:42,510 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:42,514 ERROR Failed to process Handknotted Woollen Carpet - Wool.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:42,523 INFO Processing Handwoven Jute Rug - Jute (2).webp
+2026-09-05 15:37:42,523 INFO Generating collection-main for Handwoven Jute Rug - Jute (2).webp using filename details: Handwoven Jute Rug   Jute (2)
+2026-09-05 15:37:47,023 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:47,028 ERROR Failed to process Handwoven Jute Rug - Jute (2).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:47,050 INFO Processing Handwoven Jute Rug - Jute (3).webp
+2026-09-05 15:37:47,051 INFO Generating collection-main for Handwoven Jute Rug - Jute (3).webp using filename details: Handwoven Jute Rug   Jute (3)
+2026-09-05 15:37:53,295 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:37:53,301 ERROR Failed to process Handwoven Jute Rug - Jute (3).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:37:53,312 INFO Processing Handwoven Jute Rug - Jute (4).webp
+2026-09-05 15:37:53,312 INFO Generating collection-main for Handwoven Jute Rug - Jute (4).webp using filename details: Handwoven Jute Rug   Jute (4)
+2026-09-05 15:38:00,554 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:38:00,560 ERROR Failed to process Handwoven Jute Rug - Jute (4).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:38:00,570 INFO Processing Handwoven Jute Rug - Jute (5).webp
+2026-09-05 15:38:00,571 INFO Generating collection-main for Handwoven Jute Rug - Jute (5).webp using filename details: Handwoven Jute Rug   Jute (5)
+2026-09-05 15:38:12,565 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:38:12,570 ERROR Failed to process Handwoven Jute Rug - Jute (5).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:38:12,594 INFO Processing Handwoven Jute Rug - Jute (6).jpg
+2026-09-05 15:38:12,595 INFO Generating collection-main for Handwoven Jute Rug - Jute (6).jpg using filename details: Handwoven Jute Rug   Jute (6)
+2026-09-05 15:38:31,415 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:38:31,539 ERROR Failed to process Handwoven Jute Rug - Jute (6).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:38:31,632 INFO Processing Handwoven Jute Rug - Jute.webp
+2026-09-05 15:38:31,637 INFO Generating collection-main for Handwoven Jute Rug - Jute.webp using filename details: Handwoven Jute Rug   Jute
+2026-09-05 15:38:38,870 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:38:38,887 ERROR Failed to process Handwoven Jute Rug - Jute.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:38:55,341 INFO Processing Hand-knotted Indo-Tibetan - Wool & Bamboo Silk Mix.webp
+2026-09-05 15:38:55,343 INFO Skipping existing output 00-collection-main-transparent.png
+2026-09-05 15:38:55,343 INFO Skipping existing output 01-living-room.png
+2026-09-05 15:38:55,343 INFO Generating bedroom for Hand-knotted Indo-Tibetan - Wool & Bamboo Silk Mix.webp using filename details: Hand knotted Indo Tibetan   Wool & Bamboo Silk Mix
+2026-09-05 15:38:58,249 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:38:58,265 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool & Bamboo Silk Mix.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:38:58,277 INFO Processing Hand-knotted Indo-Tibetan - Wool & Viscose Silk.jpg
+2026-09-05 15:38:58,278 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool & Viscose Silk.jpg using filename details: Hand knotted Indo Tibetan   Wool & Viscose Silk
+2026-09-05 15:39:10,753 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:39:10,759 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool & Viscose Silk.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:39:10,817 INFO Processing Hand-knotted Indo-Tibetan - Wool (2).jpg
+2026-09-05 15:39:10,818 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool (2).jpg using filename details: Hand knotted Indo Tibetan   Wool (2)
+2026-09-05 15:39:15,049 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:39:15,076 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool (2).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:39:15,118 INFO Processing Hand-knotted Indo-Tibetan - Wool (3).jpg
+2026-09-05 15:39:15,118 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool (3).jpg using filename details: Hand knotted Indo Tibetan   Wool (3)
+2026-09-05 15:39:20,494 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:39:20,509 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool (3).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:39:20,526 INFO Processing Hand-knotted Indo-Tibetan - Wool.jpg
+2026-09-05 15:39:20,526 INFO Generating collection-main for Hand-knotted Indo-Tibetan - Wool.jpg using filename details: Hand knotted Indo Tibetan   Wool
+2026-09-05 15:40:07,607 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:07,616 ERROR Failed to process Hand-knotted Indo-Tibetan - Wool.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:07,640 INFO Processing Hand-knotted Jute Carpet - Jute.webp
+2026-09-05 15:40:07,641 INFO Generating collection-main for Hand-knotted Jute Carpet - Jute.webp using filename details: Hand knotted Jute Carpet   Jute
+2026-09-05 15:40:20,347 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:20,354 ERROR Failed to process Hand-knotted Jute Carpet - Jute.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:20,387 INFO Processing Hand-knotted Sumac Rug - Jute (2).jpg
+2026-09-05 15:40:20,387 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute (2).jpg using filename details: Hand knotted Sumac Rug   Jute (2)
+2026-09-05 15:40:23,354 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:23,359 ERROR Failed to process Hand-knotted Sumac Rug - Jute (2).jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:23,365 INFO Processing Hand-knotted Sumac Rug - Jute (3).webp
+2026-09-05 15:40:23,365 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute (3).webp using filename details: Hand knotted Sumac Rug   Jute (3)
+2026-09-05 15:40:29,916 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:29,926 ERROR Failed to process Hand-knotted Sumac Rug - Jute (3).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:29,943 INFO Processing Hand-knotted Sumac Rug - Jute (4).webp
+2026-09-05 15:40:29,943 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute (4).webp using filename details: Hand knotted Sumac Rug   Jute (4)
+2026-09-05 15:40:34,489 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:34,493 ERROR Failed to process Hand-knotted Sumac Rug - Jute (4).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:34,503 INFO Processing Hand-knotted Sumac Rug - Jute.webp
+2026-09-05 15:40:34,504 INFO Generating collection-main for Hand-knotted Sumac Rug - Jute.webp using filename details: Hand knotted Sumac Rug   Jute
+2026-09-05 15:40:43,125 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:43,132 ERROR Failed to process Hand-knotted Sumac Rug - Jute.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:43,145 INFO Processing Hand-knotted Sumac Rug - Wool.webp
+2026-09-05 15:40:43,146 INFO Generating collection-main for Hand-knotted Sumac Rug - Wool.webp using filename details: Hand knotted Sumac Rug   Wool
+2026-09-05 15:40:46,963 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:46,967 ERROR Failed to process Hand-knotted Sumac Rug - Wool.webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:46,979 INFO Processing Handknotted Woollen Carpet - Wool (2).webp
+2026-09-05 15:40:46,980 INFO Generating collection-main for Handknotted Woollen Carpet - Wool (2).webp using filename details: Handknotted Woollen Carpet   Wool (2)
+2026-09-05 15:40:49,587 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:49,590 ERROR Failed to process Handknotted Woollen Carpet - Wool (2).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:49,602 INFO Processing Handknotted Woollen Carpet - Wool (3).webp
+2026-09-05 15:40:49,602 INFO Generating collection-main for Handknotted Woollen Carpet - Wool (3).webp using filename details: Handknotted Woollen Carpet   Wool (3)
+2026-09-05 15:40:52,956 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:52,963 ERROR Failed to process Handknotted Woollen Carpet - Wool (3).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:52,984 INFO Processing Handknotted Woollen Carpet - Wool.jpg
+2026-09-05 15:40:52,984 INFO Generating collection-main for Handknotted Woollen Carpet - Wool.jpg using filename details: Handknotted Woollen Carpet   Wool
+2026-09-05 15:40:55,154 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:55,160 ERROR Failed to process Handknotted Woollen Carpet - Wool.jpg; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:55,167 INFO Processing Handwoven Jute Rug - Jute (2).webp
+2026-09-05 15:40:55,167 INFO Generating collection-main for Handwoven Jute Rug - Jute (2).webp using filename details: Handwoven Jute Rug   Jute (2)
+2026-09-05 15:40:56,631 INFO HTTP Request: POST https://api.openai.com/v1/images/edits "HTTP/1.1 401 Unauthorized"
+2026-09-05 15:40:56,636 ERROR Failed to process Handwoven Jute Rug - Jute (2).webp; it will be retried
+Traceback (most recent call last):
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 665, in run
+    process_image(client, source, output_root)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/automation/room_visualizer_agent.py", line 600, in process_image
+    response = client.images.edit(
+        model="gpt-image-2",
+    ...<7 lines>...
+        timeout=600,
+    )
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/resources/images.py", line 570, in edit
+    return self._post(
+           ~~~~~~~~~~^
+        "/images/edits",
+        ^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        stream_cls=Stream[ImageEditStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1375, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/RugManufactureCustomApp/backend/venv/lib/python3.13/site-packages/openai/_base_client.py", line 1148, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-************************************************************************************************_cT>. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}
+2026-09-05 15:40:56,647 INFO Processing Handwoven Jute Rug - Jute (3).webp
+2026-09-05 15:40:56,648 INFO Generating collection-main for Handwoven Jute Rug - Jute (3).webp using filename details: Handwoven Jute Rug   Jute (3)
