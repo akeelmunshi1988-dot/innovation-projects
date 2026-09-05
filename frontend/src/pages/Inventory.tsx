@@ -7,8 +7,6 @@ import { fmtTenant, CURRENCIES } from '../utils/currency';
 
 const LOW_STOCK = 50;
 
-const MATERIAL_TYPES = ['wool', 'silk', 'cotton', 'synthetic'];
-
 const typeColors: Record<string, string> = {
   wool:      'bg-amber-900/30 text-amber-300 border-amber-700/30',
   silk:      'bg-purple-900/30 text-purple-300 border-purple-700/30',
@@ -340,32 +338,6 @@ const Inventory: React.FC = () => {
                   required
                   className="input-field w-full text-sm"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Type *</label>
-                  <select
-                    value={form.type}
-                    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-                    required
-                    className="input-field w-full text-sm"
-                  >
-                    {MATERIAL_TYPES.map((t) => (
-                      <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Color *</label>
-                  <input
-                    value={form.color}
-                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                    placeholder="e.g. Natural White"
-                    required
-                    className="input-field w-full text-sm"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
