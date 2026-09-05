@@ -357,9 +357,7 @@ async def get_public_settings():
             "catalog_pdf_url": tenant.catalog_pdf_url if tenant else None,
             "certifications": (tenant.certifications or []) if tenant else [],
             "default_shipping_rate": tenant.default_shipping_rate if tenant else None,
-            "rug_sample_information_html": tenant.rug_sample_information_html if tenant else None,
-            "rug_care_advice_html": tenant.rug_care_advice_html if tenant else None,
-            "rug_shipping_returns_html": tenant.rug_shipping_returns_html if tenant else None,
+            "product_accordion_sections": (tenant.product_accordion_sections or []) if tenant else [],
             "about_us_content_html": tenant.about_us_content_html if tenant else None,
             "about_page": (tenant.about_page or None) if tenant else None,
         }

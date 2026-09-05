@@ -566,12 +566,8 @@ def update_tenant_settings(
         tenant.privacy_policy_html = body.privacy_policy_html or None
     if body.default_catalog_additional_information_html is not None:
         tenant.default_catalog_additional_information_html = body.default_catalog_additional_information_html or None
-    if body.rug_sample_information_html is not None:
-        tenant.rug_sample_information_html = body.rug_sample_information_html or None
-    if body.rug_care_advice_html is not None:
-        tenant.rug_care_advice_html = body.rug_care_advice_html or None
-    if body.rug_shipping_returns_html is not None:
-        tenant.rug_shipping_returns_html = body.rug_shipping_returns_html or None
+    if body.product_accordion_sections is not None:
+        tenant.product_accordion_sections = body.product_accordion_sections
     if body.about_us_content_html is not None:
         tenant.about_us_content_html = body.about_us_content_html or None
     if body.about_page is not None:

@@ -1,3 +1,9 @@
+export interface ProductAccordionSection {
+  id: string;
+  title: string;
+  html: string;
+}
+
 export interface Material {
   id: number;
   name: string;

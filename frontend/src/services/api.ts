@@ -2,6 +2,7 @@ import axios from 'axios';
 import { refreshAccessToken } from './authRefresh';
 import type {
   Material,
+  ProductAccordionSection,
   RugCatalog,
   RugImage,
   Customer,
@@ -775,9 +776,7 @@ export const getPublicSettings = async (): Promise<{
   catalog_pdf_url: string | null;
   certifications: { label: string; image_url: string }[];
   default_shipping_rate: number | null;
-  rug_sample_information_html: string | null;
-  rug_care_advice_html: string | null;
-  rug_shipping_returns_html: string | null;
+  product_accordion_sections: ProductAccordionSection[];
   about_us_content_html: string | null;
   about_page: import('../data/aboutPageContent').AboutPageContent | null;
   materials_count: number;
