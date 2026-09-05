@@ -148,10 +148,20 @@ export default function AboutUs() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
             <div className="lg:col-span-6 relative">
               <div className="aspect-[4/5] overflow-hidden">
-                <img src={photo(1)} alt={caption(1, 'The rug-making workshop')} className="w-full h-full object-cover" loading="lazy" />
+                <img
+                  src={story.primary_image_url || photo(1)}
+                  alt={story.primary_image_alt || caption(1, 'The rug-making workshop')}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
               </div>
               <div className="hidden sm:block absolute right-0 lg:-right-10 -bottom-10 w-[48%] aspect-square border-[10px] border-white overflow-hidden shadow-sm">
-                <img src={photo(2)} alt={caption(2, 'Natural fibres prepared for weaving')} className="w-full h-full object-cover" loading="lazy" />
+                <img
+                  src={story.secondary_image_url || photo(2)}
+                  alt={story.secondary_image_alt || caption(2, 'Natural fibres prepared for weaving')}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
               </div>
             </div>
 
@@ -215,8 +225,8 @@ export default function AboutUs() {
                 <article key={index} className="group pt-8 pb-4 lg:pb-8 lg:px-7 lg:border-l first:border-l-0 first:pl-0 border-stone-300">
                   <div className="aspect-[4/3] overflow-hidden mb-7 bg-stone-900">
                     <img
-                      src={photo(index + 2)}
-                      alt={caption(index + 2, step.title)}
+                      src={step.image_url || photo(index + 2)}
+                      alt={step.image_alt || caption(index + 2, step.title)}
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-[1.03] transition-all duration-700"
                       loading="lazy"
                     />
