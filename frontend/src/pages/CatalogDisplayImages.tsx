@@ -113,7 +113,7 @@ export default function CatalogDisplayImages() {
           <div className="flex items-center gap-4"><button type="button" className="btn-primary disabled:opacity-40" disabled={!dirty} onClick={save}>{busy ? 'Saving…' : `Save to ${selectedCategories.length} ${selectedCategories.length === 1 ? 'collection' : 'collections'}`}</button>{selected && <Link to={selected.href} target="_blank" rel="noreferrer" className="text-sm text-gold-400 underline">View collection ↗</Link>}</div>
           <p className="text-xs text-dark-400">The three-image layout is always shown. Empty slots use default images, then photos from the category. Clear an image URL and save to restore its automatic image.</p>
         </fieldset>
-        {display.images.every(image => image.image_url) && <div><h2 className="mb-3 text-sm text-cream-300">Preview</h2><CollectionImageGrid images={display.images} title={category === 'default' ? 'The Rug Collection' : `${selected?.label.split(': ')[1] || value} Rugs`} eyebrow="Collection preview" target={selected?.href || '/catalog'} /></div>}
+        {display.images.every(image => image.image_url) && <div><h2 className="mb-3 text-sm text-cream-300">Preview</h2><CollectionImageGrid images={display.images} title={category === 'default' ? 'The Rug Collection' : `${selected?.label.split(': ')[1] || category} Rugs`} eyebrow="Collection preview" target={selected?.href || '/catalog'} /></div>}
       </>}
     </div>
   );
