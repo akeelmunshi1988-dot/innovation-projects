@@ -548,7 +548,7 @@ export default function CustomerRugDetail() {
                 aria-label={`Expand ${rug.name} image`}
                 className="block w-full h-full cursor-zoom-in"
               >
-                <img key={coverImage} src={coverImage} alt={`${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}`} className="w-full h-full object-cover" fetchPriority="high" />
+                <img key={coverImage} src={coverImage} alt={`${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}`} className="w-full h-full object-contain bg-white" fetchPriority="high" />
               </button>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -580,7 +580,7 @@ export default function CustomerRugDetail() {
                   aria-label={`Expand ${rug.name} gallery image`}
                   className="block w-full h-full cursor-zoom-in"
                 >
-                  <img src={lifestyleImages[current]} alt={`${rug.name} in a room setting`} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={lifestyleImages[current]} alt={`${rug.name} in a room setting`} className="w-full h-full object-contain bg-white" loading="lazy" />
                 </button>
                 {lifestyleImages.length > 1 && (
                   <>
