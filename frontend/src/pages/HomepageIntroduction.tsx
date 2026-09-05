@@ -14,6 +14,7 @@ export default function HomepageIntroduction() {
   const [description, setDescription] = useState(tenant.homepage_intro_description || DEFAULT_DESCRIPTION);
   const [ctaLabel, setCtaLabel] = useState(tenant.homepage_intro_cta_label || 'Explore Collection');
   const [ctaUrl, setCtaUrl] = useState(tenant.homepage_intro_cta_url || '/catalog');
+  const [trustedByText, setTrustedByText] = useState(tenant.homepage_intro_trusted_by_text || '');
   const [enabled, setEnabled] = useState(tenant.homepage_intro_enabled ?? true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -37,6 +38,7 @@ export default function HomepageIntroduction() {
         homepage_intro_description: description.trim(),
         homepage_intro_cta_label: ctaLabel.trim(),
         homepage_intro_cta_url: ctaUrl.trim(),
+        homepage_intro_trusted_by_text: trustedByText.trim(),
         homepage_intro_enabled: enabled,
       });
       updateTenant(data);
@@ -70,6 +72,8 @@ export default function HomepageIntroduction() {
         <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wider text-cream-300">Link text</span><input value={ctaLabel} onChange={event => { setCtaLabel(event.target.value); setSaved(false); }} maxLength={60} className={inputClass} /></label>
         <label className="space-y-1.5"><span className="text-xs font-semibold uppercase tracking-wider text-cream-300">Link destination</span><input value={ctaUrl} onChange={event => { setCtaUrl(event.target.value); setSaved(false); }} maxLength={300} placeholder="/catalog" className={inputClass} /><span className="block text-xs text-dark-500">Use an internal path such as /catalog.</span></label>
 
+        <label className="space-y-1.5 md:col-span-2"><span className="text-xs font-semibold uppercase tracking-wider">Trusted by — customer text</span><input value={trustedByText} onChange={event => { setTrustedByText(event.target.value); setSaved(false); }} maxLength={100} placeholder="e.g. 100+ customers" className={inputClass} /><span className="block text-xs text-dark-500">Shown after “Trusted by”. Leave blank to use the number of rated projects.</span></label>
+
         <div className="flex items-center justify-between gap-4 rounded-lg border border-dark-700 bg-dark-800 p-4 md:col-span-2">
           <div><p className="text-sm font-medium text-cream-200">Show introduction on homepage</p><p className="mt-0.5 text-xs text-dark-500">An introductory video must also be active under Homepage Videos.</p></div>
           <button type="button" onClick={() => { setEnabled(current => !current); setSaved(false); }} className={`flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium ${enabled ? 'bg-gold-600 text-white' : 'bg-dark-700 text-dark-300'}`}>{enabled ? <Eye size={14} /> : <EyeOff size={14} />} {enabled ? 'Visible' : 'Hidden'}</button>
@@ -81,6 +85,7 @@ export default function HomepageIntroduction() {
         <p className="mt-5 font-condensed text-6xl font-medium uppercase leading-[0.9] tracking-[-0.04em]">{titleLineOne || 'Rug Making'}<br />{titleLineTwo || '& Weaving'}</p>
         <p className="mt-7 max-w-2xl font-serif text-2xl font-light leading-snug">{description}</p>
         {ctaLabel && <span className="mt-7 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em]">{ctaLabel} <ArrowRight size={14} /></span>}
+        <p className="mt-7 text-lg text-stone-500">Trusted by <span className="font-medium text-[#191d27]">{trustedByText.trim() || '(automatic customer count)'}</span></p>
       </section>
     </div>
   );

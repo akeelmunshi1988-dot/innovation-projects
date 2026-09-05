@@ -5,6 +5,7 @@ import { Search, Layers, X, Plus, Minus } from 'lucide-react';
 import type { CatalogSize, RugColorOption } from '../types';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import CollectionImageGrid, { useCollectionDisplay } from '../components/CollectionImageGrid';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { fmtSize } from '../utils/size';
 
@@ -74,6 +75,8 @@ export default function CustomerCatalog() {
   const pileParam     = searchParams.get('pile') ?? 'all';
   const roomParam     = pathFacet === 'room_type' ? (pathValue ?? 'all') : (searchParams.get('room_type') ?? 'all');
   const moodParam     = pathFacet === 'mood'      ? (pathValue ?? 'all') : (searchParams.get('mood')      ?? 'all');
+
+  const display = useCollectionDisplay(pathFacet && pathValue ? `${pathFacet === 'room_type' ? 'space' : pathFacet}/${pathValue}` : 'default');
 
   const [filtersOpen, setFiltersOpen] = useState(() =>
     pathFacet !== null || ['material', 'pile', 'room_type', 'mood'].some((k) => searchParams.get(k))
@@ -172,12 +175,13 @@ export default function CustomerCatalog() {
           ],
         }}
       />
-      <div className="w-[94vw] max-w-none mx-auto px-4">
+      {display && <CollectionImageGrid images={display.images} title={pathValue ? `${tagLabel(pathValue)} Rugs` : 'The Rug Collection'} eyebrow="Discover your next favourite" />}
+      <div id="collection-rugs" className="w-[94vw] max-w-none mx-auto px-4 scroll-mt-24">
 
         {/* ── Page header ───────────────────────────────────────────── */}
-        <div className="py-14 border-b border-stone-100 text-center">
+        {!display && <div className="py-14 border-b border-stone-100 text-center">
           <h1 className="storefront-heading text-4xl">Latest Rug Designs</h1>
-        </div>
+        </div>}
 
         {/* ── Filter bar ─────────────────────────────────────────────── */}
         <div className="py-5 border-b border-stone-100">

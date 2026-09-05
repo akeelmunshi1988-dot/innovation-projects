@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
+from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -162,6 +162,7 @@ async def shutdown_event():
 
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
 app.include_router(chat.router, prefix="/api", tags=["AI Chat"])
+app.include_router(collection_display.router, prefix="/api", tags=["Collection Display"])
 app.include_router(catalog.router, prefix="/api", tags=["Catalog"])
 app.include_router(quotes.router, prefix="/api", tags=["Quotes"])
 app.include_router(orders.router, prefix="/api", tags=["Orders"])

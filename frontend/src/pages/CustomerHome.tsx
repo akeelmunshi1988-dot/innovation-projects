@@ -176,6 +176,7 @@ export default function CustomerHome() {
     enabled: true,
   });
   const [homepageIntro, setHomepageIntro] = useState({
+    trustedByText: '',
     titleLineOne: 'Rug Making',
     titleLineTwo: '& Weaving',
     label: 'Final Product',
@@ -254,6 +255,7 @@ export default function CustomerHome() {
           enabled: data.homepage_values_enabled,
         });
         setHomepageIntro({
+          trustedByText: data.homepage_intro_trusted_by_text || '',
           titleLineOne: data.homepage_intro_title_line_one || 'Rug Making',
           titleLineTwo: data.homepage_intro_title_line_two || '& Weaving',
           label: data.homepage_intro_label || 'Final Product',
@@ -525,7 +527,7 @@ export default function CustomerHome() {
                 </p>
               </div>
 
-              {averageProjectRating != null && (
+              {(averageProjectRating != null || homepageIntro.trustedByText) && (
                   <div className="order-4 flex flex-col items-start lg:absolute lg:bottom-[5%] lg:right-[2%] lg:items-center">
                     {ratingCustomers.length > 0 && <div className="flex items-center">
                       {ratingCustomers.map((project, index) => {
@@ -554,16 +556,16 @@ export default function CustomerHome() {
                       })}
                     </div>}
                     <p className={`${ratingCustomers.length > 0 ? 'mt-5' : ''} text-lg text-stone-500`}>
-                      Trusted by <span className="font-medium text-[#191d27]">{ratedProjects.length}+ customers</span>
+                      Trusted by <span className="font-medium text-[#191d27]">{homepageIntro.trustedByText || `${ratedProjects.length}+ customers`}</span>
                     </p>
-                    <div className="mt-3 flex items-center gap-2" aria-label={`${averageProjectRating.toFixed(1)} out of 5 stars`}>
+                    {averageProjectRating != null && <div className="mt-3 flex items-center gap-2" aria-label={`${averageProjectRating.toFixed(1)} out of 5 stars`}>
                       <div className="flex gap-0.5" aria-hidden="true">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star key={star} size={20} className={star <= Math.round(averageProjectRating) ? 'fill-rug-700 text-rug-700' : 'fill-stone-300 text-stone-300'} />
                         ))}
                       </div>
                       <span className="font-condensed text-base font-medium text-[#191d27]">/ {averageProjectRating.toFixed(1)}</span>
-                    </div>
+                    </div>}
                   </div>
               )}
 

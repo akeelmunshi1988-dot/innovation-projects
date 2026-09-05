@@ -55,6 +55,7 @@ export interface TenantInfo {
   homepage_intro_description: string | null;
   homepage_intro_cta_label: string | null;
   homepage_intro_cta_url: string | null;
+  homepage_intro_trusted_by_text: string | null;
   homepage_intro_enabled: boolean;
   homepage_contact_image_url: string | null;
   homepage_contact_image_alt: string | null;
