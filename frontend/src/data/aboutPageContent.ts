@@ -35,6 +35,10 @@ export interface AboutStory {
   eyebrow: string;
   heading: string;
   quote: string;
+  primary_image_url: string;
+  primary_image_alt: string;
+  secondary_image_url: string;
+  secondary_image_alt: string;
   // The body copy is edited separately as the rich-text "About Us Content"
   // field (tenant.about_us_content_html).
 }
@@ -43,6 +47,8 @@ export interface AboutProcessStep {
   number: string;
   title: string;
   text: string;
+  image_url: string;
+  image_alt: string;
 }
 
 export interface AboutProcess {
@@ -133,6 +139,10 @@ export const ABOUT_PAGE_DEFAULTS: AboutPageContent = {
     eyebrow: 'Our point of view',
     heading: 'Made slowly.\nLived with fully.',
     quote: '“Luxury is not excess. It is the time, judgement and human touch held within an object.”',
+    primary_image_url: '',
+    primary_image_alt: 'The rug-making workshop',
+    secondary_image_url: '',
+    secondary_image_alt: 'Natural fibres prepared for weaving',
   },
   process: {
     enabled: true,
@@ -140,10 +150,10 @@ export const ABOUT_PAGE_DEFAULTS: AboutPageContent = {
     heading: 'From an idea on paper\nto a surface underfoot.',
     intro: 'A made-to-order rug passes through many hands. Each stage is deliberate, and each one leaves a quiet trace in the finished piece.',
     steps: [
-      { number: '01', title: 'A considered beginning', text: 'Every rug begins with the room: its proportions, light, movement and atmosphere. We refine the scale, palette and construction before a single thread reaches the loom.' },
-      { number: '02', title: 'Material selection', text: 'Fibres are chosen for both beauty and purpose—from resilient wool and relaxed cotton to luminous silk and performance-led blends.' },
-      { number: '03', title: 'Made at the loom', text: 'Skilled hands translate the design knot by knot, line by line. This unhurried process gives each surface its depth, character and quiet individuality.' },
-      { number: '04', title: 'Finished by hand', text: 'The rug is washed, stretched, carved where required and carefully inspected. Edges, pile, colour and dimensions are reviewed before dispatch.' },
+      { number: '01', title: 'A considered beginning', text: 'Every rug begins with the room: its proportions, light, movement and atmosphere. We refine the scale, palette and construction before a single thread reaches the loom.', image_url: '', image_alt: 'Custom rug design planning' },
+      { number: '02', title: 'Material selection', text: 'Fibres are chosen for both beauty and purpose—from resilient wool and relaxed cotton to luminous silk and performance-led blends.', image_url: '', image_alt: 'Selecting rug fibres and materials' },
+      { number: '03', title: 'Made at the loom', text: 'Skilled hands translate the design knot by knot, line by line. This unhurried process gives each surface its depth, character and quiet individuality.', image_url: '', image_alt: 'Artisan weaving a rug at the loom' },
+      { number: '04', title: 'Finished by hand', text: 'The rug is washed, stretched, carved where required and carefully inspected. Edges, pile, colour and dimensions are reviewed before dispatch.', image_url: '', image_alt: 'Hand finishing and inspecting a rug' },
     ],
   },
   principles: {

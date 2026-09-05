@@ -595,12 +595,18 @@ class AboutStory(BaseModel):
     eyebrow: Optional[str] = Field(None, max_length=160)
     heading: Optional[str] = Field(None, max_length=400)
     quote: Optional[str] = Field(None, max_length=600)
+    primary_image_url: Optional[str] = Field(None, max_length=500)
+    primary_image_alt: Optional[str] = Field(None, max_length=200)
+    secondary_image_url: Optional[str] = Field(None, max_length=500)
+    secondary_image_alt: Optional[str] = Field(None, max_length=200)
 
 
 class AboutProcessStep(BaseModel):
     number: Optional[str] = Field(None, max_length=8)
     title: Optional[str] = Field(None, max_length=160)
     text: Optional[str] = Field(None, max_length=1000)
+    image_url: Optional[str] = Field(None, max_length=500)
+    image_alt: Optional[str] = Field(None, max_length=200)
 
 
 class AboutProcess(BaseModel):

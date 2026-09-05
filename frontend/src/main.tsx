@@ -28,18 +28,42 @@ axios.interceptors.response.use(
     }
     original._retried = true;
     const newToken = await refreshAccessToken();
-    if (!newToken) {
-      return Promise.reject(error);
+    if (newToken) {
+      original.headers = original.headers ?? {};
+      original.headers['Authorization'] = `Bearer ${newToken}`;
+      if (localStorage.getItem('loomcraftrugs_token')) {
+        localStorage.setItem('loomcraftrugs_token', newToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      } else if (localStorage.getItem('loomcraftrugs_customer_token')) {
+        localStorage.setItem('loomcraftrugs_customer_token', newToken);
+      }
+      return axios(original);
     }
-    original.headers = original.headers ?? {};
-    original.headers['Authorization'] = `Bearer ${newToken}`;
+
+    // Refresh failed — the refresh_token cookie is expired, revoked, or never
+    // existed, so the session is genuinely over. services/api.ts's own
+    // interceptor already clears storage and redirects to /admin/login for
+    // pages that use its wrapped client; this global one only retried the
+    // request and then silently rejected, leaving every page that calls plain
+    // axios directly (Catalog, BusinessSettings, the Homepage/About/Product
+    // Detail editors, CustomerLayout, …) stuck showing a failed request with
+    // no way back to login. Mirror that same cleanup + redirect here, for
+    // whichever session (admin or customer) this request was using.
     if (localStorage.getItem('loomcraftrugs_token')) {
-      localStorage.setItem('loomcraftrugs_token', newToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      localStorage.removeItem('loomcraftrugs_token');
+      localStorage.removeItem('loomcraftrugs_user');
+      delete axios.defaults.headers.common['Authorization'];
+      if (!window.location.pathname.startsWith('/admin/login')) {
+        window.location.href = '/admin/login';
+      }
     } else if (localStorage.getItem('loomcraftrugs_customer_token')) {
-      localStorage.setItem('loomcraftrugs_customer_token', newToken);
+      localStorage.removeItem('loomcraftrugs_customer_token');
+      localStorage.removeItem('loomcraftrugs_customer_user');
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
-    return axios(original);
+    return Promise.reject(error);
   }
 );
 

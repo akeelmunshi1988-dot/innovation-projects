@@ -27,7 +27,7 @@ export default function AboutPage() {
   const [error, setError] = useState('');
   const heroFileRef = useRef<HTMLInputElement>(null);
   const founderFileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState<'hero' | 'founder' | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
 
   const touched = () => setSaved(false);
 
@@ -53,7 +53,7 @@ export default function AboutPage() {
     return next;
   };
 
-  const uploadImage = async (slot: 'hero' | 'founder', file: File) => {
+  const uploadImage = async (slot: string, file: File, onUploaded?: (url: string) => void) => {
     setUploading(slot);
     setError('');
     try {
@@ -62,7 +62,8 @@ export default function AboutPage() {
       const { data } = await axios.post<{ url: string }>('/api/tenant/about-image', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      patchSection(slot, { image_url: data.url } as never);
+      if (onUploaded) onUploaded(data.url);
+      else patchSection(slot as 'hero' | 'founder', { image_url: data.url });
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Image upload failed.');
     } finally {
@@ -215,6 +216,32 @@ export default function AboutPage() {
         <Field label="Pull quote">
           <textarea value={content.story.quote} onChange={(e) => patchSection('story', { quote: e.target.value })} maxLength={600} rows={2} className={`${fieldClass} resize-y`} />
         </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          {([
+            ['primary', 'Primary image', content.story.primary_image_url, content.story.primary_image_alt],
+            ['secondary', 'Overlay image', content.story.secondary_image_url, content.story.secondary_image_alt],
+          ] as const).map(([key, label, imageUrl, imageAlt]) => {
+            const slot = `story-${key}`;
+            const urlField = `${key}_image_url` as 'primary_image_url' | 'secondary_image_url';
+            const altField = `${key}_image_alt` as 'primary_image_alt' | 'secondary_image_alt';
+            return (
+              <div key={key} className="space-y-3 rounded-lg border border-dark-700 bg-dark-800 p-3">
+                <p className={labelClass}>{label}</p>
+                <div className="aspect-[4/3] overflow-hidden rounded bg-dark-900">
+                  {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-dark-500">Workshop photo fallback</div>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dark-600 px-3 py-2 text-xs text-cream-200 hover:bg-dark-700">
+                    <ImagePlus size={14} /> {uploading === slot ? 'Uploading…' : imageUrl ? 'Replace' : 'Upload'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(slot, file, (url) => patchSection('story', { [urlField]: url })); e.target.value = ''; }} />
+                  </label>
+                  {imageUrl && <button type="button" onClick={() => patchSection('story', { [urlField]: '' })} className="text-xs text-red-400 hover:text-red-300">Remove</button>}
+                </div>
+                <input value={imageAlt} onChange={(e) => patchSection('story', { [altField]: e.target.value })} maxLength={200} placeholder="Image alt text" className={fieldClass} />
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
       {/* Process */}
@@ -240,9 +267,24 @@ export default function AboutPage() {
                 <input value={step.title} placeholder="Step title" onChange={(e) => setList('process', 'steps', content.process.steps.map((it, i) => i === index ? { ...it, title: e.target.value } : it))} maxLength={160} className={fieldClass} />
               </div>
               <textarea value={step.text} placeholder="Step description" onChange={(e) => setList('process', 'steps', content.process.steps.map((it, i) => i === index ? { ...it, text: e.target.value } : it))} maxLength={1000} rows={2} className={`${fieldClass} mt-2 resize-y`} />
+              <div className="mt-3 grid gap-3 sm:grid-cols-[9rem_1fr] sm:items-center">
+                <div className="aspect-[4/3] overflow-hidden rounded bg-dark-900">
+                  {step.image_url ? <img src={step.image_url} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-2 text-center text-[10px] text-dark-500">Workshop photo fallback</div>}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dark-600 px-3 py-2 text-xs text-cream-200 hover:bg-dark-700">
+                      <ImagePlus size={14} /> {uploading === `process-${index}` ? 'Uploading…' : step.image_url ? 'Replace image' : 'Upload image'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(`process-${index}`, file, (url) => setList('process', 'steps', content.process.steps.map((it, i) => i === index ? { ...it, image_url: url } : it))); e.target.value = ''; }} />
+                    </label>
+                    {step.image_url && <button type="button" onClick={() => setList('process', 'steps', content.process.steps.map((it, i) => i === index ? { ...it, image_url: '' } : it))} className="text-xs text-red-400 hover:text-red-300">Remove</button>}
+                  </div>
+                  <input value={step.image_alt || ''} onChange={(e) => setList('process', 'steps', content.process.steps.map((it, i) => i === index ? { ...it, image_alt: e.target.value } : it))} maxLength={200} placeholder="Image alt text" className={fieldClass} />
+                </div>
+              </div>
             </div>
           ))}
-          <button type="button" onClick={() => setList('process', 'steps', [...content.process.steps, { number: '', title: '', text: '' }])} className="flex items-center gap-2 rounded-lg border border-dashed border-dark-600 px-3 py-2 text-xs text-dark-300 hover:text-cream-200"><Plus size={13} /> Add step</button>
+          <button type="button" onClick={() => setList('process', 'steps', [...content.process.steps, { number: '', title: '', text: '', image_url: '', image_alt: '' }])} className="flex items-center gap-2 rounded-lg border border-dashed border-dark-600 px-3 py-2 text-xs text-dark-300 hover:text-cream-200"><Plus size={13} /> Add step</button>
         </div>
       </Card>
 
