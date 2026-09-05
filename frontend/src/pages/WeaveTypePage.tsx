@@ -346,8 +346,8 @@ export default function WeaveTypePage() {
                 <div className={`absolute inset-y-0 w-full bg-stone-100 overflow-hidden transition-[width,left,right,transform,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(200%+1.5rem)] lg:group-focus-within:w-[calc(200%+1.5rem)] lg:group-hover:shadow-2xl lg:group-focus-within:shadow-2xl ${expansionPosition}`}>
                   {rug.image_url ? (
                     <>
-                      <img src={rug.image_url} alt={rug.name} loading="lazy" className={`w-full h-full object-cover transition-opacity duration-500 ${rug.images.length ? 'group-hover:opacity-0' : ''}`} />
-                      {rug.images.length > 0 && <img src={rug.images[0].image_url} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500" />}
+                      <img src={rug.image_url} alt={rug.name} loading="lazy" className={`w-full h-full object-contain bg-white transition-opacity duration-500 ${rug.images.length ? 'group-hover:opacity-0' : ''}`} />
+                      {rug.images.length > 0 && <img src={rug.images[0].image_url} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 w-full h-full object-contain bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-500" />}
                     </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><Layers className="text-stone-300" /></div>
