@@ -74,9 +74,7 @@ class Tenant(Base):
     refund_cancellation_policy_html = Column(Text, nullable=True)  # admin-managed public policy page
     privacy_policy_html = Column(Text, nullable=True)              # admin-managed public privacy policy page
     default_catalog_additional_information_html = Column(Text, nullable=True)  # common notes used by rugs without a product override
-    rug_sample_information_html = Column(Text, nullable=True)   # shared storefront product accordion content
-    rug_care_advice_html = Column(Text, nullable=True)           # shared storefront product accordion content
-    rug_shipping_returns_html = Column(Text, nullable=True)      # shared storefront product accordion content
+    product_accordion_sections = Column(JSON, nullable=True)  # ordered list[{"id": str, "title": str, "html": str}] — admin-managed accordion sections shown after the fixed "Product Details" section on the storefront rug detail page; as many as the vendor wants
     about_us_content_html = Column(Text, nullable=True)          # main editable narrative (Story section body) on the public About Us page
     about_page = Column(JSON, nullable=True)  # structured /about content: {hero, credentials, story, process, principles, founder, cta} — each an object with an `enabled` flag; see schemas.AboutPageContent. Missing keys fall back to the frontend's aboutPageDefaults.
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges

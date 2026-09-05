@@ -728,16 +728,14 @@ class TenantPublic(BaseModel):
     refund_cancellation_policy_html: Optional[str] = None
     privacy_policy_html: Optional[str] = None
     default_catalog_additional_information_html: Optional[str] = None
-    rug_sample_information_html: Optional[str] = None
-    rug_care_advice_html: Optional[str] = None
-    rug_shipping_returns_html: Optional[str] = None
+    product_accordion_sections: List[dict] = []
     about_us_content_html: Optional[str] = None
     about_page: Optional[AboutPageContent] = None
     certifications: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
 
-    @field_validator('certifications', 'hero_images', 'homepage_values_items', mode='before')
+    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'product_accordion_sections', mode='before')
     @classmethod
     def _none_to_empty_certifications(cls, v):
         return v or []
@@ -807,9 +805,7 @@ class TenantUpdateRequest(BaseModel):
     refund_cancellation_policy_html: Optional[str] = Field(None, max_length=100000)
     privacy_policy_html: Optional[str] = Field(None, max_length=100000)
     default_catalog_additional_information_html: Optional[str] = Field(None, max_length=100000)
-    rug_sample_information_html: Optional[str] = Field(None, max_length=100000)
-    rug_care_advice_html: Optional[str] = Field(None, max_length=100000)
-    rug_shipping_returns_html: Optional[str] = Field(None, max_length=100000)
+    product_accordion_sections: Optional[List[dict]] = Field(None, max_length=30)
     about_us_content_html: Optional[str] = Field(None, max_length=100000)
     about_page: Optional[AboutPageContent] = None
     certifications: Optional[List[dict]] = None
@@ -858,6 +854,21 @@ class TenantUpdateRequest(BaseModel):
             for currency, rate in v.items():
                 if not isinstance(rate, (int, float)) or rate <= 0:
                     raise ValueError(f'Exchange rate for {currency} must be a positive number')
+        return v
+
+    @field_validator('product_accordion_sections')
+    @classmethod
+    def validate_product_accordion_sections(cls, v: Optional[List[dict]]) -> Optional[List[dict]]:
+        if v is None:
+            return v
+        for item in v:
+            title = str(item.get('title') or '').strip()
+            if not title:
+                raise ValueError('Every accordion section needs a title')
+            if len(title) > 160:
+                raise ValueError('Accordion section titles must be 160 characters or fewer')
+            if len(str(item.get('html') or '')) > 20000:
+                raise ValueError('Accordion section content is too long')
         return v
 
 

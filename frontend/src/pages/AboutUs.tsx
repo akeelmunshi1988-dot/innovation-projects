@@ -165,7 +165,7 @@ export default function AboutUs() {
               </div>
             </div>
 
-            <div className="lg:col-span-5 lg:col-start-8 lg:py-12">
+            <div className="lg:col-span-6 lg:col-start-7 lg:py-12">
               <p className="storefront-eyebrow mb-4">{sub(story.eyebrow)}</p>
               <h2 className="storefront-heading text-4xl lg:text-5xl whitespace-pre-line">
                 {sub(story.heading)}

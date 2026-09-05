@@ -13,6 +13,7 @@ import SocialLoginButtons from '../components/SocialLoginButtons';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { fmtSize, catalogSizeDims, toMetres, inputUnit, SIZE_UNITS } from '../utils/size';
 import { getPublicSettings } from '../services/api';
+import type { ProductAccordionSection } from '../types';
 import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
@@ -72,9 +73,7 @@ interface QuoteForm {
 interface ProductFAQ { id: number; question: string; answer: string; }
 
 interface SharedProductContent {
-  rug_sample_information_html: string | null;
-  rug_care_advice_html: string | null;
-  rug_shipping_returns_html: string | null;
+  product_accordion_sections: ProductAccordionSection[];
   catalog_pdf_url: string | null;
 }
 
@@ -90,9 +89,7 @@ export default function CustomerRugDetail() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [openProductInfo, setOpenProductInfo] = useState<string | null>(null);
   const [sharedProductContent, setSharedProductContent] = useState<SharedProductContent>({
-    rug_sample_information_html: null,
-    rug_care_advice_html: null,
-    rug_shipping_returns_html: null,
+    product_accordion_sections: [],
     catalog_pdf_url: null,
   });
 
@@ -166,9 +163,7 @@ export default function CustomerRugDetail() {
       .then((data) => {
         setSizeUnit(data.default_size_unit || 'ft');
         setSharedProductContent({
-          rug_sample_information_html: data.rug_sample_information_html,
-          rug_care_advice_html: data.rug_care_advice_html,
-          rug_shipping_returns_html: data.rug_shipping_returns_html,
+          product_accordion_sections: data.product_accordion_sections,
           catalog_pdf_url: data.catalog_pdf_url,
         });
       })
@@ -440,24 +435,15 @@ export default function CustomerRugDetail() {
       </ul>${rug.additional_information_html || ''}`,
       fallback: '',
     },
-    {
-      id: 'sample',
-      label: 'Rug Sample',
-      html: sharedProductContent.rug_sample_information_html,
-      fallback: '<p>Contact our team to request a rug sample and confirm availability, cost, and delivery timing.</p>',
-    },
-    {
-      id: 'care',
-      label: 'Care Advice',
-      html: sharedProductContent.rug_care_advice_html,
-      fallback: '<p>Vacuum gently without a beater bar, rotate periodically, and use a professional rug cleaner for deep cleaning.</p>',
-    },
-    {
-      id: 'shipping',
-      label: 'Shipping & Returns',
-      html: sharedProductContent.rug_shipping_returns_html,
-      fallback: `<p>This rug is prepared to order with an estimated lead time of ${selectedLeadTimeDays} days. Contact us for destination-specific shipping and return details.</p>`,
-    },
+    // Vendor-defined, open-ended list — as many (or as few) sections as the
+    // admin adds in Product Detail Page settings; unlike "Product Details"
+    // above, these carry no fixed identity or fallback copy.
+    ...sharedProductContent.product_accordion_sections.map((section) => ({
+      id: section.id,
+      label: section.title,
+      html: section.html,
+      fallback: '',
+    })),
   ];
   const canonicalProductUrl = `${window.location.origin}/catalog/${rug.slug}`;
   const structuredImageUrl = coverImage ? new URL(coverImage, window.location.origin).toString() : undefined;

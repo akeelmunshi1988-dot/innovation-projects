@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import axios from 'axios';
 import { refreshAccessToken } from '../services/authRefresh';
 import type { AboutPageContent } from '../data/aboutPageContent';
+import type { ProductAccordionSection } from '../types';
 
 export interface TenantInfo {
   id: number;
@@ -67,9 +68,7 @@ export interface TenantInfo {
   refund_cancellation_policy_html: string | null;
   privacy_policy_html: string | null;
   default_catalog_additional_information_html: string | null;
-  rug_sample_information_html: string | null;
-  rug_care_advice_html: string | null;
-  rug_shipping_returns_html: string | null;
+  product_accordion_sections: ProductAccordionSection[];
   about_us_content_html: string | null;
   about_page: AboutPageContent | null;
   certifications: { label: string; image_url: string }[];
