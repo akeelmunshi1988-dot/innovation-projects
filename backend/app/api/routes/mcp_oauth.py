@@ -40,11 +40,16 @@ def _oauth_error(error: str, description: str, status: int = 400) -> JSONRespons
     return JSONResponse({"error": error, "error_description": description}, status_code=status)
 
 
+_HTTPS_REDIRECT_HOSTS = ("chatgpt.com", "claude.ai", "claude.com")
+
+
 def _valid_redirect_uri(uri: str) -> bool:
     parsed = urlparse(uri)
     if parsed.fragment or not parsed.hostname:
         return False
-    if parsed.scheme == "https" and (parsed.hostname == "chatgpt.com" or parsed.hostname.endswith(".chatgpt.com")):
+    if parsed.scheme == "https" and any(
+        parsed.hostname == host or parsed.hostname.endswith(f".{host}") for host in _HTTPS_REDIRECT_HOSTS
+    ):
         return True
     return parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost"}
 

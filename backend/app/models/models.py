@@ -329,7 +329,7 @@ class Quote(Base):
     budget_range = Column(String(100), nullable=True)     # custom request: preset band, e.g. "₹50,000–₹1,00,000"
     expected_delivery = Column(String(50), nullable=True)  # custom request: customer's preferred timeframe, e.g. "Within 4 weeks"
     request_group_id = Column(String(36), nullable=True, index=True)  # ties together multiple Quotes submitted as one multi-rug custom request, so the vendor can later combine their resulting orders
-    reference_image_urls = Column(JSON, nullable=True)    # custom request: list[str], up to 3 inspiration images
+    reference_image_urls = Column(JSON, nullable=True)    # custom request: list[str] of inspiration images — up to 3 from the catalog "request a quote" form, up to 15 from the bespoke custom-rug-request form (see QuoteRequestBody/CustomRugRequestItem)
     vendor_sample_image_urls = Column(JSON, nullable=True)  # vendor-uploaded design samples sent back to the customer, list[str], up to 3
     revised_from_quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)  # set when this quote was cloned from a rejected one via "Revise & Resend"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
