@@ -22,12 +22,6 @@ import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitiz
 import type { CatalogSize, RugColorOption } from '../types';
 
 const QUOTE_ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
-const QUOTE_MATERIALS = [
-  { value: 'wool', label: 'Wool' }, { value: 'silk', label: 'Silk' },
-  { value: 'cotton', label: 'Cotton' }, { value: 'synthetic', label: 'Synthetic' },
-  { value: 'no_preference', label: 'No preference' }, { value: 'other', label: 'Other' },
-];
-const QUOTE_BUDGETS = ['Under ₹25,000', '₹25,000 – ₹50,000', '₹50,000 – ₹1,00,000', '₹1,00,000 – ₹2,50,000', 'Above ₹2,50,000', 'Not sure yet'];
 const QUOTE_DELIVERY = ['No preference', 'ASAP / Early Delivery', 'Within 4 weeks', '1–2 months', '2–3 months or more'];
 const MAX_QUOTE_IMAGES = 3;
 
@@ -116,10 +110,17 @@ export default function CustomerRugDetail() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [quoteResult, setQuoteResult] = useState<{ quote_id: number; final_price: number; lead_time_days: number } | null>(null);
   const [quoteModal, setQuoteModal] = useState(false);
+  const [quoteMaterials, setQuoteMaterials] = useState<{ id: number; name: string }[]>([]);
+  const [quoteMaterialsError, setQuoteMaterialsError] = useState(false);
+  useEffect(() => {
+    axios.get<{ id: number; name: string }[]>('/api/customer/materials')
+      .then(({ data }) => setQuoteMaterials(data))
+      .catch(() => setQuoteMaterialsError(true));
+  }, []);
   const [quoteDetails, setQuoteDetails] = useState({
     name: customer?.name ?? '', email: customer?.email ?? '', phone: '', company: '',
     room_type: QUOTE_ROOM_TYPES[0], material_preference: 'no_preference', material_other: '',
-    budget_range: QUOTE_BUDGETS[0], expected_delivery: QUOTE_DELIVERY[0], notes: '',
+    budget_range: '', expected_delivery: QUOTE_DELIVERY[0], notes: '',
     size_w: '', size_h: '', unit: 'ft', qty: '1',
     reference_image_urls: [] as string[], uploading: false,
   });
@@ -242,14 +243,8 @@ export default function CustomerRugDetail() {
     if (!rug) return;
     const room = rug.room_types?.[0]?.replace(/_/g, ' ');
     const matchingRoom = QUOTE_ROOM_TYPES.find((option) => option.toLowerCase() === room?.toLowerCase());
-    const material = QUOTE_MATERIALS.some((option) => option.value === rug.material_type)
-      ? rug.material_type : 'other';
+    const material = quoteMaterials.find(option => option.name === rug.material)?.name || 'other';
     const selectedSize = selectedCatalogSize;
-    const selectedPrice = Number(selectedSize?.price ?? 0);
-    const budget = selectedPrice < 25000 ? QUOTE_BUDGETS[0]
-      : selectedPrice < 50000 ? QUOTE_BUDGETS[1]
-        : selectedPrice < 100000 ? QUOTE_BUDGETS[2]
-          : selectedPrice < 250000 ? QUOTE_BUDGETS[3] : QUOTE_BUDGETS[4];
     setQuoteDetails((current) => ({
       ...current,
       name: customer?.name ?? current.name,
@@ -259,7 +254,7 @@ export default function CustomerRugDetail() {
       room_type: matchingRoom ?? current.room_type,
       material_preference: material,
       material_other: material === 'other' ? rug.material : '',
-      budget_range: budget,
+      budget_range: current.budget_range,
       size_w: form.size_w || (selectedSize ? String(catalogSizeDims(selectedSize, inputUnit(sizeUnit))?.[0] ?? '') : ''),
       size_h: form.size_h || (selectedSize ? String(catalogSizeDims(selectedSize, inputUnit(sizeUnit))?.[1] ?? '') : ''),
       unit: inputUnit(sizeUnit),
@@ -306,8 +301,8 @@ export default function CustomerRugDetail() {
         shape: 'rect',
         notes: quoteDetails.notes || null,
         room_type: quoteDetails.room_type || null,
-        material_preference: quoteDetails.material_preference === 'other' ? quoteDetails.material_other : quoteDetails.material_preference,
-        budget_range: quoteDetails.budget_range || null,
+        material_preference: quoteDetails.material_preference === 'other' ? quoteDetails.material_other.trim() : quoteDetails.material_preference,
+        budget_range: quoteDetails.budget_range.trim() || null,
         expected_delivery: quoteDetails.expected_delivery || null,
         reference_image_urls: quoteDetails.reference_image_urls.length ? quoteDetails.reference_image_urls : null,
         selected_color: selectedColor || null,
@@ -1069,28 +1064,26 @@ export default function CustomerRugDetail() {
                 <div>
                   <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Material Preference</label>
                   <div className="relative">
-                    <select value={quoteDetails.material_preference} onChange={(e) => setQuoteDetails((current) => ({ ...current, material_preference: e.target.value }))}
+                    <select aria-label="Material Preference" value={quoteDetails.material_preference} onChange={(e) => setQuoteDetails((current) => ({ ...current, material_preference: e.target.value }))}
                       className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
-                      {QUOTE_MATERIALS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      <option value="no_preference">No preference</option>
+                      {quoteMaterials.map(option => <option key={option.id} value={option.name}>{option.name}</option>)}
+                      <option value="other">Other</option>
                     </select>
                     <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
                   </div>
                 </div>
+                {quoteMaterialsError && <p className="text-xs text-stone-500 sm:col-span-2">Materials could not be loaded. Use Other to enter your preference.</p>}
                 {quoteDetails.material_preference === 'other' && (
                   <div className="sm:col-span-2">
                     <input value={quoteDetails.material_other} onChange={(e) => setQuoteDetails((current) => ({ ...current, material_other: e.target.value }))}
-                      placeholder="Specify material" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                      maxLength={150} placeholder="Specify material" className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
                   </div>
                 )}
                 <div>
-                  <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Budget Range</label>
-                  <div className="relative">
-                    <select value={quoteDetails.budget_range} onChange={(e) => setQuoteDetails((current) => ({ ...current, budget_range: e.target.value }))}
-                      className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
-                      {QUOTE_BUDGETS.map((option) => <option key={option}>{option}</option>)}
-                    </select>
-                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                  </div>
+                  <label htmlFor="quote-estimated-budget" className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Estimated Budget</label>
+                  <input id="quote-estimated-budget" type="text" maxLength={100} value={quoteDetails.budget_range} onChange={(e) => setQuoteDetails(current => ({ ...current, budget_range: e.target.value }))} placeholder="e.g. INR 25,000–50,000 total or USD 500 per rug" className="w-full border border-stone-200 bg-white px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  <p className="mt-1 text-xs text-stone-400">Include currency and whether the budget is per rug or total.</p>
                 </div>
                 <div>
                   <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Expected Delivery</label>
@@ -1105,11 +1098,12 @@ export default function CustomerRugDetail() {
               </div>
 
               <div>
-                <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Describe Your Requirements</label>
-                <textarea rows={3} maxLength={1500} value={quoteDetails.notes}
+                <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Describe Your Requirements <span className="normal-case font-normal">(maximum 1,500 characters)</span></label>
+                <textarea aria-label="Describe Your Requirements" aria-describedby="quote-requirements-count" rows={3} maxLength={1500} value={quoteDetails.notes}
                   onChange={(e) => setQuoteDetails((current) => ({ ...current, notes: e.target.value }))}
                   placeholder="Colors, placement, changes, or anything else we should know…"
                   className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm resize-none focus:outline-none focus:border-stone-400" />
+                <p id="quote-requirements-count" className="mt-1 text-right text-xs text-stone-400">{quoteDetails.notes.length}/1,500 characters</p>
               </div>
 
               <div>
