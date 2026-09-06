@@ -56,11 +56,13 @@ export const MEGA_MENU = {
 };
 
 
-export function collectionMenu(options: { materials: string[]; weaves: string[] }) {
+export function collectionMenu(options: { materials: string[]; weaves: string[]; spaces: string[]; moods: string[] }) {
   const label = (value: string) => value.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
   return {
     ...MEGA_MENU,
-    material: { ...MEGA_MENU.material, links: options.materials.map(value => ({ label: label(value), to: `/collections/material/${encodeURIComponent(value)}` })) },
+    space: { ...MEGA_MENU.space, links: (options.spaces || []).map(value => ({ label: label(value), to: `/collections/space/${encodeURIComponent(value)}` })) },
+    mood: { ...MEGA_MENU.mood, links: (options.moods || []).map(value => ({ label: label(value), to: `/collections/mood/${encodeURIComponent(value)}` })) },
+    material: { ...MEGA_MENU.material, links: options.materials.map(value => ({ label: value, to: `/collections/material/${encodeURIComponent(value)}` })) },
     weave: { ...MEGA_MENU.weave, links: options.weaves.map(value => ({ label: label(value), to: `/weaves/${encodeURIComponent(value)}` })) },
   };
 }

@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
 from app.core.slugify import unique_rug_slug
-from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant, CatalogSizeMaster, WeaveTypeMaster, PileHeightMaster
+from app.models.models import RugCatalog, RugImage, Material, StaffUser, Tenant, CatalogSizeMaster, WeaveTypeMaster, PileHeightMaster, SpaceMaster, MoodMaster
 from app.schemas.schemas import (
     RugCatalogCreate, RugCatalogUpdate, RugCatalog as RugCatalogSchema,
     RugImageCreate, RugImageUpdate, RugImage as RugImageSchema,
@@ -50,6 +50,8 @@ def _attribute_masters(db: Session, tenant_id: int, model, rug_field: str, defau
 
 def _create_attribute(body, db: Session, current_user: StaffUser, model):
     name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name cannot be blank")
     if model is PileHeightMaster and len(name) > 50:
         raise HTTPException(status_code=422, detail="Pile height must be 50 characters or fewer")
     duplicate = db.query(model).filter(model.tenant_id == current_user.tenant_id).all()
@@ -70,6 +72,8 @@ def _update_attribute(item_id: int, body, db: Session, current_user: StaffUser, 
     old_name = item.name
     if "name" in values:
         name = values["name"].strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Name cannot be blank")
         if model is PileHeightMaster and len(name) > 50:
             raise HTTPException(status_code=422, detail="Pile height must be 50 characters or fewer")
         peers = db.query(model).filter(model.tenant_id == current_user.tenant_id, model.id != item_id).all()
@@ -78,7 +82,10 @@ def _update_attribute(item_id: int, body, db: Session, current_user: StaffUser, 
         values["name"] = name
     for field, value in values.items():
         setattr(item, field, value)
-    if item.name != old_name:
+    if item.name != old_name and model in (SpaceMaster, MoodMaster):
+        for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all():
+            setattr(rug, rug_field, [item.name if value == old_name else value for value in (getattr(rug, rug_field) or [])])
+    elif item.name != old_name:
         db.query(RugCatalog).filter(
             RugCatalog.tenant_id == current_user.tenant_id,
             getattr(RugCatalog, rug_field) == old_name,
@@ -93,10 +100,12 @@ def _delete_attribute(item_id: int, db: Session, current_user: StaffUser, model,
     item = db.query(model).filter(model.id == item_id, model.tenant_id == current_user.tenant_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Master value not found")
-    in_use = db.query(RugCatalog).filter(
+    in_use = None if model in (SpaceMaster, MoodMaster) else db.query(RugCatalog).filter(
         RugCatalog.tenant_id == current_user.tenant_id,
         getattr(RugCatalog, rug_field) == item.name,
     ).first()
+    if model in (SpaceMaster, MoodMaster):
+        in_use = any(item.name in (getattr(rug, rug_field) or []) for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all())
     if in_use:
         raise HTTPException(status_code=409, detail="This value is used by catalog rugs. Deactivate it instead.")
     db.delete(item)
@@ -142,6 +151,46 @@ def update_catalog_pile_height(item_id: int, body: CatalogAttributeMasterUpdate,
 @router.delete("/catalog-pile-heights/{item_id}")
 def delete_catalog_pile_height(item_id: int, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
     return _delete_attribute(item_id, db, current_user, PileHeightMaster, "pile_height")
+
+
+@router.get("/catalog-spaces", response_model=List[CatalogAttributeMasterSchema])
+def get_spaces(db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return db.query(SpaceMaster).filter(SpaceMaster.tenant_id == current_user.tenant_id).order_by(SpaceMaster.sort_order, SpaceMaster.id).all()
+
+
+@router.post("/catalog-spaces", response_model=CatalogAttributeMasterSchema)
+def create_spaces(body: CatalogAttributeMasterCreate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _create_attribute(body, db, current_user, SpaceMaster)
+
+
+@router.put("/catalog-spaces/{item_id}", response_model=CatalogAttributeMasterSchema)
+def update_spaces(item_id: int, body: CatalogAttributeMasterUpdate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _update_attribute(item_id, body, db, current_user, SpaceMaster, "room_types")
+
+
+@router.delete("/catalog-spaces/{item_id}")
+def delete_spaces(item_id: int, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _delete_attribute(item_id, db, current_user, SpaceMaster, "room_types")
+
+
+@router.get("/catalog-moods", response_model=List[CatalogAttributeMasterSchema])
+def get_moods(db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return db.query(MoodMaster).filter(MoodMaster.tenant_id == current_user.tenant_id).order_by(MoodMaster.sort_order, MoodMaster.id).all()
+
+
+@router.post("/catalog-moods", response_model=CatalogAttributeMasterSchema)
+def create_moods(body: CatalogAttributeMasterCreate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _create_attribute(body, db, current_user, MoodMaster)
+
+
+@router.put("/catalog-moods/{item_id}", response_model=CatalogAttributeMasterSchema)
+def update_moods(item_id: int, body: CatalogAttributeMasterUpdate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _update_attribute(item_id, body, db, current_user, MoodMaster, "mood_tags")
+
+
+@router.delete("/catalog-moods/{item_id}")
+def delete_moods(item_id: int, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    return _delete_attribute(item_id, db, current_user, MoodMaster, "mood_tags")
 
 
 @router.get("/catalog-sizes", response_model=List[CatalogSizeMasterSchema])
