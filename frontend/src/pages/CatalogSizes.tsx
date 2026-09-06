@@ -37,8 +37,9 @@ export default function CatalogSizes() {
   };
 
   const removeSize = async (size: CatalogSizeMaster) => {
+    if (!window.confirm(`Delete size ${size.ft}? It will be removed from all catalog rugs. Existing quotes and orders will be kept.`)) return;
     setSaving(size.id); setMessage(null);
-    try { await axios.delete(`/api/catalog-sizes/${size.id}`); setSizes(current => current.filter(row => row.id !== size.id)); }
+    try { await axios.delete(`/api/catalog-sizes/${size.id}`); setSizes(current => current.filter(row => row.id !== size.id)); setMessage('Size deleted from Common Sizes and catalog rugs.'); }
     catch (error: any) { setMessage(error.response?.data?.detail || 'Could not delete size.'); }
     finally { setSaving(null); }
   };
@@ -66,7 +67,7 @@ export default function CatalogSizes() {
             <input disabled={saving !== null} value={size.cm ?? ''} onChange={(e) => update(size.id, 'cm', e.target.value)} placeholder="Optional" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
             <div className="w-36 flex items-center gap-2">
 
-              <button onClick={() => removeSize(size)} disabled={saving !== null} className="p-2 text-dark-500 hover:text-red-400 disabled:opacity-50" title="Delete unused size"><Trash2 size={15} /></button>
+              <button onClick={() => removeSize(size)} disabled={saving !== null} className="p-2 text-dark-500 hover:text-red-400 disabled:opacity-50" title="Delete size" aria-label={`Delete size ${size.ft}`}><Trash2 size={15} /></button>
             </div>
           </div>
         ))}
@@ -79,7 +80,7 @@ export default function CatalogSizes() {
 
       <button onClick={saveSizes} disabled={saving !== null || loading} className="btn-primary inline-flex items-center gap-2"><Save size={16} />{saving !== null ? 'Saving…' : 'Save all sizes'}</button>
 
-      <p className="text-dark-500 text-xs">Sizes already used by rugs cannot be deleted. Deactivate or update them so existing orders and pricing remain intact.</p>
+      <p className="text-dark-500 text-xs">Deleting a size removes it from catalog rugs. Existing quotes and orders keep their saved dimensions.</p>
     </div>
   );
 }
