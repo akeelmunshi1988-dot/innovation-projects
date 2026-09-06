@@ -29,6 +29,9 @@ import {
   Ruler,
   Layers3,
   Route as RouteIcon,
+  Briefcase,
+  Truck,
+  Palette,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
@@ -64,6 +67,9 @@ const navItems: NavItem[] = [
   { path: '/admin/faqs', label: 'FAQs', icon: <HelpCircle size={18} /> },
   { path: '/admin/project-gallery', label: 'Project Gallery', icon: <LayoutGrid size={18} /> },
   { path: '/admin/newsletter-subscribers', label: 'Newsletter', icon: <Mail size={18} /> },
+  { path: '/admin/trade-enquiries', label: 'Trade Enquiries', icon: <Briefcase size={18} /> },
+  { path: '/admin/order-tracking-page', label: 'Order Tracking Page', icon: <Truck size={18} /> },
+  { path: '/admin/colour-matching-page', label: 'Colour Matching Page', icon: <Palette size={18} /> },
   { path: '/admin/quote-builder', label: 'Quote Builder', icon: <Calculator size={18} /> },
   { path: '/admin/quotes', label: 'Quotes', icon: <FileText size={18} /> },
   { path: '/admin/promo-codes', label: 'Promo Codes', icon: <Tag size={18} /> },

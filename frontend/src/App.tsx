@@ -58,6 +58,8 @@ const BusinessSettings = lazy(() => import('./pages/BusinessSettings'));
 const FAQs = lazy(() => import('./pages/FAQs'));
 const RefundCancellationPolicy = lazy(() => import('./pages/RefundCancellationPolicy'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const RugServices = lazy(() => import('./pages/RugServices'));
+const TradeEnquiries = lazy(() => import('./pages/TradeEnquiries'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
@@ -66,6 +68,8 @@ const HomepageFullBleedImage = lazy(() => import('./pages/HomepageFullBleedImage
 const WebsiteMenu = lazy(() => import('./pages/WebsiteMenu'));
 const HomepageIntroduction = lazy(() => import('./pages/HomepageIntroduction'));
 const HomepageValues = lazy(() => import('./pages/HomepageValues'));
+const OrderTrackingPage = lazy(() => import('./pages/OrderTrackingPage'));
+const ColourMatchingPage = lazy(() => import('./pages/ColourMatchingPage'));
 const HomepageContact = lazy(() => import('./pages/HomepageContact'));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
 const AboutPageAdmin = lazy(() => import('./pages/AboutPage'));
@@ -104,6 +108,10 @@ function App() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/refund-cancellation-policy" element={<RefundCancellationPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/colour-matching" element={<RugServices page="colour" />} />
+          <Route path="/rug-size-guide" element={<RugServices page="size" />} />
+          <Route path="/trade-enquiry" element={<RugServices page="trade" />} />
+          <Route path="/order-tracking" element={<RugServices page="tracking" />} />
           <Route path="/catalog" element={<CustomerCatalog />} />
           <Route path="/catalog/space/:value" element={<CustomerCatalog />} />
           <Route path="/catalog/mood/:value" element={<CustomerCatalog />} />
@@ -154,6 +162,8 @@ function App() {
                     <Route path="website-menu" element={<WebsiteMenu />} />
                     <Route path="homepage-introduction" element={<HomepageIntroduction />} />
                     <Route path="homepage-values" element={<HomepageValues />} />
+                    <Route path="order-tracking-page" element={<OrderTrackingPage />} />
+                    <Route path="colour-matching-page" element={<ColourMatchingPage />} />
                     <Route path="homepage-contact" element={<HomepageContact />} />
                     <Route path="workshop-photos" element={<WorkshopPhotos />} />
                     <Route path="journey-steps" element={<JourneySteps />} />
@@ -161,6 +171,7 @@ function App() {
                     <Route path="announcement-bar" element={<AnnouncementBar />} />
                     <Route path="project-gallery" element={<ProjectGallery />} />
                     <Route path="newsletter-subscribers" element={<NewsletterSubscribers />} />
+                    <Route path="trade-enquiries" element={<TradeEnquiries />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="inventory" element={<Inventory />} />

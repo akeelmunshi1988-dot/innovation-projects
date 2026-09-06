@@ -149,6 +149,24 @@ DEFAULT_TEMPLATES = {
             "— {{tenant_name}} System"
         ),
     },
+    "vendor_trade_enquiry": {
+        "name": "New Trade Enquiry (to Vendor)",
+        "subject": "New trade enquiry from {{customer_name}} ({{company}})",
+        "body_html": "",  # vendor notification is plaintext-only today
+        "body_text": (
+            "Hello {{tenant_name}} team,\n\n"
+            "{{customer_name}} ({{customer_email}}, {{customer_phone}}) submitted a trade partner enquiry.\n\n"
+            "Profession: {{profession}}\n"
+            "Company / studio: {{company}}\n"
+            "Website / Instagram: {{website}}\n"
+            "City: {{city}}\n"
+            "Country: {{country}}\n"
+            "Primary project type: {{project_type}}\n\n"
+            "Project brief:\n{{project_brief}}\n\n"
+            "Log in to the admin panel's Trade Enquiries page to review this enquiry.\n\n"
+            "— {{tenant_name}} System"
+        ),
+    },
     "customer_verification": {
         "name": "Registration Verification",
         "subject": "Verify your email — {{tenant_name}}",

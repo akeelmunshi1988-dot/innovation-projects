@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt, PromoCode, HomepageEnquiry
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt, PromoCode, HomepageEnquiry, TradeEnquiry
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services import ai_realism
@@ -357,6 +357,18 @@ async def get_public_settings():
             "enabled_currencies": (tenant.enabled_currencies or []) if tenant else [],
             "catalog_pdf_url": tenant.catalog_pdf_url if tenant else None,
             "certifications": (tenant.certifications or []) if tenant else [],
+            "order_tracking_eyebrow": tenant.order_tracking_eyebrow if tenant else None,
+            "order_tracking_heading": tenant.order_tracking_heading if tenant else None,
+            "order_tracking_body": tenant.order_tracking_body if tenant else None,
+            "order_tracking_shipping_policy_url": tenant.order_tracking_shipping_policy_url if tenant else None,
+            "order_tracking_carriers": (tenant.order_tracking_carriers or []) if tenant else [],
+            "order_tracking_steps": (tenant.order_tracking_steps or []) if tenant else [],
+            "order_tracking_media_url": tenant.order_tracking_media_url if tenant else None,
+            "order_tracking_media_type": tenant.order_tracking_media_type if tenant else None,
+            "colour_matching_eyebrow": tenant.colour_matching_eyebrow if tenant else None,
+            "colour_matching_heading": tenant.colour_matching_heading if tenant else None,
+            "colour_matching_body": tenant.colour_matching_body if tenant else None,
+            "colour_matching_items": (tenant.colour_matching_items or []) if tenant else [],
             "default_shipping_rate": tenant.default_shipping_rate if tenant else None,
             "product_accordion_sections": (tenant.product_accordion_sections or []) if tenant else [],
             "about_us_content_html": tenant.about_us_content_html if tenant else None,
@@ -678,6 +690,83 @@ async def create_homepage_enquiry(body: HomepageEnquiryBody):
             raise HTTPException(status_code=422, detail="Please complete every field.")
         db.add(enquiry)
         db.commit()
+        return {"message": "Enquiry received"}
+    finally:
+        db.close()
+
+
+class TradeEnquiryBody(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=150)
+    last_name: str = Field(..., min_length=1, max_length=150)
+    email: EmailStr
+    phone: str = Field(..., min_length=1, max_length=50)
+    city: Optional[str] = Field(None, max_length=150)
+    country: Optional[str] = Field(None, max_length=150)
+    profession: str = Field(..., min_length=1, max_length=50)
+    company: str = Field(..., min_length=1, max_length=200)
+    website: Optional[str] = Field(None, max_length=300)
+    project_type: Optional[str] = Field(None, max_length=50)
+    project_brief: str = Field(..., min_length=1, max_length=2000)
+
+
+def _notify_vendor_trade_enquiry(db: Session, enquiry: TradeEnquiry, tenant: Tenant) -> None:
+    from app.services import email_service
+
+    to_email = email_service.vendor_recipient(tenant)
+    if not to_email:
+        return
+
+    subject, body_text, body_html = email_service.render_template(
+        db, tenant.id, "vendor_trade_enquiry",
+        {
+            "tenant_name": tenant.name,
+            "customer_name": f"{enquiry.first_name} {enquiry.last_name}",
+            "customer_email": enquiry.email,
+            "customer_phone": enquiry.phone,
+            "city": enquiry.city or "Not provided",
+            "country": enquiry.country or "Not provided",
+            "profession": enquiry.profession,
+            "company": enquiry.company,
+            "website": enquiry.website or "Not provided",
+            "project_type": enquiry.project_type or "Not specified",
+            "project_brief": enquiry.project_brief,
+        },
+    )
+    email_service.send_email(to_email, subject, body_text, body_html, reply_to=enquiry.email)
+
+
+@router.post("/customer/trade-enquiries", status_code=201)
+async def create_trade_enquiry(body: TradeEnquiryBody):
+    """Capture a trade/design-partner enquiry submitted from the public trade enquiry page."""
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        if not tenant:
+            raise HTTPException(status_code=503, detail="The trade enquiry form is not available right now.")
+        enquiry = TradeEnquiry(
+            tenant_id=tenant.id,
+            first_name=body.first_name.strip(),
+            last_name=body.last_name.strip(),
+            email=str(body.email).strip().lower(),
+            phone=body.phone.strip(),
+            city=(body.city or "").strip() or None,
+            country=(body.country or "").strip() or None,
+            profession=body.profession.strip(),
+            company=body.company.strip(),
+            website=(body.website or "").strip() or None,
+            project_type=(body.project_type or "").strip() or None,
+            project_brief=body.project_brief.strip(),
+        )
+        db.add(enquiry)
+        db.commit()
+        db.refresh(enquiry)
+
+        # Notify vendor by email (best-effort)
+        try:
+            _notify_vendor_trade_enquiry(db, enquiry, tenant)
+        except Exception:
+            pass
+
         return {"message": "Enquiry received"}
     finally:
         db.close()

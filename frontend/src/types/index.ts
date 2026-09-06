@@ -117,6 +117,23 @@ export interface HomepageEnquiry {
   created_at: string | null;
 }
 
+export interface TradeEnquiry {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  city: string | null;
+  country: string | null;
+  profession: string;
+  company: string;
+  website: string | null;
+  project_type: string | null;
+  project_brief: string;
+  is_read: boolean;
+  created_at: string | null;
+}
+
 export interface RugImage {
   id: number;
   image_url: string;
