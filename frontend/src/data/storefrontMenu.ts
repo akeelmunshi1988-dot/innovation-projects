@@ -55,3 +55,12 @@ export const MEGA_MENU = {
   },
 };
 
+
+export function collectionMenu(options: { materials: string[]; weaves: string[] }) {
+  const label = (value: string) => value.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+  return {
+    ...MEGA_MENU,
+    material: { ...MEGA_MENU.material, links: options.materials.map(value => ({ label: label(value), to: `/collections/material/${encodeURIComponent(value)}` })) },
+    weave: { ...MEGA_MENU.weave, links: options.weaves.map(value => ({ label: label(value), to: `/weaves/${encodeURIComponent(value)}` })) },
+  };
+}

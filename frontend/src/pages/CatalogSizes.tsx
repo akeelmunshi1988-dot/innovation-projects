@@ -17,27 +17,28 @@ export default function CatalogSizes() {
     if (!draft.ft.trim()) return;
     setSaving('new'); setMessage(null);
     try {
-      await axios.post('/api/catalog-sizes', { ft: draft.ft.trim(), cm: draft.cm.trim() || null, sort_order: sizes.length, is_active: true });
+      const { data } = await axios.post<CatalogSizeMaster>('/api/catalog-sizes', { ft: draft.ft.trim(), cm: draft.cm.trim() || null, sort_order: sizes.length, is_active: true });
       setDraft({ ft: '', cm: '' });
-      await load();
+      // Preserve unsaved edits to existing rows.
+      setSizes(current => [...current, data]);
       setMessage('Size added and associated with all catalog rugs.');
     } catch (error: any) { setMessage(error.response?.data?.detail || 'Could not add size.'); }
     finally { setSaving(null); }
   };
 
-  const saveSize = async (size: CatalogSizeMaster) => {
-    setSaving(size.id); setMessage(null);
+  const saveSizes = async () => {
+    setSaving('new'); setMessage(null);
     try {
-      await axios.put(`/api/catalog-sizes/${size.id}`, size);
-      await load();
-      setMessage('Master size updated across associated rugs.');
-    } catch (error: any) { setMessage(error.response?.data?.detail || 'Could not update size.'); }
+      const { data } = await axios.put('/api/catalog-sizes', sizes);
+      setSizes(data);
+      setMessage('All sizes saved across associated rugs.');
+    } catch (error: any) { setMessage(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'Could not save sizes. Check all dimensions.'); }
     finally { setSaving(null); }
   };
 
   const removeSize = async (size: CatalogSizeMaster) => {
     setSaving(size.id); setMessage(null);
-    try { await axios.delete(`/api/catalog-sizes/${size.id}`); await load(); }
+    try { await axios.delete(`/api/catalog-sizes/${size.id}`); setSizes(current => current.filter(row => row.id !== size.id)); }
     catch (error: any) { setMessage(error.response?.data?.detail || 'Could not delete size.'); }
     finally { setSaving(null); }
   };
@@ -61,10 +62,10 @@ export default function CatalogSizes() {
         </div>
         {loading ? <div className="py-16 text-center text-dark-400 text-sm">Loading sizes…</div> : sizes.map((size) => (
           <div key={size.id} className="grid grid-cols-[1fr_1fr_auto] gap-3 p-4 border-b border-dark-800 last:border-0 items-center">
-            <input value={size.ft} onChange={(e) => update(size.id, 'ft', e.target.value)} className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600" />
-            <input value={size.cm ?? ''} onChange={(e) => update(size.id, 'cm', e.target.value)} placeholder="Optional" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
+            <input disabled={saving !== null} value={size.ft} onChange={(e) => update(size.id, 'ft', e.target.value)} className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600" />
+            <input disabled={saving !== null} value={size.cm ?? ''} onChange={(e) => update(size.id, 'cm', e.target.value)} placeholder="Optional" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
             <div className="w-36 flex items-center gap-2">
-              <button onClick={() => saveSize(size)} disabled={saving !== null} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-white text-xs"><Save size={13} /> Save</button>
+
               <button onClick={() => removeSize(size)} disabled={saving !== null} className="p-2 text-dark-500 hover:text-red-400 disabled:opacity-50" title="Delete unused size"><Trash2 size={15} /></button>
             </div>
           </div>
@@ -75,6 +76,8 @@ export default function CatalogSizes() {
           <button onClick={addSize} disabled={!draft.ft.trim() || saving !== null} className="w-36 inline-flex justify-center items-center gap-1.5 px-3 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-white text-xs"><Plus size={13} /> Add Size</button>
         </div>
       </div>
+
+      <button onClick={saveSizes} disabled={saving !== null || loading} className="btn-primary inline-flex items-center gap-2"><Save size={16} />{saving !== null ? 'Saving…' : 'Save all sizes'}</button>
 
       <p className="text-dark-500 text-xs">Sizes already used by rugs cannot be deleted. Deactivate or update them so existing orders and pricing remain intact.</p>
     </div>

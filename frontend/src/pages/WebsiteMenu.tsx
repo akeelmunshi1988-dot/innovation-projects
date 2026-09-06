@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { NAV, MEGA_MENU } from '../data/storefrontMenu';
-
-const groups = [
-  { title: 'Main menu', items: NAV.map(item => ({ key: `nav:${item.path}`, label: item.label })) },
-  ...Object.entries(MEGA_MENU).map(([key, group]) => ({ title: group.heading, items: [
-    { key: `heading:${key}`, label: group.heading },
-    ...group.links.map(item => ({ key: `link:${item.to}`, label: item.label })),
-  ] })),
-];
+import { NAV, collectionMenu } from '../data/storefrontMenu';
 
 export default function WebsiteMenu() {
+  const [options, setOptions] = useState<{ materials: string[]; weaves: string[] }>({ materials: [], weaves: [] });
+  useEffect(() => {
+    axios.get('/api/customer/menu-options').then(({ data }) => setOptions(data)).catch(() => setMessage('Could not load collection menu options.'));
+  }, []);
+  const groups = [
+    { title: 'Main menu', items: NAV.map(item => ({ key: `nav:${item.path}`, label: item.label })) },
+    ...Object.entries(collectionMenu(options)).map(([key, group]) => ({ title: group.heading, items: [
+      { key: `heading:${key}`, label: group.heading },
+      ...group.links.map(item => ({ key: `link:${item.to}`, label: item.label })),
+    ] })),
+  ];
   const { user, updateTenant } = useAuth();
   const [labels, setLabels] = useState<Record<string, string>>(user!.tenant.storefront_menu_labels || {});
   const [busy, setBusy] = useState(false);
@@ -25,7 +28,7 @@ export default function WebsiteMenu() {
     finally { setBusy(false); }
   };
   return <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
-    <div><h1 className="text-2xl font-semibold text-cream-100">Website Menu</h1><p className="mt-2 text-sm text-dark-400">Edit the main menu and collection dropdown titles. Leave a field blank to use its default title.</p></div>
+    <div><h1 className="text-2xl font-semibold text-cream-100">Website Menu</h1><p className="mt-2 text-sm text-dark-400">Edit the main menu and collection dropdown titles. Leave a field blank to use its default title. Material categories come from Inventory and weave types from Weave Types; manage available options there.</p></div>
     {message && <p role="status" className="text-sm text-cream-200">{message}</p>}
     <fieldset disabled={busy} className="space-y-6">
       {groups.map(group => <section key={group.title} className="rounded-xl border border-dark-700 bg-dark-900 p-5">

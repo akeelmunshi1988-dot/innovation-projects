@@ -195,6 +195,38 @@ def create_catalog_size(body: CatalogSizeMasterCreate, db: Session = Depends(get
     return master
 
 
+@router.put("/catalog-sizes", response_model=List[CatalogSizeMasterSchema])
+def save_catalog_sizes(body: List[CatalogSizeMasterSchema], db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
+    masters = db.query(CatalogSizeMaster).filter(CatalogSizeMaster.tenant_id == current_user.tenant_id).all()
+    by_id = {m.id: m for m in masters}
+    if len({row.id for row in body}) != len(body) or any(row.id not in by_id for row in body):
+        raise HTTPException(status_code=422, detail="Invalid or duplicate size IDs")
+    proposed = {m.id: m.ft.strip() for m in masters}
+    proposed.update({row.id: row.ft.strip() for row in body})
+    if any(not ft for ft in proposed.values()) or len({ft.lower() for ft in proposed.values()}) != len(proposed):
+        raise HTTPException(status_code=422, detail="Feet sizes must be nonempty and unique")
+    old_names = {m.ft.strip().lower(): m.id for m in masters}
+    # Temporary unique names allow swapping two dimensions in one transaction.
+    for row in body:
+        by_id[row.id].ft = str(uuid.uuid4())
+    db.flush()
+    for row in body:
+        master = by_id[row.id]
+        master.ft = row.ft.strip()
+        master.cm = (row.cm or "").strip() or None
+        master.sort_order = row.sort_order
+        master.is_active = row.is_active
+    for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all():
+        updated = []
+        for entry in rug.sizes or []:
+            master = by_id.get(entry.get("master_size_id") or old_names.get(str(entry.get("ft", "")).strip().lower()))
+            updated.append({**entry, "master_size_id": master.id, "ft": master.ft, "cm": master.cm} if master else entry)
+        rug.sizes = updated
+    db.commit()
+    cache_clear("catalog")
+    return sorted(masters, key=lambda m: (m.sort_order, m.id))
+
+
 @router.put("/catalog-sizes/{size_id}", response_model=CatalogSizeMasterSchema)
 def update_catalog_size(size_id: int, body: CatalogSizeMasterUpdate, db: Session = Depends(get_db), current_user: StaffUser = Depends(get_current_user)):
     master = db.query(CatalogSizeMaster).filter(CatalogSizeMaster.id == size_id, CatalogSizeMaster.tenant_id == current_user.tenant_id).first()

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ChevronDown, Send } from 'lucide-react';
@@ -121,12 +121,6 @@ function TradeForm({ phone, email, loading }: { phone: string; email: string; lo
   </form>;
 }
 
-const DEFAULT_TRACKING_STEPS = [
-  { title: 'Final inspection', description: 'Your rug is checked, rolled and securely packed.' },
-  { title: 'Carrier collection', description: 'The carrier collects the completed shipment.' },
-  { title: 'Tracking sent', description: 'We share the tracking number and live tracking link with you.' },
-];
-
 const DEFAULT_COLOUR_ITEMS = [
   { title: 'Pantone Colours', description: 'Reference a Pantone code or attach your selected swatch.', image_url: '/static/journey/design.jpg' },
   { title: 'ARS Wool & Viscose Silk', description: 'Wool Box 1200 and 1400 · ARS 1000 Viscose Silk Box.', image_url: '/static/materials/wool.jpg' },
@@ -141,16 +135,6 @@ export default function RugServices({ page }: { page: 'colour' | 'size' | 'trade
     body: 'Bring your palette into the conversation. Share a colour reference, fabric swatch or yarn sample with your rug brief so we can discuss the closest match for your chosen material.\n\nInclude the reference system and code, such as Pantone, when available. Screens and fibres can show colour differently; discuss a physical sample before confirming your final palette.',
     items: DEFAULT_COLOUR_ITEMS,
   });
-  const [tracking, setTracking] = useState({
-    eyebrow: 'Order visibility',
-    heading: 'Follow your rug after dispatch.',
-    body: 'Once your finished rug has passed final inspection and is collected for shipment, we send the tracking number and tracking link by email or WhatsApp. You can then follow the order until delivery.',
-    shippingPolicyUrl: '',
-    carriers: [] as { label: string; image_url: string }[],
-    steps: DEFAULT_TRACKING_STEPS,
-    mediaUrl: '',
-    mediaType: null as 'image' | 'video' | null,
-  });
   useEffect(() => { let active = true; getPublicSettings().then(settings => {
     if (!active) return;
     setContact({ phone: (settings.contact_phones?.[0] || '').replace(/\D/g, ''), email: settings.contact_emails?.[0] || '', loading: false });
@@ -160,16 +144,7 @@ export default function RugServices({ page }: { page: 'colour' | 'size' | 'trade
       body: settings.colour_matching_body || 'Bring your palette into the conversation. Share a colour reference, fabric swatch or yarn sample with your rug brief so we can discuss the closest match for your chosen material.\n\nInclude the reference system and code, such as Pantone, when available. Screens and fibres can show colour differently; discuss a physical sample before confirming your final palette.',
       items: settings.colour_matching_items?.length ? settings.colour_matching_items : DEFAULT_COLOUR_ITEMS,
     });
-    setTracking({
-      eyebrow: settings.order_tracking_eyebrow || 'Order visibility',
-      heading: settings.order_tracking_heading || 'Follow your rug after dispatch.',
-      body: settings.order_tracking_body || 'Once your finished rug has passed final inspection and is collected for shipment, we send the tracking number and tracking link by email or WhatsApp. You can then follow the order until delivery.',
-      shippingPolicyUrl: settings.order_tracking_shipping_policy_url || '',
-      carriers: settings.order_tracking_carriers?.length ? settings.order_tracking_carriers : [],
-      steps: settings.order_tracking_steps?.length ? settings.order_tracking_steps : DEFAULT_TRACKING_STEPS,
-      mediaUrl: settings.order_tracking_media_url || '',
-      mediaType: settings.order_tracking_media_type || null,
-    });
+
   }).catch(() => { if (active) setContact({ phone: '', email: '', loading: false }); }); return () => { active = false; }; }, []);
   const meta = {
     colour: ['Colour Matching', 'Plan your bespoke rug colour with reference codes, swatches and yarn samples.'],
@@ -188,7 +163,5 @@ export default function RugServices({ page }: { page: 'colour' | 'size' | 'trade
       {room:'bedroom' as const,title:'Bedroom',text:'Extend the rug beyond the sides and foot of the bed for a comfortable landing. Account for bedside tables, door clearance and the space around the bed.'},
     ].map((item,index) => <article key={item.room} className="px-[4vw] py-14 text-[#20221c]"><p className="storefront-eyebrow">0{index+1}</p><h2 className="storefront-heading my-5 text-3xl">{item.title}</h2><RoomPlan room={item.room} /><p className="mt-6 text-sm leading-7 text-stone-600">{item.text}</p></article>)}</section><section className="bg-[#e8e2d6] px-[5vw] py-14 text-[#20221c]"><h2 className="storefront-heading text-3xl">Measure before you decide.</h2><p className="my-5 max-w-3xl text-sm leading-7 text-stone-600">Mark the proposed rug edges with tape, check furniture and doors, then note the width and length with your measurement unit. For a round rug, measure the diameter. Send your dimensions with your enquiry for a bespoke size.</p><Link to="/custom-rug-request" className={button}>Discuss your rug size ↗</Link></section></>}
     {page === 'trade' && <section className="bg-[#e8e2d6] px-[5vw] py-20 text-[#20221c] lg:py-28"><div className="grid gap-14 lg:grid-cols-[0.85fr_1.35fr] lg:gap-[8vw]"><Intro label="For design and trade professionals" title="Tell us about your practice and brief."><p>Share the intended use, sizes, quantities, materials and target date. Include your design direction so the studio can discuss development, sampling and production with you.</p><p>For architects, interior designers, retailers and hospitality teams planning their next rug project.</p></Intro><TradeForm {...contact} /></div></section>}
-    {page === 'tracking' && <section className="bg-[#20221c] px-[5vw] py-20 text-[#f7f5ef] lg:py-28"><div className="grid items-start gap-14 lg:grid-cols-2 lg:gap-[8vw]"><Intro dark label={tracking.eyebrow} title={tracking.heading}><p>{tracking.body}</p>{tracking.shippingPolicyUrl && <a href={tracking.shippingPolicyUrl} target="_blank" rel="noreferrer" className="inline-flex border-b border-white pb-2 text-xs uppercase tracking-wider">Read Our Shipping Policy ↗</a>}<Link to="/my-orders" className="inline-flex border-b border-white pb-2 text-xs uppercase tracking-wider">View my orders ↗</Link><p className="text-xs">Need help locating a shipment? Include your order number when contacting the studio.</p>{contact.email && <a href={`mailto:${contact.email}?subject=Order%20tracking%20help`} className="inline-block border-b border-white text-sm">Contact the studio ↗</a>}{tracking.mediaUrl && (tracking.mediaType === 'video' ? <video src={tracking.mediaUrl} className="mt-4 aspect-video w-full max-w-md object-cover" controls /> : <img src={tracking.mediaUrl} alt="" className="mt-4 aspect-video w-full max-w-md object-cover" />)}</Intro><div className="bg-[#f0ece3] p-8 text-[#20221c] md:p-12">{tracking.carriers.length > 0 && <div className="flex flex-wrap items-center justify-center gap-6 pb-8 border-b border-stone-300">{tracking.carriers.map((carrier, index) => <Fragment key={carrier.label}>{index > 0 && <span className="text-xs text-stone-400">or</span>}<img src={carrier.image_url} alt={carrier.label} className="h-20 w-auto max-w-[220px] object-contain" /></Fragment>)}</div>}{tracking.steps.map((step,index) => <div key={step.title} className="flex gap-5 border-t border-stone-300 py-6 first:border-t-0">
-      <span className="storefront-eyebrow pt-1">0{index+1}</span><div><h2 className="storefront-heading text-xl">{step.title}</h2><p className="mt-2 text-xs leading-6 text-stone-600">{step.description}</p></div></div>)}</div></div></section>}
   </CustomerLayout>;
 }

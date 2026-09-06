@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, PaymentAttempt, PromoCode, HomepageEnquiry, TradeEnquiry
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, WeaveTypeMaster, PaymentAttempt, PromoCode, HomepageEnquiry, TradeEnquiry
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services import ai_realism
@@ -289,6 +289,28 @@ async def get_output(filename: str):
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+@router.get("/customer/menu-options")
+def get_menu_options(db: Session = Depends(get_db)):
+    tenant = db.query(Tenant).first()
+    if tenant is None:
+        return {"materials": [], "weaves": []}
+    materials = db.query(Material.type).filter(Material.tenant_id == tenant.id, Material.is_available == True).distinct().order_by(Material.type).all()
+    weaves = db.query(WeaveTypeMaster).filter(WeaveTypeMaster.tenant_id == tenant.id, WeaveTypeMaster.is_active == True).order_by(WeaveTypeMaster.sort_order, WeaveTypeMaster.id).all()
+    return {"materials": [row.type for row in materials if row.type], "weaves": [row.name for row in weaves]}
+
+
+@router.get("/customer/materials")
+def get_customer_materials(db: Session = Depends(get_db)):
+    tenant = db.query(Tenant).first()
+    if tenant is None:
+        return []
+    materials = db.query(Material.id, Material.name).filter(
+        Material.tenant_id == tenant.id,
+        Material.is_available == True,
+    ).order_by(Material.name, Material.id).all()
+    return [{"id": material.id, "name": material.name} for material in materials]
 
 
 @router.get("/customer/settings")
@@ -1113,7 +1135,7 @@ class QuoteRequestBody(BaseModel):
     shape: str = "rect"
     notes: Optional[str] = Field(None, max_length=2000)
     room_type: Optional[str] = Field(None, max_length=100)
-    material_preference: Optional[str] = Field(None, max_length=50)
+    material_preference: Optional[str] = Field(None, max_length=150)
     budget_range: Optional[str] = Field(None, max_length=100)
     expected_delivery: Optional[str] = Field(None, max_length=50)
     reference_image_urls: Optional[list[str]] = Field(None, max_length=3)
@@ -1295,7 +1317,7 @@ class CustomRugRequestItem(BaseModel):
     size_w: float = Field(..., gt=0, le=50)
     size_h: float = Field(..., gt=0, le=50)
     qty: int = Field(1, ge=1, le=10000)
-    material_preference: Optional[str] = Field(None, max_length=50)
+    material_preference: Optional[str] = Field(None, max_length=150)
     budget_range: Optional[str] = Field(None, max_length=100)
     expected_delivery: Optional[str] = Field(None, max_length=50)
     notes: Optional[str] = Field(None, max_length=1500)
@@ -2982,7 +3004,7 @@ def _notify_vendor_custom_rug_request(db: Session, quote: Quote, tenant, custome
             "room_type": quote.room_type or "Not specified",
             "size": size_str,
             "qty": quote.qty,
-            "material_preference": _MATERIAL_PREFERENCE_LABELS.get(quote.material_preference or "", "Not specified"),
+            "material_preference": _MATERIAL_PREFERENCE_LABELS.get(quote.material_preference or "", quote.material_preference or "Not specified"),
             "budget_range": quote.budget_range or "Not specified",
             "notes_line": notes_line,
             "images_line": images_line,
