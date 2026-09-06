@@ -174,7 +174,16 @@ export default function WeaveTypePage() {
     character: 'Discover the texture and finish of each design',
     making: 'See individual product details',
     care: 'Follow the care instructions for your rug',
-  } : COLLECTIONS[categoryKey];
+  } : COLLECTIONS[categoryKey] || (['material', 'space', 'mood'].includes(facet) ? {
+    name: value.replace(/[-_]/g, ' '),
+    eyebrow: 'Discover the collection',
+    intro: `Explore the ${value.replace(/[-_]/g, ' ')} collection, in sizes and finishes to suit your space.`,
+    story: 'Browse the designs below for material details, available sizes, and finishes.',
+    bestFor: 'See individual rugs for room suggestions',
+    character: 'Discover the texture and finish of each design',
+    making: 'See individual product details',
+    care: 'Follow the care instructions for your rug',
+  } : undefined);
   const categoryLabel = isWeavePage
     ? 'Weave Type'
     : facet === 'space' ? 'Space' : facet === 'mood' ? 'Mood' : 'Material';

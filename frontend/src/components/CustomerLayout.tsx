@@ -33,7 +33,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const navigate = useNavigate();
   const { customer, isCustomerAuthenticated, customerLogout } = useCustomerAuth();
   const { user: adminUser, isAuthenticated: isAdminAuthenticated } = useAuth();
-  const [menuOptions, setMenuOptions] = useState<{ materials: string[]; weaves: string[] }>({ materials: [], weaves: [] });
+  const [menuOptions, setMenuOptions] = useState<{ materials: string[]; weaves: string[]; spaces: string[]; moods: string[] }>({ materials: [], weaves: [], spaces: [], moods: [] });
   const megaMenu = collectionMenu(menuOptions);
   useEffect(() => {
     axios.get('/api/customer/menu-options').then(({ data }) => setMenuOptions(data)).catch(() => {});

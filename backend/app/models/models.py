@@ -198,6 +198,26 @@ class WeaveTypeMaster(Base):
     is_active = Column(Boolean, nullable=False, default=True)
 
 
+class SpaceMaster(Base):
+    __tablename__ = "space_master"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_space_master_tenant_name"),)
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
+class MoodMaster(Base):
+    __tablename__ = "mood_master"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_mood_master_tenant_name"),)
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
 class PileHeightMaster(Base):
     __tablename__ = "pile_height_master"
     __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_pile_height_master_tenant_name"),)

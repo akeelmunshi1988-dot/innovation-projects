@@ -11,8 +11,6 @@ import RichTextEditor from '../components/RichTextEditor';
 import SizesEditor from '../components/SizesEditor';
 import CatalogDisplayImages from './CatalogDisplayImages';
 
-const ROOM_TYPE_OPTIONS = ['living_room', 'bedroom', 'dining_room', 'entryway'];
-const MOOD_TAG_OPTIONS  = ['warm_earthy', 'quiet_luxury', 'modern_minimal', 'bohemian', 'bold_artistic', 'timeless_traditional'];
 const tagLabel = (v: string) => v.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 const typeColors: Record<string, string> = {
@@ -108,6 +106,8 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
   const [galleryError, setGalleryError] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [colorUploadingIndex, setColorUploadingIndex] = useState<number | null>(null);
+  const [spaces, setSpaces] = useState<CatalogAttributeMaster[]>([]);
+  const [moods, setMoods] = useState<CatalogAttributeMaster[]>([]);
   const [weaveTypes, setWeaveTypes] = useState<CatalogAttributeMaster[]>([]);
   const [pileHeights, setPileHeights] = useState<CatalogAttributeMaster[]>([]);
 
@@ -115,7 +115,11 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
     Promise.all([
       axios.get<CatalogAttributeMaster[]>('/api/catalog-weave-types'),
       axios.get<CatalogAttributeMaster[]>('/api/catalog-pile-heights'),
-    ]).then(([weaves, piles]) => {
+      axios.get<CatalogAttributeMaster[]>('/api/catalog-spaces'),
+      axios.get<CatalogAttributeMaster[]>('/api/catalog-moods'),
+    ]).then(([weaves, piles, spaceValues, moodValues]) => {
+      setSpaces(spaceValues.data);
+      setMoods(moodValues.data);
       setWeaveTypes(weaves.data);
       setPileHeights(piles.data);
       if (!editing) {
@@ -617,7 +621,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
           <div className="space-y-1.5">
             <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Shop by Space</label>
             <div className="flex flex-wrap gap-1.5">
-              {ROOM_TYPE_OPTIONS.map((v) => (
+              {spaces.filter(item => item.is_active || form.room_types.includes(item.name)).map(item => item.name).map((v) => (
                 <button key={v} type="button" onClick={() => toggleTag('room_types', v)}
                   className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.room_types.includes(v) ? 'border-gold-600/50 bg-gold-600/10 text-gold-400' : 'border-dark-700 text-dark-400 hover:text-cream-300'}`}>
                   {tagLabel(v)}
@@ -628,7 +632,7 @@ export function CatalogDrawer({ editing, materials, onClose, onSaved }: DrawerPr
           <div className="space-y-1.5">
             <label className="text-cream-300 text-xs font-semibold uppercase tracking-wider">Shop by Mood</label>
             <div className="flex flex-wrap gap-1.5">
-              {MOOD_TAG_OPTIONS.map((v) => (
+              {moods.filter(item => item.is_active || form.mood_tags.includes(item.name)).map(item => item.name).map((v) => (
                 <button key={v} type="button" onClick={() => toggleTag('mood_tags', v)}
                   className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.mood_tags.includes(v) ? 'border-gold-600/50 bg-gold-600/10 text-gold-400' : 'border-dark-700 text-dark-400 hover:text-cream-300'}`}>
                   {tagLabel(v)}

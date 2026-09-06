@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { NAV, collectionMenu } from '../data/storefrontMenu';
 
 export default function WebsiteMenu() {
-  const [options, setOptions] = useState<{ materials: string[]; weaves: string[] }>({ materials: [], weaves: [] });
+  const [options, setOptions] = useState<{ materials: string[]; weaves: string[]; spaces: string[]; moods: string[] }>({ materials: [], weaves: [], spaces: [], moods: [] });
   useEffect(() => {
     axios.get('/api/customer/menu-options').then(({ data }) => setOptions(data)).catch(() => setMessage('Could not load collection menu options.'));
   }, []);
@@ -28,7 +28,7 @@ export default function WebsiteMenu() {
     finally { setBusy(false); }
   };
   return <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
-    <div><h1 className="text-2xl font-semibold text-cream-100">Website Menu</h1><p className="mt-2 text-sm text-dark-400">Edit the main menu and collection dropdown titles. Leave a field blank to use its default title. Material categories come from Inventory and weave types from Weave Types; manage available options there.</p></div>
+    <div><h1 className="text-2xl font-semibold text-cream-100">Website Menu</h1><p className="mt-2 text-sm text-dark-400">Edit the main menu and collection dropdown titles. Leave a field blank to use its default title. Material names come from Inventory. Spaces, moods, and weave types come from Collection Masters; manage available options there.</p></div>
     {message && <p role="status" className="text-sm text-cream-200">{message}</p>}
     <fieldset disabled={busy} className="space-y-6">
       {groups.map(group => <section key={group.title} className="rounded-xl border border-dark-700 bg-dark-900 p-5">

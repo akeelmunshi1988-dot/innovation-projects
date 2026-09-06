@@ -113,10 +113,12 @@ export default function CatalogAttributes() {
     <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
       <div>
         <p className="mb-2 text-xs uppercase tracking-widest text-gold-500">Catalog setup</p>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-cream-100"><Layers3 size={22} /> Weave & Pile Masters</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold text-cream-100"><Layers3 size={22} /> Collection Masters</h1>
         <p className="mt-2 max-w-3xl text-sm text-dark-400">Manage the choices offered in the catalog form. Deactivated values remain on existing rugs but cannot be selected for new ones.</p>
       </div>
       <div className="grid gap-6 xl:grid-cols-2">
+        <MasterList title="Spaces" description="Rooms and spaces shown in catalog tags and the Collection menu." endpoint="/api/catalog-spaces" example="e.g. study" />
+        <MasterList title="Moods" description="Styles and moods shown in catalog tags and the Collection menu." endpoint="/api/catalog-moods" example="e.g. coastal" />
         <MasterList title="Weave Types" description="Construction methods available for catalog rugs." endpoint="/api/catalog-weave-types" example="e.g. soumak" />
         <MasterList title="Pile Heights" description="Pile classifications available for catalog rugs." endpoint="/api/catalog-pile-heights" example="e.g. plush" />
       </div>
