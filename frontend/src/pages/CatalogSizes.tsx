@@ -6,23 +6,45 @@ import type { CatalogSizeMaster } from '../types';
 export default function CatalogSizes() {
   const [sizes, setSizes] = useState<CatalogSizeMaster[]>([]);
   const [draft, setDraft] = useState({ ft: '', cm: '' });
+  const [addError, setAddError] = useState('');
+  const [savedFeet, setSavedFeet] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number | 'new' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = () => axios.get('/api/catalog-sizes').then(({ data }) => setSizes(data)).finally(() => setLoading(false));
+  const load = () => axios.get<CatalogSizeMaster[]>('/api/catalog-sizes').then(({ data }) => {
+    setSizes(data);
+    setSavedFeet(Object.fromEntries(data.map(size => [size.id, size.ft])));
+  }).catch(() => setMessage('Could not load Common Sizes. Refresh the page before adding a size.')).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
   const addSize = async () => {
     if (!draft.ft.trim()) return;
+    const duplicate = Object.entries(savedFeet).find(([, ft]) => ft.trim().toLowerCase() === draft.ft.trim().toLowerCase());
+    if (duplicate) {
+      setAddError(`Size ${duplicate[1]} already exists. Edit its row and use Save all sizes.`);
+      document.getElementById(`common-size-${duplicate[0]}`)?.focus();
+      return;
+    }
+    setAddError('');
     setSaving('new'); setMessage(null);
     try {
       const { data } = await axios.post<CatalogSizeMaster>('/api/catalog-sizes', { ft: draft.ft.trim(), cm: draft.cm.trim() || null, sort_order: sizes.length, is_active: true });
       setDraft({ ft: '', cm: '' });
       // Preserve unsaved edits to existing rows.
       setSizes(current => [...current, data]);
+      setSavedFeet(current => ({ ...current, [data.id]: data.ft }));
       setMessage('Size added and associated with all catalog rugs.');
-    } catch (error: any) { setMessage(error.response?.data?.detail || 'Could not add size.'); }
+    } catch (error: any) {
+      setAddError(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'Could not add size. Please try again.');
+      if (error.response?.status === 409) {
+        try {
+          const { data } = await axios.get<CatalogSizeMaster[]>('/api/catalog-sizes');
+          setSavedFeet(Object.fromEntries(data.map(size => [size.id, size.ft])));
+          setSizes(current => data.map(saved => current.find(row => row.id === saved.id) || saved));
+        } catch { /* Keep the duplicate error and existing edits visible. */ }
+      }
+    }
     finally { setSaving(null); }
   };
 
@@ -31,6 +53,7 @@ export default function CatalogSizes() {
     try {
       const { data } = await axios.put('/api/catalog-sizes', sizes);
       setSizes(data);
+      setSavedFeet(Object.fromEntries((data as CatalogSizeMaster[]).map(size => [size.id, size.ft])));
       setMessage('All sizes saved across associated rugs.');
     } catch (error: any) { setMessage(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'Could not save sizes. Check all dimensions.'); }
     finally { setSaving(null); }
@@ -39,7 +62,7 @@ export default function CatalogSizes() {
   const removeSize = async (size: CatalogSizeMaster) => {
     if (!window.confirm(`Delete size ${size.ft}? It will be removed from all catalog rugs. Existing quotes and orders will be kept.`)) return;
     setSaving(size.id); setMessage(null);
-    try { await axios.delete(`/api/catalog-sizes/${size.id}`); setSizes(current => current.filter(row => row.id !== size.id)); setMessage('Size deleted from Common Sizes and catalog rugs.'); }
+    try { await axios.delete(`/api/catalog-sizes/${size.id}`); setSizes(current => current.filter(row => row.id !== size.id)); setSavedFeet(current => { const next = { ...current }; delete next[size.id]; return next; }); setMessage('Size deleted from Common Sizes and catalog rugs.'); }
     catch (error: any) { setMessage(error.response?.data?.detail || 'Could not delete size.'); }
     finally { setSaving(null); }
   };
@@ -63,7 +86,7 @@ export default function CatalogSizes() {
         </div>
         {loading ? <div className="py-16 text-center text-dark-400 text-sm">Loading sizes…</div> : sizes.map((size) => (
           <div key={size.id} className="grid grid-cols-[1fr_1fr_auto] gap-3 p-4 border-b border-dark-800 last:border-0 items-center">
-            <input disabled={saving !== null} value={size.ft} onChange={(e) => update(size.id, 'ft', e.target.value)} className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600" />
+            <input id={`common-size-${size.id}`} aria-label="Size in feet" maxLength={50} disabled={saving !== null} value={size.ft} onChange={(e) => update(size.id, 'ft', e.target.value)} className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm focus:outline-none focus:border-gold-600" />
             <input disabled={saving !== null} value={size.cm ?? ''} onChange={(e) => update(size.id, 'cm', e.target.value)} placeholder="Optional" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
             <div className="w-36 flex items-center gap-2">
 
@@ -72,11 +95,13 @@ export default function CatalogSizes() {
           </div>
         ))}
         <div className="grid grid-cols-[1fr_1fr_auto] gap-3 p-4 bg-dark-950/40 items-center">
-          <input value={draft.ft} onChange={(e) => setDraft((d) => ({ ...d, ft: e.target.value }))} placeholder="e.g. 6x9" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
-          <input value={draft.cm} onChange={(e) => setDraft((d) => ({ ...d, cm: e.target.value }))} placeholder="e.g. 183x274" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
-          <button onClick={addSize} disabled={!draft.ft.trim() || saving !== null} className="w-36 inline-flex justify-center items-center gap-1.5 px-3 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-white text-xs"><Plus size={13} /> Add Size</button>
+          <input aria-label="New size in feet" maxLength={50} disabled={loading || saving !== null} value={draft.ft} onChange={(e) => setDraft((d) => ({ ...d, ft: e.target.value }))} placeholder="e.g. 6x9" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
+          <input aria-label="New size in centimetres" maxLength={50} disabled={loading || saving !== null} value={draft.cm} onChange={(e) => setDraft((d) => ({ ...d, cm: e.target.value }))} placeholder="e.g. 183x274" className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-cream-100 text-sm placeholder-dark-500 focus:outline-none focus:border-gold-600" />
+          <button onClick={addSize} disabled={loading || !draft.ft.trim() || saving !== null} className="w-36 inline-flex justify-center items-center gap-1.5 px-3 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-white text-xs"><Plus size={13} /> Add Size</button>
         </div>
       </div>
+
+      {addError && <p role="alert" className="text-sm text-red-400">{addError}</p>}
 
       <button onClick={saveSizes} disabled={saving !== null || loading} className="btn-primary inline-flex items-center gap-2"><Save size={16} />{saving !== null ? 'Saving…' : 'Save all sizes'}</button>
 

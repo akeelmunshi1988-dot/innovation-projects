@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import DOMPurify from 'dompurify';
@@ -79,7 +79,7 @@ export default function AboutUs() {
   const paragraphs = (text: string) => sub(text).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
   const { hero, credentials, story, process, principles, founder, cta } = aboutPage;
-  const storyImages = [
+  const storyImages = story.images != null ? story.images.slice(0, 10).map(image => ({ src: image.image_url, alt: image.image_alt })) : [
     { src: story.primary_image_url || photo(1), alt: story.primary_image_alt || caption(1, 'The rug-making workshop') },
     { src: story.secondary_image_url || photo(2), alt: story.secondary_image_alt || caption(2, 'Natural fibres prepared for weaving') },
     ...workshopPhotos.map(image => ({ src: image.image_url, alt: image.caption || 'Inside the rug workshop' })),
@@ -153,9 +153,9 @@ export default function AboutUs() {
       {story.enabled && (
         <section className="w-[94vw] max-w-none mx-auto px-4 py-20 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-stretch">
-            <div className="lg:col-span-6 relative lg:min-h-[900px]">
+            <div className="lg:col-span-6 relative lg:min-h-[var(--story-height)]" style={{ '--story-height': `${Math.max(900, storyImages.length * 220)}px` } as CSSProperties}>
               <div className="grid grid-cols-2 gap-5 lg:absolute lg:inset-0 lg:grid-cols-1 lg:auto-rows-fr">
-                {storyImages.map(image => <figure key={image.src} className="min-h-0 overflow-hidden bg-stone-100">
+                {storyImages.map((image, index) => <figure key={`${index}-${image.src}`} className="min-h-0 overflow-hidden bg-stone-100">
                   <img src={image.src} alt={image.alt} className="aspect-[4/3] h-full w-full object-cover lg:aspect-auto" loading="lazy" />
                 </figure>)}
               </div>

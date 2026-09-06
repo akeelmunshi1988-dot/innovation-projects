@@ -97,6 +97,12 @@ export default function AboutPage() {
     return next;
   };
 
+  const storyGallery = content.story.images ?? [
+    { image_url: content.story.primary_image_url, image_alt: content.story.primary_image_alt },
+    { image_url: content.story.secondary_image_url, image_alt: content.story.secondary_image_alt },
+  ].filter(image => image.image_url);
+  const setStoryGallery = (images: typeof storyGallery) => patchSection('story', { images });
+
   const uploadImage = async (slot: string, file: File, onUploaded?: (url: string) => void) => {
     setUploading(slot);
     setError('');
@@ -148,7 +154,7 @@ export default function AboutPage() {
         <button
           type="button"
           onClick={save}
-          disabled={saving}
+          disabled={saving || uploading !== null}
           className="flex items-center gap-2 rounded-lg bg-gold-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
         >
           {saved ? <Check size={16} /> : <Save size={16} />} {saving ? 'Saving…' : saved ? 'Saved' : 'Save changes'}
@@ -227,32 +233,23 @@ export default function AboutPage() {
         <Field label="Pull quote">
           <textarea value={content.story.quote} onChange={(e) => patchSection('story', { quote: e.target.value })} maxLength={600} rows={2} className={`${fieldClass} resize-y`} />
         </Field>
-        <div className="grid gap-4 md:grid-cols-2">
-          {([
-            ['primary', 'Primary image', content.story.primary_image_url, content.story.primary_image_alt],
-            ['secondary', 'Overlay image', content.story.secondary_image_url, content.story.secondary_image_alt],
-          ] as const).map(([key, label, imageUrl, imageAlt]) => {
-            const slot = `story-${key}`;
-            const urlField = `${key}_image_url` as 'primary_image_url' | 'secondary_image_url';
-            const altField = `${key}_image_alt` as 'primary_image_alt' | 'secondary_image_alt';
-            return (
-              <div key={key} className="space-y-3 rounded-lg border border-dark-700 bg-dark-800 p-3">
-                <p className={labelClass}>{label}</p>
-                <div className="aspect-[4/3] overflow-hidden rounded bg-dark-900">
-                  {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-dark-500">Workshop photo fallback</div>}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dark-600 px-3 py-2 text-xs text-cream-200 hover:bg-dark-700">
-                    <ImagePlus size={14} /> {uploading === slot ? 'Uploading…' : imageUrl ? 'Replace' : 'Upload'}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(slot, file, (url) => patchSection('story', { [urlField]: url })); e.target.value = ''; }} />
-                  </label>
-                  {imageUrl && <button type="button" onClick={() => patchSection('story', { [urlField]: '' })} className="text-xs text-red-400 hover:text-red-300">Remove</button>}
-                </div>
-                <input value={imageAlt} onChange={(e) => patchSection('story', { [altField]: e.target.value })} maxLength={200} placeholder="Image alt text" className={fieldClass} />
+        <p className="text-sm text-dark-400">Story gallery: {storyGallery.length}/10 images. Upload, replace, reorder, or remove images, then save the About Page.</p>
+        <fieldset disabled={uploading !== null || saving} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {storyGallery.map((image, index) => <div key={`${index}-${image.image_url}`} className="space-y-3 rounded-lg border border-dark-700 bg-dark-800 p-3">
+              <img src={image.image_url} alt={image.image_alt} className="aspect-[4/3] w-full rounded object-cover" />
+              <input value={image.image_alt} maxLength={200} aria-label={`Story image ${index + 1} alt text`} placeholder="Image alt text" className={fieldClass} onChange={event => setStoryGallery(storyGallery.map((item, i) => i === index ? { ...item, image_alt: event.target.value } : item))} />
+              <div className="flex flex-wrap items-center gap-3 text-xs text-cream-200">
+                <label className="cursor-pointer">Replace<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) uploadImage(`story-${index}`, file, url => setStoryGallery(storyGallery.map((item, i) => i === index ? { ...item, image_url: url } : item))); event.target.value = ''; }} /></label>
+                <button type="button" disabled={index === 0} aria-label="Move image up" onClick={() => { const next = [...storyGallery]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; setStoryGallery(next); }}><ArrowUp size={15} /></button>
+                <button type="button" disabled={index === storyGallery.length - 1} aria-label="Move image down" onClick={() => { const next = [...storyGallery]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; setStoryGallery(next); }}><ArrowDown size={15} /></button>
+                <button type="button" onClick={() => setStoryGallery(storyGallery.filter((_, i) => i !== index))} className="text-red-400">Remove</button>
               </div>
-            );
-          })}
-        </div>
+            </div>)}
+          </div>
+          {storyGallery.length < 10 && <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-cream-200"><ImagePlus size={16} />Add image<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) uploadImage('story-add', file, url => setStoryGallery([...storyGallery, { image_url: url, image_alt: '' }].slice(0, 10))); event.target.value = ''; }} /></label>}
+        </fieldset>
+        {uploading?.startsWith('story-') && <p className="text-xs text-dark-400">Uploading image…</p>}
       </Card>
 
       {/* Process */}
