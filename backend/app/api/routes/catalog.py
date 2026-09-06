@@ -296,11 +296,21 @@ def delete_catalog_size(size_id: int, db: Session = Depends(get_db), current_use
     master = db.query(CatalogSizeMaster).filter(CatalogSizeMaster.id == size_id, CatalogSizeMaster.tenant_id == current_user.tenant_id).first()
     if not master:
         raise HTTPException(status_code=404, detail="Size not found")
-    if any(any(entry.get("master_size_id") == size_id for entry in (rug.sizes or [])) for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id)):
-        raise HTTPException(status_code=409, detail="This size is associated with catalog rugs. Deactivate it instead.")
+    for rug in db.query(RugCatalog).filter(RugCatalog.tenant_id == current_user.tenant_id).all():
+        entries = rug.sizes or []
+        remaining = [dict(entry) for entry in entries if not (
+            entry.get("master_size_id") == size_id
+            or (not entry.get("master_size_id") and str(entry.get("ft", "")).strip().lower() == master.ft.strip().lower())
+        )]
+        if len(remaining) != len(entries):
+            if remaining and not any(entry.get("is_default") for entry in remaining):
+                remaining[0]["is_default"] = True
+            rug.sizes = remaining
     db.delete(master)
     db.commit()
+    cache_clear("catalog")
     return {"ok": True}
+
 
 
 @router.post("/catalog/upload-image")
