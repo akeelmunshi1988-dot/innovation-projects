@@ -740,35 +740,35 @@ export default function CustomerHome() {
         </section>
       )}
 
-      {/* ── INSIDE THE WORKSHOP (randomized editorial mosaic) ────────────── */}
+      {/* ── INSIDE THE WORKSHOP ───────────────────────────────────────── */}
       {!SHOW_FEATURED_RUGS && workshopPhotos.length > 0 && (
-        <section className="overflow-hidden bg-[#f3f1e8] py-16 md:py-24">
-          <div className="mx-auto w-[92vw]">
-            <div className="grid gap-8 pb-12 md:grid-cols-12 md:items-end md:pb-16">
-              <h2 className="font-condensed text-[clamp(3.2rem,5.4vw,6.5rem)] font-medium uppercase leading-[0.98] tracking-[-0.035em] text-[#191d27] md:col-span-9">
-                Inside the Workshop. <span className="text-[#9b9a93]">Where every thread</span> becomes a story.
+        <section className="overflow-hidden bg-[#071016] py-16 text-white md:py-24" aria-labelledby="workshop-heading">
+          <div className="mx-auto grid w-[92vw] grid-cols-1 items-start gap-8 sm:grid-cols-2 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-20">
+            <div className="sm:col-span-2 lg:col-span-4 lg:pr-8">
+              <p className="mb-5 text-[10px] uppercase tracking-[0.25em] text-[#c3a27c]">The hands behind every rug</p>
+              <h2 id="workshop-heading" className="font-condensed text-[clamp(3rem,4.4vw,5.5rem)] font-medium uppercase leading-[0.98] tracking-[-0.035em]">
+                Inside the Workshop
               </h2>
-              <p className="text-base leading-relaxed text-stone-500 md:col-span-6 md:col-start-7 md:text-lg">
-                Step inside the hands-on process behind every rug, from raw fibre and colour preparation to patient weaving and meticulous finishing by our master artisans.
+              <p className="mt-7 max-w-lg text-base leading-relaxed text-white/65">
+                Where every thread becomes a story. Step inside the hands-on process behind every rug, from raw fibre and colour preparation to patient weaving and meticulous finishing by our master artisans.
               </p>
             </div>
-
-            <div className="columns-1 gap-3 sm:columns-2 lg:columns-3 lg:gap-4">
-              {randomizedWorkshopPhotos.map((photo) => (
-                <figure key={photo.id} className="group relative mb-3 break-inside-avoid overflow-hidden bg-stone-200 lg:mb-4">
-                  <img
-                    src={photo.image_url}
-                    alt={photo.caption}
-                    className="block h-auto w-full transition-transform duration-[1200ms] ease-out group-hover:scale-[1.04]"
-                    loading="lazy"
-                    onError={(event) => { event.currentTarget.style.display = 'none'; }}
-                  />
-                  <figcaption className="absolute inset-x-0 bottom-0 translate-y-full bg-[#191d27]/85 px-4 py-3 text-sm text-white backdrop-blur-sm transition-transform duration-300 group-hover:translate-y-0">
-                    {photo.caption}
-                  </figcaption>
+            {randomizedWorkshopPhotos.map((photo, index) => {
+              const layout = index === 0
+                ? 'lg:col-span-3'
+                : index === 1
+                  ? 'lg:col-span-5'
+                  : ['lg:col-span-7 lg:pl-[4vw]', 'lg:col-span-5 lg:pt-28', 'lg:col-span-4 lg:pt-16', 'lg:col-span-8'][((index - 2) % 4)];
+              const ratio = index === 1 ? 'aspect-[4/5]' : index === 0 ? 'aspect-[5/4]' : index % 2 === 0 ? 'aspect-[4/3]' : 'aspect-[5/4]';
+              return (
+                <figure key={photo.id} className={`min-w-0 ${layout}`}>
+                  <div className={`overflow-hidden bg-white/5 ${ratio}`}>
+                    <img src={photo.image_url} alt={photo.caption || 'Artisans at work in our rug workshop'} className="h-full w-full object-cover" loading="lazy" />
+                  </div>
+                  {photo.caption && <figcaption className="mt-4 text-sm leading-relaxed text-white/60">{photo.caption}</figcaption>}
                 </figure>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </section>
       )}
