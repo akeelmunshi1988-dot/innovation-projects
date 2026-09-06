@@ -61,7 +61,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@loomcraft.demo"
+              placeholder="you@company.com"
               className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-cream-100 placeholder-dark-500 focus:outline-none focus:border-gold-600 transition-colors text-sm"
             />
           </div>
@@ -100,10 +100,6 @@ export default function Login() {
               <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Signing in…</>
             ) : 'Sign In'}
           </button>
-
-          <p className="text-center text-dark-500 text-xs pt-1">
-            Demo: admin@loomcraft.demo / demo1234
-          </p>
         </form>
 
         <p className="text-center text-dark-500 text-xs">
