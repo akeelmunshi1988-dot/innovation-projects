@@ -578,6 +578,49 @@ def update_tenant_settings(
         tenant.about_page = body.about_page.model_dump()
     if body.certifications is not None:
         tenant.certifications = body.certifications
+    if body.order_tracking_eyebrow is not None:
+        tenant.order_tracking_eyebrow = body.order_tracking_eyebrow or None
+    if body.order_tracking_heading is not None:
+        tenant.order_tracking_heading = body.order_tracking_heading or None
+    if body.order_tracking_body is not None:
+        tenant.order_tracking_body = body.order_tracking_body or None
+    if body.order_tracking_shipping_policy_url is not None:
+        tenant.order_tracking_shipping_policy_url = body.order_tracking_shipping_policy_url or None
+    if body.order_tracking_carriers is not None:
+        cleaned_carriers = []
+        for item in body.order_tracking_carriers[:6]:
+            url = str(item.get("image_url", "")).strip()
+            if url:
+                cleaned_carriers.append({"label": str(item.get("label", ""))[:50], "image_url": url})
+        tenant.order_tracking_carriers = cleaned_carriers
+    if body.order_tracking_steps is not None:
+        cleaned_steps = []
+        for item in body.order_tracking_steps[:8]:
+            title = str(item.get("title", "")).strip()[:100]
+            if title:
+                cleaned_steps.append({"title": title, "description": str(item.get("description", "")).strip()[:300]})
+        tenant.order_tracking_steps = cleaned_steps
+    if body.order_tracking_media_url is not None:
+        tenant.order_tracking_media_url = body.order_tracking_media_url or None
+    if body.order_tracking_media_type is not None:
+        tenant.order_tracking_media_type = body.order_tracking_media_type or None
+    if body.colour_matching_eyebrow is not None:
+        tenant.colour_matching_eyebrow = body.colour_matching_eyebrow or None
+    if body.colour_matching_heading is not None:
+        tenant.colour_matching_heading = body.colour_matching_heading or None
+    if body.colour_matching_body is not None:
+        tenant.colour_matching_body = body.colour_matching_body or None
+    if body.colour_matching_items is not None:
+        cleaned_colour_items = []
+        for item in body.colour_matching_items[:6]:
+            title = str(item.get("title", "")).strip()[:100]
+            if title:
+                cleaned_colour_items.append({
+                    "title": title,
+                    "description": str(item.get("description", "")).strip()[:300],
+                    "image_url": str(item.get("image_url", "")).strip(),
+                })
+        tenant.colour_matching_items = cleaned_colour_items
     if body.default_shipping_rate is not None:
         tenant.default_shipping_rate = body.default_shipping_rate
     if body.cancellation_window_hours is not None:
@@ -821,6 +864,86 @@ async def upload_about_image(
     """Image for a section of the public About page (hero background, founder photo).
     Returns the URL only — the caller stores it inside the `about_page` structure
     and persists it with the next PATCH /tenant/settings."""
+    if file.content_type not in ALLOWED_HERO_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
+
+    contents = await file.read()
+    if len(contents) > MAX_HERO_IMAGE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_HERO_IMAGE_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return {"url": f"/static/branding/{filename}"}
+
+
+@router.post("/tenant/order-tracking-carrier-image")
+async def upload_order_tracking_carrier_image(
+    file: UploadFile = File(...),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Logo for one carrier (e.g. FedEx, DHL) shown on the public Order Tracking page.
+    Returns the URL only — the caller stores it inside the order_tracking_carriers list
+    and persists it with the next PATCH /tenant/settings."""
+    if file.content_type not in ALLOWED_FAVICON_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use PNG, JPEG, or SVG.")
+
+    contents = await file.read()
+    if len(contents) > MAX_FAVICON_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_FAVICON_SIZE_MB}MB allowed.")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "png"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return {"url": f"/static/branding/{filename}"}
+
+
+ALLOWED_ORDER_TRACKING_MEDIA_TYPES = {"image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"}
+MAX_ORDER_TRACKING_MEDIA_SIZE_MB = 50
+
+
+@router.post("/tenant/order-tracking-media")
+async def upload_order_tracking_media(
+    file: UploadFile = File(...),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Optional supporting image or video for the public Order Tracking page.
+    Returns the URL and detected media type — the caller persists both fields with
+    the next PATCH /tenant/settings."""
+    if file.content_type not in ALLOWED_ORDER_TRACKING_MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, WebP, MP4, or WebM.")
+
+    contents = await file.read()
+    if len(contents) > MAX_ORDER_TRACKING_MEDIA_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {MAX_ORDER_TRACKING_MEDIA_SIZE_MB}MB allowed.")
+
+    media_type = "video" if file.content_type.startswith("video/") else "image"
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ("mp4" if media_type == "video" else "jpg")
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(BRANDING_DIR, exist_ok=True)
+    filepath = os.path.join(BRANDING_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return {"url": f"/static/branding/{filename}", "media_type": media_type}
+
+
+@router.post("/tenant/colour-matching-image")
+async def upload_colour_matching_image(
+    file: UploadFile = File(...),
+    current_user: StaffUser = Depends(get_current_user),
+):
+    """Image for one item on the public Colour Matching page (e.g. Pantone Colours,
+    ARS Wool & Viscose Silk). Returns the URL only — the caller stores it inside the
+    colour_matching_items list and persists it with the next PATCH /tenant/settings."""
     if file.content_type not in ALLOWED_HERO_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.")
 

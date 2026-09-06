@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
+from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, trade_enquiries, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -182,6 +182,7 @@ app.include_router(announcements.router, prefix="/api", tags=["Announcements"])
 app.include_router(gallery.router, prefix="/api", tags=["Project Gallery"])
 app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
 app.include_router(enquiries.router, prefix="/api", tags=["Homepage Enquiries"])
+app.include_router(trade_enquiries.router, prefix="/api", tags=["Trade Enquiries"])
 app.include_router(custom_rug_page.router, prefix="/api", tags=["Customize Your Rug Images"])
 app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 app.include_router(api_clients.router, prefix="/api", tags=["API Clients"])

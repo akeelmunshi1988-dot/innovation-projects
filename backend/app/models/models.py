@@ -79,6 +79,18 @@ class Tenant(Base):
     about_us_content_html = Column(Text, nullable=True)          # main editable narrative (Story section body) on the public About Us page
     about_page = Column(JSON, nullable=True)  # structured /about content: {hero, credentials, story, process, principles, founder, cta} — each an object with an `enabled` flag; see schemas.AboutPageContent. Missing keys fall back to the frontend's aboutPageDefaults.
     certifications = Column(JSON, nullable=True)           # list[{"label": str, "image_url": str}] — footer badges
+    order_tracking_eyebrow = Column(String(100), nullable=True)
+    order_tracking_heading = Column(String(200), nullable=True)
+    order_tracking_body = Column(Text, nullable=True)
+    order_tracking_shipping_policy_url = Column(String(500), nullable=True)
+    order_tracking_carriers = Column(JSON, nullable=True)  # ordered list[{"label": str, "image_url": str}] — carrier logos (e.g. FedEx, DHL)
+    order_tracking_steps = Column(JSON, nullable=True)     # ordered list[{"title": str, "description": str}]
+    order_tracking_media_url = Column(String(500), nullable=True)  # optional supporting image or video for the public Order Tracking page
+    order_tracking_media_type = Column(String(10), nullable=True)  # "image" | "video"
+    colour_matching_eyebrow = Column(String(100), nullable=True)
+    colour_matching_heading = Column(String(200), nullable=True)
+    colour_matching_body = Column(Text, nullable=True)
+    colour_matching_items = Column(JSON, nullable=True)  # ordered list[{"title": str, "description": str, "image_url": str}]
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
     is_active = Column(Boolean, default=True)
@@ -664,6 +676,31 @@ class HomepageEnquiry(Base):
     __table_args__ = (
         Index("ix_homepage_enquiries_tenant_created", "tenant_id", "created_at"),
         Index("ix_homepage_enquiries_tenant_read", "tenant_id", "is_read"),
+    )
+
+
+class TradeEnquiry(Base):
+    __tablename__ = "trade_enquiries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    first_name = Column(String(150), nullable=False)
+    last_name = Column(String(150), nullable=False)
+    email = Column(String(200), nullable=False)
+    phone = Column(String(50), nullable=False)
+    city = Column(String(150), nullable=True)
+    country = Column(String(150), nullable=True)
+    profession = Column(String(50), nullable=False)  # architect / interior_designer / retailer / wholesaler / private_label / hospitality
+    company = Column(String(200), nullable=False)
+    website = Column(String(300), nullable=True)
+    project_type = Column(String(50), nullable=True)
+    project_brief = Column(Text, nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_trade_enquiries_tenant_created", "tenant_id", "created_at"),
+        Index("ix_trade_enquiries_tenant_read", "tenant_id", "is_read"),
     )
 
 

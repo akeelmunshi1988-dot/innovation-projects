@@ -10,6 +10,7 @@ import { FEATURE_FLAGS } from '../config/featureFlags';
 import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
 import { NAV, MEGA_MENU } from '../data/storefrontMenu';
+import { RUG_SERVICES } from '../data/rugServices';
 
 // Full logo lockup (mark + wordmark + tagline) — used in the footer where there's
 // room for it to read clearly; the header uses just the icon mark (tenant.logo_url)
@@ -437,7 +438,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-stone-50 border-t border-stone-200 mt-24">
-        <div className="w-[94vw] max-w-none mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.3fr_0.8fr_0.8fr_1.6fr] gap-10">
+        <div className="w-[94vw] max-w-none mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.2fr_0.7fr_0.7fr_0.75fr_1.45fr] gap-10">
           <div className="space-y-4">
             <img src={FOOTER_LOGO_URL} alt={businessName ?? 'Dream Rugs Creation'} className="w-[200px] h-auto" />
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -491,6 +492,19 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                   className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
                 >
                   {menuTitle(`link:${l.to}`, l.label)}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">Services</p>
+            <div className="space-y-2.5">
+              {RUG_SERVICES.map((l) => (
+                <Link key={l.path} to={l.path}
+                  className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
+                >
+                  {menuTitle(`link:${l.path}`, l.title)}
                 </Link>
               ))}
             </div>

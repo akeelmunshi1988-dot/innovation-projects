@@ -733,10 +733,22 @@ class TenantPublic(BaseModel):
     about_us_content_html: Optional[str] = None
     about_page: Optional[AboutPageContent] = None
     certifications: List[dict] = []
+    order_tracking_eyebrow: Optional[str] = None
+    order_tracking_heading: Optional[str] = None
+    order_tracking_body: Optional[str] = None
+    order_tracking_shipping_policy_url: Optional[str] = None
+    order_tracking_carriers: List[dict] = []
+    order_tracking_steps: List[dict] = []
+    order_tracking_media_url: Optional[str] = None
+    order_tracking_media_type: Optional[str] = None
+    colour_matching_eyebrow: Optional[str] = None
+    colour_matching_heading: Optional[str] = None
+    colour_matching_body: Optional[str] = None
+    colour_matching_items: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
 
-    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'product_accordion_sections', mode='before')
+    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'product_accordion_sections', 'order_tracking_carriers', 'order_tracking_steps', 'colour_matching_items', mode='before')
     @classmethod
     def _none_to_empty_certifications(cls, v):
         return v or []
@@ -820,8 +832,27 @@ class TenantUpdateRequest(BaseModel):
     about_us_content_html: Optional[str] = Field(None, max_length=100000)
     about_page: Optional[AboutPageContent] = None
     certifications: Optional[List[dict]] = None
+    order_tracking_eyebrow: Optional[str] = Field(None, max_length=100)
+    order_tracking_heading: Optional[str] = Field(None, max_length=200)
+    order_tracking_body: Optional[str] = Field(None, max_length=2000)
+    order_tracking_shipping_policy_url: Optional[str] = Field(None, max_length=500)
+    order_tracking_carriers: Optional[List[dict]] = Field(None, max_length=6)
+    order_tracking_steps: Optional[List[dict]] = Field(None, max_length=8)
+    order_tracking_media_url: Optional[str] = Field(None, max_length=500)
+    order_tracking_media_type: Optional[str] = None
+    colour_matching_eyebrow: Optional[str] = Field(None, max_length=100)
+    colour_matching_heading: Optional[str] = Field(None, max_length=200)
+    colour_matching_body: Optional[str] = Field(None, max_length=2000)
+    colour_matching_items: Optional[List[dict]] = Field(None, max_length=6)
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)
+
+    @field_validator('order_tracking_media_type')
+    @classmethod
+    def validate_order_tracking_media_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ("image", "video"):
+            raise ValueError("order_tracking_media_type must be 'image' or 'video'")
+        return v
 
     @field_validator('contact_emails')
     @classmethod
@@ -1320,6 +1351,26 @@ class HomepageEnquiry(BaseModel):
     subject: str
     message: str
     consent: bool
+    is_read: bool
+    created_at: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TradeEnquiry(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone: str
+    city: Optional[str] = None
+    country: Optional[str] = None
+    profession: str
+    company: str
+    website: Optional[str] = None
+    project_type: Optional[str] = None
+    project_brief: str
     is_read: bool
     created_at: Optional[Any] = None
 

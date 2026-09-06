@@ -73,6 +73,18 @@ export interface TenantInfo {
   about_us_content_html: string | null;
   about_page: AboutPageContent | null;
   certifications: { label: string; image_url: string }[];
+  order_tracking_eyebrow: string | null;
+  order_tracking_heading: string | null;
+  order_tracking_body: string | null;
+  order_tracking_shipping_policy_url: string | null;
+  order_tracking_carriers: { label: string; image_url: string }[];
+  order_tracking_steps: { title: string; description: string }[];
+  order_tracking_media_url: string | null;
+  order_tracking_media_type: 'image' | 'video' | null;
+  colour_matching_eyebrow: string | null;
+  colour_matching_heading: string | null;
+  colour_matching_body: string | null;
+  colour_matching_items: { title: string; description: string; image_url: string }[];
   default_shipping_rate: number | null;
   cancellation_window_hours: number;
 }
