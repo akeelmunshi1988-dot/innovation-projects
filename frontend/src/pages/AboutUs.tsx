@@ -79,6 +79,13 @@ export default function AboutUs() {
   const paragraphs = (text: string) => sub(text).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
   const { hero, credentials, story, process, principles, founder, cta } = aboutPage;
+  const storyImages = [
+    { src: story.primary_image_url || photo(1), alt: story.primary_image_alt || caption(1, 'The rug-making workshop') },
+    { src: story.secondary_image_url || photo(2), alt: story.secondary_image_alt || caption(2, 'Natural fibres prepared for weaving') },
+    ...workshopPhotos.map(image => ({ src: image.image_url, alt: image.caption || 'Inside the rug workshop' })),
+    ...FALLBACK_PHOTOS.map(src => ({ src, alt: 'Rug craftsmanship and materials' })),
+  ].filter((image, index, all) => all.findIndex(other => other.src === image.src) === index).slice(0, 4);
+
 
   return (
     <CustomerLayout>
@@ -145,23 +152,12 @@ export default function AboutUs() {
       {/* Story — asymmetric editorial composition */}
       {story.enabled && (
         <section className="w-[94vw] max-w-none mx-auto px-4 py-20 lg:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-            <div className="lg:col-span-6 relative">
-              <div className="aspect-[4/5] overflow-hidden">
-                <img
-                  src={story.primary_image_url || photo(1)}
-                  alt={story.primary_image_alt || caption(1, 'The rug-making workshop')}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              <div className="hidden sm:block absolute right-0 lg:-right-10 -bottom-10 w-[48%] aspect-square border-[10px] border-white overflow-hidden shadow-sm">
-                <img
-                  src={story.secondary_image_url || photo(2)}
-                  alt={story.secondary_image_alt || caption(2, 'Natural fibres prepared for weaving')}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-stretch">
+            <div className="lg:col-span-6 relative lg:min-h-[900px]">
+              <div className="grid grid-cols-2 gap-5 lg:absolute lg:inset-0 lg:grid-cols-1 lg:auto-rows-fr">
+                {storyImages.map(image => <figure key={image.src} className="min-h-0 overflow-hidden bg-stone-100">
+                  <img src={image.src} alt={image.alt} className="aspect-[4/3] h-full w-full object-cover lg:aspect-auto" loading="lazy" />
+                </figure>)}
               </div>
             </div>
 

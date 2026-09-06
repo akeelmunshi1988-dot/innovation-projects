@@ -1,3 +1,4 @@
+import OrderTrackingSection from './OrderTrackingSection';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingCart, Phone, MapPin, MessageCircle } from 'lucide-react';
@@ -9,7 +10,7 @@ import { useCart } from '../contexts/CartContext';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
-import { NAV, MEGA_MENU } from '../data/storefrontMenu';
+import { NAV, collectionMenu } from '../data/storefrontMenu';
 import { RUG_SERVICES } from '../data/rugServices';
 
 // Full logo lockup (mark + wordmark + tagline) — used in the footer where there's
@@ -28,9 +29,15 @@ interface CustomerLayoutProps {
 
 export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const location = useLocation();
+  const [trackingSettings, setTrackingSettings] = useState<Awaited<ReturnType<typeof getPublicSettings>> | null>(null);
   const navigate = useNavigate();
   const { customer, isCustomerAuthenticated, customerLogout } = useCustomerAuth();
   const { user: adminUser, isAuthenticated: isAdminAuthenticated } = useAuth();
+  const [menuOptions, setMenuOptions] = useState<{ materials: string[]; weaves: string[] }>({ materials: [], weaves: [] });
+  const megaMenu = collectionMenu(menuOptions);
+  useEffect(() => {
+    axios.get('/api/customer/menu-options').then(({ data }) => setMenuOptions(data)).catch(() => {});
+  }, []);
   const [menuLabels, setMenuLabels] = useState<Record<string, string>>({});
   const menuTitle = (key: string, fallback: string) => menuLabels[key]?.trim() || fallback;
   const [scrolled, setScrolled] = useState(false);
@@ -88,6 +95,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   useEffect(() => {
     getPublicSettings()
       .then((data) => {
+        setTrackingSettings(data);
         setMenuLabels(data.storefront_menu_labels || {});
         setChatEnabled(data.ai_assistant_enabled);
         setBusinessName(data.business_name || 'Store');
@@ -241,11 +249,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                     }`}
                   >
                     <div className="w-[94vw] max-w-none mx-auto px-4 py-10 grid grid-cols-6 gap-8">
-                      {(Object.keys(MEGA_MENU) as (keyof typeof MEGA_MENU)[]).map((key) => (
+                      {(Object.keys(megaMenu) as (keyof typeof megaMenu)[]).map((key) => (
                         <div key={key} className="space-y-3">
-                          <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{menuTitle(`heading:${key}`, MEGA_MENU[key].heading)}</p>
+                          <p className="text-stone-900 text-xs font-semibold uppercase tracking-widest">{menuTitle(`heading:${key}`, megaMenu[key].heading)}</p>
                           <div className="space-y-2.5">
-                            {MEGA_MENU[key].links.map((l) => (
+                            {megaMenu[key].links.map((l) => (
                               <Link key={l.to} to={l.to} className="block text-stone-500 hover:text-stone-900 text-sm transition-colors">
                                 {menuTitle(`link:${l.to}`, l.label)}
                               </Link>
@@ -369,16 +377,12 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 {menuTitle(`nav:${n.path}`, n.label)}
               </Link>
             ))}
-            <div className="py-3 border-b border-stone-100">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 mb-2">Shop by Weave Type</p>
+            {Object.entries(megaMenu).map(([key, group]) => <div key={key} className="py-3 border-b border-stone-100">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 mb-2">{menuTitle(`heading:${key}`, group.heading)}</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                {MEGA_MENU.weave.links.map((item) => (
-                  <Link key={item.to} to={item.to} className="text-sm text-stone-600 hover:text-stone-900 transition-colors">
-                    {item.label}
-                  </Link>
-                ))}
+                {group.links.map(item => <Link key={item.to} to={item.to} className="text-sm text-stone-600 hover:text-stone-900">{menuTitle(`link:${item.to}`, item.label)}</Link>)}
               </div>
-            </div>
+            </div>)}
             {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
               <Link to="/cart" className="flex items-center gap-2 py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50">
                 <ShoppingCart size={14} /> Cart{itemCount > 0 ? ` (${itemCount})` : ''}
@@ -436,8 +440,27 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       {/* Page content */}
       <main className={`flex-1 ${infoBarDismissed ? 'pt-[70px]' : 'pt-[102px]'}`}>{children}</main>
 
+      {location.pathname !== '/trade-enquiry' && (
+        <section className="mt-24 bg-[#e8e2d6] px-[5vw] py-14 text-[#20221c] md:py-20" aria-labelledby="footer-trade-heading">
+          <div className="grid items-center gap-8 lg:grid-cols-[1.3fr_1fr] lg:gap-16">
+            <div>
+              <p className="mb-4 text-[10px] uppercase tracking-[0.24em] text-[#935d43]">For design and trade professionals</p>
+              <h2 id="footer-trade-heading" className="font-serif text-4xl leading-tight md:text-5xl">Your next project starts here.</h2>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-stone-600">Planning rugs for an interior, a retail collection or a hospitality space? Tell us about your practice, quantities, materials and timeline, and discuss your brief with our studio.</p>
+            </div>
+            <div className="lg:justify-self-end">
+              <Link to="/trade-enquiry" className="inline-flex items-center justify-center bg-[#20221c] px-7 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-white hover:bg-[#414436] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">Trade enquiry ↗</Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div>
+        <OrderTrackingSection settings={trackingSettings} standalone={location.pathname === '/order-tracking'} />
+      </div>
+
       {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <footer className="bg-stone-50 border-t border-stone-200 mt-24">
+      <footer className="bg-stone-50 border-t border-stone-200">
         <div className="w-[94vw] max-w-none mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.2fr_0.7fr_0.7fr_0.75fr_1.45fr] gap-10">
           <div className="space-y-4">
             <img src={FOOTER_LOGO_URL} alt={businessName ?? 'Dream Rugs Creation'} className="w-[200px] h-auto" />

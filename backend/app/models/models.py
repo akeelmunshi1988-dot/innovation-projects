@@ -336,7 +336,7 @@ class Quote(Base):
     review_request_count = Column(Integer, default=0)     # how many times customer has requested re-review
     is_custom_request = Column(Boolean, default=False)    # customer-submitted bespoke design brief, no catalog rug attached
     room_type = Column(String(100), nullable=True)        # custom request: intended room/purpose
-    material_preference = Column(String(50), nullable=True)  # custom request: "wool"|"silk"|"cotton"|"synthetic"|"no_preference"
+    material_preference = Column(String(150), nullable=True)  # custom request: "wool"|"silk"|"cotton"|"synthetic"|"no_preference"
     budget_range = Column(String(100), nullable=True)     # custom request: preset band, e.g. "₹50,000–₹1,00,000"
     expected_delivery = Column(String(50), nullable=True)  # custom request: customer's preferred timeframe, e.g. "Within 4 weeks"
     request_group_id = Column(String(36), nullable=True, index=True)  # ties together multiple Quotes submitted as one multi-rug custom request, so the vendor can later combine their resulting orders

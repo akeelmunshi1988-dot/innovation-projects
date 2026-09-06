@@ -472,8 +472,8 @@ export default function CustomerHome() {
       {showCraftSection && homepageIntro.enabled && (
         <section id="introduction" className="overflow-hidden bg-[#f3f1e8]">
           <div className="relative mx-auto flex w-[90vw] flex-col gap-10 py-16 lg:block lg:h-[min(920px,calc(100svh-80px))] lg:min-h-[800px] lg:py-0">
-              {/* Compact media window, positioned like the reference image tile. */}
-              <div className="relative order-1 aspect-[1.5/1] w-full overflow-hidden bg-stone-200 sm:w-[78%] lg:absolute lg:left-0 lg:top-[10%] lg:w-[32%]">
+              {/* Larger media window with space for the copy and title. */}
+              <div className="relative order-1 aspect-[3/2] w-full overflow-hidden bg-stone-200 lg:absolute lg:left-0 lg:top-[6%] lg:h-[54%] lg:w-[54%]">
                 {SHOW_CRAFT_VIDEO ? (
                   <>
                     {introVideo.poster_url && (

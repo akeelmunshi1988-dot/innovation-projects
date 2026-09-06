@@ -5,32 +5,9 @@ import { ChevronRight, CheckCircle, Upload, X, AlertTriangle, Send, Plus, Trash2
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { useCurrency } from '../contexts/CurrencyContext';
 import { SIZE_UNITS, toMetres } from '../utils/size';
 
 const ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
-
-const MATERIALS = [
-  { value: 'wool', label: 'Wool' },
-  { value: 'silk', label: 'Silk' },
-  { value: 'cotton', label: 'Cotton' },
-  { value: 'synthetic', label: 'Synthetic' },
-  { value: 'no_preference', label: 'No preference' },
-  { value: 'other', label: 'Other' },
-];
-
-// Canonical values submitted/stored — always in the tenant's base currency (INR),
-// so admin-side filtering/comparison stays consistent regardless of which currency
-// the customer viewed the form in. Only the displayed label is converted below.
-const BUDGET_BANDS = [
-  'Under ₹25,000',
-  '₹25,000 – ₹50,000',
-  '₹50,000 – ₹1,00,000',
-  '₹1,00,000 – ₹2,50,000',
-  'Above ₹2,50,000',
-  'Not sure yet',
-];
-const BUDGET_THRESHOLDS = [25000, 50000, 100000, 250000];
 
 const DELIVERY_EXPECTATIONS = [
   'No preference',
@@ -57,6 +34,7 @@ interface RugSpec {
   material_preference: string;
   material_other: string;
   budget_range: string;
+  qty: string;
   expected_delivery: string;
   notes: string;
   images: string[];
@@ -70,7 +48,8 @@ const defaultRug = (): RugSpec => ({
   unit: 'ft',
   material_preference: 'no_preference',
   material_other: '',
-  budget_range: BUDGET_BANDS[0],
+  budget_range: '',
+  qty: '1',
   expected_delivery: DELIVERY_EXPECTATIONS[0],
   notes: '',
   images: [],
@@ -80,7 +59,6 @@ const defaultRug = (): RugSpec => ({
 export default function CustomerCustomRugRequest() {
   const navigate = useNavigate();
   const { customer, isCustomerAuthenticated } = useCustomerAuth();
-  const { displayPrice, baseCurrency } = useCurrency();
 
   const [form, setForm] = useState({
     name: customer?.name ?? '',
@@ -92,7 +70,15 @@ export default function CustomerCustomRugRequest() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState<{ quote_ids: number[]; message: string } | null>(null);
+  const [materials, setMaterials] = useState<{ id: number; name: string }[]>([]);
+  const [materialsError, setMaterialsError] = useState(false);
   const [pageImages, setPageImages] = useState<CustomRugPageImage[]>([]);
+
+  useEffect(() => {
+    axios.get<{ id: number; name: string }[]>('/api/customer/materials')
+      .then(({ data }) => setMaterials(data))
+      .catch(() => setMaterialsError(true));
+  }, []);
 
   useEffect(() => {
     axios.get<CustomRugPageImage[]>('/api/customer/custom-rug-page-images')
@@ -132,6 +118,9 @@ export default function CustomerCustomRugRequest() {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
     for (const rug of rugs) {
+      if (!Number.isInteger(Number(rug.qty)) || Number(rug.qty) < 1 || Number(rug.qty) > 10000) {
+        setError('Quantity must be a whole number between 1 and 10,000 for every rug.'); return;
+      }
       if (!rug.size_w.trim() || !rug.size_h.trim()) { setError('Approximate size is required for every rug.'); return; }
       if (rug.material_preference === 'other' && !rug.material_other.trim()) {
         setError('Please specify the material for each rug where you selected "Other".');
@@ -151,7 +140,8 @@ export default function CustomerCustomRugRequest() {
           size_w: toMetres(parseFloat(rug.size_w), rug.unit),
           size_h: toMetres(parseFloat(rug.size_h), rug.unit),
           material_preference: rug.material_preference === 'other' ? rug.material_other.trim() : rug.material_preference,
-          budget_range: rug.budget_range,
+          budget_range: rug.budget_range.trim() || undefined,
+          qty: Number(rug.qty),
           expected_delivery: rug.expected_delivery || undefined,
           notes: rug.notes || undefined,
           reference_image_urls: rug.images.length > 0 ? rug.images : undefined,
@@ -191,18 +181,6 @@ export default function CustomerCustomRugRequest() {
     );
   }
 
-  // Labels shown to the customer are converted to their detected currency; the
-  // underlying values submitted/stored stay the canonical INR bands (BUDGET_BANDS)
-  // so admin-side data stays comparable across every request regardless of who's viewing it.
-  const [t0, t1, t2, t3] = BUDGET_THRESHOLDS.map((v) => displayPrice(v, baseCurrency));
-  const budgetBandLabels = [
-    `Under ${t0}`,
-    `${t0} – ${t1}`,
-    `${t1} – ${t2}`,
-    `${t2} – ${t3}`,
-    `Above ${t3}`,
-    'Not sure yet',
-  ];
   const imageSplitIndex = Math.ceil(pageImages.length / 2);
   const leftPageImages = pageImages.slice(0, imageSplitIndex);
   const rightPageImages = pageImages.slice(imageSplitIndex);
@@ -325,22 +303,28 @@ export default function CustomerCustomRugRequest() {
                   <select value={rug.material_preference} onChange={(e) => updateRug(i, { material_preference: e.target.value })}
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
                   >
-                    {MATERIALS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    <option value="no_preference">No preference</option>
+                    {materials.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+                    <option value="other">Other</option>
                   </select>
+                  {materialsError && <p className="mt-1 text-xs text-stone-500">Materials could not be loaded. You can specify your preference using Other.</p>}
                   {rug.material_preference === 'other' && (
                     <input value={rug.material_other} onChange={(e) => updateRug(i, { material_other: e.target.value })} required
-                      placeholder="Tell us the material you have in mind" maxLength={50}
+                      placeholder="Tell us the material you have in mind" maxLength={150}
                       className="mt-3 w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors" />
                   )}
                 </div>
 
                 <div>
-                  <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Budget Range</label>
-                  <select value={rug.budget_range} onChange={(e) => updateRug(i, { budget_range: e.target.value })}
-                    className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
-                  >
-                    {BUDGET_BANDS.map((b, bi) => <option key={b} value={b}>{budgetBandLabels[bi]}</option>)}
-                  </select>
+                  <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Estimated Budget</label>
+                  <input type="text" aria-label={`Estimated budget for rug ${i + 1}`} value={rug.budget_range} onChange={(e) => updateRug(i, { budget_range: e.target.value })} maxLength={100} placeholder="e.g. INR 25,000–50,000 total, or USD 500 per rug"
+                    className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white" />
+                  <p className="mt-1 text-xs text-stone-400">Include your currency and whether the budget is per rug or total.</p>
+                </div>
+
+                <div>
+                  <label htmlFor={`rug-quantity-${i}`} className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Quantity *</label>
+                  <input id={`rug-quantity-${i}`} type="number" min={1} max={10000} step={1} required value={rug.qty} onChange={event => updateRug(i, { qty: event.target.value })} className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none bg-white" />
                 </div>
 
                 <div>
