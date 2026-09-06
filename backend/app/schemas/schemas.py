@@ -589,7 +589,13 @@ class AboutCredentials(BaseModel):
     items: List[AboutCredentialItem] = []
 
 
+class AboutStoryImage(BaseModel):
+    image_url: str = Field(..., min_length=1, max_length=500)
+    image_alt: str = Field('', max_length=200)
+
+
 class AboutStory(BaseModel):
+    images: Optional[List[AboutStoryImage]] = Field(None, max_length=10)
     # The body copy is stored separately as tenant.about_us_content_html (rich text).
     enabled: bool = True
     eyebrow: Optional[str] = Field(None, max_length=160)
@@ -717,6 +723,7 @@ class TenantPublic(BaseModel):
     homepage_intro_cta_label: Optional[str] = None
     homepage_intro_cta_url: Optional[str] = None
     storefront_menu_labels: Optional[dict[str, str]] = None
+    storefront_menu_visibility: Optional[dict[str, bool]] = None
     homepage_intro_trusted_by_text: Optional[str] = None
     homepage_intro_enabled: bool = True
     homepage_contact_image_url: Optional[str] = None
@@ -815,7 +822,8 @@ class TenantUpdateRequest(BaseModel):
     homepage_intro_description: Optional[str] = Field(None, max_length=1500)
     homepage_intro_cta_label: Optional[str] = Field(None, max_length=60)
     homepage_intro_cta_url: Optional[str] = Field(None, max_length=300)
-    storefront_menu_labels: Optional[dict[str, str]] = Field(None, max_length=40)
+    storefront_menu_labels: Optional[dict[str, str]] = Field(None, max_length=500)
+    storefront_menu_visibility: Optional[dict[str, bool]] = Field(None, max_length=500)
     homepage_intro_trusted_by_text: Optional[str] = Field(None, max_length=100)
     homepage_intro_enabled: Optional[bool] = None
     homepage_contact_image_url: Optional[str] = Field(None, max_length=500)

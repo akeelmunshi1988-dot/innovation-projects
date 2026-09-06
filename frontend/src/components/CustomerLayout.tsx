@@ -34,7 +34,12 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const { customer, isCustomerAuthenticated, customerLogout } = useCustomerAuth();
   const { user: adminUser, isAuthenticated: isAdminAuthenticated } = useAuth();
   const [menuOptions, setMenuOptions] = useState<{ materials: string[]; weaves: string[]; spaces: string[]; moods: string[] }>({ materials: [], weaves: [], spaces: [], moods: [] });
-  const megaMenu = collectionMenu(menuOptions);
+  const [menuVisibility, setMenuVisibility] = useState<Record<string, boolean>>({});
+  const visible = (key: string) => menuVisibility[key] !== false;
+  const megaMenu = Object.fromEntries(Object.entries(collectionMenu(menuOptions))
+    .filter(([key]) => visible(`heading:${key}`))
+    .map(([key, group]) => [key, { ...group, links: group.links.filter(link => visible(`link:${link.to}`)) }])
+    .filter(([, group]) => (group as { links: unknown[] }).links.length > 0)) as ReturnType<typeof collectionMenu>;
   useEffect(() => {
     axios.get('/api/customer/menu-options').then(({ data }) => setMenuOptions(data)).catch(() => {});
   }, []);
@@ -97,6 +102,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       .then((data) => {
         setTrackingSettings(data);
         setMenuLabels(data.storefront_menu_labels || {});
+        setMenuVisibility(data.storefront_menu_visibility || {});
         setChatEnabled(data.ai_assistant_enabled);
         setBusinessName(data.business_name || 'Store');
         setLogoUrl(data.logo_url);
@@ -220,7 +226,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Desktop nav — left */}
           <nav className="hidden lg:flex items-center gap-7 h-full">
-            {NAV.map((n) => {
+            {NAV.filter(n => visible(`nav:${n.path}`)).map((n) => {
               const active = location.pathname === n.path;
               const link = (
                 <Link
@@ -370,14 +376,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {/* Mobile nav */}
         {mobileOpen && (
           <div className="lg:hidden bg-white border-t border-stone-100 px-6 py-5 space-y-1">
-            {NAV.map((n) => (
+            {NAV.filter(n => visible(`nav:${n.path}`)).map((n) => (
               <Link key={n.path} to={n.path}
                 className="block py-2.5 text-sm text-stone-700 hover:text-stone-900 tracking-wide transition-colors border-b border-stone-50"
               >
                 {menuTitle(`nav:${n.path}`, n.label)}
               </Link>
             ))}
-            {Object.entries(megaMenu).map(([key, group]) => <div key={key} className="py-3 border-b border-stone-100">
+            {visible('nav:/catalog') && Object.entries(megaMenu).map(([key, group]) => <div key={key} className="py-3 border-b border-stone-100">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 mb-2">{menuTitle(`heading:${key}`, group.heading)}</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                 {group.links.map(item => <Link key={item.to} to={item.to} className="text-sm text-stone-600 hover:text-stone-900">{menuTitle(`link:${item.to}`, item.label)}</Link>)}

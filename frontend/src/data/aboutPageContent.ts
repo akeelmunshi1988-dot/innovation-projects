@@ -31,6 +31,7 @@ export interface AboutCredentials {
 }
 
 export interface AboutStory {
+  images?: { image_url: string; image_alt: string }[] | null;
   enabled: boolean;
   eyebrow: string;
   heading: string;
