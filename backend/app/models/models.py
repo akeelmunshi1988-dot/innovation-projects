@@ -94,6 +94,7 @@ class Tenant(Base):
     colour_matching_items = Column(JSON, nullable=True)  # ordered list[{"title": str, "description": str, "image_url": str}]
     default_shipping_rate = Column(Float, nullable=True)   # flat shipping charge shown to + charged customers at checkout; null/0 = free
     cancellation_window_hours = Column(Integer, default=24)  # how long after placing an order a customer's order stays cancellable
+    trending_rug_ids = Column(JSON, nullable=True)  # ordered list[int] — admin-curated picks for the homepage "Latest Trending Rug Designs" section; empty/null falls back to the default newest-first catalog listing
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

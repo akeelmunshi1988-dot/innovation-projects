@@ -754,8 +754,9 @@ class TenantPublic(BaseModel):
     colour_matching_items: List[dict] = []
     default_shipping_rate: Optional[float] = None
     cancellation_window_hours: int = 24
+    trending_rug_ids: List[int] = []
 
-    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'product_accordion_sections', 'order_tracking_carriers', 'order_tracking_steps', 'colour_matching_items', mode='before')
+    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'product_accordion_sections', 'order_tracking_carriers', 'order_tracking_steps', 'colour_matching_items', 'trending_rug_ids', mode='before')
     @classmethod
     def _none_to_empty_certifications(cls, v):
         return v or []
@@ -854,6 +855,7 @@ class TenantUpdateRequest(BaseModel):
     colour_matching_items: Optional[List[dict]] = Field(None, max_length=6)
     default_shipping_rate: Optional[float] = Field(None, ge=0)
     cancellation_window_hours: Optional[int] = Field(None, ge=0, le=8760)
+    trending_rug_ids: Optional[List[int]] = Field(None, max_length=20)
 
     @field_validator('order_tracking_media_type')
     @classmethod

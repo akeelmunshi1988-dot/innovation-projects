@@ -32,6 +32,7 @@ import {
   Briefcase,
   Truck,
   Palette,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { applyBranding } from '../utils/branding';
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
   { path: '/admin/homepage-introduction', label: 'Homepage Introduction', icon: <FileText size={18} /> },
   { path: '/admin/homepage-full-bleed', label: 'Full-Bleed Image', icon: <Image size={18} /> },
   { path: '/admin/homepage-values', label: 'Homepage Values', icon: <LayoutGrid size={18} /> },
+  { path: '/admin/trending-rugs', label: 'Trending Rugs', icon: <TrendingUp size={18} /> },
   { path: '/admin/homepage-contact', label: 'Homepage Contact', icon: <Mail size={18} /> },
   { path: '/admin/about-page', label: 'About Page', icon: <FileText size={18} /> },
   { path: '/admin/showcase-videos', label: 'Homepage Videos', icon: <Film size={18} /> },

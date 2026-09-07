@@ -14,7 +14,7 @@ from app.core.auth import (
     hash_password, verify_password, create_access_token, get_current_user, get_current_customer,
     create_refresh_token, rotate_refresh_token, revoke_refresh_token,
 )
-from app.models.models import Tenant, StaffUser, Customer
+from app.models.models import Tenant, StaffUser, Customer, RugCatalog
 from app.schemas.schemas import (
     RegisterRequest, LoginRequest, TokenResponse, MeResponse, TenantPublic, TenantUpdateRequest,
     CustomerRegisterRequest, CustomerLoginRequest, CustomerTokenResponse,
@@ -627,6 +627,15 @@ def update_tenant_settings(
         tenant.default_shipping_rate = body.default_shipping_rate
     if body.cancellation_window_hours is not None:
         tenant.cancellation_window_hours = body.cancellation_window_hours
+    if body.trending_rug_ids is not None:
+        # Keep only ids that are real rugs belonging to this tenant, in the
+        # admin's chosen order — guards against a stale/garbage id (e.g. a
+        # rug deleted after being picked) silently pointing at nothing, or
+        # at another tenant's row.
+        valid_ids = {rid for (rid,) in db.query(RugCatalog.id).filter(
+            RugCatalog.tenant_id == tenant.id, RugCatalog.id.in_(body.trending_rug_ids),
+        ).all()}
+        tenant.trending_rug_ids = [rid for rid in body.trending_rug_ids if rid in valid_ids]
     db.commit()
     db.refresh(tenant)
     cache_clear("tenant")
