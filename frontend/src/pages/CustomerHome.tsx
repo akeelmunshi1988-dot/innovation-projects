@@ -150,6 +150,7 @@ const GALLERY_MOSAIC_LAYOUTS = [
 export default function CustomerHome() {
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
+  const [trendingRugs, setTrendingRugs] = useState<CatalogRug[]>([]);
   const [materialsCount, setMaterialsCount] = useState(0);
   const [sort, setSort] = useState<'newest' | 'popular'>('newest');
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -204,6 +205,17 @@ export default function CustomerHome() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
   const [shopTab, setShopTab] = useState<'space' | 'mood' | 'material'>('space');
+
+  // Admin-curated picks (Tenant.trending_rug_ids) for "Latest Trending Rug
+  // Designs" below; an empty list means the backend already fell back to its
+  // own "newest" default, but we still additionally fall back to slicing the
+  // page's own `catalog` fetch client-side (see trendingDisplay) so the
+  // section never flashes empty while this request is in flight.
+  useEffect(() => {
+    axios.get('/api/customer/trending-rugs', { params: { limit: 5 } })
+      .then(({ data }) => setTrendingRugs(data))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setCatalogLoading(true);
@@ -919,11 +931,11 @@ export default function CustomerHome() {
       </section>
 
       {/* ── LATEST TRENDING RUG DESIGNS ──────────────────────────────────── */}
-      {catalog.length > 0 && (
+      {(trendingRugs.length > 0 ? trendingRugs : catalog.slice(0, 5)).length > 0 && (
         <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
           <h2 className="storefront-heading text-4xl text-center mb-12">Latest Trending Rug Designs</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10">
-            {catalog.slice(0, 5).map((rug) => (
+            {(trendingRugs.length > 0 ? trendingRugs : catalog.slice(0, 5)).map((rug) => (
               <Link key={rug.id} to={`/catalog/${rug.slug}`} className="group block">
                 <div className="relative overflow-hidden bg-transparent aspect-[3/4.5]">
                   {rug.image_url ? (

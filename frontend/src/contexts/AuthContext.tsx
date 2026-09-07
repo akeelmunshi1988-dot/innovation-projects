@@ -88,6 +88,7 @@ export interface TenantInfo {
   colour_matching_items: { title: string; description: string; image_url: string }[];
   default_shipping_rate: number | null;
   cancellation_window_hours: number;
+  trending_rug_ids: number[];
 }
 
 export interface AuthUser {

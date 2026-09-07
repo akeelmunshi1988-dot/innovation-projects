@@ -840,6 +840,64 @@ def _public_catalog_sizes(rug: RugCatalog) -> list[dict]:
     ]
 
 
+def _public_catalog_item(r: RugCatalog, db: Session) -> dict:
+    offer = _public_catalog_offer(r, db)
+    return {
+        "id": r.id,
+        "slug": r.slug,
+        "name": r.name,
+        "description": r.description,
+        "weave_type": r.weave_type,
+        "pile_height": r.pile_height,
+        "material": r.material.name,
+        "material_type": r.material.type,
+        "sizes": _public_catalog_sizes(r),
+        "display_price": offer["display_price"],
+        "default_size": offer["default_size"],
+        "base_price_currency": offer["price_currency"],
+        "lead_time_days": (offer["default_size"] or {}).get("lead_time_days") or r.lead_time_days,
+        "image_url": r.image_url,
+        "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
+        "room_types": r.room_types or [],
+        "mood_tags": r.mood_tags or [],
+        "color_options": r.color_options or [],
+        # Storefront stock is controlled by the catalog item itself.
+        # Raw material stock is validated later for the customer's exact
+        # size/quantity and must not mark every made-to-order rug sold out.
+        "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0)),
+        "inventory_quantity": r.inventory_quantity,
+    }
+
+
+@router.get("/customer/trending-rugs")
+async def get_trending_rugs(limit: int = Query(5, ge=1, le=20)):
+    """Homepage "Latest Trending Rug Designs" section. Admin-curated picks
+    (Tenant.trending_rug_ids, set via the Homepage Trending Rugs admin page)
+    take priority, shown in the order the admin arranged them; an empty/unset
+    list falls back to the same default the rest of the homepage/catalog
+    already uses for "newest" — RugCatalog.id descending."""
+    cache_key = f"trending:{limit}"
+    cached = cache_get("catalog", cache_key)
+    if cached is not None:
+        return cached
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).first()
+        if not tenant:
+            return []
+        q = db.query(RugCatalog).join(Material).filter(RugCatalog.tenant_id == tenant.id)
+        if tenant.trending_rug_ids:
+            rugs_by_id = {r.id: r for r in q.filter(RugCatalog.id.in_(tenant.trending_rug_ids)).all()}
+            rugs = [rugs_by_id[rid] for rid in tenant.trending_rug_ids if rid in rugs_by_id][:limit]
+        else:
+            rugs = q.order_by(RugCatalog.id.desc()).limit(limit).all()
+        result = [_public_catalog_item(r, db) for r in rugs]
+        cache_set("catalog", result, cache_key)
+        return result
+    finally:
+        db.close()
+
+
 @router.get("/customer/catalog")
 async def get_public_catalog(
     sort: str = Query("newest"),
@@ -903,34 +961,7 @@ async def get_public_catalog(
 
         total = len(rugs)
         page = rugs[offset:offset + limit]
-        items = []
-        for r in page:
-            offer = _public_catalog_offer(r, db)
-            items.append({
-                "id": r.id,
-                "slug": r.slug,
-                "name": r.name,
-                "description": r.description,
-                "weave_type": r.weave_type,
-                "pile_height": r.pile_height,
-                "material": r.material.name,
-                "material_type": r.material.type,
-                "sizes": _public_catalog_sizes(r),
-                "display_price": offer["display_price"],
-                "default_size": offer["default_size"],
-                "base_price_currency": offer["price_currency"],
-                "lead_time_days": (offer["default_size"] or {}).get("lead_time_days") or r.lead_time_days,
-                "image_url": r.image_url,
-                "images": [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in r.images],
-                "room_types": r.room_types or [],
-                "mood_tags": r.mood_tags or [],
-                "color_options": r.color_options or [],
-                # Storefront stock is controlled by the catalog item itself.
-                # Raw material stock is validated later for the customer's exact
-                # size/quantity and must not mark every made-to-order rug sold out.
-                "available": bool(r.is_available and (r.inventory_quantity is None or r.inventory_quantity > 0)),
-                "inventory_quantity": r.inventory_quantity,
-            })
+        items = [_public_catalog_item(r, db) for r in page]
         result = {"items": items, "total": total, "has_more": offset + limit < total}
         cache_set("catalog", result, cache_key)
         return result

@@ -68,6 +68,7 @@ const HomepageFullBleedImage = lazy(() => import('./pages/HomepageFullBleedImage
 const WebsiteMenu = lazy(() => import('./pages/WebsiteMenu'));
 const HomepageIntroduction = lazy(() => import('./pages/HomepageIntroduction'));
 const HomepageValues = lazy(() => import('./pages/HomepageValues'));
+const TrendingRugs = lazy(() => import('./pages/TrendingRugs'));
 const OrderTrackingPage = lazy(() => import('./pages/OrderTrackingPage'));
 const ColourMatchingPage = lazy(() => import('./pages/ColourMatchingPage'));
 const HomepageContact = lazy(() => import('./pages/HomepageContact'));
@@ -162,6 +163,7 @@ function App() {
                     <Route path="website-menu" element={<WebsiteMenu />} />
                     <Route path="homepage-introduction" element={<HomepageIntroduction />} />
                     <Route path="homepage-values" element={<HomepageValues />} />
+                    <Route path="trending-rugs" element={<TrendingRugs />} />
                     <Route path="order-tracking-page" element={<OrderTrackingPage />} />
                     <Route path="colour-matching-page" element={<ColourMatchingPage />} />
                     <Route path="homepage-contact" element={<HomepageContact />} />
