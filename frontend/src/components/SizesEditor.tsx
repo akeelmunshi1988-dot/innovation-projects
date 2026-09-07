@@ -8,6 +8,8 @@ interface SizesEditorProps {
   onChange: (sizes: CatalogSize[]) => void;
 }
 
+const DEFAULT_LEAD_TIME_DAYS = 21;
+
 /**
  * Admin editor for a rug's standard sizes. Feet is required per row; cm is a
  * plain optional text field the vendor types themselves — never computed from
@@ -24,12 +26,12 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
   useEffect(() => {
     if (value.length > 0 || masterSizes.length === 0) return;
     const active = masterSizes.filter((size) => size.is_active);
-    onChange(active.map((size, index) => ({ master_size_id: size.id, ft: size.ft, cm: size.cm, price: 0, lead_time_days: null, is_default: index === 0 })));
+    onChange(active.map((size, index) => ({ master_size_id: size.id, ft: size.ft, cm: size.cm, price: 0, lead_time_days: DEFAULT_LEAD_TIME_DAYS, is_default: index === 0 })));
   }, [masterSizes, value.length, onChange]);
 
   const addRow = () => {
     const next = masterSizes.find((size) => size.is_active && !value.some((row) => row.master_size_id === size.id));
-    if (next) onChange([...value, { master_size_id: next.id, ft: next.ft, cm: next.cm, price: 0, lead_time_days: null, is_default: value.length === 0 }]);
+    if (next) onChange([...value, { master_size_id: next.id, ft: next.ft, cm: next.cm, price: 0, lead_time_days: DEFAULT_LEAD_TIME_DAYS, is_default: value.length === 0 }]);
   };
   const removeRow = (i: number) => {
     const removedDefault = value[i]?.is_default;
