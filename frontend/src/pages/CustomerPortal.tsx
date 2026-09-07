@@ -1,3 +1,4 @@
+import { sortSizes } from '../utils/size';
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
@@ -1083,7 +1084,7 @@ export default function CustomerPortal() {
                           <div className="space-y-2">
                             <p className="text-xs uppercase tracking-widest text-stone-400">Standard Sizes</p>
                             <div className="flex flex-wrap gap-1.5">
-                              {selectedRug.sizes.map((s) => {
+                              {sortSizes(selectedRug.sizes).map((s) => {
                                 const dims = catalogSizeDims(s, inputUnit(sizeUnit));
                                 if (!dims) return null;
                                 const dispW = String(dims[0]);

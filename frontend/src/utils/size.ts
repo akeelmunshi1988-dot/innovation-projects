@@ -102,3 +102,20 @@ export function fmtDims(
   const h = fmtDim(hM, unit);
   return shape === 'oval' ? `${w}x${h} ${unit} (oval)` : `${w}x${h} ${unit}`;
 }
+
+/** Ascending numeric feet dimensions, without mutating the source list. */
+export function compareSizes(a: { ft: string }, b: { ft: string }): number {
+  const dimensions = (value: string) => {
+    const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*(?:ft|feet|')?\s*[x×X]\s*(\d+(?:\.\d+)?)/);
+    return match ? [Number(match[1]), Number(match[2])] : null;
+  };
+  const left = dimensions(a.ft), right = dimensions(b.ft);
+  if (left && right) return left[0] - right[0] || left[1] - right[1];
+  if (left) return -1;
+  if (right) return 1;
+  return a.ft.localeCompare(b.ft, undefined, { numeric: true });
+}
+
+export function sortSizes<T extends { ft: string }>(sizes: readonly T[]): T[] {
+  return [...sizes].sort(compareSizes);
+}

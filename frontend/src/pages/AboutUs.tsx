@@ -102,8 +102,8 @@ export default function AboutUs() {
             alt={hero.image_alt || 'Handcrafted rug in a warm, natural living room'}
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-950/90 via-stone-950/55 to-stone-950/10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/75 via-transparent to-stone-950/15" />
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-950/50 via-stone-950/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent" />
 
           <div className="relative w-[94vw] max-w-none mx-auto px-4 pb-14 sm:pb-20">
             <div className="max-w-3xl">

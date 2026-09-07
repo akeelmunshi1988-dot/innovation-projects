@@ -397,6 +397,14 @@ server {
         proxy_set_header Content-Length "";
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
+        # nginx checks the original request's Content-Length against
+        # client_max_body_size for whichever location handles the auth_request
+        # subrequest — BEFORE proxy_pass_request_body off skips forwarding it —
+        # so this must independently allow large bodies too, matching /api/'s
+        # limit, or any upload over nginx's 1MB default fails here with a 413
+        # (logged as "auth request unexpected status: 413") even though the
+        # body is never actually sent to the backend from this location.
+        client_max_body_size 55M;
     }
 
     # Sitemap -> FastAPI backend (mounted unprefixed at /sitemap.xml, not under /api,

@@ -1,3 +1,4 @@
+import { compareSizes, sortSizes } from '../utils/size';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Plus, X } from 'lucide-react';
@@ -20,7 +21,7 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
   const [masterSizes, setMasterSizes] = useState<CatalogSizeMaster[]>([]);
 
   useEffect(() => {
-    axios.get('/api/catalog-sizes').then(({ data }) => setMasterSizes(data)).catch(() => setMasterSizes([]));
+    axios.get('/api/catalog-sizes').then(({ data }) => setMasterSizes(sortSizes(data))).catch(() => setMasterSizes([]));
   }, []);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
       </label>
 
       <div className="space-y-2">
-        {value.map((row, i) => (
+        {value.map((row, i) => ({ row, i })).sort((a, b) => compareSizes(a.row, b.row)).map(({ row, i }) => (
           <div key={i} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(110px,0.7fr)_minmax(100px,0.6fr)_auto] items-end gap-2">
             <label className="flex flex-col items-center gap-1 text-[10px] text-dark-400 cursor-pointer" title="Use this as the default storefront size">
               Default

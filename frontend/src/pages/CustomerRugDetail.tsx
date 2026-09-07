@@ -1,3 +1,4 @@
+import { sortSizes } from '../utils/size';
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -22,7 +23,7 @@ import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitiz
 import type { CatalogSize, RugColorOption } from '../types';
 
 const QUOTE_ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
-const QUOTE_DELIVERY = ['No preference', 'ASAP / Early Delivery', 'Within 4 weeks', '1–2 months', '2–3 months or more'];
+const QUOTE_DELIVERY = ['No preference', 'ASAP / Early Delivery', 'Within 6-7 weeks', '1–2 months', '2–3 months or more'];
 const MAX_QUOTE_IMAGES = 3;
 
 
@@ -259,7 +260,7 @@ export default function CustomerRugDetail() {
       size_h: form.size_h || (selectedSize ? String(catalogSizeDims(selectedSize, inputUnit(sizeUnit))?.[1] ?? '') : ''),
       unit: inputUnit(sizeUnit),
       qty: form.qty || '1',
-      expected_delivery: form.rush_order ? 'ASAP / Early Delivery' : selectedLeadTimeDays <= 28 ? 'Within 4 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
+      expected_delivery: form.rush_order ? 'ASAP / Early Delivery' : selectedLeadTimeDays <= 49 ? 'Within 6-7 weeks' : selectedLeadTimeDays <= 60 ? '1–2 months' : '2–3 months or more',
     }));
     setSubmitError(null);
     setQuoteModal(true);
@@ -756,7 +757,7 @@ export default function CustomerRugDetail() {
                               className="w-full appearance-none border border-stone-300 bg-white px-4 pr-10 py-3.5 text-stone-900 text-sm focus:outline-none focus:border-stone-900 transition-colors"
                             >
                               <option value="" disabled>Select size</option>
-                              {rug.sizes.map((size) => catalogSizeDims(size, inputUnit(sizeUnit)) ? (
+                              {sortSizes(rug.sizes).map((size) => catalogSizeDims(size, inputUnit(sizeUnit)) ? (
                                 <option key={size.ft} value={size.ft}>{fmtSize(size, sizeUnit)}</option>
                               ) : null)}
                             </select>
@@ -1082,7 +1083,7 @@ export default function CustomerRugDetail() {
                 )}
                 <div>
                   <label htmlFor="quote-estimated-budget" className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Estimated Budget</label>
-                  <input id="quote-estimated-budget" type="text" maxLength={100} value={quoteDetails.budget_range} onChange={(e) => setQuoteDetails(current => ({ ...current, budget_range: e.target.value }))} placeholder="e.g. INR 25,000–50,000 total or USD 500 per rug" className="w-full border border-stone-200 bg-white px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
+                  <input id="quote-estimated-budget" type="text" maxLength={100} value={quoteDetails.budget_range} onChange={(e) => setQuoteDetails(current => ({ ...current, budget_range: e.target.value }))} placeholder="e.g. GBP 500–1,000 total or USD 500 per rug" className="w-full border border-stone-200 bg-white px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400" />
                   <p className="mt-1 text-xs text-stone-400">Include currency and whether the budget is per rug or total.</p>
                 </div>
                 <div>
@@ -1090,10 +1091,12 @@ export default function CustomerRugDetail() {
                   <div className="relative">
                     <select value={quoteDetails.expected_delivery} onChange={(e) => setQuoteDetails((current) => ({ ...current, expected_delivery: e.target.value }))}
                       className="w-full appearance-none border border-stone-200 bg-white px-3 pr-8 py-2.5 text-stone-900 text-sm focus:outline-none focus:border-stone-400">
-                      {QUOTE_DELIVERY.map((option) => <option key={option}>{option}</option>)}
+                      {QUOTE_DELIVERY.map((option) => <option key={option} value={option}>{option === 'ASAP / Early Delivery' ? 'ASAP / Early Delivery (extra cost)' : option}</option>)}
                     </select>
                     <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
                   </div>
+                  <p className="mt-1 text-xs text-stone-500">Standard delivery for this size: {selectedLeadTimeDays} days.</p>
+                  {quoteDetails.expected_delivery === 'ASAP / Early Delivery' && <p className="mt-1 text-xs text-amber-700">Early delivery incurs an extra cost. The final charge and delivery date will be confirmed in your quote.</p>}
                 </div>
               </div>
 

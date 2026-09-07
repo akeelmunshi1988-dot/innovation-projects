@@ -1,3 +1,4 @@
+import { sortSizes } from '../utils/size';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Plus, Ruler, Save, Trash2, X } from 'lucide-react';
@@ -13,7 +14,7 @@ export default function CatalogSizes() {
   const [message, setMessage] = useState<string | null>(null);
 
   const load = () => axios.get<CatalogSizeMaster[]>('/api/catalog-sizes').then(({ data }) => {
-    setSizes(data);
+    setSizes(sortSizes(data));
     setSavedFeet(Object.fromEntries(data.map(size => [size.id, size.ft])));
   }).catch(() => setMessage('Could not load Common Sizes. Refresh the page before adding a size.')).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
@@ -32,7 +33,7 @@ export default function CatalogSizes() {
       const { data } = await axios.post<CatalogSizeMaster>('/api/catalog-sizes', { ft: draft.ft.trim(), cm: draft.cm.trim() || null, sort_order: sizes.length, is_active: true });
       setDraft({ ft: '', cm: '' });
       // Preserve unsaved edits to existing rows.
-      setSizes(current => [...current, data]);
+      setSizes(current => sortSizes([...current, data]));
       setSavedFeet(current => ({ ...current, [data.id]: data.ft }));
       setMessage('Size added and associated with all catalog rugs.');
     } catch (error: any) {
@@ -52,7 +53,7 @@ export default function CatalogSizes() {
     setSaving('new'); setMessage(null);
     try {
       const { data } = await axios.put('/api/catalog-sizes', sizes);
-      setSizes(data);
+      setSizes(sortSizes(data));
       setSavedFeet(Object.fromEntries((data as CatalogSizeMaster[]).map(size => [size.id, size.ft])));
       setMessage('All sizes saved across associated rugs.');
     } catch (error: any) { setMessage(typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'Could not save sizes. Check all dimensions.'); }
