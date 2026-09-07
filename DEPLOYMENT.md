@@ -392,6 +392,8 @@ server {
     # anything) whenever INDIA_ACCESS_KEYS isn't set.
     location = /internal/access-check {
         internal;
+        # Match upload routes: auth subrequests also enforce the request size.
+        client_max_body_size 55M;
         proxy_pass http://127.0.0.1:8001/internal/access-check$is_args$args;
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
