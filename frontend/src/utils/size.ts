@@ -8,10 +8,22 @@ import type { CatalogSize } from '../types';
 
 const FT_TO_CM = 30.48;
 
+// Matches only a plain "6x9"-style compact size — used to decide whether a
+// stored ft/cm string needs its unit suffix appended (see fmtSize) or is
+// already a complete, free-text label (e.g. "3 round ft") that should be
+// shown verbatim rather than double-suffixed into "3 round ft ft".
+const COMPACT_SIZE_RE = /^\d+(\.\d+)?\s*x\s*\d+(\.\d+)?$/i;
+
 function parseSize(size: string): [number, number] | null {
   const parts = size.split('x').map((p) => parseFloat(p.trim()));
-  if (parts.length !== 2 || parts.some((p) => !Number.isFinite(p))) return null;
-  return [parts[0], parts[1]];
+  if (parts.length === 2 && parts.every((p) => Number.isFinite(p))) return [parts[0], parts[1]];
+  // No "x" separator — a round/diameter-only size (e.g. "3 round ft") has a
+  // single leading number instead of width x height. Treat that number as
+  // both dimensions (a circle's bounding square) so it flows through the
+  // same width/height-based area/quote-form logic as every other size,
+  // without needing a separate "round" code path throughout the app.
+  const single = parseFloat(size.trim());
+  return Number.isFinite(single) ? [single, single] : null;
 }
 
 /**
@@ -31,10 +43,17 @@ export function inputUnit(unit: string): 'ft' | 'cm' {
  * callers should skip/hide that size in cm mode rather than fall back to a
  * computed conversion (see CatalogSize's docstring for why).
  */
+// Appends the unit label only to a plain "6x9"-style value; a free-text
+// label like "3 round ft" or "90 round cm" already reads as a complete
+// phrase and is shown verbatim instead of becoming "3 round ft ft".
+function withUnitSuffix(value: string, unitLabel: string): string {
+  return COMPACT_SIZE_RE.test(value) ? `${value} ${unitLabel}` : value;
+}
+
 export function fmtSize(size: CatalogSize, unit: string = 'ft'): string | null {
-  if (unit === 'cm') return size.cm ? `${size.cm} cm` : null;
-  if (unit === 'both') return size.cm ? `${size.ft} ft (${size.cm} cm)` : `${size.ft} ft`;
-  return `${size.ft} ft`;
+  if (unit === 'cm') return size.cm ? withUnitSuffix(size.cm, 'cm') : null;
+  if (unit === 'both') return size.cm ? `${withUnitSuffix(size.ft, 'ft')} (${withUnitSuffix(size.cm, 'cm')})` : withUnitSuffix(size.ft, 'ft');
+  return withUnitSuffix(size.ft, 'ft');
 }
 
 /** Area in square metres for a catalog size — always computed from the required
