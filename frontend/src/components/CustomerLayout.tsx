@@ -492,9 +492,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <div className="space-y-2.5">
               {[
                 { to: '/catalog', label: 'All Rugs' },
-                { to: '/catalog/material/wool', label: 'Wool' },
-                { to: '/catalog/material/silk', label: 'Silk' },
-                { to: '/catalog/material/cotton', label: 'Cotton' },
+                ...menuOptions.materials.map((name) => ({ to: `/catalog/material/${encodeURIComponent(name)}`, label: name })),
               ].map((l) => (
                 <Link key={l.to} to={l.to}
                   className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
