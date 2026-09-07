@@ -338,11 +338,11 @@ export default function CustomerCustomRugRequest() {
 
                 <div>
                   <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Describe Your Vision</label>
-                  <textarea value={rug.notes} onChange={(e) => updateRug(i, { notes: e.target.value.slice(0, 1500) })} rows={4} maxLength={1500}
+                  <textarea value={rug.notes} onChange={(e) => updateRug(i, { notes: e.target.value.slice(0, 3000) })} rows={4} maxLength={3000}
                     placeholder="Colors, patterns, inspiration, anything else that helps us understand what you're picturing…"
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 placeholder-stone-300 text-sm focus:outline-none transition-colors resize-none"
                   />
-                  <p className="text-stone-400 text-xs mt-1 text-right">{rug.notes.length}/1500</p>
+                  <p className="text-stone-400 text-xs mt-1 text-right">{rug.notes.length}/3000</p>
                 </div>
 
                 <div>

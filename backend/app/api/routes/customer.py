@@ -1136,7 +1136,7 @@ class QuoteRequestBody(BaseModel):
     qty: int = Field(1, ge=1, le=10000)
     rush_order: bool = False
     shape: str = "rect"
-    notes: Optional[str] = Field(None, max_length=1500)
+    notes: Optional[str] = Field(None, max_length=3000)
     room_type: Optional[str] = Field(None, max_length=100)
     material_preference: Optional[str] = Field(None, max_length=150)
     budget_range: Optional[str] = Field(None, max_length=100)
@@ -1323,7 +1323,7 @@ class CustomRugRequestItem(BaseModel):
     material_preference: Optional[str] = Field(None, max_length=150)
     budget_range: Optional[str] = Field(None, max_length=100)
     expected_delivery: Optional[str] = Field(None, max_length=50)
-    notes: Optional[str] = Field(None, max_length=1500)
+    notes: Optional[str] = Field(None, max_length=3000)
     reference_image_urls: Optional[List[str]] = Field(None, max_length=15)
 
 
