@@ -30,9 +30,20 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
     onChange(active.map((size, index) => ({ master_size_id: size.id, ft: size.ft, cm: size.cm, price: 0, lead_time_days: DEFAULT_LEAD_TIME_DAYS, is_default: index === 0 })));
   }, [masterSizes, value.length, onChange]);
 
+  const missingSizes = masterSizes.filter((size) => size.is_active && !value.some((row) => row.master_size_id === size.id));
+
   const addRow = () => {
-    const next = masterSizes.find((size) => size.is_active && !value.some((row) => row.master_size_id === size.id));
+    const next = missingSizes[0];
     if (next) onChange([...value, { master_size_id: next.id, ft: next.ft, cm: next.cm, price: 0, lead_time_days: DEFAULT_LEAD_TIME_DAYS, is_default: value.length === 0 }]);
+  };
+  const addAllRemaining = () => {
+    if (missingSizes.length === 0) return;
+    const wasEmpty = value.length === 0;
+    const newRows = missingSizes.map((size, index) => ({
+      master_size_id: size.id, ft: size.ft, cm: size.cm, price: 0, lead_time_days: DEFAULT_LEAD_TIME_DAYS,
+      is_default: wasEmpty && index === 0,
+    }));
+    onChange([...value, ...newRows]);
   };
   const removeRow = (i: number) => {
     const removedDefault = value[i]?.is_default;
@@ -124,14 +135,30 @@ export default function SizesEditor({ value, onChange }: SizesEditorProps) {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={addRow}
-        disabled={!masterSizes.some((size) => size.is_active && !value.some((row) => row.master_size_id === size.id))}
-        className="flex items-center gap-1.5 text-gold-400 hover:text-gold-300 disabled:text-dark-600 text-xs font-medium transition-colors pt-1"
-      >
-        <Plus size={13} /> Add Next Common Size
-      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1">
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={missingSizes.length === 0}
+          className="flex items-center gap-1.5 text-gold-400 hover:text-gold-300 disabled:text-dark-600 text-xs font-medium transition-colors"
+        >
+          <Plus size={13} /> Add Next Common Size
+        </button>
+        {missingSizes.length > 1 && (
+          <button
+            type="button"
+            onClick={addAllRemaining}
+            className="flex items-center gap-1.5 text-gold-400 hover:text-gold-300 text-xs font-medium transition-colors"
+          >
+            <Plus size={13} /> Add All Remaining ({missingSizes.length})
+          </button>
+        )}
+      </div>
+      {missingSizes.length > 0 && (
+        <p className="text-dark-500 text-xs">
+          {missingSizes.length} common {missingSizes.length === 1 ? 'size' : 'sizes'} not yet offered on this rug: {missingSizes.map((s) => s.ft).join(', ')}.
+        </p>
+      )}
       <p className="text-dark-500 text-xs">Manage dimensions under Common Sizes. Set only price, delivery days, and the default option here.</p>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, CornerDownLeft, Layers, Zap, Play, Star, ChevronLeft, ChevronRight, PencilRuler, Scissors, Gem, Globe2, Palette, ShieldCheck, PackageCheck, Leaf, CheckCircle2 } from 'lucide-react';
@@ -327,15 +327,6 @@ export default function CustomerHome() {
   const ratingCustomers = ratedProjects
     .filter((project) => project.owner_name?.trim())
     .slice(0, 4);
-  const randomizedWorkshopPhotos = useMemo(() => {
-    const shuffled = [...workshopPhotos];
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-    }
-    return shuffled;
-  }, [workshopPhotos]);
-
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const organizationJsonLd = {
     '@context': 'https://schema.org',
@@ -753,7 +744,7 @@ export default function CustomerHome() {
                 Where every thread becomes a story. Step inside the hands-on process behind every rug, from raw fibre and colour preparation to patient weaving and meticulous finishing by our master artisans.
               </p>
             </div>
-            {randomizedWorkshopPhotos.map((photo, index) => {
+            {workshopPhotos.map((photo, index) => {
               const layout = index === 0
                 ? 'lg:col-span-3'
                 : index === 1
