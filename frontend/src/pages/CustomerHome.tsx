@@ -765,7 +765,10 @@ export default function CustomerHome() {
                   <div className={`overflow-hidden bg-white/5 ${ratio}`}>
                     <img src={photo.image_url} alt={photo.caption || 'Artisans at work in our rug workshop'} className="h-full w-full object-cover" loading="lazy" />
                   </div>
-                  {photo.caption && <figcaption className="mt-4 text-sm leading-relaxed text-white/60">{photo.caption}</figcaption>}
+                  {(photo.caption || photo.description) && <figcaption className="mt-4 space-y-2 text-sm leading-relaxed">
+                    {photo.caption && <p className="font-medium text-white/85">{photo.caption}</p>}
+                    {photo.description && <p className="whitespace-pre-wrap break-words text-white/65">{photo.description}</p>}
+                  </figcaption>}
                 </figure>
               );
             })}

@@ -23,7 +23,7 @@ from mcp.types import ToolAnnotations
 from app.api.routes.catalog import UPLOAD_DIR, add_rug_image_row, create_rug_row
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.models.models import Material, RugCatalog, McpCatalogUploadGrant
+from app.models.models import Material, RugCatalog, McpCatalogUploadGrant, CatalogSizeMaster, WeaveTypeMaster, PileHeightMaster, SpaceMaster, MoodMaster
 from app.schemas.schemas import PublicCatalogCreate
 from app.services.mcp_oauth import READ_SCOPE, WRITE_SCOPE, valid_access_token
 from app.services.catalog_image_storage import CATALOG_IMAGE_MAX_BYTES, store_catalog_image
@@ -95,6 +95,29 @@ def _safe_https_url(raw_url: str) -> str:
         if not ip.is_global:
             raise ValueError("image_url must resolve only to public internet addresses")
     return raw_url
+
+
+@mcp.tool(
+    description="List active Common Sizes and Collection Masters for this tenant. Use the exact names and master_size_id/ft values when creating a catalog item; no new master values are created by catalog creation.",
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
+)
+def list_catalog_masters() -> dict[str, Any]:
+    with SessionLocal() as db:
+        tenant_id = _tenant_id()
+        def attributes(model):
+            return [{"id": row.id, "name": row.name} for row in db.query(model).filter(
+                model.tenant_id == tenant_id, model.is_active == True,
+            ).order_by(model.sort_order, model.id).all()]
+        sizes = db.query(CatalogSizeMaster).filter(
+            CatalogSizeMaster.tenant_id == tenant_id, CatalogSizeMaster.is_active == True,
+        ).order_by(CatalogSizeMaster.sort_order, CatalogSizeMaster.id).all()
+        return {
+            "sizes": [{"master_size_id": row.id, "ft": row.ft, "cm": row.cm} for row in sizes],
+            "weave_types": attributes(WeaveTypeMaster),
+            "pile_heights": attributes(PileHeightMaster),
+            "spaces": attributes(SpaceMaster),
+            "moods": attributes(MoodMaster),
+        }
 
 
 @mcp.tool(
@@ -313,7 +336,9 @@ def finish_catalog_image_upload(upload_id: str) -> dict[str, Any]:
 @mcp.tool(
     description=(
         "Create and publish one catalog rug after the user has confirmed the questionnaire. "
-        "Every item in sizes must include its manually calculated total price and expected delivery days for that size. "
+        "Call list_catalog_masters first. Use its exact weave, pile, space and mood names. "
+        "Every item in sizes must reference an existing master_size_id and ft, with its manually calculated total price and expected delivery days. "
+        "Omit room_types and mood_tags to leave those associations empty. "
         "main_image_path must be the upright, front-facing, transparent-background product image. "
         "gallery_image_paths should contain the five separately generated room visualizers in order."
     ),
@@ -330,6 +355,8 @@ def create_catalog_item(
     base_price_currency: str = "INR",
     pile_height: str | None = None,
     lead_time_days: int = 21,
+    room_types: list[str] | None = None,
+    mood_tags: list[str] | None = None,
 ) -> dict[str, Any]:
     if len(gallery_image_paths) != 5:
         raise ValueError("Exactly five room visualizer image paths are required")
@@ -355,8 +382,8 @@ def create_catalog_item(
             "weave_type": weave_type,
             "lead_time_days": default_size.get("lead_time_days", lead_time_days),
             "image_url": main_image_path,
-            "room_types": ["living-room", "bedroom", "dining-room", "study", "entryway"],
-            "mood_tags": [],
+            "room_types": room_types or [],
+            "mood_tags": mood_tags or [],
         }
     )
 
