@@ -40,8 +40,6 @@ const SORT_OPTIONS = [
 
 const ROOM_TYPE_OPTIONS = ['living_room', 'bedroom', 'dining_room', 'entryway'];
 const MOOD_TAG_OPTIONS  = ['warm_earthy', 'quiet_luxury', 'modern_minimal', 'bohemian', 'bold_artistic', 'timeless_traditional'];
-const MATERIAL_OPTIONS  = ['wool', 'silk', 'cotton', 'synthetic'];
-const PILE_OPTIONS      = ['low', 'medium', 'high', 'flat'];
 const tagLabel = (v: string) => v.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 const PAGE_SIZE = 12;
@@ -63,6 +61,15 @@ export default function CustomerCatalog() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { sizeUnit, setSizeUnit } = useMeasurementUnit();
 
+  // Material/weave/pile filter options come from the vendor's own catalog
+  // data (Material table, WeaveTypeMaster, PileHeightMaster) rather than a
+  // fixed guess baked into the frontend — mirrors the header mega-menu's
+  // /customer/menu-options usage (CustomerLayout.tsx).
+  const [menuOptions, setMenuOptions] = useState<{ materials: string[]; weaves: string[]; piles: string[] }>({ materials: [], weaves: [], piles: [] });
+  useEffect(() => {
+    axios.get('/api/customer/menu-options').then(({ data }) => setMenuOptions(data)).catch(() => {});
+  }, []);
+
   // The primary facet (room/mood/material) lives as a clean URL segment —
   // e.g. /catalog/space/bedroom — set by whichever `useParams` route matched.
   // The other two facet types, plus pile, ride along as query params on top.
@@ -73,13 +80,14 @@ export default function CustomerCatalog() {
 
   const materialParam = pathFacet === 'material'  ? (pathValue ?? 'all') : (searchParams.get('material')  ?? 'all');
   const pileParam     = searchParams.get('pile') ?? 'all';
+  const weaveParam    = searchParams.get('weave') ?? 'all';
   const roomParam     = pathFacet === 'room_type' ? (pathValue ?? 'all') : (searchParams.get('room_type') ?? 'all');
   const moodParam     = pathFacet === 'mood'      ? (pathValue ?? 'all') : (searchParams.get('mood')      ?? 'all');
 
   const display = useCollectionDisplay(pathFacet && pathValue ? `${pathFacet === 'room_type' ? 'space' : pathFacet}/${pathValue}` : 'default');
 
   const [filtersOpen, setFiltersOpen] = useState(() =>
-    pathFacet !== null || ['material', 'pile', 'room_type', 'mood'].some((k) => searchParams.get(k))
+    pathFacet !== null || ['material', 'pile', 'weave', 'room_type', 'mood'].some((k) => searchParams.get(k))
   );
 
   // Debounce free-text search so we don't hit the backend on every keystroke
@@ -95,6 +103,7 @@ export default function CustomerCatalog() {
       mood: moodParam !== 'all' ? moodParam : undefined,
       material: materialParam !== 'all' ? materialParam : undefined,
       pile: pileParam !== 'all' ? pileParam : undefined,
+      weave: weaveParam !== 'all' ? weaveParam : undefined,
       search: debouncedSearch || undefined,
       limit: PAGE_SIZE,
       offset,
@@ -110,7 +119,7 @@ export default function CustomerCatalog() {
         setHasMore(data.has_more);
       })
       .finally(() => setLoading(false));
-  }, [materialParam, pileParam, roomParam, moodParam, sort, debouncedSearch]);
+  }, [materialParam, pileParam, weaveParam, roomParam, moodParam, sort, debouncedSearch]);
 
   // Infinite scroll — load the next page when the sentinel comes into view
   useEffect(() => {
@@ -129,13 +138,13 @@ export default function CustomerCatalog() {
     }, { rootMargin: '400px' });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [items.length, hasMore, loading, loadingMore, materialParam, pileParam, roomParam, moodParam, sort, debouncedSearch]);
+  }, [items.length, hasMore, loading, loadingMore, materialParam, pileParam, weaveParam, roomParam, moodParam, sort, debouncedSearch]);
 
   // Builds a clean URL for the given filter state: whichever of room_type/mood/material
   // is active takes the path segment (room_type > mood > material priority when more
-  // than one is active), the rest ride as query params alongside pile.
-  const buildCatalogUrl = (overrides: Partial<{ room_type: string; mood: string; material: string; pile: string }>) => {
-    const current = { room_type: roomParam, mood: moodParam, material: materialParam, pile: pileParam, ...overrides };
+  // than one is active), the rest ride as query params alongside pile/weave.
+  const buildCatalogUrl = (overrides: Partial<{ room_type: string; mood: string; material: string; pile: string; weave: string }>) => {
+    const current = { room_type: roomParam, mood: moodParam, material: materialParam, pile: pileParam, weave: weaveParam, ...overrides };
 
     let facet: 'space' | 'mood' | 'material' | null = null;
     let facetValue = '';
@@ -148,18 +157,19 @@ export default function CustomerCatalog() {
     if (facet !== 'mood' && current.mood !== 'all') params.set('mood', current.mood);
     if (facet !== 'material' && current.material !== 'all') params.set('material', current.material);
     if (current.pile !== 'all') params.set('pile', current.pile);
+    if (current.weave !== 'all') params.set('weave', current.weave);
 
     const path = facet ? `/catalog/${facet}/${facetValue}` : '/catalog';
     const qs = params.toString();
     return qs ? `${path}?${qs}` : path;
   };
 
-  const setFilter = (key: 'material' | 'pile' | 'room_type' | 'mood', val: string) => {
+  const setFilter = (key: 'material' | 'pile' | 'weave' | 'room_type' | 'mood', val: string) => {
     navigate(buildCatalogUrl({ [key]: val }));
   };
 
   const clearFilters = () => navigate('/catalog');
-  const hasActiveFilters = materialParam !== 'all' || pileParam !== 'all' || roomParam !== 'all' || moodParam !== 'all';
+  const hasActiveFilters = materialParam !== 'all' || pileParam !== 'all' || weaveParam !== 'all' || roomParam !== 'all' || moodParam !== 'all';
 
   return (
     <CustomerLayout>
@@ -270,8 +280,22 @@ export default function CustomerCatalog() {
                   onChange={(e) => setFilter('material', e.target.value)}
                   className="text-xs border border-stone-200 px-3 py-2 text-stone-700 capitalize focus:outline-none focus:border-stone-400 transition-colors min-w-32"
                 >
-                  {['all', ...MATERIAL_OPTIONS].map((m) => (
+                  {['all', ...menuOptions.materials].map((m) => (
                     <option key={m} value={m} className="capitalize">{m === 'all' ? 'All' : m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Weave */}
+              <div className="space-y-1">
+                <label className="block text-xs text-stone-400 uppercase tracking-wider">Weave</label>
+                <select
+                  value={weaveParam}
+                  onChange={(e) => setFilter('weave', e.target.value)}
+                  className="text-xs border border-stone-200 px-3 py-2 text-stone-700 capitalize focus:outline-none focus:border-stone-400 transition-colors min-w-32"
+                >
+                  {['all', ...menuOptions.weaves].map((w) => (
+                    <option key={w} value={w} className="capitalize">{w === 'all' ? 'All' : w}</option>
                   ))}
                 </select>
               </div>
@@ -284,8 +308,8 @@ export default function CustomerCatalog() {
                   onChange={(e) => setFilter('pile', e.target.value)}
                   className="text-xs border border-stone-200 px-3 py-2 text-stone-700 capitalize focus:outline-none focus:border-stone-400 transition-colors min-w-32"
                 >
-                  {['all', ...PILE_OPTIONS].map((p) => (
-                    <option key={p} value={p}>{p === 'all' ? 'All' : `${p} pile`}</option>
+                  {['all', ...menuOptions.piles].map((p) => (
+                    <option key={p} value={p} className="capitalize">{p === 'all' ? 'All' : p}</option>
                   ))}
                 </select>
               </div>

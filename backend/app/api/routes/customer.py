@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
-from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, WeaveTypeMaster, SpaceMaster, MoodMaster, PaymentAttempt, PromoCode, HomepageEnquiry, TradeEnquiry
+from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, WeaveTypeMaster, SpaceMaster, MoodMaster, PileHeightMaster, PaymentAttempt, PromoCode, HomepageEnquiry, TradeEnquiry
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
 from app.services import ai_realism
@@ -295,12 +295,12 @@ MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 def get_menu_options(db: Session = Depends(get_db)):
     tenant = db.query(Tenant).first()
     if tenant is None:
-        return {"materials": [], "weaves": [], "spaces": [], "moods": []}
+        return {"materials": [], "weaves": [], "spaces": [], "moods": [], "piles": []}
     materials = db.query(Material.name).filter(Material.tenant_id == tenant.id, Material.is_available == True).distinct().order_by(Material.name).all()
     weaves = db.query(WeaveTypeMaster).filter(WeaveTypeMaster.tenant_id == tenant.id, WeaveTypeMaster.is_active == True).order_by(WeaveTypeMaster.sort_order, WeaveTypeMaster.id).all()
     def names(model):
         return [row.name for row in db.query(model).filter(model.tenant_id == tenant.id, model.is_active == True).order_by(model.sort_order, model.id).all()]
-    return {"materials": [row.name for row in materials if row.name], "weaves": [row.name for row in weaves], "spaces": names(SpaceMaster), "moods": names(MoodMaster)}
+    return {"materials": [row.name for row in materials if row.name], "weaves": [row.name for row in weaves], "spaces": names(SpaceMaster), "moods": names(MoodMaster), "piles": names(PileHeightMaster)}
 
 
 @router.get("/customer/materials")
