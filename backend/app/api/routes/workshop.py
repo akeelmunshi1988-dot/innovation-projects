@@ -1,4 +1,5 @@
 import os
+import errno
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -7,6 +8,7 @@ from typing import List
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.cache import cache_clear
+from app.core.logging_config import logger
 from app.models.models import WorkshopPhoto, StaffUser
 from app.schemas.schemas import WorkshopPhotoCreate, WorkshopPhotoUpdate, WorkshopPhoto as WorkshopPhotoSchema
 
@@ -31,11 +33,20 @@ async def upload_workshop_image(
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
     filename = f"{uuid.uuid4().hex}.{ext}"
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
     filepath = os.path.join(UPLOAD_DIR, filename)
-
-    with open(filepath, "wb") as f:
-        f.write(contents)
+    try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        with open(filepath, "wb") as f:
+            f.write(contents)
+    except OSError as exc:
+        logger.exception("Workshop image storage failed for tenant %s", current_user.tenant_id)
+        if exc.errno in (errno.EACCES, errno.EPERM, errno.EROFS):
+            detail = "Workshop upload folder is not writable. Please contact the site administrator."
+        elif exc.errno in (errno.ENOSPC, errno.EDQUOT):
+            detail = "Server storage is full. Please contact the site administrator."
+        else:
+            detail = "Could not store the workshop image. Please try again or contact the site administrator."
+        raise HTTPException(status_code=503, detail=detail) from exc
 
     return JSONResponse({"url": f"/static/workshop/{filename}"})
 

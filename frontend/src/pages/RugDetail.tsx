@@ -1,3 +1,4 @@
+import { sortSizes } from '../utils/size';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -434,7 +435,7 @@ export default function RugDetail() {
               <span className="text-dark-500 text-xs">({rug.sizes.length} options)</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {rug.sizes.map((size) => (
+              {sortSizes(rug.sizes).map((size) => (
                 <div
                   key={size.ft}
                   className="group relative bg-dark-800 hover:bg-dark-750 border border-dark-600 hover:border-gold-600/40 rounded-xl px-4 py-2.5 transition-all cursor-default"

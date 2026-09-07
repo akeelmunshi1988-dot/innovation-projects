@@ -12,7 +12,7 @@ const ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway
 const DELIVERY_EXPECTATIONS = [
   'No preference',
   'ASAP / Early Delivery',
-  'Within 4 weeks',
+  'Within 6-7 weeks',
   '1–2 months',
   '2–3 months or more',
 ];
@@ -317,7 +317,7 @@ export default function CustomerCustomRugRequest() {
 
                 <div>
                   <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Estimated Budget</label>
-                  <input type="text" aria-label={`Estimated budget for rug ${i + 1}`} value={rug.budget_range} onChange={(e) => updateRug(i, { budget_range: e.target.value })} maxLength={100} placeholder="e.g. INR 25,000–50,000 total, or USD 500 per rug"
+                  <input type="text" aria-label={`Estimated budget for rug ${i + 1}`} value={rug.budget_range} onChange={(e) => updateRug(i, { budget_range: e.target.value })} maxLength={100} placeholder="e.g. GBP 500–1,000 total or USD 500 per rug"
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white" />
                   <p className="mt-1 text-xs text-stone-400">Include your currency and whether the budget is per rug or total.</p>
                 </div>
@@ -332,8 +332,9 @@ export default function CustomerCustomRugRequest() {
                   <select value={rug.expected_delivery} onChange={(e) => updateRug(i, { expected_delivery: e.target.value })}
                     className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors bg-white"
                   >
-                    {DELIVERY_EXPECTATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+                    {DELIVERY_EXPECTATIONS.map((d) => <option key={d} value={d}>{d === 'ASAP / Early Delivery' ? 'ASAP / Early Delivery (extra cost)' : d}</option>)}
                   </select>
+                  {rug.expected_delivery === 'ASAP / Early Delivery' && <p className="mt-1 text-xs text-amber-700">Early delivery incurs an extra cost. The final charge and delivery date will be confirmed in your quote.</p>}
                 </div>
 
                 <div>

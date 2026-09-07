@@ -1,3 +1,4 @@
+import { sortSizes } from '../utils/size';
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Search, Clock, Layers, RefreshCw, Plus, Pencil, Trash2, X, AlertTriangle, Check, Upload, Link2, Image as ImageIcon, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
@@ -1014,7 +1015,7 @@ const CatalogList: React.FC = () => {
                 <div>
                   <p className="text-dark-300 text-xs mb-1.5 uppercase tracking-wider">Available Sizes</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {rug.sizes.map((size) => (
+                    {sortSizes(rug.sizes).map((size) => (
                       <span
                         key={size.ft}
                         className={`text-xs px-2 py-0.5 rounded border ${size.cm ? 'bg-dark-800 text-dark-300 border-dark-700' : 'bg-dark-800/50 text-dark-500 border-dark-700/60'}`}
