@@ -129,12 +129,12 @@ const MATERIAL_TEXTURES = [
 ];
 
 const MOOD_TAGS = [
-  { v: 'warm_earthy', label: 'Warm & Earthy' },
-  { v: 'quiet_luxury', label: 'Quiet Luxury' },
-  { v: 'modern_minimal', label: 'Modern Minimal' },
-  { v: 'bohemian', label: 'Bohemian' },
-  { v: 'bold_artistic', label: 'Bold & Artistic' },
-  { v: 'timeless_traditional', label: 'Timeless Traditional' },
+  { v: 'warm_earthy', label: 'Warm & Earthy', image: '/images/moods/warm-earthy.jpg' },
+  { v: 'quiet_luxury', label: 'Quiet Luxury', image: '/images/moods/quiet-luxury.jpg' },
+  { v: 'modern_minimal', label: 'Modern Minimal', image: '/images/moods/modern-minimal.jpg' },
+  { v: 'bohemian', label: 'Bohemian', image: '/images/moods/bohemian.jpg' },
+  { v: 'bold_artistic', label: 'Bold & Artistic', image: '/images/moods/bold-artistic.jpg' },
+  { v: 'timeless_traditional', label: 'Timeless Traditional', image: '/images/moods/timeless-traditional.jpg' },
 ];
 
 // Five-image editorial composition modelled on the reference. Each additional
@@ -879,14 +879,23 @@ export default function CustomerHome() {
           )}
 
           {shopTab === 'mood' && (
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {MOOD_TAGS.map((m) => (
                 <Link
                   key={m.v}
                   to={`/catalog/mood/${m.v}`}
-                  className="storefront-cta-outline bg-white px-5 py-2.5"
+                  className="group relative overflow-hidden bg-cream-200 aspect-[4/3] flex items-center justify-center text-center p-4 sm:p-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-stone-900"
                 >
-                  {m.label}
+                  <img
+                    src={m.image}
+                    alt=""
+                    loading="lazy"
+                    width={900}
+                    height={675}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-stone-900/30 group-hover:bg-stone-900/40 transition-colors duration-500" />
+                  <span className="relative font-serif text-xl sm:text-2xl font-light text-white">{m.label}</span>
                 </Link>
               ))}
             </div>
