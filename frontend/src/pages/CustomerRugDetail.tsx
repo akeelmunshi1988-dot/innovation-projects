@@ -1098,12 +1098,12 @@ export default function CustomerRugDetail() {
               </div>
 
               <div>
-                <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Describe Your Requirements <span className="normal-case font-normal">(maximum 1,500 characters)</span></label>
-                <textarea aria-label="Describe Your Requirements" aria-describedby="quote-requirements-count" rows={3} maxLength={1500} value={quoteDetails.notes}
+                <label className="text-stone-500 text-xs font-medium block mb-1 uppercase tracking-wider">Describe Your Requirements <span className="normal-case font-normal">(maximum 3,000 characters)</span></label>
+                <textarea aria-label="Describe Your Requirements" aria-describedby="quote-requirements-count" rows={3} maxLength={3000} value={quoteDetails.notes}
                   onChange={(e) => setQuoteDetails((current) => ({ ...current, notes: e.target.value }))}
                   placeholder="Colors, placement, changes, or anything else we should know…"
                   className="w-full border border-stone-200 px-3 py-2.5 text-stone-900 text-sm resize-none focus:outline-none focus:border-stone-400" />
-                <p id="quote-requirements-count" className="mt-1 text-right text-xs text-stone-400">{quoteDetails.notes.length}/1,500 characters</p>
+                <p id="quote-requirements-count" className="mt-1 text-right text-xs text-stone-400">{quoteDetails.notes.length}/3,000 characters</p>
               </div>
 
               <div>
