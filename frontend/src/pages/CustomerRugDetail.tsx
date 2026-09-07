@@ -1095,7 +1095,6 @@ export default function CustomerRugDetail() {
                     </select>
                     <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
                   </div>
-                  <p className="mt-1 text-xs text-stone-500">Standard delivery for this size: {selectedLeadTimeDays} days.</p>
                   {quoteDetails.expected_delivery === 'ASAP / Early Delivery' && <p className="mt-1 text-xs text-amber-700">Early delivery incurs an extra cost. The final charge and delivery date will be confirmed in your quote.</p>}
                 </div>
               </div>
