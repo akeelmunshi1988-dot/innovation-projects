@@ -739,25 +739,31 @@ export default function CustomerRugDetail() {
                             ))}
                           </div>
                         </div>
-                        {rug.sizes.filter((size) => catalogSizeDims(size, inputUnit(sizeUnit))).length > 0 ? (
+                        {rug.sizes.filter((size) => fmtSize(size, sizeUnit)).length > 0 ? (
                           <div className="relative">
                             <select
                               aria-label="Select standard rug size"
-                              value={selectedCatalogSize && catalogSizeDims(selectedCatalogSize, inputUnit(sizeUnit)) ? selectedCatalogSize.ft : ''}
+                              value={selectedCatalogSize && fmtSize(selectedCatalogSize, sizeUnit) ? selectedCatalogSize.ft : ''}
                               onChange={(event) => {
                                 const size = rug.sizes.find((item) => item.ft === event.target.value);
                                 if (!size) return;
+                                // Every listed size is selectable regardless of whether its
+                                // label parses into numeric width/height (e.g. a free-text
+                                // size like "3 round ft") — only the quote form's own
+                                // size_w/size_h prefill depends on that; when it can't be
+                                // parsed, those are left blank for the customer to fill in.
                                 const dims = catalogSizeDims(size, inputUnit(sizeUnit));
-                                if (!dims) return;
-                                const dispW = String(dims[0]);
-                                const dispH = String(dims[1]);
                                 setSelectedSizeKey(size.ft);
-                                setForm((current) => ({ ...current, size_w: dispW, size_h: dispH }));
+                                setForm((current) => ({
+                                  ...current,
+                                  size_w: dims ? String(dims[0]) : '',
+                                  size_h: dims ? String(dims[1]) : '',
+                                }));
                               }}
                               className="w-full appearance-none border border-stone-300 bg-white px-4 pr-10 py-3.5 text-stone-900 text-sm focus:outline-none focus:border-stone-900 transition-colors"
                             >
                               <option value="" disabled>Select size</option>
-                              {sortSizes(rug.sizes).map((size) => catalogSizeDims(size, inputUnit(sizeUnit)) ? (
+                              {sortSizes(rug.sizes).map((size) => fmtSize(size, sizeUnit) ? (
                                 <option key={size.ft} value={size.ft}>{fmtSize(size, sizeUnit)}</option>
                               ) : null)}
                             </select>
