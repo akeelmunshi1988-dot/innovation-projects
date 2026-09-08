@@ -196,6 +196,14 @@ export default function WeaveTypePage() {
   const [pile, setPile] = useState('all');
   const [sort, setSort] = useState('default');
 
+  // Material/pile filter options come from the vendor's own catalog data
+  // (Material table, PileHeightMaster) rather than a fixed guess baked into
+  // the frontend — mirrors CustomerCatalog.tsx's /customer/menu-options usage.
+  const [menuOptions, setMenuOptions] = useState<{ materials: string[]; weaves: string[]; piles: string[] }>({ materials: [], weaves: [], piles: [] });
+  useEffect(() => {
+    axios.get('/api/customer/menu-options').then(({ data }) => setMenuOptions(data)).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => window.clearTimeout(timeout);
@@ -289,24 +297,22 @@ export default function WeaveTypePage() {
             {facet !== 'material' && (
               <label className="block">
                 <span className="block text-[10px] uppercase tracking-[0.18em] text-stone-400 mb-2">Material</span>
-                <select value={material} onChange={(event) => setMaterial(event.target.value)} className="min-w-36 border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 focus:outline-none focus:border-stone-500">
+                <select value={material} onChange={(event) => setMaterial(event.target.value)} className="min-w-36 border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 capitalize focus:outline-none focus:border-stone-500">
                   <option value="all">All materials</option>
-                  <option value="wool">Wool</option>
-                  <option value="silk">Silk</option>
-                  <option value="cotton">Cotton</option>
-                  <option value="synthetic">Synthetic</option>
+                  {menuOptions.materials.map((m) => (
+                    <option key={m} value={m} className="capitalize">{m}</option>
+                  ))}
                 </select>
               </label>
             )}
 
             <label className="block">
               <span className="block text-[10px] uppercase tracking-[0.18em] text-stone-400 mb-2">Pile height</span>
-              <select value={pile} onChange={(event) => setPile(event.target.value)} className="min-w-36 border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 focus:outline-none focus:border-stone-500">
+              <select value={pile} onChange={(event) => setPile(event.target.value)} className="min-w-36 border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 capitalize focus:outline-none focus:border-stone-500">
                 <option value="all">All pile heights</option>
-                <option value="flat">Flat</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                {menuOptions.piles.map((p) => (
+                  <option key={p} value={p} className="capitalize">{p}</option>
+                ))}
               </select>
             </label>
 
