@@ -172,6 +172,12 @@ MCP_CONNECTOR_TOKEN=REPLACE_WITH-A-SEPARATE-RANDOM-TOKEN
 MCP_TENANT_ID=1
 MCP_OAUTH_ACCESS_TOKEN_MINUTES=60
 MCP_OAUTH_REFRESH_TOKEN_DAYS=30
+# Extra OAuth redirect hosts for MCP connectors beyond ChatGPT/Claude.
+# Comma-separated, subdomains included. Set this to add a Grok/xAI connector
+# (use the callback host xAI documents, e.g. grok.com). Leave unset otherwise.
+# Not needed for API/programmatic use — that path uses MCP_CONNECTOR_TOKEN and
+# skips OAuth entirely.
+MCP_OAUTH_EXTRA_REDIRECT_HOSTS=
 DATABASE_URL=sqlite:////var/www/dreamrugscreation/innovation-projects/backend/rug_manufacture.db
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -345,9 +351,10 @@ server {
         proxy_read_timeout 120s;
     }
 
-    # ChatGPT/Codex remote MCP connector. Do not apply the India visitor gate
-    # here: the backend validates the connector's Authorization bearer token.
-    # Streaming must remain unbuffered for MCP's Streamable HTTP transport.
+    # Remote MCP connector (ChatGPT, Claude, Grok, …). Do not apply the India
+    # visitor gate here: the backend validates the connector's Authorization
+    # bearer token. Streaming must remain unbuffered for MCP's Streamable HTTP
+    # transport.
     location /mcp/ {
         proxy_pass http://127.0.0.1:8001;
         proxy_http_version 1.1;
