@@ -1,4 +1,4 @@
-"""OAuth 2.1-style authorization-code + PKCE server for ChatGPT MCP."""
+"""OAuth 2.1-style authorization-code + PKCE server for MCP connectors (ChatGPT, Claude, Grok, …)."""
 
 import base64
 import hashlib
@@ -40,18 +40,29 @@ def _oauth_error(error: str, description: str, status: int = 400) -> JSONRespons
     return JSONResponse({"error": error, "error_description": description}, status_code=status)
 
 
-_HTTPS_REDIRECT_HOSTS = ("chatgpt.com", "claude.ai", "claude.com")
+# MCP clients this connector was built against. Additional hosts (e.g. a
+# Grok/xAI connector callback) are allowed without a code change via
+# settings.MCP_OAUTH_EXTRA_REDIRECT_HOSTS. Subdomains of each are accepted too.
+_BUILTIN_HTTPS_REDIRECT_HOSTS = ("chatgpt.com", "claude.ai", "claude.com")
+
+
+def _allowed_redirect_hosts() -> tuple[str, ...]:
+    extra = settings.MCP_OAUTH_EXTRA_REDIRECT_HOSTS or ""
+    return _BUILTIN_HTTPS_REDIRECT_HOSTS + tuple(
+        host.strip().lower() for host in extra.split(",") if host.strip()
+    )
 
 
 def _valid_redirect_uri(uri: str) -> bool:
     parsed = urlparse(uri)
     if parsed.fragment or not parsed.hostname:
         return False
+    host = parsed.hostname.lower()
     if parsed.scheme == "https" and any(
-        parsed.hostname == host or parsed.hostname.endswith(f".{host}") for host in _HTTPS_REDIRECT_HOSTS
+        host == allowed or host.endswith(f".{allowed}") for allowed in _allowed_redirect_hosts()
     ):
         return True
-    return parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost"}
+    return parsed.scheme == "http" and host in {"127.0.0.1", "localhost"}
 
 
 @router.get("/.well-known/oauth-protected-resource/mcp/")
@@ -92,13 +103,13 @@ async def register_client(request: Request, db: Session = Depends(get_db)):
         return _oauth_error("invalid_client_metadata", "A JSON registration document is required")
     redirect_uris = body.get("redirect_uris") or []
     if not isinstance(redirect_uris, list) or not redirect_uris or any(not _valid_redirect_uri(str(uri)) for uri in redirect_uris):
-        return _oauth_error("invalid_redirect_uri", "Only ChatGPT HTTPS or local-loopback callbacks are accepted")
+        return _oauth_error("invalid_redirect_uri", "Only allow-listed connector HTTPS callbacks or local-loopback are accepted")
     if body.get("token_endpoint_auth_method", "none") != "none":
         return _oauth_error("invalid_client_metadata", "This server registers public PKCE clients only")
     client_id = f"mcp_{secrets.token_urlsafe(24)}"
     row = McpOAuthClient(
         client_id=client_id,
-        client_name=str(body.get("client_name") or "ChatGPT MCP")[:200],
+        client_name=str(body.get("client_name") or "MCP connector")[:200],
         redirect_uris=[str(uri) for uri in redirect_uris],
     )
     db.add(row)
@@ -143,7 +154,7 @@ def authorize(
     ))
     db.commit()
     scope_labels = ", ".join(html.escape(item) for item in scopes)
-    return HTMLResponse(f"""<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Authorize DreamRugsCreation</title><style>body{{font-family:system-ui;background:#f6f1e8;margin:0;padding:32px}}main{{max-width:460px;margin:auto;background:white;padding:28px;border-radius:16px;box-shadow:0 8px 32px #0002}}label{{display:block;margin-top:16px}}input{{box-sizing:border-box;width:100%;padding:12px;margin-top:6px}}button{{width:100%;padding:13px;margin-top:22px;background:#222;color:white;border:0;border-radius:8px}}small{{color:#555}}</style></head><body><main><h1>Connect ChatGPT</h1><p>Sign in with an active DreamRugsCreation staff account and approve catalog access.</p><small>Requested permissions: {scope_labels}</small><form method=\"post\" action=\"/oauth/authorize\"><input type=\"hidden\" name=\"transaction\" value=\"{html.escape(transaction)}\"><label>Email<input name=\"email\" type=\"email\" required autocomplete=\"username\"></label><label>Password<input name=\"password\" type=\"password\" required autocomplete=\"current-password\"></label><button type=\"submit\">Sign in and authorize</button></form></main></body></html>""")
+    return HTMLResponse(f"""<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Authorize DreamRugsCreation</title><style>body{{font-family:system-ui;background:#f6f1e8;margin:0;padding:32px}}main{{max-width:460px;margin:auto;background:white;padding:28px;border-radius:16px;box-shadow:0 8px 32px #0002}}label{{display:block;margin-top:16px}}input{{box-sizing:border-box;width:100%;padding:12px;margin-top:6px}}button{{width:100%;padding:13px;margin-top:22px;background:#222;color:white;border:0;border-radius:8px}}small{{color:#555}}</style></head><body><main><h1>Connect your AI assistant</h1><p>Sign in with an active DreamRugsCreation staff account and approve catalog access.</p><small>Requested permissions: {scope_labels}</small><form method=\"post\" action=\"/oauth/authorize\"><input type=\"hidden\" name=\"transaction\" value=\"{html.escape(transaction)}\"><label>Email<input name=\"email\" type=\"email\" required autocomplete=\"username\"></label><label>Password<input name=\"password\" type=\"password\" required autocomplete=\"current-password\"></label><button type=\"submit\">Sign in and authorize</button></form></main></body></html>""")
 
 
 @router.post("/oauth/authorize")
@@ -159,7 +170,7 @@ def authorize_submit(
         McpOAuthAuthorizationRequest.expires_at > datetime.utcnow(),
     ).first()
     if not pending:
-        raise HTTPException(400, "Authorization request expired; return to ChatGPT and try again")
+        raise HTTPException(400, "Authorization request expired; return to your assistant and try again")
     user = db.query(StaffUser).filter(
         StaffUser.email == email.strip().lower(), StaffUser.is_active == True,  # noqa: E712
     ).first()

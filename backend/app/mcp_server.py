@@ -1,4 +1,4 @@
-"""Private DreamRugsCreation MCP server for ChatGPT/Codex connectors."""
+"""Private DreamRugsCreation MCP server for OAuth/streamable-HTTP connectors (ChatGPT, Claude, Grok, …)."""
 
 import base64
 import binascii

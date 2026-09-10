@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     CATALOG_API_KEY: Optional[str] = None  # local room-visualizer agent credential for the authenticated public catalog API
     MCP_CONNECTOR_TOKEN: Optional[str] = None  # optional dedicated bearer token; falls back to CATALOG_API_KEY
     MCP_TENANT_ID: Optional[int] = 1  # connector is deliberately scoped to one tenant
+    # Comma-separated extra OAuth redirect hosts for MCP clients beyond the
+    # built-in ChatGPT/Claude set (e.g. "grok.com,x.com" for a Grok/xAI
+    # connector). Subdomains of each listed host are also accepted. Leave
+    # unset to allow only ChatGPT and Claude. The static-token path
+    # (MCP_CONNECTOR_TOKEN) needs none of this — it bypasses OAuth entirely.
+    MCP_OAUTH_EXTRA_REDIRECT_HOSTS: Optional[str] = None
     MCP_OAUTH_ACCESS_TOKEN_MINUTES: int = 60
     MCP_OAUTH_REFRESH_TOKEN_DAYS: int = 30
     MCP_UPLOAD_TMP_DIR: str = "/tmp/dreamrugs-mcp-uploads"
