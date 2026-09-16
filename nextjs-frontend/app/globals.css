@@ -55,3 +55,8 @@ button,input,select,textarea { font:inherit; }
 .simple-page { min-height:55vh; max-width:900px; margin:auto; padding:90px 24px; }
 @media(max-width:850px){ .announcement span+span{display:none}.header{height:auto}.header-inner{grid-template-columns:1fr auto;padding:18px 0}.nav{grid-column:1/-1;grid-row:2;justify-content:center;margin-top:18px;gap:18px}.actions{display:none}.logo{font-size:1.5rem}.hero{min-height:560px}.trust{grid-template-columns:1fr 1fr;gap:16px}.trust span:last-child{grid-column:1/-1}.story,.detail{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.sticky{position:static}.footer-grid{grid-template-columns:1fr}.gallery{grid-template-columns:1fr}.gallery img:first-child{grid-column:auto}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.catalog-tools{flex-direction:column}.section{padding:65px 0}.nav{font-size:.74rem}.shell{width:92vw}}
+.project-images { display:grid; grid-template-columns:1fr 1fr; align-items:start; gap:12px; }
+.project-images button { width:100%; padding:0; border:none; background:none; cursor:zoom-in; }
+.project-images button:first-child { grid-column:1/-1; }
+.project-images img { display:block; width:100%; height:auto; }
+@media(max-width:850px){.project-images{grid-template-columns:1fr}}
