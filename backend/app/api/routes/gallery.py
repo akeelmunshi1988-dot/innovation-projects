@@ -84,7 +84,9 @@ def update_gallery_item(
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
-    for field, value in item_update.model_dump(exclude_unset=True).items():
+    # Images are managed by the dedicated image endpoints, never by replacing
+    # this relationship (which would detach rows with a required parent ID).
+    for field, value in item_update.model_dump(exclude_unset=True, exclude={"images"}).items():
         setattr(item, field, value)
     db.commit()
     db.refresh(item)
