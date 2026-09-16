@@ -201,13 +201,13 @@ export default function CustomerCustomRugRequest() {
     <CustomerLayout>
       <SEO title="Request a Custom Rug" description="Tell us about the rug you have in mind — size, material, style, and budget — and our team will send you a personalized quote." />
       <div className="w-[94vw] max-w-none mx-auto px-4 py-12">
-      <div className="mx-auto mb-6 flex max-w-[1560px] items-center gap-2 text-xs text-stone-400">
+      <div className="mx-auto mb-6 flex w-full items-center gap-2 text-xs text-stone-400">
         <Link to="/" className="transition-colors hover:text-stone-900">Home</Link>
         <ChevronRight size={11} />
         <span className="text-stone-600">Request a Custom Rug</span>
       </div>
 
-      <section className="mx-auto max-w-[1560px] bg-[#f2efe5] px-6 py-14 sm:px-10 lg:px-16 lg:py-20">
+      <section className="mx-auto w-full bg-[#f2efe5] px-6 py-14 sm:px-10 lg:px-16 lg:py-20">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">
           Bespoke Design
         </p>
@@ -228,7 +228,7 @@ export default function CustomerCustomRugRequest() {
         </div>
       )}
 
-      <div className="mx-auto mt-8 grid max-w-[1560px] items-start gap-8 xl:grid-cols-[minmax(180px,260px)_minmax(0,896px)_minmax(180px,260px)] xl:justify-center">
+      <div className="mx-auto mt-8 grid w-full min-w-0 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,3.45fr)_minmax(0,1fr)]">
         <aside className="sticky top-6 hidden space-y-6 xl:block" aria-label="Custom rug inspiration images">
           {leftPageImages.map((image, index) => stepTile(image, index))}
         </aside>
