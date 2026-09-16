@@ -1029,7 +1029,7 @@ export default function CustomerHome() {
       {galleryItems.length > 0 && (() => {
         return (
           <section
-            className="relative overflow-hidden bg-[#0b1217] py-24 md:py-32"
+            className="relative overflow-hidden bg-[#0b1217] pt-24 pb-12 md:pt-32 md:pb-16"
             style={{
               backgroundImage: 'radial-gradient(circle at 18% 22%, rgba(255,255,255,.035), transparent 25%), linear-gradient(115deg, transparent 35%, rgba(255,255,255,.025) 35.1%, transparent 35.3%)',
             }}
@@ -1063,7 +1063,7 @@ export default function CustomerHome() {
               {Array.from({ length: Math.ceil(galleryItems.length / GALLERY_MOSAIC_LAYOUTS.length) }).map((_, groupIndex) => (
                 <div
                   key={groupIndex}
-                  className="grid grid-cols-2 gap-4 mb-4 md:mb-16 md:grid-cols-12 md:grid-rows-[repeat(10,minmax(0,92px))] lg:grid-rows-[repeat(10,minmax(0,110px))] md:gap-0"
+                  className="grid grid-cols-2 gap-4 mb-4 md:mb-16 last:mb-0 md:grid-cols-12 md:auto-rows-[92px] lg:auto-rows-[110px] md:gap-0"
                 >
                   {galleryItems
                     .slice(groupIndex * GALLERY_MOSAIC_LAYOUTS.length, (groupIndex + 1) * GALLERY_MOSAIC_LAYOUTS.length)

@@ -92,22 +92,19 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* Image grid — cover + every uploaded gallery photo, uncropped
-            (object-contain, matching this codebase's other "whole,
-            uncropped images" gallery convention rather than a cropped tile
-            grid) with a click-to-expand lightbox. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Preserve each photo's original proportions, with a click-to-expand lightbox. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
           {galleryImages.map((img, i) => (
             <button
               key={img.id}
               type="button"
               onClick={() => setExpandedImage({ src: img.image_url, alt: project.caption || `Project photo ${i + 1}` })}
-              className={`relative bg-stone-100 overflow-hidden aspect-[4/3] ${0 === i ? 'sm:col-span-2 sm:aspect-[21/9]' : ''} cursor-zoom-in group`}
+              className={`relative w-full bg-stone-100 ${0 === i ? 'sm:col-span-2' : ''} cursor-zoom-in`}
             >
               <img
                 src={img.image_url}
                 alt={project.caption || `Project photo ${i + 1}`}
-                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
+                className="block w-full h-auto"
                 loading={0 === i ? 'eager' : 'lazy'}
               />
             </button>
