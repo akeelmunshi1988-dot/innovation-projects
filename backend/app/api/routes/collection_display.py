@@ -1,4 +1,5 @@
 """Tenant-managed editorial imagery for collection landing pages."""
+import random
 from typing import List
 from urllib.parse import urlsplit
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.slugify import slugify
 from app.models.models import CollectionDisplay, StaffUser, Tenant, WeaveTypeMaster, RugCatalog, Material
 
 router = APIRouter()
@@ -113,33 +115,67 @@ def public_display(category: str, db: Session = Depends(get_db)):
     # Styling is always active. Saved photos override automatic images, including
     # drafts created by the original editor's hidden/three-required-images gate.
     row = db.query(CollectionDisplay).filter_by(tenant_id=tenant.id, category=category).first()
-    default = db.query(CollectionDisplay).filter_by(tenant_id=tenant.id, category="default").first()
     custom = row.images if row else []
-    defaults = default.images if default else []
-    images = []
-    for index in range(3):
-        image = custom[index] if index < len(custom) else {}
-        fallback = defaults[index] if index < len(defaults) else {}
-        images.append({"image_url": image.get("image_url") or fallback.get("image_url", ""),
-                       "caption": image.get("caption") or fallback.get("caption", "")})
+    images = [{"image_url": custom[index].get("image_url", "") if index < len(custom) else "",
+               "caption": custom[index].get("caption", "") if index < len(custom) else ""} for index in range(3)]
+
+    # Rugs actually tagged for this mood/space/weave/material are tried before the
+    # tenant's generic "default" showcase images, so e.g. /collections/mood/warm_earthy
+    # shows warm/earthy rugs instead of whatever unrelated default grid is configured.
     if any(not image["image_url"] for image in images):
         facet, _, value = category.partition("/")
-        candidates = db.query(RugCatalog.image_url, RugCatalog.weave_type,
-                              RugCatalog.room_types, RugCatalog.mood_tags, Material.type).join(
-            Material, RugCatalog.material_id == Material.id
-        ).filter(RugCatalog.tenant_id == tenant.id, Material.tenant_id == tenant.id,
-                 RugCatalog.image_url.isnot(None)).order_by(RugCatalog.id).all()
-        photos = [url for url, weave, rooms, moods, material in candidates if url and (
-            category == "default" or (facet == "weave" and weave == value) or
-            (facet == "space" and value in (rooms or [])) or
-            (facet == "mood" and value in (moods or [])) or
-            (facet == "material" and material == value)
+        value_slug = slugify(value)
+        rugs = db.query(RugCatalog).join(Material, RugCatalog.material_id == Material.id).filter(
+            RugCatalog.tenant_id == tenant.id, Material.tenant_id == tenant.id,
+        ).order_by(RugCatalog.id).all()
+        # Compared as slugs, not raw equality: catalog rows use freeform vendor-entered
+        # values ("Hand-woven Flat Weave", "living-room", material *names* like "Jute")
+        # that don't line up character-for-character with the fixed URL vocabulary
+        # (CATEGORY_VALUES) or each other — see the material name/type note below.
+        matching = [rug for rug in rugs if category == "default" or (
+            (facet == "weave" and rug.weave_type and slugify(rug.weave_type) == value_slug) or
+            (facet == "space" and any(slugify(room) == value_slug for room in (rug.room_types or []))) or
+            (facet == "mood" and any(slugify(mood) == value_slug for mood in (rug.mood_tags or []))) or
+            # Material.type is only a coarse wool/silk/cotton/synthetic bucket — the
+            # /collections/material/<value> URL vocabulary is the specific Material.name
+            # (e.g. "Jute", "Handspun New Zealand Wool"), so check both.
+            (facet == "material" and value_slug in {slugify(rug.material.name), slugify(rug.material.type)})
         )]
-        # Bundled craft photos keep empty collections visually complete.
-        photos += ["/static/journey/design.jpg", "/static/journey/weaving.jpg", "/static/journey/delivery.jpg"]
+        # Each matching rug's photo gallery (styled room/texture shots) reads far better
+        # in this full-bleed editorial banner than its flat product-cutout catalog
+        # thumbnail, so prefer gallery photos and fall back to the thumbnail only for a
+        # rug with no gallery yet. Pooled and shuffled (not always the same 3) so a
+        # category with only one match still fills all 3 slots from that rug's own
+        # gallery instead of falling through to unrelated tenant-default images.
+        photos = [
+            url for rug in matching
+            for url in ([img.image_url for img in rug.images] or ([rug.image_url] if rug.image_url else []))
+        ]
+        random.shuffle(photos)
         used = {image["image_url"] for image in images if image["image_url"]}
         for image in images:
             if not image["image_url"]:
-                image["image_url"] = next((photo for photo in photos if photo not in used), photos[0])
+                match = next((photo for photo in photos if photo not in used), None)
+                if match:
+                    image["image_url"] = match
+                    used.add(match)
+
+    if any(not image["image_url"] for image in images):
+        default = db.query(CollectionDisplay).filter_by(tenant_id=tenant.id, category="default").first()
+        defaults = default.images if default else []
+        for index, image in enumerate(images):
+            if not image["image_url"] and index < len(defaults):
+                fallback = defaults[index]
+                image["image_url"] = fallback.get("image_url", "")
+                image["caption"] = image["caption"] or fallback.get("caption", "")
+
+    if any(not image["image_url"] for image in images):
+        # Bundled craft photos keep empty collections visually complete.
+        bundled = ["/static/journey/design.jpg", "/static/journey/weaving.jpg", "/static/journey/delivery.jpg"]
+        used = {image["image_url"] for image in images if image["image_url"]}
+        for image in images:
+            if not image["image_url"]:
+                image["image_url"] = next((photo for photo in bundled if photo not in used), bundled[0])
                 used.add(image["image_url"])
+
     return {"enabled": True, "images": images}

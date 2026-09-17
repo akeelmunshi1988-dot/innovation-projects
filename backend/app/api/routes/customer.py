@@ -23,6 +23,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
+from app.core.slugify import slugify
 from app.models.models import RugCatalog, Material, Customer, Quote, Order, OrderItem, OrderStatusHistory, InventoryTransaction, Tenant, WeaveTypeMaster, SpaceMaster, MoodMaster, PileHeightMaster, PaymentAttempt, PromoCode, HomepageEnquiry, TradeEnquiry
 from app.data.room_presets import ROOM_PRESETS, ROOM_PRESETS_BY_ID
 from app.services import room_composer
@@ -950,9 +951,13 @@ async def get_public_catalog(
                 or rug.lead_time_days or 21
             ))
         if room_type and room_type != "all":
-            rugs = [r for r in rugs if room_type in (r.room_types or [])]
+            # Compared as slugs: catalog rows have accumulated both "living_room" and
+            # "living-room" style tags over time, so raw membership silently drops rugs.
+            room_slug = slugify(room_type)
+            rugs = [r for r in rugs if any(slugify(tag) == room_slug for tag in (r.room_types or []))]
         if mood and mood != "all":
-            rugs = [r for r in rugs if mood in (r.mood_tags or [])]
+            mood_slug = slugify(mood)
+            rugs = [r for r in rugs if any(slugify(tag) == mood_slug for tag in (r.mood_tags or []))]
         if sort in ("price-asc", "price-desc"):
             def public_price_key(rug: RugCatalog) -> tuple[bool, float]:
                 price = _public_catalog_offer(rug, db)["display_price"]
@@ -1510,13 +1515,19 @@ async def validate_promo_code(body: PromoValidateBody):
         db.close()
 
 
-def _apply_promo(db: Session, tenant_id: Optional[int], promo_code: Optional[str], subtotal: float, customer_id: Optional[int], shipping_cost: float = 0.0):
+def _apply_promo(db: Session, tenant_id: Optional[int], promo_code: Optional[str], subtotal: float, customer_id: Optional[int], shipping_cost: float = 0.0, lock: bool = False):
     """Re-validates the promo code server-side at order time — never trusts a
-    discount_amount computed by the client. Returns (promo_or_none, discount_amount)."""
+    discount_amount computed by the client. Returns (promo_or_none, discount_amount).
+
+    lock=True only where this call and the eventual record_redemption + commit
+    happen in the same transaction (see find_valid_promo's docstring) — pass it
+    from customer_checkout, not from create_payment_order, since that flow's
+    redemption is recorded later in a separate transaction (verify_payment /
+    the webhook safety net) that this lock can't reach anyway."""
     if not promo_code:
         return None, 0.0
     try:
-        promo = find_valid_promo(db, tenant_id, promo_code, subtotal, customer_id=customer_id)
+        promo = find_valid_promo(db, tenant_id, promo_code, subtotal, customer_id=customer_id, lock=lock)
     except PromoError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return promo, compute_discount(promo, subtotal, shipping_cost)
@@ -2150,7 +2161,7 @@ async def customer_checkout(body: CheckoutBody, request: Request):
         priced = _price_cart_items(db, tid, body.items, is_export=customer.is_export_buyer)
         subtotal = sum(p["calc"]["final_price"] for p in priced)
         shipping_cost = (tenant.default_shipping_rate or 0.0) if tenant else 0.0
-        promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost)
+        promo, discount_amount = _apply_promo(db, tid, body.promo_code, subtotal, customer.id, shipping_cost, lock=True)
 
         order, items_meta = _create_order_from_items(db, tid, tenant, customer, priced, body.shipping_address)
         order.shipping_cost = shipping_cost
@@ -3116,7 +3127,10 @@ def accept_quote(
     promo = None
     if body.promo_code:
         try:
-            promo = find_valid_promo(db, quote.tenant_id, body.promo_code, subtotal, customer_id=current_customer.id)
+            # lock=True: row-locks the promo for the rest of this transaction so a
+            # concurrent order can't also pass the max_uses check before this one
+            # commits its redemption below (see find_valid_promo's docstring).
+            promo = find_valid_promo(db, quote.tenant_id, body.promo_code, subtotal, customer_id=current_customer.id, lock=True)
         except PromoError as e:
             raise HTTPException(status_code=400, detail=str(e))
         discount_amount = compute_discount(promo, subtotal, shipping_cost)
@@ -3133,11 +3147,11 @@ def accept_quote(
         price_currency=quote.price_currency,
     )
     db.add(order)
-    db.commit()
-    db.refresh(order)
+    db.flush()  # assigns order.id without releasing the promo row lock above
     if promo:
         record_redemption(db, promo, discount_amount, current_customer.id, order.id)
-        db.commit()
+    db.commit()  # single commit: the promo lock now releases only once the redemption is durable too
+    db.refresh(order)
     return {
         "message": "Quote accepted. Your order has been placed.",
         "order_id": order.id,
