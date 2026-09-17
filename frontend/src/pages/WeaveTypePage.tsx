@@ -187,7 +187,7 @@ export default function WeaveTypePage() {
   const categoryLabel = isWeavePage
     ? 'Weave Type'
     : facet === 'space' ? 'Space' : facet === 'mood' ? 'Mood' : 'Material';
-  const display = useCollectionDisplay(isWeavePage ? `weave/${weave}` : categoryKey);
+  const displayState = useCollectionDisplay(isWeavePage ? `weave/${weave}` : categoryKey);
   const [rugs, setRugs] = useState<WeaveRug[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -238,7 +238,7 @@ export default function WeaveTypePage() {
         description={`${details.intro} Learn what makes this category distinctive and shop our available collection.`}
       />
 
-      <CollectionImageGrid images={display.images} title={`${details.name} Rugs`} eyebrow={`Shop by ${categoryLabel}`} />
+      <CollectionImageGrid state={displayState} title={`${details.name} Rugs`} eyebrow={`Shop by ${categoryLabel}`} />
 
       <section className="bg-[#f4f0e6] py-20 md:py-28">
         <div className="w-[94vw] max-w-none mx-auto px-4">

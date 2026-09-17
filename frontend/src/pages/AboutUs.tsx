@@ -19,14 +19,15 @@ interface WorkshopPhoto {
   image_url: string;
 }
 
-const FALLBACK_PHOTOS = [
-  '/static/workshop/workshop-hand-weaving.jpg',
-  '/static/workshop/workshop-warping-the-loom.jpg',
-  '/static/workshop/workshop-raw-fibre-loom.jpg',
-  '/static/workshop/workshop-hand-knotting-detail.jpg',
-  '/static/workshop/workshop-braiding-by-hand.jpg',
-  '/static/workshop/workshop-finished-piece.jpg',
-];
+/** Renders the real image, or a loading placeholder in its place — never a generic stock substitute. */
+function ImageSlot({ src, alt, className }: { src?: string | null; alt: string; className: string }) {
+  if (src) return <img src={src} alt={alt} className={className} loading="lazy" />;
+  return (
+    <div className={`${className} flex items-center justify-center bg-stone-100`} role="status" aria-label="Loading image">
+      <span className="w-6 h-6 border-2 border-stone-300 border-t-stone-500 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function PrincipleIcon({ name, size = 18 }: { name: string; size?: number }) {
   switch (name) {
@@ -71,8 +72,7 @@ export default function AboutUs() {
       .catch(() => {});
   }, []);
 
-  const photo = (index: number) => workshopPhotos[index % Math.max(workshopPhotos.length, 1)]?.image_url
-    ?? FALLBACK_PHOTOS[index % FALLBACK_PHOTOS.length];
+  const photo = (index: number) => workshopPhotos.length ? workshopPhotos[index % workshopPhotos.length]?.image_url : undefined;
   const caption = (index: number, fallback: string) => workshopPhotos[index % Math.max(workshopPhotos.length, 1)]?.caption || fallback;
 
   const sub = useMemo(() => (text: string) => (text || '').replace(/\{business\}/g, businessName), [businessName]);
@@ -83,8 +83,9 @@ export default function AboutUs() {
     { src: story.primary_image_url || photo(1), alt: story.primary_image_alt || caption(1, 'The rug-making workshop') },
     { src: story.secondary_image_url || photo(2), alt: story.secondary_image_alt || caption(2, 'Natural fibres prepared for weaving') },
     ...workshopPhotos.map(image => ({ src: image.image_url, alt: image.caption || 'Inside the rug workshop' })),
-    ...FALLBACK_PHOTOS.map(src => ({ src, alt: 'Rug craftsmanship and materials' })),
-  ].filter((image, index, all) => all.findIndex(other => other.src === image.src) === index).slice(0, 4);
+    // Falsy (not-yet-available) entries are never deduped against each other — only
+    // real, matching photo URLs collapse — so each un-loaded slot keeps its own loader.
+  ].filter((image, index, all) => !image.src || all.findIndex(other => other.src === image.src) === index).slice(0, 4);
 
 
   return (
@@ -97,8 +98,8 @@ export default function AboutUs() {
       {/* Editorial hero */}
       {hero.enabled && (
         <section className="relative min-h-[560px] md:min-h-[640px] overflow-hidden flex items-end">
-          <img
-            src={hero.image_url || '/about-rug-living-room.png'}
+          <ImageSlot
+            src={hero.image_url}
             alt={hero.image_alt || 'Handcrafted rug in a warm, natural living room'}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -156,7 +157,7 @@ export default function AboutUs() {
             <div className="lg:col-span-6 relative lg:min-h-[var(--story-height)]" style={{ '--story-height': `${Math.max(900, storyImages.length * 220)}px` } as CSSProperties}>
               <div className="grid grid-cols-2 gap-5 lg:absolute lg:inset-0 lg:grid-cols-1 lg:auto-rows-fr">
                 {storyImages.map((image, index) => <figure key={`${index}-${image.src}`} className="min-h-0 overflow-hidden bg-stone-100">
-                  <img src={image.src} alt={image.alt} className="aspect-[4/3] h-full w-full object-cover lg:aspect-auto" loading="lazy" />
+                  <ImageSlot src={image.src} alt={image.alt} className="aspect-[4/3] h-full w-full object-cover lg:aspect-auto" />
                 </figure>)}
               </div>
             </div>
@@ -220,11 +221,10 @@ export default function AboutUs() {
               {process.steps.map((step, index) => (
                 <article key={index} className="group pt-8 pb-4 lg:pb-8 lg:px-7 lg:border-l first:border-l-0 first:pl-0 border-stone-300">
                   <div className="aspect-[4/3] overflow-hidden mb-7 bg-stone-900">
-                    <img
+                    <ImageSlot
                       src={step.image_url || photo(index + 2)}
                       alt={step.image_alt || caption(index + 2, step.title)}
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-[1.03] transition-all duration-700"
-                      loading="lazy"
                     />
                   </div>
                   <p className="text-[10px] tracking-[0.25em] text-stone-500 mb-3">{step.number}</p>
@@ -270,7 +270,7 @@ export default function AboutUs() {
         <section className="w-[94vw] max-w-none mx-auto px-4 py-20 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-stone-200">
             <div className="relative min-h-[460px] lg:min-h-[660px] overflow-hidden">
-              <img src={founder.image_url || photo(5)} alt={founder.image_alt || 'Inside the rug workshop'} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+              <ImageSlot src={founder.image_url || photo(5)} alt={founder.image_alt || 'Inside the rug workshop'} className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-stone-950/65 via-transparent to-transparent" />
               <div className="absolute left-7 bottom-7 text-white">
                 <p className="text-[10px] tracking-[0.25em] uppercase text-white/70">Inside the workshop</p>

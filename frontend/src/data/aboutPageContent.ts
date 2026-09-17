@@ -124,7 +124,7 @@ export const ABOUT_PAGE_DEFAULTS: AboutPageContent = {
     heading: 'Rugs with a sense\nof place and permanence.',
     body: 'At {business}, traditional rug making meets a more personal way of living. We create made-to-measure pieces with depth, restraint and the unmistakable character of work shaped by hand.',
     cta_label: 'Begin a custom rug',
-    image_url: '/about-rug-living-room.png',
+    image_url: '',
     image_alt: 'Handcrafted rug in a warm, natural living room',
   },
   credentials: {
