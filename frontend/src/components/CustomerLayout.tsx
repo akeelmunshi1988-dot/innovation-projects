@@ -374,13 +374,28 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="ml-auto lg:hidden text-stone-700 p-1"
-            onClick={() => setMobileOpen((o) => !o)}
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          {/* Mobile social icons + hamburger */}
+          <div className="ml-auto flex items-center gap-4 lg:hidden">
+            {/* Phones only have room beside the logo for the first platform (Instagram when set); tablets show all. */}
+            {activeSocialLinks.map(({ key, label, path }, index) => (
+              <a
+                key={key}
+                href={socialLinks[key]}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className={`${index > 0 ? 'hidden sm:inline-flex' : 'inline-flex'} text-stone-500 hover:text-stone-900 transition-colors`}
+              >
+                <SocialIcon path={path} size={18} />
+              </a>
+            ))}
+            <button
+              className="text-stone-700 p-1"
+              onClick={() => setMobileOpen((o) => !o)}
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile nav */}
