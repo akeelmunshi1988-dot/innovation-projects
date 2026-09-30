@@ -8,6 +8,7 @@ import { SIZE_UNITS } from '../utils/size';
 import { getEmailTemplates, updateEmailTemplate } from '../services/api';
 import type { EmailTemplate } from '../types';
 import RichTextEditor from '../components/RichTextEditor';
+import { SOCIAL_PLATFORMS, SocialIcon } from '../components/SocialIcon';
 
 type Tab = 'general' | 'currency' | 'pricing' | 'gst' | 'contact' | 'templates' | 'account';
 
@@ -100,6 +101,7 @@ export default function BusinessSettings() {
   const [contactPhones, setContactPhones] = useState<string[]>(tenant.contact_phones ?? []);
   const [contactAddress, setContactAddress] = useState(tenant.contact_address ?? '');
   const [contactHours, setContactHours] = useState(tenant.contact_hours ?? '');
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>(tenant.social_links ?? {});
   const [newContactEmail, setNewContactEmail] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
 
@@ -258,6 +260,7 @@ export default function BusinessSettings() {
     || JSON.stringify(contactPhones) !== JSON.stringify(tenant.contact_phones ?? [])
     || contactAddress !== (tenant.contact_address ?? '')
     || contactHours !== (tenant.contact_hours ?? '')
+    || SOCIAL_PLATFORMS.some(({ key }) => (socialLinks[key] ?? '') !== (tenant.social_links?.[key] ?? ''))
     || JSON.stringify(certifications) !== JSON.stringify(tenant.certifications ?? []);
   const isDirty       = dirtyGeneral || dirtyCurrency || dirtyPricing || dirtyGst || dirtyContact;
 
@@ -316,6 +319,7 @@ export default function BusinessSettings() {
         contact_phones: contactPhones,
         contact_address: contactAddress.trim() || undefined,
         contact_hours: contactHours.trim() || undefined,
+        social_links: socialLinks,
         certifications,
       });
       updateTenant(data);
@@ -1235,6 +1239,26 @@ export default function BusinessSettings() {
                 placeholder="Mon–Sat, 9am–6pm"
                 className={inputCls}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Social Media Links</label>
+              <p className={hintCls + ' -mt-1 mb-1'}>Shown as icons in your storefront footer. Leave blank to hide a platform.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {SOCIAL_PLATFORMS.map(({ key, label, placeholder, path }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <SocialIcon path={path} size={16} className="flex-shrink-0 text-dark-300" />
+                    <input
+                      type="url"
+                      aria-label={label}
+                      value={socialLinks[key] ?? ''}
+                      onChange={(e) => setSocialLinks((prev) => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Lookbook / Catalog PDF */}

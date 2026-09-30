@@ -12,6 +12,7 @@ import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
 import { NAV, collectionMenu } from '../data/storefrontMenu';
 import { RUG_SERVICES } from '../data/rugServices';
+import { SOCIAL_PLATFORMS, SocialIcon } from './SocialIcon';
 
 // Full logo lockup (mark + wordmark + tagline) — used in the footer where there's
 // room for it to read clearly; the header uses just the icon mark (tenant.logo_url)
@@ -55,11 +56,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [certifications, setCertifications] = useState<{ label: string; image_url: string }[]>([]);
   const [contactEmails, setContactEmails] = useState<string[]>([]);
   const [contactPhones, setContactPhones] = useState<string[]>([]);
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({});
   const [contactAddress, setContactAddress] = useState<string | null>(null);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [showCookieBanner, setShowCookieBanner] = useState(false);
-  const [infoBarDismissed, setInfoBarDismissed] = useState(false);
   const [announcements, setAnnouncements] = useState<{ id: number; text: string; link_url: string | null }[]>([]);
   const [announceIndex, setAnnounceIndex] = useState(0);
   const [announceFading, setAnnounceFading] = useState(false);
@@ -112,9 +113,12 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         setContactEmails(data.contact_emails ?? []);
         setContactPhones(data.contact_phones ?? []);
         setContactAddress(data.contact_address);
+        setSocialLinks(data.social_links ?? {});
       })
       .catch(() => { setChatEnabled(true); setBusinessName('Store'); });
   }, []);
+
+  const activeSocialLinks = SOCIAL_PLATFORMS.filter(({ key }) => socialLinks[key]);
 
   const BrandName = ({ className }: { className: string }) =>
     businessName === null
@@ -188,39 +192,30 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className={`fixed top-0 left-0 right-0 z-40 bg-white transition-shadow duration-300 ${scrolled ? 'shadow-[0_1px_0_0_#e7e5e0]' : 'border-b border-stone-100'}`}>
-        {/* Top announcement bar — dismissible */}
-        {!infoBarDismissed && (
-          <div className="relative flex items-center justify-center gap-6 bg-stone-900 text-stone-200 text-xs tracking-wide px-10 h-8">
-            <span className={`truncate transition-opacity duration-300 ${announceFading ? 'opacity-0' : 'opacity-100'}`}>
-              {activeAnnouncement?.link_url ? (
-                <a href={activeAnnouncement.link_url} className="hover:text-white transition-colors">
-                  {activeAnnouncement.text}
+        {/* Top announcement bar */}
+        <div className="relative flex items-center justify-center gap-6 bg-stone-900 text-stone-200 text-xs tracking-wide px-10 h-8">
+          <span className={`truncate transition-opacity duration-300 ${announceFading ? 'opacity-0' : 'opacity-100'}`}>
+            {activeAnnouncement?.link_url ? (
+              <a href={activeAnnouncement.link_url} className="hover:text-white transition-colors">
+                {activeAnnouncement.text}
+              </a>
+            ) : (
+              activeAnnouncement?.text ?? 'Handcrafted, made to order — every rug, every size.'
+            )}
+          </span>
+          {(contactPhones[0] || contactAddress) && (
+            <span className="hidden md:flex items-center gap-6 text-stone-400 flex-shrink-0">
+              {contactAddress && (
+                <span className="inline-flex items-center gap-1.5"><MapPin size={11} /> Visit Us</span>
+              )}
+              {contactPhones[0] && (
+                <a href={`tel:${contactPhones[0]}`} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
+                  <Phone size={11} /> {contactPhones[0]}
                 </a>
-              ) : (
-                activeAnnouncement?.text ?? 'Handcrafted, made to order — every rug, every size.'
               )}
             </span>
-            {(contactPhones[0] || contactAddress) && (
-              <span className="hidden md:flex items-center gap-6 text-stone-400 flex-shrink-0">
-                {contactAddress && (
-                  <span className="inline-flex items-center gap-1.5"><MapPin size={11} /> Visit Us</span>
-                )}
-                {contactPhones[0] && (
-                  <a href={`tel:${contactPhones[0]}`} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
-                    <Phone size={11} /> {contactPhones[0]}
-                  </a>
-                )}
-              </span>
-            )}
-            <button
-              onClick={() => setInfoBarDismissed(true)}
-              aria-label="Dismiss"
-              className="absolute right-3 text-stone-400 hover:text-white transition-colors"
-            >
-              <X size={13} />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="relative w-[94vw] max-w-none mx-auto px-4 h-[70px] flex items-center gap-8">
 
@@ -250,9 +245,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 <div key={n.path} className="group/mega h-full flex items-center">
                   {link}
                   <div
-                    className={`hidden group-hover/mega:block fixed left-0 right-0 bg-cream-200 border-t border-b border-stone-100 shadow-lg z-30 ${
-                      infoBarDismissed ? 'top-[70px]' : 'top-[102px]'
-                    }`}
+                    className="hidden group-hover/mega:block fixed left-0 right-0 top-[102px] bg-cream-200 border-t border-b border-stone-100 shadow-lg z-30"
                   >
                     <div className="w-[94vw] max-w-none mx-auto px-4 py-10 grid grid-cols-6 gap-8">
                       {(Object.keys(megaMenu) as (keyof typeof megaMenu)[]).map((key) => (
@@ -295,6 +288,23 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Right area */}
           <div className="hidden lg:flex items-center gap-5 ml-auto">
+            {activeSocialLinks.length > 0 && (
+              <div className="flex items-center gap-4">
+                {activeSocialLinks.map(({ key, label, path }) => (
+                  <a
+                    key={key}
+                    href={socialLinks[key]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    title={label}
+                    className="text-stone-500 hover:text-stone-900 transition-colors"
+                  >
+                    <SocialIcon path={path} size={16} />
+                  </a>
+                ))}
+              </div>
+            )}
             {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
               <Link to="/cart" className="relative text-stone-500 hover:text-stone-900 transition-colors">
                 <ShoppingCart size={18} />
@@ -364,13 +374,28 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="ml-auto lg:hidden text-stone-700 p-1"
-            onClick={() => setMobileOpen((o) => !o)}
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          {/* Mobile social icons + hamburger */}
+          <div className="ml-auto flex items-center gap-4 lg:hidden">
+            {/* Phones only have room beside the logo for the first platform (Instagram when set); tablets show all. */}
+            {activeSocialLinks.map(({ key, label, path }, index) => (
+              <a
+                key={key}
+                href={socialLinks[key]}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className={`${index > 0 ? 'hidden sm:inline-flex' : 'inline-flex'} text-stone-500 hover:text-stone-900 transition-colors`}
+              >
+                <SocialIcon path={path} size={18} />
+              </a>
+            ))}
+            <button
+              className="text-stone-700 p-1"
+              onClick={() => setMobileOpen((o) => !o)}
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile nav */}
@@ -444,7 +469,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       </header>
 
       {/* Page content */}
-      <main className={`flex-1 ${infoBarDismissed ? 'pt-[70px]' : 'pt-[102px]'}`}>{children}</main>
+      <main className="flex-1 pt-[102px]">{children}</main>
 
       {location.pathname !== '/trade-enquiry' && (
         <section className="mt-24 bg-[#e8e2d6] px-[5vw] py-14 text-[#20221c] md:py-20" aria-labelledby="footer-trade-heading">
@@ -569,7 +594,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           </div>
         </div>
 
-        {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress) && (
+        {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress || activeSocialLinks.length > 0) && (
           <div className="border-t border-stone-200 py-8">
             <div className="w-[94vw] max-w-none mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
               {contactEmails.map((e) => (
@@ -592,6 +617,21 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                   </a>
                 </div>
               ))}
+              {activeSocialLinks.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+                  {activeSocialLinks.map(({ key, label, path }) => (
+                    <a
+                      key={key}
+                      href={socialLinks[key]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors"
+                    >
+                      <SocialIcon path={path} size={14} className="flex-shrink-0" /> {label}
+                    </a>
+                  ))}
+                </div>
+              )}
               {contactAddress && (
                 <p className="flex items-center gap-2 text-stone-500">
                   <MapPin size={14} className="flex-shrink-0" /> {contactAddress}

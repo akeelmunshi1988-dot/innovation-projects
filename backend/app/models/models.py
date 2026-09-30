@@ -41,6 +41,7 @@ class Tenant(Base):
     contact_phones = Column(JSON, nullable=True)          # list[str]
     contact_address = Column(Text, nullable=True)         # workshop/visiting address — distinct from the GST registered address
     contact_hours = Column(String(200), nullable=True)    # e.g. "Mon-Sat, 9am-6pm"
+    social_links = Column(JSON, nullable=True)            # dict{platform: url}, platforms per schemas.SOCIAL_PLATFORMS — storefront footer icons
     catalog_pdf_url = Column(String(300), nullable=True)   # downloadable lookbook/catalog shown on storefront
     hero_image_url = Column(String(500), nullable=True)    # storefront homepage hero background image; falls back to a curated default when unset
     hero_images = Column(JSON, nullable=True)              # ordered list[{image_url, alt_text}] used by the homepage carousel

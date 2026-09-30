@@ -7,7 +7,6 @@ import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import CollectionImageGrid, { useCollectionDisplay } from '../components/CollectionImageGrid';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
-import { fmtSize } from '../utils/size';
 
 interface CatalogRug {
   id: number;

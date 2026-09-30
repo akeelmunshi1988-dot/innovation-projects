@@ -789,6 +789,7 @@ export const getPublicSettings = async (): Promise<{
   contact_phones: string[];
   contact_address: string | null;
   contact_hours: string | null;
+  social_links: Record<string, string>;
   currency: string;
   base_currency: string;
   exchange_rates: Record<string, number>;

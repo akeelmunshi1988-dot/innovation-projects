@@ -480,6 +480,8 @@ def update_tenant_settings(
         tenant.contact_address = body.contact_address
     if body.contact_hours is not None:
         tenant.contact_hours = body.contact_hours
+    if body.social_links is not None:
+        tenant.social_links = body.social_links
     if body.catalog_pdf_url is not None:
         tenant.catalog_pdf_url = body.catalog_pdf_url
     if body.hero_image_url is not None:
