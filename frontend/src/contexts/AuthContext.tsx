@@ -35,6 +35,7 @@ export interface TenantInfo {
   contact_phones: string[];
   contact_address: string | null;
   contact_hours: string | null;
+  social_links: Record<string, string>;
   catalog_pdf_url: string | null;
   hero_image_url: string | null;
   hero_images: { image_url: string; alt_text?: string; eyebrow?: string; headline?: string; button_text?: string }[];

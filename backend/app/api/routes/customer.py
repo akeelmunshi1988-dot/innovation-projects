@@ -377,6 +377,7 @@ async def get_public_settings():
             "contact_phones": (tenant.contact_phones or []) if tenant else [],
             "contact_address": tenant.contact_address if tenant else None,
             "contact_hours": tenant.contact_hours if tenant else None,
+            "social_links": (tenant.social_links or {}) if tenant else {},
             "currency": tenant.currency if tenant else "INR",
             "base_currency": tenant.base_currency if tenant else "INR",
             "exchange_rates": (tenant.exchange_rates or {}) if tenant else {},

@@ -1,9 +1,12 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from datetime import datetime
 import re
 
 from app.core.auth import validate_password_strength
+
+# Social profiles the storefront footer can link to (keys of Tenant.social_links).
+SOCIAL_PLATFORMS = ("instagram", "facebook", "pinterest", "youtube", "linkedin", "x")
 
 
 # ── Material ──────────────────────────────────────────────────────────────────
@@ -701,6 +704,7 @@ class TenantPublic(BaseModel):
     contact_phones: List[str] = []
     contact_address: Optional[str] = None
     contact_hours: Optional[str] = None
+    social_links: Dict[str, str] = {}
     catalog_pdf_url: Optional[str] = None
     hero_image_url: Optional[str] = None
     hero_images: List[dict] = []
@@ -766,6 +770,11 @@ class TenantPublic(BaseModel):
     def _none_to_empty_list(cls, v):
         return v if v is not None else []
 
+    @field_validator('social_links', mode='before')
+    @classmethod
+    def _none_to_empty_dict(cls, v):
+        return v or {}
+
     class Config:
         from_attributes = True
 
@@ -802,6 +811,7 @@ class TenantUpdateRequest(BaseModel):
     contact_phones: Optional[List[str]] = None
     contact_address: Optional[str] = None
     contact_hours: Optional[str] = Field(None, max_length=200)
+    social_links: Optional[Dict[str, str]] = None
     catalog_pdf_url: Optional[str] = None
     hero_image_url: Optional[str] = None
     hero_images: Optional[List[dict]] = None
@@ -882,6 +892,23 @@ class TenantUpdateRequest(BaseModel):
         if v is None:
             return v
         return [p.strip() for p in v if p.strip()]
+
+    @field_validator('social_links')
+    @classmethod
+    def validate_social_links(cls, v: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
+        if v is None:
+            return v
+        cleaned = {}
+        for platform, url in v.items():
+            if platform not in SOCIAL_PLATFORMS:
+                raise ValueError(f'Unknown social platform: {platform}')
+            url = (url or '').strip()
+            if not url:
+                continue
+            if not re.match(r'^https?://\S+$', url) or len(url) > 500:
+                raise ValueError(f'Invalid {platform} link — use the full address starting with https://')
+            cleaned[platform] = url
+        return cleaned
 
     @field_validator('default_size_unit')
     @classmethod
