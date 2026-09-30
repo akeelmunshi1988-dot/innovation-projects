@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, CornerDownLeft, Layers, Zap, Play, Star, ChevronLeft, ChevronRight, PencilRuler, Scissors, Gem, Globe2, Palette, ShieldCheck, PackageCheck, Leaf, CheckCircle2 } from 'lucide-react';
@@ -157,6 +157,8 @@ export default function CustomerHome() {
   const [chatInput, setChatInput] = useState('');
   const [videos, setVideos] = useState<ShowcaseVideo[]>([]);
   const [introIndex, setIntroIndex] = useState(0);
+  // Natural width/height of the playing intro video, so its frame is sized to the footage (no crop, no bars).
+  const [introAspect, setIntroAspect] = useState(3 / 2);
   const [activeVideoTab, setActiveVideoTab] = useState('Craftsmanship');
   const [aiConsultantEnabled, setAiConsultantEnabled] = useState(true);
   const [businessName, setBusinessName] = useState('');
@@ -476,7 +478,10 @@ export default function CustomerHome() {
         <section id="introduction" className="overflow-hidden bg-[#f3f1e8]">
           <div className="relative mx-auto flex w-[90vw] flex-col gap-10 py-16 lg:block lg:h-[min(920px,calc(100svh-80px))] lg:min-h-[800px] lg:py-0">
               {/* Larger media window with space for the copy and title. */}
-              <div className="relative order-1 aspect-[3/2] w-full overflow-hidden bg-stone-200 lg:absolute lg:left-0 lg:top-[6%] lg:h-[54%] lg:w-[54%]">
+              <div
+                className="relative order-1 mx-auto aspect-[var(--media-ar)] w-[min(100%,calc(75svh*var(--media-ar)))] overflow-hidden bg-stone-200 lg:absolute lg:left-0 lg:top-[6%] lg:mx-0 lg:w-[min(54%,calc(max(800px,min(920px,100svh-80px))*0.54*var(--media-ar)))]"
+                style={{ '--media-ar': SHOW_CRAFT_VIDEO ? introAspect : 3 / 2 } as CSSProperties}
+              >
                 {SHOW_CRAFT_VIDEO ? (
                   <>
                     {introVideo.poster_url && (
@@ -497,6 +502,10 @@ export default function CustomerHome() {
                       loop={introVideos.length <= 1}
                       playsInline
                       onEnded={() => setIntroIndex((i) => (i + 1) % introVideos.length)}
+                      onLoadedMetadata={(e) => {
+                        const { videoWidth, videoHeight } = e.currentTarget;
+                        if (videoWidth && videoHeight) setIntroAspect(videoWidth / videoHeight);
+                      }}
                     />
                   </>
                 ) : (
@@ -1226,7 +1235,7 @@ function CraftVideoCard({ video, expansionPosition }: { video: ShowcaseVideo; ex
           src={video.poster_url}
           alt={video.title}
           loading="lazy"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
         />
       ) : (
         <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
@@ -1236,7 +1245,7 @@ function CraftVideoCard({ video, expansionPosition }: { video: ShowcaseVideo; ex
 
       <video
         ref={videoRef}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}
         src={video.video_url}
         muted
         loop
