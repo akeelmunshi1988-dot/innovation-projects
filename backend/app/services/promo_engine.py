@@ -11,19 +11,29 @@ class PromoError(Exception):
 
 def find_valid_promo(
     db: Session, tenant_id: Optional[int], code: str, subtotal: float, customer_id: Optional[int] = None,
+    lock: bool = False,
 ) -> PromoCode:
     """Looks up a promo code and checks every eligibility rule. Shared by the
     validate endpoint (cart/checkout preview) and the checkout routes themselves
-    (authoritative re-check at order-creation time) so the two can never disagree."""
+    (authoritative re-check at order-creation time) so the two can never disagree.
+
+    lock=True row-locks the promo for the rest of the caller's transaction —
+    pass it only from an authoritative call that will go on to record_redemption
+    and commit in the same transaction, never from the read-only preview
+    endpoint. Without it, two concurrent checkouts against a promo one
+    redemption away from max_uses could both pass this check before either
+    commits its redemption row, oversubscribing the code by one. The lock is
+    taken on the promo row itself (not PromoRedemption) — under READ COMMITTED
+    that's enough to serialize the count-then-compare below, since a blocked
+    transaction re-reads current committed redemptions once it acquires the lock."""
     normalized = code.strip().upper()
     if not normalized:
         raise PromoError("Enter a promo code.")
 
-    promo = (
-        db.query(PromoCode)
-        .filter(PromoCode.code == normalized, PromoCode.tenant_id == tenant_id)
-        .first()
-    )
+    promo_query = db.query(PromoCode).filter(PromoCode.code == normalized, PromoCode.tenant_id == tenant_id)
+    if lock:
+        promo_query = promo_query.with_for_update()
+    promo = promo_query.first()
     if not promo or not promo.is_active:
         raise PromoError("This promo code is not valid.")
 

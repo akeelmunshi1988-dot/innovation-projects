@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
@@ -134,8 +135,16 @@ def restock_material_row(db: Session, material: Material, qty_meters: float, ten
     if qty_meters <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
 
-    material.stock_meters += qty_meters
-    material.is_available = True
+    # Atomic increment (same pattern as the order-time stock deduction in
+    # customer.py's _create_order_from_items) so two concurrent restocks —
+    # e.g. two admin tabs, or an admin request racing the AI-assistant
+    # confirm endpoint — can't lose an update the way `material.stock_meters
+    # += qty_meters` followed by a plain commit could.
+    db.execute(sa_update(Material).where(Material.id == material.id).values(
+        stock_meters=Material.stock_meters + qty_meters,
+        is_available=True,
+    ))
+    db.flush()
 
     transaction = InventoryTransaction(
         material_id=material.id,
