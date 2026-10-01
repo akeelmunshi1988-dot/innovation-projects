@@ -1,7 +1,7 @@
 import OrderTrackingSection from './OrderTrackingSection';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingCart, Phone, MapPin, MessageCircle } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingCart, Phone, MapPin } from 'lucide-react';
 import axios from 'axios';
 import CustomerChat from './CustomerChat';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
@@ -12,7 +12,7 @@ import { getPublicSettings } from '../services/api';
 import { applyBranding } from '../utils/branding';
 import { NAV, collectionMenu } from '../data/storefrontMenu';
 import { RUG_SERVICES } from '../data/rugServices';
-import { SOCIAL_PLATFORMS, SocialIcon } from './SocialIcon';
+import { SOCIAL_PLATFORMS, SocialIcon, WHATSAPP_ICON_PATH } from './SocialIcon';
 
 // Full logo lockup (mark + wordmark + tagline) — used in the footer where there's
 // room for it to read clearly; the header uses just the icon mark (tenant.logo_url)
@@ -119,6 +119,16 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   }, []);
 
   const activeSocialLinks = SOCIAL_PLATFORMS.filter(({ key }) => socialLinks[key]);
+  const headerWhatsappUrl = contactPhones[0] ? `https://wa.me/${contactPhones[0].replace(/\D/g, '')}` : null;
+  // "@handle" under the footer's Follow icons, taken from the Instagram profile URL's first path segment.
+  const instagramHandle = (() => {
+    try {
+      const handle = new URL(socialLinks.instagram).pathname.split('/').filter(Boolean)[0];
+      return handle ? `@${handle}` : null;
+    } catch {
+      return null;
+    }
+  })();
 
   const BrandName = ({ className }: { className: string }) =>
     businessName === null
@@ -217,7 +227,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           )}
         </div>
 
-        <div className="relative w-[94vw] max-w-none mx-auto px-4 h-[70px] flex items-center gap-8">
+        <div className="relative w-[94vw] max-w-none mx-auto px-4 h-[70px] flex items-center gap-4 lg:gap-8">
 
           {/* Desktop nav — left */}
           <nav className="hidden lg:flex items-center gap-7 h-full">
@@ -283,12 +293,12 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             to="/"
             className="inline-flex items-center -ml-3 lg:absolute lg:left-1/2 lg:-ml-0 lg:-translate-x-1/2"
           >
-            <BrandLockup className="font-serif text-xl font-medium tracking-wide text-[#85501b]" markSize={46} />
+            <BrandLockup className="font-serif text-lg min-[375px]:text-xl font-medium tracking-wide text-[#85501b]" markSize={46} />
           </Link>
 
           {/* Right area */}
           <div className="hidden lg:flex items-center gap-5 ml-auto">
-            {activeSocialLinks.length > 0 && (
+            {(activeSocialLinks.length > 0 || headerWhatsappUrl) && (
               <div className="flex items-center gap-4">
                 {activeSocialLinks.map(({ key, label, path }) => (
                   <a
@@ -303,6 +313,18 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                     <SocialIcon path={path} size={16} />
                   </a>
                 ))}
+                {headerWhatsappUrl && (
+                  <a
+                    href={headerWhatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp"
+                    title="WhatsApp"
+                    className="text-stone-500 hover:text-green-600 transition-colors"
+                  >
+                    <SocialIcon path={WHATSAPP_ICON_PATH} size={16} />
+                  </a>
+                )}
               </div>
             )}
             {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
@@ -368,14 +390,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 )}
               </div>
             ) : (
-              <Link to="/login" className="text-sm text-stone-500 hover:text-stone-900 transition-colors tracking-wide">
-                Sign In
+              <Link to="/login" className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors tracking-wide">
+                <User size={16} /> Sign In
               </Link>
             )}
           </div>
 
           {/* Mobile social icons + hamburger */}
-          <div className="ml-auto flex items-center gap-4 lg:hidden">
+          <div className="ml-auto flex items-center gap-3 sm:gap-4 lg:hidden">
             {/* Phones only have room beside the logo for the first platform (Instagram when set); tablets show all. */}
             {activeSocialLinks.map(({ key, label, path }, index) => (
               <a
@@ -389,6 +411,17 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 <SocialIcon path={path} size={18} />
               </a>
             ))}
+            {headerWhatsappUrl && (
+              <a
+                href={headerWhatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="WhatsApp"
+                className="hidden min-[360px]:inline-flex text-stone-500 hover:text-green-600 transition-colors"
+              >
+                <SocialIcon path={WHATSAPP_ICON_PATH} size={18} />
+              </a>
+            )}
             <button
               className="text-stone-700 p-1"
               onClick={() => setMobileOpen((o) => !o)}
@@ -492,13 +525,13 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-stone-50 border-t border-stone-200">
-        <div className="w-[94vw] max-w-none mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-[1.2fr_0.7fr_0.7fr_0.75fr_1.45fr] gap-10">
+        <div className="w-[94vw] max-w-none mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-[1.2fr_0.7fr_0.7fr_0.75fr_1.45fr] gap-10">
           <div className="space-y-4">
             <img src={FOOTER_LOGO_URL} alt={businessName ?? 'Dream Rugs Creation'} className="w-[200px] h-auto" />
-            <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
+            <p className="font-serif text-stone-700 text-base leading-relaxed max-w-xs">
               Handcrafted custom rugs made to order from India's finest workshops. Every rug is unique, every size custom.
             </p>
-            <p className="text-stone-400 text-xs">Made with care in India</p>
+            <p className="font-serif text-stone-500 text-sm">Made with care in India</p>
 
             {catalogPdfUrl && (
               <a
@@ -562,7 +595,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 md:col-span-2 xl:col-span-1 md:border-l md:border-stone-300 md:pl-10">
             <p className="storefront-heading text-2xl">Let us inspire you</p>
             <p className="text-stone-500 text-sm leading-relaxed">New collections, workshop stories, and offers — straight to your inbox.</p>
             {newsletterStatus === 'done' ? (
@@ -582,7 +615,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 <button
                   type="submit"
                   disabled={newsletterStatus === 'submitting'}
-                  className="storefront-cta-solid px-4 flex-shrink-0"
+                  aria-label="Subscribe"
+                  className="px-5 flex-shrink-0 bg-[#85501b] hover:bg-[#6f4216] disabled:bg-stone-200 disabled:text-stone-400 text-white transition-colors"
                 >
                   <Send size={14} />
                 </button>
@@ -591,50 +625,67 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             {newsletterStatus === 'error' && (
               <p className="text-red-500 text-xs mt-1.5">Something went wrong — please try again.</p>
             )}
-          </div>
-        </div>
 
-        {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress || activeSocialLinks.length > 0) && (
-          <div className="border-t border-stone-200 py-8">
-            <div className="w-[94vw] max-w-none mx-auto px-4 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm">
-              {contactEmails.map((e) => (
-                <a key={e} href={`mailto:${e}`} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors">
-                  <Mail size={14} className="flex-shrink-0" /> {e}
-                </a>
-              ))}
-              {contactPhones.map((p) => (
-                <div key={p} className="flex items-center gap-3">
-                  <a href={`tel:${p}`} className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors">
-                    <Phone size={14} className="flex-shrink-0" /> {p}
-                  </a>
-                  <a
-                    href={`https://wa.me/${p.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                  >
-                    <MessageCircle size={14} /> Chat
-                  </a>
-                </div>
-              ))}
-              {activeSocialLinks.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+            {activeSocialLinks.length > 0 && (
+              <div className="border-t border-stone-300 pt-6 mt-6">
+                <p className="text-stone-900 text-xs font-semibold uppercase tracking-[0.2em]">Follow {(businessName ?? '').replace(/([a-z])([A-Z])/g, '$1 $2')}</p>
+                <p className="text-stone-500 text-sm mt-1.5">Behind the craft. New collections. Finished spaces.</p>
+                <div className="mt-5 grid max-w-md grid-cols-4 gap-y-5">
                   {activeSocialLinks.map(({ key, label, path }) => (
                     <a
                       key={key}
                       href={socialLinks[key]}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors"
+                      className="group/social flex flex-col items-center gap-2"
                     >
-                      <SocialIcon path={path} size={14} className="flex-shrink-0" /> {label}
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#efe4d6] text-[#85501b] transition-colors group-hover/social:bg-[#85501b] group-hover/social:text-white">
+                        <SocialIcon path={path} size={24} />
+                      </span>
+                      <span className="font-serif text-sm text-stone-700">{label}</span>
                     </a>
                   ))}
                 </div>
-              )}
+                {instagramHandle && (
+                  <div className="mt-5 flex items-center gap-4">
+                    <span className="h-px flex-1 bg-stone-300" />
+                    <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="font-serif text-lg tracking-wide text-[#85501b] hover:text-[#6f4216]">
+                      {instagramHandle}
+                    </a>
+                    <span className="h-px flex-1 bg-stone-300" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {(contactEmails.length > 0 || contactPhones.length > 0 || contactAddress) && (
+          <div className="border-t border-stone-200 py-6">
+            <div className="w-[94vw] max-w-none mx-auto px-4 flex flex-col md:flex-row md:flex-wrap items-center justify-center gap-y-3 md:divide-x md:divide-stone-300 text-[15px]">
+              {contactEmails.map((e) => (
+                <a key={e} href={`mailto:${e}`} className="flex items-center gap-3 md:px-8 text-stone-700 hover:text-stone-900 transition-colors">
+                  <Mail size={18} className="flex-shrink-0 text-[#85501b]" /> {e}
+                </a>
+              ))}
+              {contactPhones.map((p) => (
+                <React.Fragment key={p}>
+                  <a href={`tel:${p}`} className="flex items-center gap-3 md:px-8 text-stone-700 hover:text-stone-900 transition-colors">
+                    <Phone size={18} className="flex-shrink-0 text-[#85501b]" /> {p}
+                  </a>
+                  <a
+                    href={`https://wa.me/${p.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 md:px-8 text-green-700 hover:text-green-800 transition-colors"
+                  >
+                    <SocialIcon path={WHATSAPP_ICON_PATH} size={18} className="flex-shrink-0 text-green-600" /> Chat
+                  </a>
+                </React.Fragment>
+              ))}
               {contactAddress && (
-                <p className="flex items-center gap-2 text-stone-500">
-                  <MapPin size={14} className="flex-shrink-0" /> {contactAddress}
+                <p className="flex items-center gap-3 md:px-8 text-stone-700">
+                  <MapPin size={18} className="flex-shrink-0 text-[#85501b]" /> {contactAddress}
                 </p>
               )}
             </div>
