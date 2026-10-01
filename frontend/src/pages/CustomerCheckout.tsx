@@ -17,6 +17,7 @@ import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 interface CheckoutItem {
   rug_id: number;
@@ -51,6 +52,7 @@ interface CheckoutState {
 }
 
 export default function CustomerCheckout() {
+  const bot = useBotProtection();
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as CheckoutState | null;
@@ -295,7 +297,7 @@ export default function CustomerCheckout() {
         if (policyError) { setAuthError(policyError); setAuthLoading(false); return; }
         await customerRegister(
           authForm.name, authForm.email, authForm.password, form.country,
-          authForm.phone || undefined, authForm.company || undefined,
+          authForm.phone || undefined, authForm.company || undefined, undefined, await bot.headers(),
         );
       }
       setAuthModal(false);
@@ -675,6 +677,7 @@ export default function CustomerCheckout() {
                   By placing this order you agree to our production and delivery terms. Payment details will be shared after confirmation.
                 </p>
               </div>
+              {bot.fields}
             </form>
           </div>
         </div>

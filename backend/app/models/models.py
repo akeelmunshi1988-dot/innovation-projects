@@ -702,6 +702,33 @@ class HomepageEnquiry(Base):
     )
 
 
+class RugReview(Base):
+    """Customer review of a catalog rug, shown on the storefront rug page once
+    an admin approves it (status "pending" -> "approved" | "rejected")."""
+    __tablename__ = "rug_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    rug_id = Column(Integer, ForeignKey("rug_catalog.id", ondelete="CASCADE"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True)  # set when submitted while logged in
+    name = Column(String(150), nullable=False)
+    email = Column(String(200), nullable=False)   # never shown publicly
+    rating = Column(Integer, nullable=False)      # 1-5
+    title = Column(String(150), nullable=True)
+    body = Column(Text, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    is_verified_buyer = Column(Boolean, nullable=False, default=False)  # logged-in customer with a non-cancelled order for this rug at submission time
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)  # when an admin approved/rejected it
+
+    rug = relationship("RugCatalog")
+
+    __table_args__ = (
+        Index("ix_rug_reviews_tenant_rug_status", "tenant_id", "rug_id", "status"),
+        Index("ix_rug_reviews_tenant_status_created", "tenant_id", "status", "created_at"),
+    )
+
+
 class TradeEnquiry(Base):
     __tablename__ = "trade_enquiries"
 

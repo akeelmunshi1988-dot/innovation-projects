@@ -168,6 +168,8 @@ export default function CustomerCatalog() {
   };
 
   const clearFilters = () => navigate('/catalog');
+  const facetMatch = location.pathname.match(/^\/catalog\/(space|mood|material)\/([^/]+)/);
+  const facetCanonical = facetMatch ? `${window.location.origin}/collections/${facetMatch[1]}/${facetMatch[2]}` : undefined;
   const hasActiveFilters = materialParam !== 'all' || pileParam !== 'all' || weaveParam !== 'all' || roomParam !== 'all' || moodParam !== 'all';
 
   return (
@@ -175,6 +177,10 @@ export default function CustomerCatalog() {
       <SEO
         title="Rug Collection — Wool, Silk, Cotton & Synthetic"
         description="Browse our full collection of handcrafted rugs in wool, silk, cotton, and synthetic weaves. Every design available in custom sizes, made to order."
+        // /catalog/<facet>/<value> is a filtered view of the same rugs as the
+        // /collections/<facet>/<value> landing page — point search engines there
+        // instead of indexing two competing URLs per material/room/mood.
+        canonical={facetCanonical}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'BreadcrumbList',

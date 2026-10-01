@@ -30,6 +30,8 @@ import type {
   NewsletterSubscriber,
   HomepageEnquiry,
   TradeEnquiry,
+  AdminRugReview,
+  ReviewStatus,
   PromoCode,
 } from '../types';
 
@@ -303,6 +305,22 @@ export const markTradeEnquiryRead = async (id: number): Promise<TradeEnquiry> =>
 
 export const deleteTradeEnquiry = async (id: number): Promise<void> => {
   await api.delete(`/trade-enquiries/${id}`);
+};
+
+// ── Rug reviews ──────────────────────────────────────────────────────────────
+
+export const getReviews = async (): Promise<AdminRugReview[]> => {
+  const { data } = await api.get<AdminRugReview[]>('/reviews');
+  return data;
+};
+
+export const updateReviewStatus = async (id: number, status: ReviewStatus): Promise<AdminRugReview> => {
+  const { data } = await api.patch<AdminRugReview>(`/reviews/${id}`, { status });
+  return data;
+};
+
+export const deleteReview = async (id: number): Promise<void> => {
+  await api.delete(`/reviews/${id}`);
 };
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -790,6 +808,7 @@ export const getPublicSettings = async (): Promise<{
   contact_address: string | null;
   contact_hours: string | null;
   social_links: Record<string, string>;
+  turnstile_site_key: string | null;
   currency: string;
   base_currency: string;
   exchange_rates: Record<string, number>;

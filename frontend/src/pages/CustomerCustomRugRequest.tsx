@@ -6,6 +6,7 @@ import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { SIZE_UNITS, toMetres } from '../utils/size';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 const ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
 
@@ -57,6 +58,7 @@ const defaultRug = (): RugSpec => ({
 });
 
 export default function CustomerCustomRugRequest() {
+  const bot = useBotProtection();
   const navigate = useNavigate();
   const { customer, isCustomerAuthenticated } = useCustomerAuth();
 
@@ -146,7 +148,7 @@ export default function CustomerCustomRugRequest() {
           notes: rug.notes || undefined,
           reference_image_urls: rug.images.length > 0 ? rug.images : undefined,
         })),
-      });
+      }, { headers: await bot.headers() });
       setSubmitted(data);
     } catch (err: any) {
       setError(err.response?.data?.detail ?? 'Something went wrong. Please try again.');
@@ -409,6 +411,7 @@ export default function CustomerCustomRugRequest() {
             )}
             {submitting ? 'Submitting…' : rugs.length > 1 ? `Submit Request (${rugs.length} Rugs)` : 'Submit Request'}
           </button>
+          {bot.fields}
         </form>
         <aside className="sticky top-6 hidden space-y-6 xl:block" aria-label="More custom rug inspiration images">
           {rightPageImages.map((image, index) => stepTile(image, imageSplitIndex + index))}

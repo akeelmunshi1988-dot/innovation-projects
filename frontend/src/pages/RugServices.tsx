@@ -5,6 +5,7 @@ import { ChevronDown, Send } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 const button = 'inline-flex items-center justify-center bg-[#20221c] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-[#414436] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4';
 // Matches the "Request a Quote" modal's form styling (CustomerRugDetail.tsx) so every
@@ -54,6 +55,7 @@ const TRADE_FIELD_LABELS: Record<string, string> = {
   project_brief: 'Tell us about your work',
 };
 function TradeForm({ phone, email, loading }: { phone: string; email: string; loading: boolean }) {
+  const bot = useBotProtection();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -64,7 +66,7 @@ function TradeForm({ phone, email, loading }: { phone: string; email: string; lo
       Object.keys(TRADE_FIELD_LABELS).map(key => [key, String(form.get(key) || '').trim()])
     );
     try {
-      await axios.post('/api/customer/trade-enquiries', values);
+      await axios.post('/api/customer/trade-enquiries', values, { headers: await bot.headers() });
     } catch {
       // best-effort — still let the customer reach the studio directly below
     } finally {
@@ -118,6 +120,7 @@ function TradeForm({ phone, email, loading }: { phone: string; email: string; lo
     </button>
     {!loading && !phone && !email && <p className="text-sm">Contact details are temporarily unavailable. <Link to="/custom-rug-request" className="underline">Use our bespoke rug request form.</Link></p>}
     {message && <p role="status" className="text-sm leading-6">{message}</p>}
+    {bot.fields}
   </form>;
 }
 

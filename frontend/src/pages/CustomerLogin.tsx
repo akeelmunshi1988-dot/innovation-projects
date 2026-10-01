@@ -7,10 +7,12 @@ import SEO from '../components/SEO';
 import SocialLoginButtons from '../components/SocialLoginButtons';
 import { COUNTRIES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 type Mode = 'login' | 'register';
 
 export default function CustomerLogin() {
+  const bot = useBotProtection();
   const { customerLogin, customerRegister, isLoadingCustomer } = useCustomerAuth();
   const navigate = useNavigate();
 
@@ -39,7 +41,7 @@ export default function CustomerLogin() {
         if (!form.country) { setError('Please select your country.'); return; }
         const policyError = passwordPolicyError(form.password);
         if (policyError) { setError(policyError); return; }
-        const result = await customerRegister(form.name, form.email, form.password, form.country, form.phone || undefined, form.company || undefined);
+        const result = await customerRegister(form.name, form.email, form.password, form.country, form.phone || undefined, form.company || undefined, undefined, await bot.headers());
         setRegisteredEmail(result.email);
       }
     } catch (err: any) {
@@ -232,6 +234,7 @@ export default function CustomerLogin() {
                 <><UserPlus size={13} /> Create Account</>
               )}
             </button>
+            {bot.fields}
           </form>
 
           <div className="mt-6">

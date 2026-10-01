@@ -20,6 +20,8 @@ from app.services.vision_matcher import analyze_and_match, analyze_and_match_roo
 from app.services.quote_engine import QuoteEngine, build_manual_price_result
 from app.services.promo_engine import find_valid_promo, compute_discount, record_redemption, PromoError
 from app.core.config import settings
+from app.core.rate_limit import rate_limit
+from app.core.bot_protection import verify_human
 from app.core.database import SessionLocal, get_db
 from app.core.cache import cache_get, cache_set
 from app.core.auth import get_current_customer
@@ -77,7 +79,7 @@ def _load_rug_from_catalog(image_url: str) -> np.ndarray:
 
 # ── Rug replacement endpoint ──────────────────────────────────────────────────
 
-@router.post("/replace-rug")
+@router.post("/replace-rug", dependencies=[Depends(rate_limit("replace_rug", (10, 600), (60, 86400)))])
 async def replace_rug(
     roomImage: UploadFile = File(...),
     rugImage:  Optional[UploadFile] = File(None),
@@ -378,6 +380,7 @@ async def get_public_settings():
             "contact_address": tenant.contact_address if tenant else None,
             "contact_hours": tenant.contact_hours if tenant else None,
             "social_links": (tenant.social_links or {}) if tenant else {},
+            "turnstile_site_key": settings.TURNSTILE_SITE_KEY if settings.TURNSTILE_SECRET_KEY else None,
             "currency": tenant.currency if tenant else "INR",
             "base_currency": tenant.base_currency if tenant else "INR",
             "exchange_rates": (tenant.exchange_rates or {}) if tenant else {},
@@ -665,7 +668,7 @@ class NewsletterSubscribeBody(BaseModel):
     source: Optional[str] = None
 
 
-@router.post("/customer/newsletter-subscribe")
+@router.post("/customer/newsletter-subscribe", dependencies=[Depends(rate_limit("newsletter", (5, 3600))), Depends(verify_human)])
 async def subscribe_newsletter(body: NewsletterSubscribeBody):
     """Public, unauthenticated newsletter capture — footer signup form."""
     from app.models.models import NewsletterSubscriber
@@ -694,7 +697,7 @@ class HomepageEnquiryBody(BaseModel):
     consent: bool
 
 
-@router.post("/customer/homepage-enquiries", status_code=201)
+@router.post("/customer/homepage-enquiries", status_code=201, dependencies=[Depends(rate_limit("homepage_enquiry", (5, 3600), (20, 86400))), Depends(verify_human)])
 async def create_homepage_enquiry(body: HomepageEnquiryBody):
     """Capture an enquiry submitted from the public homepage contact section."""
     if not body.consent:
@@ -762,7 +765,7 @@ def _notify_vendor_trade_enquiry(db: Session, enquiry: TradeEnquiry, tenant: Ten
     email_service.send_email(to_email, subject, body_text, body_html, reply_to=enquiry.email)
 
 
-@router.post("/customer/trade-enquiries", status_code=201)
+@router.post("/customer/trade-enquiries", status_code=201, dependencies=[Depends(rate_limit("trade_enquiry", (5, 3600), (20, 86400))), Depends(verify_human)])
 async def create_trade_enquiry(body: TradeEnquiryBody):
     """Capture a trade/design-partner enquiry submitted from the public trade enquiry page."""
     db = SessionLocal()
@@ -1036,7 +1039,7 @@ class EstimateRequest(BaseModel):
     shape: str = "rect"
 
 
-@router.post("/customer/catalog/{rug_id}/estimate")
+@router.post("/customer/catalog/{rug_id}/estimate", dependencies=[Depends(rate_limit("estimate", (60, 60)))])
 async def estimate_rug_price(rug_id: int, body: EstimateRequest):
     db = SessionLocal()
     try:
@@ -1069,7 +1072,7 @@ async def estimate_rug_price(rug_id: int, body: EstimateRequest):
         db.close()
 
 
-@router.post("/customer/inspire")
+@router.post("/customer/inspire", dependencies=[Depends(rate_limit("inspire", (10, 600), (50, 86400)))])
 async def inspire_match(
     image: UploadFile = File(...),
     size_w: float = Form(...),
@@ -1132,7 +1135,7 @@ class RoomInspireRequest(BaseModel):
     rush_order: bool = False
 
 
-@router.post("/customer/inspire-room")
+@router.post("/customer/inspire-room", dependencies=[Depends(rate_limit("inspire_room", (20, 600)))])
 async def inspire_from_room(body: RoomInspireRequest):
     room = ROOM_PRESETS_BY_ID.get(body.room_id)
     if not room:
@@ -1182,7 +1185,7 @@ class QuoteRequestBody(BaseModel):
     selected_color: Optional[str] = Field(None, max_length=100)
 
 
-@router.post("/customer/request-quote")
+@router.post("/customer/request-quote", dependencies=[Depends(rate_limit("request_quote", (10, 3600), (30, 86400))), Depends(verify_human)])
 async def request_quote(body: QuoteRequestBody, request: Request):
     db = SessionLocal()
     try:
@@ -1324,7 +1327,7 @@ async def request_quote(body: QuoteRequestBody, request: Request):
 CUSTOM_REQUEST_UPLOAD_DIR = os.path.join(_BASE, "static", "custom-requests")
 
 
-@router.post("/customer/custom-rug-request/upload-image")
+@router.post("/customer/custom-rug-request/upload-image", dependencies=[Depends(rate_limit("custom_rug_upload", (20, 600)))])
 async def upload_custom_rug_request_image(file: UploadFile = File(...)):
     # This endpoint is deliberately unauthenticated (guests submit reference images
     # before creating an account), so the upload itself must not be trusted at all:
@@ -1372,7 +1375,7 @@ class CustomRugRequestBody(BaseModel):
     items: List[CustomRugRequestItem] = Field(..., min_length=1, max_length=10)
 
 
-@router.post("/customer/custom-rug-request")
+@router.post("/customer/custom-rug-request", dependencies=[Depends(rate_limit("custom_rug_request", (10, 3600), (30, 86400))), Depends(verify_human)])
 async def submit_custom_rug_request(body: CustomRugRequestBody, request: Request):
     db = SessionLocal()
     try:
@@ -1485,7 +1488,7 @@ class PromoValidateBody(BaseModel):
     email: Optional[EmailStr] = None
 
 
-@router.post("/customer/promo/validate")
+@router.post("/customer/promo/validate", dependencies=[Depends(rate_limit("promo_validate", (20, 600), (100, 86400)))])
 async def validate_promo_code(body: PromoValidateBody):
     db = SessionLocal()
     try:
@@ -1754,7 +1757,7 @@ def _resolve_customer(db: Session, request: Request, tenant_id: Optional[int], b
     return _resolve_or_create_customer(db, tenant_id, body, _customer_id_from_auth_header(request))
 
 
-@router.post("/customer/checkout/create-payment-order")
+@router.post("/customer/checkout/create-payment-order", dependencies=[Depends(rate_limit("payment_order", (10, 600)))])
 async def create_payment_order(body: OrderDetailsBase, request: Request):
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise HTTPException(status_code=503, detail="Payment gateway not configured.")
@@ -1905,7 +1908,7 @@ class VerifyPaymentBody(OrderDetailsBase):
     razorpay_signature: str
 
 
-@router.post("/customer/checkout/verify-payment")
+@router.post("/customer/checkout/verify-payment", dependencies=[Depends(rate_limit("payment_verify", (20, 600)))])
 async def verify_payment(body: VerifyPaymentBody, request: Request):
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise HTTPException(status_code=503, detail="Payment gateway not configured.")
@@ -2151,7 +2154,7 @@ class CheckoutBody(OrderDetailsBase):
     pass  # inherits all validated fields from OrderDetailsBase — COD / no-Razorpay fallback path
 
 
-@router.post("/customer/checkout")
+@router.post("/customer/checkout", dependencies=[Depends(rate_limit("checkout", (10, 600)))])
 async def customer_checkout(body: CheckoutBody, request: Request):
     db = SessionLocal()
     try:
@@ -2562,7 +2565,7 @@ class CustomerChatRequest(BaseModel):
     session_id: Optional[str] = None
 
 
-@router.post("/customer/chat")
+@router.post("/customer/chat", dependencies=[Depends(rate_limit("customer_chat", (20, 60), (300, 86400)))])
 async def customer_chat(body: CustomerChatRequest):
     if not settings.ANTHROPIC_API_KEY:
         raise HTTPException(status_code=503, detail="AI service not configured. Please add ANTHROPIC_API_KEY to the backend .env file.")

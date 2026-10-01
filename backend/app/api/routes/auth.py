@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
+from app.core.rate_limit import rate_limit
+from app.core.bot_protection import verify_human
 from app.core.database import get_db
 from app.core.cache import cache_get, cache_set, cache_clear
 from app.core.auth import (
@@ -69,7 +71,7 @@ def _send_verification_email(db: Session, customer: Customer, tenant: Tenant) ->
     email_service.send_email(customer.email, subject, body_text, body_html)
 
 
-@router.post("/auth/register", response_model=TokenResponse, status_code=201)
+@router.post("/auth/register", response_model=TokenResponse, status_code=201, dependencies=[Depends(rate_limit("staff_register", (3, 3600), (10, 86400)))])
 def register(body: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     # Slug must be unique
     if db.query(Tenant).filter(Tenant.slug == body.slug).first():
@@ -118,7 +120,7 @@ def register(body: RegisterRequest, response: Response, db: Session = Depends(ge
     )
 
 
-@router.post("/auth/login", response_model=TokenResponse)
+@router.post("/auth/login", response_model=TokenResponse, dependencies=[Depends(rate_limit("staff_login", (10, 300), (50, 86400)))])
 def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.query(StaffUser).filter(StaffUser.email == body.email, StaffUser.is_active == True).first()
     if not user or not verify_password(body.password, user.hashed_password):
@@ -136,7 +138,7 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
     )
 
 
-@router.post("/auth/forgot-password")
+@router.post("/auth/forgot-password", dependencies=[Depends(rate_limit("staff_forgot_password", (5, 900), (20, 86400))), Depends(verify_human)])
 def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(StaffUser).filter(StaffUser.email == body.email, StaffUser.is_active == True).first()
     if user:
@@ -154,7 +156,7 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     return {"message": "If an account exists with that email, a password reset link has been sent."}
 
 
-@router.post("/auth/reset-password")
+@router.post("/auth/reset-password", dependencies=[Depends(rate_limit("staff_reset_password", (10, 900)))])
 def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(StaffUser).filter(StaffUser.reset_token == body.token).first()
     if not user:
@@ -195,7 +197,7 @@ def customer_me(current_customer: Customer = Depends(get_current_customer)):
     }
 
 
-@router.post("/auth/customer/register", response_model=CustomerRegisterResponse, status_code=201)
+@router.post("/auth/customer/register", response_model=CustomerRegisterResponse, status_code=201, dependencies=[Depends(rate_limit("customer_register", (5, 3600), (20, 86400))), Depends(verify_human)])
 def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_db)):
     tenant = db.query(Tenant).first()
     tenant_id = tenant.id if tenant else None
@@ -247,7 +249,7 @@ def customer_register(body: CustomerRegisterRequest, db: Session = Depends(get_d
     )
 
 
-@router.post("/auth/customer/verify-email", response_model=CustomerTokenResponse)
+@router.post("/auth/customer/verify-email", response_model=CustomerTokenResponse, dependencies=[Depends(rate_limit("customer_verify_email", (10, 900)))])
 def customer_verify_email(body: CustomerVerifyEmailRequest, response: Response, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.verification_token == body.token).first()
     if not customer:
@@ -265,7 +267,7 @@ def customer_verify_email(body: CustomerVerifyEmailRequest, response: Response, 
     return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email, country=customer.country)
 
 
-@router.post("/auth/customer/login", response_model=CustomerTokenResponse)
+@router.post("/auth/customer/login", response_model=CustomerTokenResponse, dependencies=[Depends(rate_limit("customer_login", (10, 300), (50, 86400)))])
 def customer_login(body: CustomerLoginRequest, response: Response, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.email == body.email, Customer.is_active == True).first()
     if not customer or not customer.hashed_password or not verify_password(body.password, customer.hashed_password):
@@ -278,7 +280,7 @@ def customer_login(body: CustomerLoginRequest, response: Response, db: Session =
     return CustomerTokenResponse(access_token=token, customer_id=customer.id, name=customer.name, email=customer.email, country=customer.country)
 
 
-@router.post("/auth/customer/forgot-password")
+@router.post("/auth/customer/forgot-password", dependencies=[Depends(rate_limit("customer_forgot_password", (5, 900), (20, 86400))), Depends(verify_human)])
 def customer_forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.email == body.email, Customer.is_active == True).first()
     # hashed_password is null for portal-only/guest records (never registered with a
@@ -299,7 +301,7 @@ def customer_forgot_password(body: ForgotPasswordRequest, db: Session = Depends(
     return {"message": "If an account exists with that email, a password reset link has been sent."}
 
 
-@router.post("/auth/customer/reset-password")
+@router.post("/auth/customer/reset-password", dependencies=[Depends(rate_limit("customer_reset_password", (10, 900)))])
 def customer_reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.reset_token == body.token).first()
     if not customer:
@@ -402,7 +404,7 @@ def oauth_callback(
     return redirect_response
 
 
-@router.post("/auth/refresh", response_model=RefreshResponse)
+@router.post("/auth/refresh", response_model=RefreshResponse, dependencies=[Depends(rate_limit("auth_refresh", (60, 60)))])
 def refresh(response: Response, db: Session = Depends(get_db), refresh_token: Optional[str] = Cookie(None)):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token provided")

@@ -4,8 +4,10 @@ import axios from 'axios';
 import { AlertTriangle, MailCheck } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 export default function CustomerForgotPassword() {
+  const bot = useBotProtection();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -15,7 +17,7 @@ export default function CustomerForgotPassword() {
     setError('');
     setStatus('submitting');
     try {
-      await axios.post('/api/auth/customer/forgot-password', { email });
+      await axios.post('/api/auth/customer/forgot-password', { email }, { headers: await bot.headers() });
       setStatus('done');
     } catch (err: any) {
       setStatus('error');
@@ -81,6 +83,7 @@ export default function CustomerForgotPassword() {
                     <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
                   ) : 'Send Reset Link'}
                 </button>
+                {bot.fields}
               </form>
 
               <p className="text-stone-400 text-xs mt-6">

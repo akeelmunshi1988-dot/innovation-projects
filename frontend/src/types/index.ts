@@ -117,6 +117,24 @@ export interface HomepageEnquiry {
   created_at: string | null;
 }
 
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export interface AdminRugReview {
+  id: number;
+  rug_id: number;
+  rug_name: string | null;
+  rug_slug: string | null;
+  name: string;
+  email: string;
+  rating: number;
+  title: string | null;
+  body: string;
+  status: ReviewStatus;
+  is_verified_buyer: boolean;
+  created_at: string | null;
+  reviewed_at: string | null;
+}
+
 export interface TradeEnquiry {
   id: number;
   first_name: string;
