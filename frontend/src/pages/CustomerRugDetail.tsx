@@ -21,6 +21,8 @@ import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
 import type { CatalogSize, RugColorOption } from '../types';
+import { useBotProtection } from '../hooks/useBotProtection';
+import RugReviews, { StarRating, useRugReviews } from '../components/RugReviews';
 
 const QUOTE_ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
 const QUOTE_DELIVERY = ['No preference', 'ASAP / Early Delivery', 'Within 6-7 weeks', '1–2 months', '2–3 months or more'];
@@ -74,10 +76,12 @@ interface SharedProductContent {
 
 
 export default function CustomerRugDetail() {
+  const bot = useBotProtection();
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { customer, customerToken, isCustomerAuthenticated, customerLogin, customerRegister } = useCustomerAuth();
   const [rug, setRug] = useState<RugDetail | null>(null);
+  const { summary: reviewSummary, reload: reloadReviews } = useRugReviews(rug?.id);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [faqs, setFaqs] = useState<ProductFAQ[]>([]);
@@ -307,7 +311,7 @@ export default function CustomerRugDetail() {
         expected_delivery: quoteDetails.expected_delivery || null,
         reference_image_urls: quoteDetails.reference_image_urls.length ? quoteDetails.reference_image_urls : null,
         selected_color: selectedColor || null,
-      }, { headers: customerToken ? { Authorization: `Bearer ${customerToken}` } : {} });
+      }, { headers: { ...(await bot.headers()), ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}) } });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
       setSubmitted(true);
       setQuoteModal(false);
@@ -358,7 +362,7 @@ export default function CustomerRugDetail() {
         if (policyError) { setAuthError(policyError); setAuthLoading(false); return; }
         await customerRegister(
           authForm.name, authForm.email, authForm.password, authForm.country,
-          authForm.phone || undefined, authForm.company || undefined,
+          authForm.phone || undefined, authForm.company || undefined, undefined, await bot.headers(),
         );
       }
       setAuthModal(false);
@@ -462,6 +466,13 @@ export default function CustomerRugDetail() {
             material: rug.material,
             url: canonicalProductUrl,
             brand: { '@type': 'Brand', name: 'DreamRugsCreation' },
+            ...(reviewSummary && reviewSummary.review_count > 0 ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: reviewSummary.average_rating,
+                reviewCount: reviewSummary.review_count,
+              },
+            } : {}),
             ...(rug.display_price != null ? {
               offers: {
                 '@type': 'Offer',
@@ -622,6 +633,12 @@ export default function CustomerRugDetail() {
           <section className="lg:col-span-8 space-y-4 min-w-0">
             <div>
               <h1 className="font-serif text-4xl font-light text-stone-900 tracking-tight">{rug.name}</h1>
+              {reviewSummary && reviewSummary.review_count > 0 && (
+                <a href="#reviews" className="mt-2 inline-flex items-center gap-2 text-sm text-stone-600 hover:text-stone-900">
+                  <StarRating value={reviewSummary.average_rating ?? 0} size={15} />
+                  <span>{reviewSummary.average_rating?.toFixed(1)} · {reviewSummary.review_count} review{reviewSummary.review_count === 1 ? '' : 's'}</span>
+                </a>
+              )}
             </div>
 
             {!rug.available && <p className="text-red-500 text-sm font-medium">Out of stock</p>}
@@ -808,6 +825,7 @@ export default function CustomerRugDetail() {
                     </button>
 
                     </div>
+                    {bot.fields}
                   </form>
                 </div>
               )}
@@ -854,6 +872,7 @@ export default function CustomerRugDetail() {
             </div>
           </div>
         </div>
+        <RugReviews rugId={rug.id} rugName={rug.name} summary={reviewSummary} onSubmitted={reloadReviews} />
         {faqs.length > 0 && <section className="max-w-4xl border-t border-stone-100 pt-10 pb-4">
           <p className="storefront-eyebrow text-stone-400">Helpful answers</p>
           <h2 className="font-serif text-3xl font-light text-stone-900 mt-2 mb-6">Frequently Asked Questions</h2>

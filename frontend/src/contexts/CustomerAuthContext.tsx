@@ -14,7 +14,7 @@ interface CustomerAuthContextValue {
   customerToken: string | null;
   isLoadingCustomer: boolean;
   customerLogin: (email: string, password: string) => Promise<CustomerUser>;
-  customerRegister: (name: string, email: string, password: string, country: string, phone?: string, company?: string, accountType?: 'retail' | 'trade') => Promise<{ message: string; email: string }>;
+  customerRegister: (name: string, email: string, password: string, country: string, phone?: string, company?: string, accountType?: 'retail' | 'trade', headers?: Record<string, string>) => Promise<{ message: string; email: string }>;
   verifyCustomerEmail: (token: string) => Promise<CustomerUser>;
   loginWithToken: (token: string) => Promise<CustomerUser>;
   customerLogout: () => void;
@@ -56,10 +56,10 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const customerRegister = useCallback(async (name: string, email: string, password: string, country: string, phone?: string, company?: string, accountType?: 'retail' | 'trade'): Promise<{ message: string; email: string }> => {
+  const customerRegister = useCallback(async (name: string, email: string, password: string, country: string, phone?: string, company?: string, accountType?: 'retail' | 'trade', headers?: Record<string, string>): Promise<{ message: string; email: string }> => {
     setIsLoadingCustomer(true);
     try {
-      const { data } = await axios.post('/api/auth/customer/register', { name, email, password, country, phone, company, account_type: accountType });
+      const { data } = await axios.post('/api/auth/customer/register', { name, email, password, country, phone, company, account_type: accountType }, { headers });
       return { message: data.message, email: data.email };
     } finally {
       setIsLoadingCustomer(false);

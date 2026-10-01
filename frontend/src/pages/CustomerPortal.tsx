@@ -13,6 +13,7 @@ import { useCurrency } from "../contexts/CurrencyContext";
 import { useCart } from "../contexts/CartContext";
 import { FEATURE_FLAGS } from "../config/featureFlags";
 import { useMeasurementUnit } from "../contexts/MeasurementContext";
+import { useBotProtection } from '../hooks/useBotProtection';
 
 type Point = [number, number];
 
@@ -59,6 +60,7 @@ const defaultPoints = (w: number, h: number): Point[] => [
 ];
 
 export default function CustomerPortal() {
+  const bot = useBotProtection();
   const canvasRef       = useRef<HTMLCanvasElement>(null);
   const canvasSectionRef = useRef<HTMLDivElement>(null);
   const quoteSectionRef  = useRef<HTMLDivElement>(null);
@@ -554,7 +556,7 @@ export default function CustomerPortal() {
         rush_order: quoteForm.rush_order,
         shape:      quoteForm.shape,
         notes:      quoteForm.notes || null,
-      });
+      }, { headers: await bot.headers() });
       setQuoteResult({ quote_id: data.quote_id, final_price: data.final_price, lead_time_days: data.lead_time_days });
       setQuoteSubmitted(true);
     } catch (err: any) {
@@ -1348,6 +1350,7 @@ export default function CustomerPortal() {
                         </button>
                         {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && <p className="text-stone-400 text-xs text-center">Cart/Buy Now go straight to checkout · Quote is free, no commitment</p>}
                       </div>
+                      {bot.fields}
                     </form>
                   )}
                 </div>

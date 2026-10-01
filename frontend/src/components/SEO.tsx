@@ -12,8 +12,17 @@ interface SEOProps {
 
 const SITE_NAME = 'DreamRugsCreation';
 
-export default function SEO({ title, description, canonical, image, noindex, jsonLd }: SEOProps) {
+// Search results truncate descriptions around 155-160 characters; cut at a word boundary.
+function clampDescription(text: string, max = 160): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(' ') > 80 ? cut.lastIndexOf(' ') : cut.length).replace(/[\s,;:—-]+$/, '')}…`;
+}
+
+export default function SEO({ title, description: rawDescription, canonical, image, noindex, jsonLd }: SEOProps) {
   const fullTitle = `${title} | ${SITE_NAME}`;
+  const description = clampDescription(rawDescription);
   // Default canonical is the path only — dropping query strings (filters, sort,
   // tracking params) so paginated/filtered views of the same page don't register
   // as separate, duplicate-content URLs to search engines.

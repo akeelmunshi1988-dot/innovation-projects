@@ -187,6 +187,10 @@ SMTP_FROM_EMAIL=your-gmail@gmail.com
 SMTP_FROM_NAME=DreamRugsCreation
 JWT_SECRET=REPLACE_WITH_RANDOM_STRING
 FRONTEND_URL=https://yourdomain.com
+# Optional Cloudflare Turnstile bot check on public forms — see
+# "Bot protection & rate limits" under Phase 10. Leave unset to disable.
+TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
 ```
 
 > **FRONTEND_URL** must be your real production domain (with `https://`, no trailing slash) — it's used to build the link inside customer email-verification emails. Left as the default `localhost:5173`, verification emails sent from production would contain broken links.
@@ -246,7 +250,7 @@ This creates:
 ## Phase 9 — Create systemd Service (on VPS)
 
 ```bash
-sudo nano /etc/systemd/system/dreamrugscreation.service
+  sudo nano /etc/systemd/system/dreamrugscreation.service
 ```
 
 Paste:
@@ -280,7 +284,7 @@ sudo systemctl start dreamrugscreation
 
 # Verify it is running
 sudo systemctl status dreamrugscreation
-curl http://127.0.0.1:8001/health
+curl http://127.0.0.1:8000/health
 # Should return: {"status":"healthy"}
 ```
 
@@ -299,11 +303,29 @@ Paste (replace `yourdomain.com`):
 ```nginx
 server {
     listen 80;
-    server_name yourdomain.com www.yourdomain.com;
+    server_name dreamrugscreation.com www.dreamrugscreation.com;
 
     # React frontend
-    root /var/www/dreamrugscreation/frontend;
+    root /var/www/dreamrugscreation/innovation-projects/frontend;
     index index.html;
+
+    # Compression — the main JS bundle is ~500 KB raw vs ~150 KB gzipped; this
+    # directly affects mobile load speed (Core Web Vitals, a Google ranking input).
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json application/xml image/svg+xml;
+
+    # Vite's /assets/ files have content hashes in their names, so they can be
+    # cached for a year — a new build produces new file names.
+    location /assets/ {
+        auth_request /internal/access-check;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
 
     location / {
         # $uri.html before $uri/: the frontend build's prerender step (see
@@ -339,7 +361,7 @@ server {
         auth_request /internal/access-check;
         auth_request_set $access_cookie $upstream_http_set_cookie;
         add_header Set-Cookie $access_cookie always;
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -356,7 +378,7 @@ server {
     # bearer token. Streaming must remain unbuffered for MCP's Streamable HTTP
     # transport.
     location /mcp/ {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -371,7 +393,7 @@ server {
 
     # OAuth discovery documents used by ChatGPT before it starts login.
     location ^~ /.well-known/oauth- {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -381,7 +403,7 @@ server {
 
     # OAuth registration, staff consent, token exchange, and revocation.
     location ^~ /oauth/ {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -401,7 +423,7 @@ server {
         internal;
         # Match upload routes: auth subrequests also enforce the request size.
         client_max_body_size 55M;
-        proxy_pass http://127.0.0.1:8001/internal/access-check$is_args$args;
+        proxy_pass http://127.0.0.1:8000/internal/access-check$is_args$args;
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
         proxy_set_header X-Real-IP $remote_addr;
@@ -419,7 +441,7 @@ server {
     # Sitemap -> FastAPI backend (mounted unprefixed at /sitemap.xml, not under /api,
     # so it lives at the conventional root URL search engines expect)
     location = /sitemap.xml {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -497,6 +519,86 @@ any allowed key.
 To turn the gate back off entirely, clear `INDIA_ACCESS_KEYS` in `.env` and
 restart the service — no nginx changes needed, the check endpoint itself
 just starts allowing everything again.
+
+### SEO checks after a deploy
+
+Crawlers and link-preview bots (WhatsApp, LinkedIn, Facebook, Bing) read the raw
+HTML before any JavaScript runs, so every page must come back with its *own*
+title and canonical URL:
+
+```bash
+for u in / /catalog /about /rug-size-guide /catalog/<any-rug-slug>; do
+  printf '%-30s ' "$u"; curl -s "https://dreamrugscreation.com$u" | grep -o '<title[^>]*>[^<]*' | sed 's/<title[^>]*>//'
+done
+curl -sI -H 'Accept-Encoding: gzip' https://dreamrugscreation.com/assets/$(curl -s https://dreamrugscreation.com/ | grep -o 'index-[^"]*\.js' | head -1) | grep -i content-encoding
+```
+
+If every URL prints the homepage title ("Handcrafted Custom Rugs, Made to
+Order"), the server's `location /` is missing `$uri.html` in `try_files` — it
+must read `try_files $uri $uri.html $uri/ /index.html;`. The last line should
+print `Content-Encoding: gzip`. The frontend build must run with
+`REQUIRE_PRERENDER_API=true` and the backend reachable (`PRERENDER_API_URL`),
+or per-rug and collection pages silently fall back to the homepage head.
+After the first fixed deploy, resubmit `https://dreamrugscreation.com/sitemap.xml`
+in Google Search Console.
+
+### Bot protection & rate limits
+
+Three layers protect the public forms (login, sign-up, password reset,
+quote / custom-rug / trade / contact enquiries, newsletter, AI chat, uploads):
+
+1. **Per-endpoint limits in the app** — `backend/app/core/rate_limit.py`,
+   attached to each public route (e.g. customer login 10 per 5 min per IP,
+   forgot-password 5 per 15 min, AI chat 20/min and 300/day). Active as soon
+   as the code is deployed; nothing to configure. Counters are per worker, so
+   with `--workers 2` the effective ceiling can be up to 2x — layer 2 is the
+   shared one.
+2. **nginx per-IP limits** — catch floods before they reach Python. One-time
+   setup on the VPS:
+
+   ```bash
+   sudo tee /etc/nginx/conf.d/dreamrugs-rate-limits.conf > /dev/null <<'NGINX'
+   # POST/PUT/PATCH/DELETE (form submissions, uploads) are limited separately
+   # from reads; an empty key means "not counted by this zone".
+   map $request_method $drc_write_key {
+       GET     "";
+       HEAD    "";
+       OPTIONS "";
+       default $binary_remote_addr;
+   }
+   limit_req_zone $binary_remote_addr zone=drc_api:10m   rate=20r/s;
+   limit_req_zone $drc_write_key      zone=drc_write:10m rate=2r/s;
+   limit_req_status 429;
+   NGINX
+   ```
+
+   Then add these lines inside the `location /api/ { ... }` block of
+   `/etc/nginx/sites-available/dreamrugscreation`, next to `proxy_pass`:
+
+   ```nginx
+           limit_req zone=drc_api   burst=60 nodelay;
+           limit_req zone=drc_write burst=30 delay=10;
+   ```
+
+   `delay=10` lets the first 10 rapid writes through immediately and queues
+   (rather than rejects) the next 20, so an admin bulk-uploading catalog
+   images isn't cut off. Apply with `sudo nginx -t && sudo systemctl reload nginx`.
+   The site is not behind Cloudflare's proxy, so `$binary_remote_addr` is the
+   real visitor IP — if you ever enable Cloudflare proxying (orange cloud),
+   add `set_real_ip_from` for Cloudflare's ranges first, or every visitor will
+   share one limit.
+3. **Honeypot + Cloudflare Turnstile on form submissions**
+   (`backend/app/core/bot_protection.py`, `frontend/src/hooks/useBotProtection.tsx`).
+   The hidden honeypot field is always on. Turnstile is off until keys are set:
+   create a free widget at <https://dash.cloudflare.com/?to=/:account/turnstile>
+   (hostname `dreamrugscreation.com`, mode **Managed**), put the two keys in
+   `backend/.env` as `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY`, and
+   restart the service. The site key reaches the storefront through
+   `/api/customer/settings`, so no frontend rebuild is needed to turn it on.
+
+Check it's working: `for i in $(seq 1 12); do curl -s -o /dev/null -w '%{http_code} ' -X POST https://dreamrugscreation.com/api/auth/customer/login -H 'Content-Type: application/json' -d '{"email":"x@example.com","password":"x"}'; done`
+should print `401` ten times, then `429`. Rejected bot submissions are logged
+as `bot_protection ...` lines in the backend log.
 
 ---
 

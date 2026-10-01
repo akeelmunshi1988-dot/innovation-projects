@@ -46,6 +46,7 @@ export default function Pricing() {
       <SEO
         title="Pricing"
         description="Simple, INR-priced software for rug manufacturers — AI assistant, customer portal, and quote builder. UPI and card payments, GST invoicing, no USD billing."
+        noindex
       />
       {/* Header */}
       <header className="sticky top-0 z-10 bg-dark-900/90 backdrop-blur border-b border-dark-700">

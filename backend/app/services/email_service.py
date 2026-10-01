@@ -167,6 +167,21 @@ DEFAULT_TEMPLATES = {
             "— {{tenant_name}} System"
         ),
     },
+    "vendor_new_review": {
+        "name": "New Rug Review (to Vendor)",
+        "subject": "New {{rating}}-star review of {{rug_name}} — awaiting approval",
+        "body_html": "",  # vendor notification is plaintext-only today
+        "body_text": (
+            "Hello {{tenant_name}} team,\n\n"
+            "{{customer_name}} ({{customer_email}}) reviewed {{rug_name}}.\n\n"
+            "Rating: {{rating}} / 5\n"
+            "Verified buyer: {{verified}}\n"
+            "Title: {{title}}\n\n"
+            "{{body}}\n\n"
+            "It won't appear on the storefront until you approve it on the admin panel's Reviews page.\n\n"
+            "— {{tenant_name}} System"
+        ),
+    },
     "customer_verification": {
         "name": "Registration Verification",
         "subject": "Verify your email — {{tenant_name}}",

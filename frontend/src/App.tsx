@@ -60,6 +60,7 @@ const RefundCancellationPolicy = lazy(() => import('./pages/RefundCancellationPo
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const RugServices = lazy(() => import('./pages/RugServices'));
 const TradeEnquiries = lazy(() => import('./pages/TradeEnquiries'));
+const Reviews = lazy(() => import('./pages/Reviews'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const ShowcaseVideos = lazy(() => import('./pages/ShowcaseVideos'));
@@ -174,6 +175,7 @@ function App() {
                     <Route path="project-gallery" element={<ProjectGallery />} />
                     <Route path="newsletter-subscribers" element={<NewsletterSubscribers />} />
                     <Route path="trade-enquiries" element={<TradeEnquiries />} />
+                    <Route path="reviews" element={<Reviews />} />
                     <Route path="quote-builder" element={<QuoteBuilder />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="inventory" element={<Inventory />} />

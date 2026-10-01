@@ -2,8 +2,10 @@ import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Scissors, Mail, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 export default function ForgotPassword() {
+  const bot = useBotProtection();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +15,7 @@ export default function ForgotPassword() {
     setError(null);
     setStatus('submitting');
     try {
-      await axios.post('/api/auth/forgot-password', { email });
+      await axios.post('/api/auth/forgot-password', { email }, { headers: await bot.headers() });
       setStatus('done');
     } catch (err: any) {
       setStatus('error');
@@ -72,6 +74,7 @@ export default function ForgotPassword() {
                   <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending…</>
                 ) : 'Send Reset Link'}
               </button>
+              {bot.fields}
             </form>
           )}
         </div>

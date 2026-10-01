@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # default, nothing is blocked unless this is explicitly configured.
     INDIA_ACCESS_KEYS: Optional[str] = None
 
+    # Cloudflare Turnstile bot check on public forms (app/core/bot_protection.py).
+    # Both unset disables it — the honeypot and per-IP rate limits still apply.
+    TURNSTILE_SITE_KEY: Optional[str] = None    # public; sent to the storefront via /customer/settings
+    TURNSTILE_SECRET_KEY: Optional[str] = None
+
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     FACEBOOK_CLIENT_ID: Optional[str] = None

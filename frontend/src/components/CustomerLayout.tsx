@@ -13,6 +13,7 @@ import { applyBranding } from '../utils/branding';
 import { NAV, collectionMenu } from '../data/storefrontMenu';
 import { RUG_SERVICES } from '../data/rugServices';
 import { SOCIAL_PLATFORMS, SocialIcon, WHATSAPP_ICON_PATH } from './SocialIcon';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 // Full logo lockup (mark + wordmark + tagline) — used in the footer where there's
 // room for it to read clearly; the header uses just the icon mark (tenant.logo_url)
@@ -29,6 +30,7 @@ interface CustomerLayoutProps {
 }
 
 export default function CustomerLayout({ children }: CustomerLayoutProps) {
+  const bot = useBotProtection();
   const location = useLocation();
   const [trackingSettings, setTrackingSettings] = useState<Awaited<ReturnType<typeof getPublicSettings>> | null>(null);
   const navigate = useNavigate();
@@ -107,7 +109,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         setChatEnabled(data.ai_assistant_enabled);
         setBusinessName(data.business_name || 'Store');
         setLogoUrl(data.logo_url);
-        applyBranding(data.business_name, data.logo_url);
+        applyBranding(data.business_name, data.logo_url, false);
         setCatalogPdfUrl(data.catalog_pdf_url);
         setCertifications(data.certifications || []);
         setContactEmails(data.contact_emails ?? []);
@@ -168,7 +170,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     if (!newsletterEmail.trim()) return;
     setNewsletterStatus('submitting');
     try {
-      await axios.post('/api/customer/newsletter-subscribe', { email: newsletterEmail.trim(), source: 'homepage_footer' });
+      await axios.post('/api/customer/newsletter-subscribe', { email: newsletterEmail.trim(), source: 'homepage_footer' }, { headers: await bot.headers() });
       setNewsletterEmail('');
       setNewsletterStatus('done');
     } catch {
@@ -550,7 +552,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <div className="space-y-2.5">
               {[
                 { to: '/catalog', label: 'All Rugs' },
-                ...menuOptions.materials.map((name) => ({ to: `/catalog/material/${encodeURIComponent(name)}`, label: name })),
+                ...menuOptions.materials.map((name) => ({ to: `/collections/material/${encodeURIComponent(name)}`, label: name })),
               ].map((l) => (
                 <Link key={l.to} to={l.to}
                   className="block text-stone-500 hover:text-stone-900 text-sm transition-colors"
@@ -620,6 +622,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 >
                   <Send size={14} />
                 </button>
+                {bot.fields}
               </form>
             )}
             {newsletterStatus === 'error' && (

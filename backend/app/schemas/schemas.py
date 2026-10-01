@@ -1415,6 +1415,57 @@ class TradeEnquiry(BaseModel):
         from_attributes = True
 
 
+# ── Rug reviews ─────────────────────────────────────────────────────────────────
+
+class RugReviewCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    email: EmailStr
+    rating: int = Field(..., ge=1, le=5)
+    title: Optional[str] = Field(None, max_length=150)
+    body: str = Field(..., min_length=10, max_length=3000)
+
+
+class RugReviewPublic(BaseModel):
+    """Storefront view — never includes the reviewer's email."""
+    id: int
+    name: str
+    rating: int
+    title: Optional[str] = None
+    body: str
+    is_verified_buyer: bool
+    created_at: Optional[Any] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RugReviewSummary(BaseModel):
+    average_rating: Optional[float] = None
+    review_count: int
+    rating_counts: dict  # {"5": n, "4": n, ...}
+    reviews: List[RugReviewPublic]
+
+
+class RugReviewAdmin(RugReviewPublic):
+    rug_id: int
+    rug_name: Optional[str] = None
+    rug_slug: Optional[str] = None
+    email: str
+    status: str
+    reviewed_at: Optional[Any] = None
+
+
+class RugReviewStatusUpdate(BaseModel):
+    status: str
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in ("pending", "approved", "rejected"):
+            raise ValueError("status must be 'pending', 'approved' or 'rejected'")
+        return v
+
+
 # ── Public API clients ──────────────────────────────────────────────────────────
 
 class ApiClientCreate(BaseModel):

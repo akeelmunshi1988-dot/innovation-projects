@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, trade_enquiries, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
+from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, trade_enquiries, reviews, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -183,6 +183,7 @@ app.include_router(gallery.router, prefix="/api", tags=["Project Gallery"])
 app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
 app.include_router(enquiries.router, prefix="/api", tags=["Homepage Enquiries"])
 app.include_router(trade_enquiries.router, prefix="/api", tags=["Trade Enquiries"])
+app.include_router(reviews.router, prefix="/api", tags=["Reviews"])
 app.include_router(custom_rug_page.router, prefix="/api", tags=["Customize Your Rug Images"])
 app.include_router(promo_codes.router, prefix="/api", tags=["Promo Codes"])
 app.include_router(api_clients.router, prefix="/api", tags=["API Clients"])
@@ -267,6 +268,11 @@ STATIC_SITEMAP_ROUTES = [
     "/catalog",
     "/custom-rug-request",
     "/project-gallery",
+    "/colour-matching",
+    "/rug-size-guide",
+    "/trade-enquiry",
+    "/refund-cancellation-policy",
+    "/privacy-policy",
 ]
 
 
@@ -279,29 +285,45 @@ async def sitemap():
     Phase 10 — since nginx's `location /` otherwise serves the frontend's
     SPA shell for any path it doesn't recognize as a static file.
     """
+    from urllib.parse import quote
+    from app.api.routes.customer import get_menu_options
     from app.models.models import ProjectGalleryItem, RugCatalog
 
     base_url = settings.FRONTEND_URL.rstrip("/")
     db = SessionLocal()
     try:
+        tenant = db.query(Tenant).first()
+        tenant_id = tenant.id if tenant else None
         rug_slugs = [
             r.slug or str(r.id)
-            for r in db.query(RugCatalog.id, RugCatalog.slug).all()
+            for r in db.query(RugCatalog.id, RugCatalog.slug).filter(RugCatalog.tenant_id == tenant_id).all()
         ]
         project_ids = [
             row.id
             for row in db.query(ProjectGalleryItem.id)
-            .filter(ProjectGalleryItem.is_active == True)
+            .filter(ProjectGalleryItem.tenant_id == tenant_id, ProjectGalleryItem.is_active == True)
             .all()
         ]
+        # Collection landing pages — same URLs as the storefront mega-menu
+        # (collectionMenu in frontend/src/data/storefrontMenu.ts).
+        menu = get_menu_options(db)
     finally:
         db.close()
 
+    collection_paths = (
+        [f"/collections/space/{quote(v, safe="!*'()")}" for v in menu["spaces"]]
+        + [f"/collections/mood/{quote(v, safe="!*'()")}" for v in menu["moods"]]
+        + [f"/collections/material/{quote(v, safe="!*'()")}" for v in menu["materials"]]
+        + [f"/weaves/{quote(v, safe="!*'()")}" for v in menu["weaves"]]
+    )
+
     urls = [f"{base_url}{path}" for path in STATIC_SITEMAP_ROUTES]
+    urls += [f"{base_url}{path}" for path in collection_paths]
     urls += [f"{base_url}/catalog/{slug}" for slug in rug_slugs]
     urls += [f"{base_url}/project-gallery/{project_id}" for project_id in project_ids]
 
-    entries = "\n".join(f"  <url><loc>{url}</loc></url>" for url in urls)
+    from xml.sax.saxutils import escape
+    entries = "\n".join(f"  <url><loc>{escape(url)}</loc></url>" for url in urls)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'

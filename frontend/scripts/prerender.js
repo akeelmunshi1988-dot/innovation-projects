@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.join(__dirname, '..', 'dist');
+const DIST = process.env.PRERENDER_DIST || path.join(__dirname, '..', 'dist');
 const SITE_NAME = 'DreamRugsCreation';
 const SITE_URL = (process.env.SITE_URL || 'https://dreamrugscreation.com').replace(/\/$/, '');
 // Only needed to look up rug names/descriptions/images for /catalog/:id and the
@@ -38,10 +38,24 @@ function absoluteUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `${SITE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-function renderHead({ title, description, routePath, image, jsonLd, noindex }) {
+// Search results truncate descriptions around 155-160 characters; cut at a word
+// boundary (mirrors clampDescription in src/components/SEO.tsx).
+function clampDescription(text, max = 160) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${cut.slice(0, space > 80 ? space : cut.length).replace(/[\s,;:—-]+$/, '')}…`;
+}
+
+// Share previews need an image; pages without their own fall back to the hero.
+let defaultImage = null;
+
+function renderHead({ title, description: rawDescription, routePath, image, jsonLd, noindex }) {
   const fullTitle = `${title} | ${SITE_NAME}`;
+  const description = clampDescription(rawDescription);
   const url = `${SITE_URL}${routePath}`;
-  const absImage = absoluteUrl(image);
+  const absImage = absoluteUrl(image || defaultImage);
 
   const tags = [
     `<title data-rh="true">${esc(fullTitle)}</title>`,
@@ -85,7 +99,9 @@ function writeRoute(routePath, headHtml, bodyHtml = '') {
   if (routePath === '/') {
     fs.writeFileSync(path.join(DIST, 'index.html'), html);
   } else {
-    const outFile = path.join(DIST, `${routePath.replace(/^\//, '')}.html`);
+    // routePath is URL-encoded (it's also the canonical URL); nginx matches
+    // try_files against the *decoded* $uri, so the file name must be decoded.
+    const outFile = path.join(DIST, `${decodeURIComponent(routePath).replace(/^\//, '')}.html`);
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
     fs.writeFileSync(outFile, html);
   }
@@ -110,6 +126,8 @@ async function main() {
   }
   const businessName = settings?.business_name || SITE_NAME;
   const heroImage = settings?.hero_image_url || null;
+  defaultImage = heroImage;
+  const socialProfiles = Object.values(settings?.social_links || {}).filter(Boolean);
 
   const organizationJsonLd = {
     '@context': 'https://schema.org',
@@ -129,6 +147,7 @@ async function main() {
         }
       : {}),
     ...(settings?.contact_address ? { address: settings.contact_address } : {}),
+    ...(socialProfiles.length ? { sameAs: socialProfiles } : {}),
   };
 
   writeRoute('/', renderHead({
@@ -177,7 +196,56 @@ async function main() {
     routePath: '/pricing',
     title: 'Pricing',
     description: 'Simple, INR-priced software for rug manufacturers — AI assistant, customer portal, and quote builder. UPI and card payments, GST invoicing, no USD billing.',
+    noindex: true,
   }));
+
+  // Static content pages — titles/descriptions mirror each page's <SEO> props.
+  const staticPages = [
+    ['/colour-matching', 'Colour Matching', 'Plan your bespoke rug colour with reference codes, swatches and yarn samples.'],
+    ['/rug-size-guide', 'Rug Size Guide', 'Explore rug placement for living rooms, dining rooms and bedrooms.'],
+    ['/trade-enquiry', 'Trade Enquiry', 'Discuss a rug project with our studio: design, materials, sizes and production requirements.'],
+    ['/order-tracking', 'Order Tracking', 'Find your rug order and follow the dispatch information shared with you.'],
+    ['/refund-cancellation-policy', 'Refund & Cancellation Policy', 'Read our refund and order cancellation policy.'],
+    ['/privacy-policy', 'Privacy Policy', 'Learn how we collect, use, store, and protect customer information.'],
+  ];
+  for (const [routePath, title, description] of staticPages) {
+    writeRoute(routePath, renderHead({ routePath, title, description }), `<h1>${esc(title)}</h1><p>${esc(description)}</p>`);
+  }
+
+  // Collection landing pages (/collections/<facet>/<value>, /weaves/<weave>) —
+  // the same URLs the storefront mega-menu links to (see collectionMenu in
+  // src/data/storefrontMenu.ts) and the backend sitemap lists.
+  try {
+    const menu = await fetchJson(`${API_URL}/api/customer/menu-options`);
+    const pretty = (value) => value.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const collectionPages = [
+      ...(menu.spaces || []).map((v) => [`/collections/space/${encodeURIComponent(v)}`, pretty(v)]),
+      ...(menu.moods || []).map((v) => [`/collections/mood/${encodeURIComponent(v)}`, pretty(v)]),
+      ...(menu.materials || []).map((v) => [`/collections/material/${encodeURIComponent(v)}`, v]),
+      ...(menu.weaves || []).map((v) => [`/weaves/${encodeURIComponent(v)}`, pretty(v)]),
+    ];
+    for (const [routePath, name] of collectionPages) {
+      const description = `Explore our ${name.toLowerCase()} rugs — handcrafted to order in custom sizes, with guidance on materials, care and choosing the right design.`;
+      writeRoute(routePath, renderHead({
+        routePath,
+        title: `${name} Rugs — Guide & Collection`,
+        description,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+            { '@type': 'ListItem', position: 2, name: 'Collection', item: `${SITE_URL}/catalog` },
+            { '@type': 'ListItem', position: 3, name: `${name} Rugs`, item: `${SITE_URL}${routePath}` },
+          ],
+        },
+      }), `<h1>${esc(name)} Rugs</h1><p>${esc(description)}</p><a href="/catalog">Browse the full collection</a>`);
+    }
+    console.log(`  (${collectionPages.length} collection page(s) prerendered)`);
+  } catch (err) {
+    console.warn(`  ! Could not prerender collection pages (${err.message}).`);
+    if (REQUIRE_API) throw new Error(`Required collection prerender failed: ${err.message}`);
+  }
 
   // /catalog/:id needs live rug data from the backend API. If it's unreachable at
   // build time (e.g. a local build with no backend running), skip it rather than
@@ -185,15 +253,29 @@ async function main() {
   // won't have baked-in meta for these routes until the next build with the API
   // reachable.
   try {
-    const catalogPayload = await fetchJson(`${API_URL}/api/customer/catalog?limit=60`);
-    const rugs = Array.isArray(catalogPayload) ? catalogPayload : catalogPayload.items;
-    if (!Array.isArray(rugs)) throw new Error('Catalog API returned an unexpected response shape');
+    // The catalog API caps limit at 60 — page through with has_more so every rug
+    // gets its own prerendered page however large the catalog grows.
+    const rugs = [];
+    for (let offset = 0; ; offset += 60) {
+      const page = await fetchJson(`${API_URL}/api/customer/catalog?limit=60&offset=${offset}`);
+      const items = Array.isArray(page) ? page : page.items;
+      if (!Array.isArray(items)) throw new Error('Catalog API returned an unexpected response shape');
+      rugs.push(...items);
+      if (Array.isArray(page) || !page.has_more || items.length === 0) break;
+    }
     writeRoute('/catalog', catalogHead, `<h1>Handcrafted Rug Collection</h1><p>Browse made-to-order rugs in wool, silk, cotton, and considered blends.</p><ul>${rugs.map((rug) => `<li><a href="/catalog/${esc(rug.slug || String(rug.id))}">${esc(rug.name)}</a></li>`).join('')}</ul>`);
     for (const rug of rugs) {
       const slug = rug.slug || String(rug.id);
       const description = rug.description
         ?? `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size.`;
       const productImage = rug.images?.[0]?.image_url || rug.image_url;
+      let aggregateRating = null;
+      try {
+        const reviews = await fetchJson(`${API_URL}/api/customer/catalog/${rug.id}/reviews`);
+        if (reviews.review_count > 0) {
+          aggregateRating = { '@type': 'AggregateRating', ratingValue: reviews.average_rating, reviewCount: reviews.review_count };
+        }
+      } catch { /* reviews are optional enrichment */ }
       writeRoute(`/catalog/${slug}`, renderHead({
         routePath: `/catalog/${slug}`,
         title: rug.name,
@@ -209,6 +291,7 @@ async function main() {
             material: rug.material,
             url: `${SITE_URL}/catalog/${slug}`,
             brand: { '@type': 'Brand', name: businessName },
+            ...(aggregateRating ? { aggregateRating } : {}),
             ...(rug.display_price != null ? { offers: {
                 '@type': 'Offer',
                 price: rug.display_price,
@@ -267,6 +350,18 @@ async function main() {
   } catch (err) {
     console.warn(`  ! Could not prerender project pages (${err.message}).`);
     if (REQUIRE_API) throw new Error(`Required project prerender failed: ${err.message}`);
+  }
+
+  // /catalog and /project-gallery are also directories (they hold the per-rug /
+  // per-project files). If nginx's try_files ever lacks `$uri.html`, it matches
+  // the directory instead and 301s to /catalog/ — give that an index.html with
+  // the same content so visitors still land on the right page, not a 403.
+  for (const route of ['catalog', 'project-gallery']) {
+    const dir = path.join(DIST, route);
+    const page = path.join(DIST, `${route}.html`);
+    if (fs.existsSync(page) && fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+      fs.copyFileSync(page, path.join(dir, 'index.html'));
+    }
   }
 
   console.log('Prerender complete.');

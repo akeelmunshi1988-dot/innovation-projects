@@ -6,6 +6,7 @@ import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import { getPublicSettings } from '../services/api';
 import type { Testimonial, ProjectGalleryItem, CatalogSize } from '../types';
+import { useBotProtection } from '../hooks/useBotProtection';
 
 interface ShowcaseVideo {
   id: number;
@@ -148,6 +149,7 @@ const GALLERY_MOSAIC_LAYOUTS = [
 ] as const;
 
 export default function CustomerHome() {
+  const bot = useBotProtection();
   const [catalog, setCatalog] = useState<CatalogRug[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
   const [trendingRugs, setTrendingRugs] = useState<CatalogRug[]>([]);
@@ -374,7 +376,7 @@ export default function CustomerHome() {
     setContactSubmitted(false);
     setContactError('');
     try {
-      await axios.post('/api/customer/homepage-enquiries', contactForm);
+      await axios.post('/api/customer/homepage-enquiries', contactForm, { headers: await bot.headers() });
       setContactForm({ name: '', email: '', subject: '', message: '', consent: false });
       setContactSubmitted(true);
     } catch (error: any) {
@@ -870,7 +872,7 @@ export default function CustomerHome() {
                 >
                   <img
                     src={s.image}
-                    alt=""
+                    alt={`${s.label} rug`}
                     loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover scale-100 group-hover:scale-105 transition-transform duration-500"
                   />
@@ -891,7 +893,7 @@ export default function CustomerHome() {
                 >
                   <img
                     src={m.image}
-                    alt=""
+                    alt={`${m.label} rug style`}
                     loading="lazy"
                     width={900}
                     height={675}
@@ -914,7 +916,7 @@ export default function CustomerHome() {
                 >
                   <img
                     src={mat.image}
-                    alt=""
+                    alt={`${mat.label} rug texture`}
                     loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover scale-100 group-hover:scale-105 transition-transform duration-500"
                   />
@@ -1140,6 +1142,7 @@ export default function CustomerHome() {
                   <button type="submit" disabled={contactSubmitting} className="flex h-[72px] w-full items-center justify-center bg-[#c73d14] font-condensed text-xl font-medium uppercase tracking-[0.04em] text-white transition-colors hover:bg-[#a83212] disabled:cursor-wait disabled:opacity-65">
                     {contactSubmitting ? 'Sending…' : homepageContact.buttonLabel}
                   </button>
+                  {bot.fields}
                 </form>
               )}
             </div>
