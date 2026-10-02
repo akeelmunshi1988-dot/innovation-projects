@@ -56,6 +56,7 @@ class Tenant(Base):
     homepage_values_headline_accent = Column(String(250), nullable=True)
     homepage_values_description = Column(Text, nullable=True)
     homepage_values_items = Column(JSON, nullable=True)  # ordered list[{icon,title,description}]
+    homepage_gallery_titles = Column(JSON, nullable=True)  # ordered list[str] — rotating heading of the homepage Project Gallery section; empty = frontend DEFAULT_GALLERY_TITLES (src/data/galleryTitles.ts)
     homepage_values_enabled = Column(Boolean, default=True)
     homepage_intro_title_line_one = Column(String(100), nullable=True)
     homepage_intro_title_line_two = Column(String(100), nullable=True)

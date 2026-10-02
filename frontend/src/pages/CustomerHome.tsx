@@ -4,6 +4,8 @@ import axios from 'axios';
 import { ArrowRight, CornerDownLeft, Layers, Zap, Play, Star, ChevronLeft, ChevronRight, PencilRuler, Scissors, Gem, Globe2, Palette, ShieldCheck, PackageCheck, Leaf, CheckCircle2 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
+import RotatingHeading from '../components/RotatingHeading';
+import { DEFAULT_GALLERY_TITLES } from '../data/galleryTitles';
 import { getPublicSettings } from '../services/api';
 import type { Testimonial, ProjectGalleryItem, CatalogSize } from '../types';
 import { useBotProtection } from '../hooks/useBotProtection';
@@ -215,6 +217,8 @@ export default function CustomerHome() {
   const [journeySteps, setJourneySteps] = useState<{ id: number; title: string; description: string | null }[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [galleryItems, setGalleryItems] = useState<ProjectGalleryItem[]>([]);
+  // Rotating heading of the Project Gallery section, set under Admin → Project Gallery.
+  const [galleryTitles, setGalleryTitles] = useState<string[]>(DEFAULT_GALLERY_TITLES);
   const [shopTab, setShopTab] = useState<'space' | 'mood' | 'material'>('space');
 
   // Admin-curated picks (Tenant.trending_rug_ids) for "Latest Trending Rug
@@ -297,6 +301,7 @@ export default function CustomerHome() {
           enabled: data.homepage_contact_enabled,
         });
         setMaterialsCount(data.materials_count ?? 0);
+        if (data.homepage_gallery_titles?.length) setGalleryTitles(data.homepage_gallery_titles);
         setContactInfo({
           email: data.contact_emails?.[0] ?? null,
           phone: data.contact_phones?.[0] ?? null,
@@ -1072,12 +1077,11 @@ export default function CustomerHome() {
                   bold weight rather than a separate display face, so this
                   section still reads as the same typeface family as every
                   other heading on the site — just scaled and weighted up. */}
-              <h2
+              <RotatingHeading
+                titles={galleryTitles}
                 className="font-black uppercase text-[#c53d16] leading-[0.82] tracking-[-0.045em] text-[13vw] xl:text-[9.5vw] 2xl:text-[148px]"
                 style={{ fontFamily: "'Arial Narrow', 'Roboto Condensed', Impact, sans-serif", fontStretch: 'condensed' }}
-              >
-                Rugs in Their<br />New Homes
-              </h2>
+              />
               <Link
                 to="/project-gallery"
                 className="inline-flex items-center gap-2 mt-8 text-xs font-medium tracking-[0.15em] uppercase text-cream-100 hover:text-rug-400 transition-colors pb-1 border-b border-cream-100/30 hover:border-rug-400"

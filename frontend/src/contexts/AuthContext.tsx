@@ -50,6 +50,7 @@ export interface TenantInfo {
   homepage_values_headline_accent: string | null;
   homepage_values_description: string | null;
   homepage_values_items: { icon: string; title: string; description: string }[];
+  homepage_gallery_titles: string[];
   homepage_values_enabled: boolean;
   homepage_intro_title_line_one: string | null;
   homepage_intro_title_line_two: string | null;
