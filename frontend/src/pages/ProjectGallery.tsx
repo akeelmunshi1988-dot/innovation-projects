@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { LayoutGrid, Plus, Pencil, Trash2, X, AlertTriangle, Upload, RefreshCw, Star, Image as ImageIcon, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
+import { LayoutGrid, Plus, Pencil, Trash2, X, AlertTriangle, Upload, RefreshCw, Star, Image as ImageIcon, ArrowUp, ArrowDown, Maximize2, Check, Save } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { DEFAULT_GALLERY_TITLES } from '../data/galleryTitles';
 import {
   getGalleryItems, createGalleryItem, updateGalleryItem, deleteGalleryItem,
   addGalleryImage, updateGalleryImageOrder, deleteGalleryImage,
@@ -405,6 +407,62 @@ function GalleryDrawer({ editing, onClose, onSaved }: DrawerProps) {
   );
 }
 
+// Rotating heading of the homepage Project Gallery section (Tenant.homepage_gallery_titles).
+function SectionTitlesCard() {
+  const { user, updateTenant } = useAuth();
+  const savedTitles = user?.tenant.homepage_gallery_titles ?? [];
+  const [text, setText] = useState((savedTitles.length ? savedTitles : DEFAULT_GALLERY_TITLES).join('\n'));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const titles = text.split('\n').map((t) => t.trim()).filter(Boolean);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    setError('');
+    try {
+      const { data } = await axios.patch('/api/tenant/settings', { homepage_gallery_titles: titles });
+      updateTenant(data);
+      setText((data.homepage_gallery_titles?.length ? data.homepage_gallery_titles : DEFAULT_GALLERY_TITLES).join('\n'));
+      setSaved(true);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Could not save the section titles.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-cream-100 font-semibold text-sm">Homepage section title</p>
+          <p className="text-dark-400 text-xs mt-0.5">
+            One title per line, up to 20. With more than one, the homepage heading rotates through them automatically every few seconds.
+          </p>
+        </div>
+        <button type="button" onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
+          {saved ? <Check size={14} /> : <Save size={14} />} {saving ? 'Saving…' : saved ? 'Saved' : 'Save titles'}
+        </button>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => { setText(e.target.value); setSaved(false); }}
+        rows={Math.min(Math.max(titles.length + 1, 4), 16)}
+        placeholder={DEFAULT_GALLERY_TITLES[0]}
+        className="w-full rounded-lg border border-dark-700 bg-dark-800 px-3 py-2.5 text-sm text-cream-100 placeholder-dark-500 focus:border-gold-600/60 focus:outline-none resize-y"
+      />
+      <p className="text-dark-500 text-xs">
+        {titles.length === 0
+          ? 'Empty — the homepage rotates through the default titles.'
+          : `${Math.min(titles.length, 20)} title${titles.length === 1 ? '' : 's'}${titles.length > 20 ? ' (only the first 20 are kept)' : ''}${titles.some((t) => t.length > 100) ? ' · titles over 100 characters are shortened' : ''}.`}
+      </p>
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+    </div>
+  );
+}
+
 export default function ProjectGallery() {
   const [items, setItems] = useState<ProjectGalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -464,6 +522,8 @@ export default function ProjectGallery() {
           </button>
         </div>
       </div>
+
+      <SectionTitlesCard />
 
       {loading ? (
         <div className="flex justify-center py-16">

@@ -175,8 +175,8 @@ export default function CustomerCatalog() {
   return (
     <CustomerLayout>
       <SEO
-        title="Rug Collection — Wool, Silk, Cotton & Synthetic"
-        description="Browse our full collection of handcrafted rugs in wool, silk, cotton, and synthetic weaves. Every design available in custom sizes, made to order."
+        title="Handmade Rugs & Carpets: Full Collection"
+        description="Browse handmade rugs and carpets from India: hand-knotted, hand-tufted and flatweave designs in wool and silk. Every rug made to order in custom sizes."
         // /catalog/<facet>/<value> is a filtered view of the same rugs as the
         // /collections/<facet>/<value> landing page — point search engines there
         // instead of indexing two competing URLs per material/room/mood.

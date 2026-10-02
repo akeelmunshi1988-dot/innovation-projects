@@ -719,6 +719,7 @@ class TenantPublic(BaseModel):
     homepage_values_headline_accent: Optional[str] = None
     homepage_values_description: Optional[str] = None
     homepage_values_items: List[dict] = []
+    homepage_gallery_titles: List[str] = []
     homepage_values_enabled: bool = True
     homepage_intro_title_line_one: Optional[str] = None
     homepage_intro_title_line_two: Optional[str] = None
@@ -760,7 +761,7 @@ class TenantPublic(BaseModel):
     cancellation_window_hours: int = 24
     trending_rug_ids: List[int] = []
 
-    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'product_accordion_sections', 'order_tracking_carriers', 'order_tracking_steps', 'colour_matching_items', 'trending_rug_ids', mode='before')
+    @field_validator('certifications', 'hero_images', 'homepage_values_items', 'homepage_gallery_titles', 'product_accordion_sections', 'order_tracking_carriers', 'order_tracking_steps', 'colour_matching_items', 'trending_rug_ids', mode='before')
     @classmethod
     def _none_to_empty_certifications(cls, v):
         return v or []
@@ -826,6 +827,7 @@ class TenantUpdateRequest(BaseModel):
     homepage_values_headline_accent: Optional[str] = Field(None, max_length=250)
     homepage_values_description: Optional[str] = Field(None, max_length=1000)
     homepage_values_items: Optional[List[dict]] = None
+    homepage_gallery_titles: Optional[List[str]] = None
     homepage_values_enabled: Optional[bool] = None
     homepage_intro_title_line_one: Optional[str] = Field(None, max_length=100)
     homepage_intro_title_line_two: Optional[str] = Field(None, max_length=100)

@@ -28,6 +28,18 @@ const API_URL = (process.env.PRERENDER_API_URL || 'http://127.0.0.1:8000').repla
 const REQUIRE_API = process.env.REQUIRE_PRERENDER_API === 'true';
 
 const template = fs.readFileSync(path.join(DIST, 'index.html'), 'utf-8');
+const collectionContent = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'data', 'collectionContent.json'), 'utf-8'));
+
+// Mirrors slugKey/findCollectionContent in src/data/collectionContent.ts.
+function slugKey(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+function findCollectionContent(facet, value) {
+  const key = `${facet}/${slugKey(value)}`;
+  if (collectionContent.pages[key]) return { details: collectionContent.pages[key], indexable: true };
+  const alias = collectionContent.aliases[key];
+  return alias && collectionContent.pages[alias] ? { details: collectionContent.pages[alias], indexable: false } : null;
+}
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -161,11 +173,11 @@ async function main() {
   // Title/description mirror HOME_SEO_TITLE / HOME_SEO_DESCRIPTION in src/pages/CustomerHome.tsx.
   writeRoute('/', renderHead({
     routePath: '/',
-    title: 'Handmade & Custom Rugs Online in India',
-    description: 'Shop handmade rugs online: wool, silk and cotton rugs custom-made in India to your exact size and design. See any rug in your room before you order.',
+    title: 'Handmade Rugs & Carpets from India',
+    description: 'Hand-knotted and hand-tufted wool and silk rugs, woven in Bhadohi, India and made to your exact size and design. Custom carpets, shipped worldwide.',
     image: heroImage,
     jsonLd: [websiteJsonLd, organizationJsonLd],
-  }), '<h1>Handmade &amp; Custom Rugs, Made to Order in India</h1><p>Shop handmade rugs online: wool, silk and cotton rugs custom-made to your exact size, material and design by master weavers in India.</p><nav><a href="/catalog">Explore the rug collection</a> <a href="/custom-rug-request">Request a custom rug</a> <a href="/about">About our workshop</a></nav>');
+  }), '<h1>Handmade Rugs &amp; Carpets from India, Made to Order</h1><p>Hand-knotted and hand-tufted wool and silk rugs, woven by master weavers in Bhadohi, India and made to your exact size, material and design. Custom carpets shipped worldwide.</p><nav><a href="/catalog">Explore the rug collection</a> <a href="/weaves/Hand-Knotted">Hand-knotted rugs</a> <a href="/custom-rug-request">Request a custom rug</a> <a href="/guides">Rug buying guides</a> <a href="/about">About our workshop</a></nav>');
 
   writeRoute('/about', renderHead({
     routePath: '/about',
@@ -176,8 +188,8 @@ async function main() {
 
   const catalogHead = renderHead({
     routePath: '/catalog',
-    title: 'Rug Collection — Wool, Silk, Cotton & Synthetic',
-    description: 'Browse our full collection of handcrafted rugs in wool, silk, cotton, and synthetic weaves. Every design available in custom sizes, made to order.',
+    title: 'Handmade Rugs & Carpets: Full Collection',
+    description: 'Browse handmade rugs and carpets from India: hand-knotted, hand-tufted and flatweave designs in wool and silk. Every rug made to order in custom sizes.',
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
@@ -187,7 +199,7 @@ async function main() {
       ],
     },
   });
-  writeRoute('/catalog', catalogHead, '<h1>Handcrafted Rug Collection</h1><p>Browse made-to-order rugs in wool, silk, cotton, and considered blends.</p>');
+  writeRoute('/catalog', catalogHead, '<h1>Handmade Rugs &amp; Carpets</h1><p>Browse made-to-order hand-knotted, hand-tufted and flatweave rugs in wool, silk and natural fibres, handmade in India.</p>');
 
   writeRoute('/custom-rug-request', renderHead({
     routePath: '/custom-rug-request',
@@ -209,16 +221,62 @@ async function main() {
   }));
 
   // Static content pages — titles/descriptions mirror each page's <SEO> props.
+  // [route, title, meta description, extra body copy for crawlers]
   const staticPages = [
-    ['/colour-matching', 'Colour Matching', 'Plan your bespoke rug colour with reference codes, swatches and yarn samples.'],
-    ['/rug-size-guide', 'Rug Size Guide', 'Explore rug placement for living rooms, dining rooms and bedrooms.'],
-    ['/trade-enquiry', 'Trade Enquiry', 'Discuss a rug project with our studio: design, materials, sizes and production requirements.'],
-    ['/order-tracking', 'Order Tracking', 'Find your rug order and follow the dispatch information shared with you.'],
-    ['/refund-cancellation-policy', 'Refund & Cancellation Policy', 'Read our refund and order cancellation policy.'],
-    ['/privacy-policy', 'Privacy Policy', 'Learn how we collect, use, store, and protect customer information.'],
+    ['/colour-matching', 'Colour Matching', 'Plan your bespoke rug colour with reference codes, swatches and yarn samples.',
+      'Match your handmade rug or carpet to your interior using Pantone or paint references, fabric swatches or yarn samples. Colours are confirmed with you before weaving starts.'],
+    ['/rug-size-guide', 'Rug Size Guide', 'Explore rug placement for living rooms, dining rooms and bedrooms.',
+      'Find the right rug or carpet size for your living room, dining room or bedroom. Every rug is made to order, so it can be woven to your exact measurements.'],
+    ['/trade-enquiry', 'Trade Enquiry', 'Discuss a rug project with our studio: design, materials, sizes and production requirements.',
+      'Interior designers, architects, hotels and retailers can commission handmade rugs and carpets from our workshop in Bhadohi, India, in custom designs, sizes and quantities, shipped worldwide.'],
+    ['/order-tracking', 'Order Tracking', 'Find your rug order and follow the dispatch information shared with you.', ''],
+    ['/refund-cancellation-policy', 'Refund & Cancellation Policy', 'Read our refund and order cancellation policy.', ''],
+    ['/privacy-policy', 'Privacy Policy', 'Learn how we collect, use, store, and protect customer information.', ''],
   ];
-  for (const [routePath, title, description] of staticPages) {
-    writeRoute(routePath, renderHead({ routePath, title, description }), `<h1>${esc(title)}</h1><p>${esc(description)}</p>`);
+  for (const [routePath, title, description, extra] of staticPages) {
+    writeRoute(routePath, renderHead({ routePath, title, description }), `<h1>${esc(title)}</h1><p>${esc(description)}</p>${extra ? `<p>${esc(extra)}</p>` : ''}`);
+  }
+
+  // Buying guides — copy lives in src/data/guides.json (also read by GuidePage.tsx).
+  const { guides } = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'data', 'guides.json'), 'utf-8'));
+  writeRoute('/guides', renderHead({
+    routePath: '/guides',
+    title: 'Rug & Carpet Buying Guides',
+    description: 'Practical guides to buying handmade rugs and carpets: weaves, materials, custom sizes, care, and rug making in Bhadohi, India.',
+  }), `<h1>Rug &amp; Carpet Buying Guides</h1><ul>${guides.map((g) => `<li><a href="/guides/${esc(g.slug)}">${esc(g.title)}</a><p>${esc(g.description)}</p></li>`).join('')}</ul>`);
+  for (const guide of guides) {
+    const routePath = `/guides/${guide.slug}`;
+    writeRoute(routePath, renderHead({
+      routePath,
+      title: guide.seoTitle,
+      description: guide.description,
+      jsonLd: [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Article',
+          headline: guide.title,
+          description: guide.description,
+          datePublished: guide.datePublished,
+          mainEntityOfPage: `${SITE_URL}${routePath}`,
+          author: { '@type': 'Organization', name: businessName },
+          publisher: { '@type': 'Organization', name: businessName },
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+            { '@type': 'ListItem', position: 2, name: 'Rug Guides', item: `${SITE_URL}/guides` },
+            { '@type': 'ListItem', position: 3, name: guide.title, item: `${SITE_URL}${routePath}` },
+          ],
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: guide.faq.map((item) => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })),
+        },
+      ],
+    }), `<article><nav><a href="/">Home</a> &gt; <a href="/guides">Rug Guides</a></nav><h1>${esc(guide.title)}</h1><p>${esc(guide.intro)}</p>${guide.sections.map((sec) => `<h2>${esc(sec.heading)}</h2>${sec.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('')}`).join('')}<h2>Frequently asked questions</h2>${guide.faq.map((item) => `<h3>${esc(item.q)}</h3><p>${esc(item.a)}</p>`).join('')}${guide.related.map((l) => `<a href="${esc(l.to)}">${esc(l.label)}</a>`).join(' ')}</article>`);
   }
 
   // Collection landing pages (/collections/<facet>/<value>, /weaves/<weave>) —
@@ -228,27 +286,49 @@ async function main() {
     const menu = await fetchJson(`${API_URL}/api/customer/menu-options`);
     const pretty = (value) => value.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const collectionPages = [
-      ...(menu.spaces || []).map((v) => [`/collections/space/${encodeURIComponent(v)}`, pretty(v)]),
-      ...(menu.moods || []).map((v) => [`/collections/mood/${encodeURIComponent(v)}`, pretty(v)]),
-      ...(menu.materials || []).map((v) => [`/collections/material/${encodeURIComponent(v)}`, v]),
-      ...(menu.weaves || []).map((v) => [`/weaves/${encodeURIComponent(v)}`, pretty(v)]),
+      ...(menu.spaces || []).map((v) => [`/collections/space/${encodeURIComponent(v)}`, 'space', v]),
+      ...(menu.moods || []).map((v) => [`/collections/mood/${encodeURIComponent(v)}`, 'mood', v]),
+      ...(menu.materials || []).map((v) => [`/collections/material/${encodeURIComponent(v)}`, 'material', v]),
+      ...(menu.weaves || []).map((v) => [`/weaves/${encodeURIComponent(v)}`, 'weave', v]),
     ];
-    for (const [routePath, name] of collectionPages) {
-      const description = `Explore our ${name.toLowerCase()} rugs — handcrafted to order in custom sizes, with guidance on materials, care and choosing the right design.`;
+    for (const [routePath, facet, value] of collectionPages) {
+      // Same copy and noindex rule as WeaveTypePage.tsx.
+      const found = findCollectionContent(facet, value);
+      const name = found?.indexable ? found.details.name : pretty(value);
+      const details = found?.details;
+      const title = found?.indexable ? details.seoTitle : `${name} Rugs`;
+      const description = found?.indexable
+        ? details.seoDescription
+        : `Explore our ${name.toLowerCase()} rugs, handmade to order in custom sizes.`;
+      const faq = found?.indexable ? details.faq || [] : [];
+      const body = details
+        ? `<p>${esc(details.intro)}</p><h2>${esc(details.eyebrow)}</h2><p>${esc(details.story)}</p><dl><dt>Best suited to</dt><dd>${esc(details.bestFor)}</dd><dt>Typical making time</dt><dd>${esc(details.making)}</dd><dt>Everyday care</dt><dd>${esc(details.care)}</dd></dl>`
+        : `<p>${esc(description)}</p>`;
+      const faqHtml = faq.length
+        ? `<h2>${esc(name)} Rugs: FAQ</h2>${faq.map((item) => `<h3>${esc(item.q)}</h3><p>${esc(item.a)}</p>`).join('')}`
+        : '';
       writeRoute(routePath, renderHead({
         routePath,
-        title: `${name} Rugs — Guide & Collection`,
+        title,
         description,
-        jsonLd: {
-          '@context': 'https://schema.org',
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
-            { '@type': 'ListItem', position: 2, name: 'Collection', item: `${SITE_URL}/catalog` },
-            { '@type': 'ListItem', position: 3, name: `${name} Rugs`, item: `${SITE_URL}${routePath}` },
-          ],
-        },
-      }), `<h1>${esc(name)} Rugs</h1><p>${esc(description)}</p><a href="/catalog">Browse the full collection</a>`);
+        noindex: !found?.indexable,
+        jsonLd: [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+              { '@type': 'ListItem', position: 2, name: 'Collection', item: `${SITE_URL}/catalog` },
+              { '@type': 'ListItem', position: 3, name: `${name} Rugs`, item: `${SITE_URL}${routePath}` },
+            ],
+          },
+          ...(faq.length ? [{
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: faq.map((item) => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })),
+          }] : []),
+        ],
+      }), `<h1>${esc(name)} Rugs</h1>${body}${faqHtml}<a href="/catalog">Browse the full rug collection</a> <a href="/guides">Rug buying guides</a>`);
     }
     console.log(`  (${collectionPages.length} collection page(s) prerendered)`);
   } catch (err) {
@@ -272,11 +352,13 @@ async function main() {
       rugs.push(...items);
       if (Array.isArray(page) || !page.has_more || items.length === 0) break;
     }
-    writeRoute('/catalog', catalogHead, `<h1>Handcrafted Rug Collection</h1><p>Browse made-to-order rugs in wool, silk, cotton, and considered blends.</p><ul>${rugs.map((rug) => `<li><a href="/catalog/${esc(rug.slug || String(rug.id))}">${esc(rug.name)}</a></li>`).join('')}</ul>`);
+    writeRoute('/catalog', catalogHead, `<h1>Handmade Rugs &amp; Carpets</h1><p>Browse made-to-order hand-knotted, hand-tufted and flatweave rugs in wool, silk and natural fibres, handmade in India.</p><ul>${rugs.map((rug) => `<li><a href="/catalog/${esc(rug.slug || String(rug.id))}">${esc(rug.name)}</a></li>`).join('')}</ul>`);
     for (const rug of rugs) {
       const slug = rug.slug || String(rug.id);
+      // Mirrors the <SEO> title/description in CustomerRugDetail.tsx.
       const description = rug.description
-        ?? `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size.`;
+        ?? `${rug.name}: a ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}, handmade in India and custom-made to your exact size.`;
+      const rugTitle = /\b(rug|carpet|dhurrie|runner)s?\b/i.test(rug.name) ? rug.name : `${rug.name} Rug`;
       const productImage = rug.images?.[0]?.image_url || rug.image_url;
       let aggregateRating = null;
       try {
@@ -287,7 +369,7 @@ async function main() {
       } catch { /* reviews are optional enrichment */ }
       writeRoute(`/catalog/${slug}`, renderHead({
         routePath: `/catalog/${slug}`,
-        title: rug.name,
+        title: rugTitle,
         description,
         image: productImage,
         jsonLd: [
@@ -300,6 +382,7 @@ async function main() {
             material: rug.material,
             url: `${SITE_URL}/catalog/${slug}`,
             brand: { '@type': 'Brand', name: businessName },
+            countryOfOrigin: 'IN',
             ...(aggregateRating ? { aggregateRating } : {}),
             ...(rug.display_price != null ? { offers: {
                 '@type': 'Offer',
@@ -319,7 +402,7 @@ async function main() {
             ],
           },
         ],
-      }), `<article><nav><a href="/">Home</a> &gt; <a href="/catalog">Collection</a></nav><h1>${esc(rug.name)}</h1>${productImage ? `<img src="${esc(absoluteUrl(productImage))}" alt="${esc(rug.name)}">` : ''}<p>${esc(description)}</p><dl><dt>Material</dt><dd>${esc(rug.material || '')}</dd>${rug.weave_type ? `<dt>Weave</dt><dd>${esc(rug.weave_type)}</dd>` : ''}</dl><a href="/custom-rug-request">Request this rug in your size</a></article>`);
+      }), `<article><nav><a href="/">Home</a> &gt; <a href="/catalog">Collection</a></nav><h1>${esc(rug.name)}</h1>${productImage ? `<img src="${esc(absoluteUrl(productImage))}" alt="${esc(`${rug.name}, handmade ${rug.material ? `${rug.material} ` : ''}rug`)}">` : ''}<p>${esc(description)}</p><dl><dt>Material</dt><dd>${esc(rug.material || '')}</dd>${rug.weave_type ? `<dt>Weave</dt><dd>${esc(rug.weave_type)}</dd>` : ''}</dl><a href="/custom-rug-request">Request this rug in your size</a></article>`);
     }
     console.log(`  (${rugs.length} rug detail page(s) prerendered)`);
   } catch (err) {

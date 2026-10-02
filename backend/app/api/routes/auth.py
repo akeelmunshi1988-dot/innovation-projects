@@ -532,6 +532,15 @@ def update_tenant_settings(
                     "description": str(item.get("description", "")).strip()[:300],
                 })
         tenant.homepage_values_items = cleaned_values
+    if body.homepage_gallery_titles is not None:
+        # Rotating heading for the homepage Project Gallery section: trimmed,
+        # blanks and duplicates dropped, capped so the slider stays reasonable.
+        cleaned_titles = []
+        for title in body.homepage_gallery_titles:
+            title = str(title).strip()[:100]
+            if title and title not in cleaned_titles:
+                cleaned_titles.append(title)
+        tenant.homepage_gallery_titles = cleaned_titles[:20]
     if body.homepage_values_enabled is not None:
         tenant.homepage_values_enabled = body.homepage_values_enabled
     if body.homepage_intro_title_line_one is not None:

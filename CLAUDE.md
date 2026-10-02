@@ -2,7 +2,7 @@
 
 FastAPI (Python) backend + React/TypeScript (Vite) frontend, PostgreSQL in production. Rug
 manufacturing e-commerce: admin/vendor panel + public customer storefront,
-production domain `dreamrugscreation.in`.
+production domain `dreamrugscreation.com`.
 
 ## Multi-tenant scoping — the single most important rule in this codebase
 
@@ -123,7 +123,7 @@ money/tenant/auth-related given the bug history above.
 See `DEPLOYMENT.md`. Two servers exist during the in-progress migration:
 `srv1833598.hstgr.cloud` (old, `/var/www/loomcraft/innovation-projects`) and
 `srv1909366` (current, `/var/www/dreamrugscreation-projects`, user
-`dreamrugsuser`). `dreamrugscreation.in` DNS points at the new server.
+`dreamrugsuser`). `dreamrugscreation.com` DNS points at the new server.
 After PostgreSQL cutover, deploy = `git fetch && git reset --hard origin/main` +
 apply the current PostgreSQL schema migration + `systemctl restart dreamrugscreation`.
 Do not run the historical SQLite scripts as a substitute. Frontend changes additionally

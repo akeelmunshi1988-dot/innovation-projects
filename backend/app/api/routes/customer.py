@@ -354,6 +354,7 @@ async def get_public_settings():
             "homepage_values_headline_accent": tenant.homepage_values_headline_accent if tenant else None,
             "homepage_values_description": tenant.homepage_values_description if tenant else None,
             "homepage_values_items": (tenant.homepage_values_items or []) if tenant else [],
+            "homepage_gallery_titles": (tenant.homepage_gallery_titles or []) if tenant else [],
             "homepage_values_enabled": tenant.homepage_values_enabled if tenant else True,
             "homepage_intro_title_line_one": tenant.homepage_intro_title_line_one if tenant else None,
             "homepage_intro_title_line_two": tenant.homepage_intro_title_line_two if tenant else None,
