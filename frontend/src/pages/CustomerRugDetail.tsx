@@ -450,10 +450,11 @@ export default function CustomerRugDetail() {
   return (
     <CustomerLayout>
       <SEO
-        title={rug.name}
+        // "Rug" in the title matches what people search; skip it when the name already says so.
+        title={/\b(rug|carpet|dhurrie|runner)s?\b/i.test(rug.name) ? rug.name : `${rug.name} Rug`}
         description={
           rug.description ??
-          `${rug.name} — ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}. Custom-made to your exact size.`
+          `${rug.name}: a ${rug.material} rug${rug.weave_type ? `, ${rug.weave_type}` : ''}, handmade in India and custom-made to your exact size.`
         }
         image={coverImage ?? undefined}
         jsonLd={[
@@ -466,6 +467,7 @@ export default function CustomerRugDetail() {
             material: rug.material,
             url: canonicalProductUrl,
             brand: { '@type': 'Brand', name: 'DreamRugsCreation' },
+            countryOfOrigin: 'IN',
             ...(reviewSummary && reviewSummary.review_count > 0 ? {
               aggregateRating: {
                 '@type': 'AggregateRating',
@@ -555,7 +557,7 @@ export default function CustomerRugDetail() {
                 aria-label={`Expand ${rug.name} image`}
                 className="block w-full h-full cursor-zoom-in"
               >
-                <img key={coverImage} src={coverImage} alt={`${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}`} className="w-full h-full object-contain bg-white" fetchPriority="high" />
+                <img key={coverImage} src={coverImage} alt={`${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}, handmade ${rug.material} rug`} className="w-full h-full object-contain bg-white" fetchPriority="high" />
               </button>
             ) : (
               <div className="w-full h-full flex items-center justify-center">

@@ -273,7 +273,30 @@ STATIC_SITEMAP_ROUTES = [
     "/trade-enquiry",
     "/refund-cancellation-policy",
     "/privacy-policy",
+    "/guides",
 ]
+
+# Collection-page copy and buying guides live in the frontend source tree (the
+# deploy checks out the whole repo, and `npm run build` needs it there too).
+# Only collection values with written copy are indexable — the rest render a
+# noindex placeholder — so the sitemap lists exactly those. See
+# frontend/src/data/collectionContent.json.
+_FRONTEND_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "src", "data")
+
+
+def _collection_slug_key(value: str) -> str:
+    """Mirrors slugKey() in frontend/src/data/collectionContent.ts."""
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+def _load_frontend_data(filename: str):
+    import json
+    try:
+        with open(os.path.join(_FRONTEND_DATA_DIR, filename), encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError) as exc:
+        logger.warning("sitemap: could not read %s (%s)", filename, exc)
+        return None
 
 
 @app.get("/sitemap.xml")
@@ -310,15 +333,25 @@ async def sitemap():
     finally:
         db.close()
 
+    content = _load_frontend_data("collectionContent.json")
+    indexed_keys = set(content["pages"]) if content else None
+
+    def indexable(facet: str, value: str) -> bool:
+        # If the content file is unreadable, fall back to listing everything.
+        return indexed_keys is None or f"{facet}/{_collection_slug_key(value)}" in indexed_keys
+
     collection_paths = (
-        [f"/collections/space/{quote(v, safe="!*'()")}" for v in menu["spaces"]]
-        + [f"/collections/mood/{quote(v, safe="!*'()")}" for v in menu["moods"]]
-        + [f"/collections/material/{quote(v, safe="!*'()")}" for v in menu["materials"]]
-        + [f"/weaves/{quote(v, safe="!*'()")}" for v in menu["weaves"]]
+        [f"/collections/space/{quote(v, safe="!*'()")}" for v in menu["spaces"] if indexable("space", v)]
+        + [f"/collections/mood/{quote(v, safe="!*'()")}" for v in menu["moods"] if indexable("mood", v)]
+        + [f"/collections/material/{quote(v, safe="!*'()")}" for v in menu["materials"] if indexable("material", v)]
+        + [f"/weaves/{quote(v, safe="!*'()")}" for v in menu["weaves"] if indexable("weave", v)]
     )
+    guides = _load_frontend_data("guides.json")
+    guide_paths = [f"/guides/{g['slug']}" for g in (guides or {}).get("guides", [])]
 
     urls = [f"{base_url}{path}" for path in STATIC_SITEMAP_ROUTES]
     urls += [f"{base_url}{path}" for path in collection_paths]
+    urls += [f"{base_url}{path}" for path in guide_paths]
     urls += [f"{base_url}/catalog/{slug}" for slug in rug_slugs]
     urls += [f"{base_url}/project-gallery/{project_id}" for project_id in project_ids]
 

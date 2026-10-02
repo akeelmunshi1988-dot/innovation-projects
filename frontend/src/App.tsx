@@ -36,6 +36,8 @@ const CustomerPortal = lazy(() => import('./pages/CustomerPortal'));
 const AboutUs = lazy(() => import('./pages/AboutUs'));
 const CustomerCatalog = lazy(() => import('./pages/CustomerCatalog'));
 const WeaveTypePage = lazy(() => import('./pages/WeaveTypePage'));
+const GuidesIndex = lazy(() => import('./pages/GuidesIndex'));
+const GuidePage = lazy(() => import('./pages/GuidePage'));
 const CustomerRugDetail = lazy(() => import('./pages/CustomerRugDetail'));
 const CustomerProjectGallery = lazy(() => import('./pages/CustomerProjectGallery'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
@@ -120,6 +122,8 @@ function App() {
           <Route path="/catalog/material/:value" element={<CustomerCatalog />} />
           <Route path="/weaves/:weave" element={<WeaveTypePage />} />
           <Route path="/collections/:facet/:value" element={<WeaveTypePage />} />
+          <Route path="/guides" element={<GuidesIndex />} />
+          <Route path="/guides/:slug" element={<GuidePage />} />
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/project-gallery" element={<CustomerProjectGallery />} />
           <Route path="/project-gallery/:id" element={<ProjectDetail />} />

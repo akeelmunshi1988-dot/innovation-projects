@@ -61,11 +61,12 @@ interface WorkshopPhoto {
 }
 
 // Search-result title/snippet for the homepage: leads with the phrases people
-// actually search ("handmade rugs", "custom rugs", "rugs ... India"). Title stays
+// actually search ("handmade rugs", "carpets", "rugs from India") —
+// written for export buyers. Title stays
 // under ~60 chars and the description under ~155 so Google shows them uncut.
 // Mirrored in scripts/prerender.js.
-const HOME_SEO_TITLE = 'Handmade & Custom Rugs Online in India';
-const HOME_SEO_DESCRIPTION = 'Shop handmade rugs online: wool, silk and cotton rugs custom-made in India to your exact size and design. See any rug in your room before you order.';
+const HOME_SEO_TITLE = 'Handmade Rugs & Carpets from India';
+const HOME_SEO_DESCRIPTION = 'Hand-knotted and hand-tufted wool and silk rugs, woven in Bhadohi, India and made to your exact size and design. Custom carpets, shipped worldwide.';
 
 const HOW = [
   { n: '01', title: 'Buyer Request',                 desc: 'Share your vision, room dimensions, and style — our team scopes your custom rug request.' },
