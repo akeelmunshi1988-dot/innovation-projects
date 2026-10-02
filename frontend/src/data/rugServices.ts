@@ -3,5 +3,6 @@ export const RUG_SERVICES = [
   { path: '/rug-size-guide', title: 'Rug Size Guide' },
   { path: '/guides', title: 'Rug Buying Guides' },
   { path: '/trade-enquiry', title: 'Trade Enquiry' },
+  { path: '/rug-manufacturer-india', title: 'Trade & Wholesale' },
   { path: '/order-tracking', title: 'Order Tracking' },
 ];

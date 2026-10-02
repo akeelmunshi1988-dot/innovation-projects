@@ -279,6 +279,43 @@ async function main() {
     }), `<article><nav><a href="/">Home</a> &gt; <a href="/guides">Rug Guides</a></nav><h1>${esc(guide.title)}</h1><p>${esc(guide.intro)}</p>${guide.sections.map((sec) => `<h2>${esc(sec.heading)}</h2>${sec.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('')}`).join('')}<h2>Frequently asked questions</h2>${guide.faq.map((item) => `<h3>${esc(item.q)}</h3><p>${esc(item.a)}</p>`).join('')}${guide.related.map((l) => `<a href="${esc(l.to)}">${esc(l.label)}</a>`).join(' ')}</article>`);
   }
 
+  // Keyword landing pages (/moroccan-rugs, /rug-manufacturer-india) — copy lives in
+  // src/data/landingPages.json (also read by LandingPage.tsx).
+  const { pages: landingPages } = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'data', 'landingPages.json'), 'utf-8'));
+  for (const landing of landingPages) {
+    let rugLinks = '';
+    if (landing.rugSearch) {
+      try {
+        const found = await fetchJson(`${API_URL}/api/customer/catalog?limit=60&search=${encodeURIComponent(landing.rugSearch)}`);
+        if (found.items?.length) {
+          rugLinks = `<h2>${esc(landing.rugsHeading || 'From our collection')}</h2><ul>${found.items.map((rug) => `<li><a href="/catalog/${esc(rug.slug || String(rug.id))}">${esc(rug.name)}</a></li>`).join('')}</ul>`;
+        }
+      } catch (err) {
+        console.warn(`  ! Could not list rugs for ${landing.path} (${err.message}).`);
+      }
+    }
+    writeRoute(landing.path, renderHead({
+      routePath: landing.path,
+      title: landing.seoTitle,
+      description: landing.description,
+      jsonLd: [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+            { '@type': 'ListItem', position: 2, name: landing.title, item: `${SITE_URL}${landing.path}` },
+          ],
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: landing.faq.map((item) => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })),
+        },
+      ],
+    }), `<article><h1>${esc(landing.title)}</h1><p>${esc(landing.intro)}</p>${landing.sections.map((sec) => `<h2>${esc(sec.heading)}</h2>${sec.paragraphs.map((p) => `<p>${esc(p)}</p>`).join('')}`).join('')}${rugLinks}<h2>Frequently asked questions</h2>${landing.faq.map((item) => `<h3>${esc(item.q)}</h3><p>${esc(item.a)}</p>`).join('')}<a href="${esc(landing.cta.to)}">${esc(landing.cta.label)}</a></article>`);
+  }
+
   // Collection landing pages (/collections/<facet>/<value>, /weaves/<weave>) —
   // the same URLs the storefront mega-menu links to (see collectionMenu in
   // src/data/storefrontMenu.ts) and the backend sitemap lists.

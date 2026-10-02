@@ -348,10 +348,13 @@ async def sitemap():
     )
     guides = _load_frontend_data("guides.json")
     guide_paths = [f"/guides/{g['slug']}" for g in (guides or {}).get("guides", [])]
+    landing = _load_frontend_data("landingPages.json")
+    landing_paths = [p["path"] for p in (landing or {}).get("pages", [])]
 
     urls = [f"{base_url}{path}" for path in STATIC_SITEMAP_ROUTES]
     urls += [f"{base_url}{path}" for path in collection_paths]
     urls += [f"{base_url}{path}" for path in guide_paths]
+    urls += [f"{base_url}{path}" for path in landing_paths]
     urls += [f"{base_url}/catalog/{slug}" for slug in rug_slugs]
     urls += [f"{base_url}/project-gallery/{project_id}" for project_id in project_ids]
 
