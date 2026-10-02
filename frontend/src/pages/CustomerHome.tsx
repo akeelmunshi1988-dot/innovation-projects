@@ -60,6 +60,13 @@ interface WorkshopPhoto {
   image_url: string;
 }
 
+// Search-result title/snippet for the homepage: leads with the phrases people
+// actually search ("handmade rugs", "custom rugs", "rugs ... India"). Title stays
+// under ~60 chars and the description under ~155 so Google shows them uncut.
+// Mirrored in scripts/prerender.js.
+const HOME_SEO_TITLE = 'Handmade & Custom Rugs Online in India';
+const HOME_SEO_DESCRIPTION = 'Shop handmade rugs online: wool, silk and cotton rugs custom-made in India to your exact size and design. See any rug in your room before you order.';
+
 const HOW = [
   { n: '01', title: 'Buyer Request',                 desc: 'Share your vision, room dimensions, and style — our team scopes your custom rug request.' },
   { n: '02', title: 'CAD Approval',                  desc: 'A CAD rendering of your design is prepared and shared for sign-off before any material is touched.' },
@@ -202,6 +209,7 @@ export default function CustomerHome() {
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState('');
   const [contactInfo, setContactInfo] = useState<{ email: string | null; phone: string | null; address: string | null }>({ email: null, phone: null, address: null });
+  const [brandLinks, setBrandLinks] = useState<{ logoUrl: string | null; socialProfiles: string[] }>({ logoUrl: null, socialProfiles: [] });
   const [workshopPhotos, setWorkshopPhotos] = useState<WorkshopPhoto[]>([]);
   const [journeySteps, setJourneySteps] = useState<{ id: number; title: string; description: string | null }[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -293,6 +301,10 @@ export default function CustomerHome() {
           phone: data.contact_phones?.[0] ?? null,
           address: data.contact_address,
         });
+        setBrandLinks({
+          logoUrl: data.logo_url ?? null,
+          socialProfiles: Object.values(data.social_links || {}).filter((v): v is string => typeof v === 'string' && !!v),
+        });
       })
       .catch(() => setAiConsultantEnabled(true))
       .finally(() => setHeroImageLoaded(true));
@@ -342,12 +354,16 @@ export default function CustomerHome() {
     .filter((project) => project.owner_name?.trim())
     .slice(0, 4);
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  // Keep in sync with the homepage JSON-LD in scripts/prerender.js — this copy
+  // replaces the prerendered one once the page hydrates.
+  const absolute = (u: string | null) => (u ? new URL(u, siteUrl || 'http://localhost').toString() : undefined);
   const organizationJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'HomeAndConstructionBusiness',
     name: businessName || 'DreamRugsCreation',
-    url: siteUrl,
-    image: heroImage,
+    url: `${siteUrl}/`,
+    ...(heroImage ? { image: absolute(heroImage) } : {}),
+    ...(brandLinks.logoUrl ? { logo: absolute(brandLinks.logoUrl) } : {}),
     ...(contactInfo.email || contactInfo.phone
       ? {
           contactPoint: {
@@ -358,7 +374,15 @@ export default function CustomerHome() {
           },
         }
       : {}),
-    ...(contactInfo.address ? { address: contactInfo.address } : {}),
+    ...(contactInfo.address ? { address: { '@type': 'PostalAddress', streetAddress: contactInfo.address, addressCountry: 'IN' } } : {}),
+    ...(brandLinks.socialProfiles.length ? { sameAs: brandLinks.socialProfiles } : {}),
+  };
+  // Lets Google show the business name (not the bare domain) as the site name in results.
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: businessName || 'DreamRugsCreation',
+    url: `${siteUrl}/`,
   };
 
   const openChat = (msg: string) => {
@@ -390,10 +414,10 @@ export default function CustomerHome() {
   return (
     <CustomerLayout>
       <SEO
-        title="Handcrafted Custom Rugs, Made to Order"
-        description="Premium handcrafted rugs custom-made to your exact size, material, and design — wool, silk, cotton, and synthetic weaves from India's finest workshops."
+        title={HOME_SEO_TITLE}
+        description={HOME_SEO_DESCRIPTION}
         image={heroImage ?? undefined}
-        jsonLd={organizationJsonLd}
+        jsonLd={[websiteJsonLd, organizationJsonLd]}
       />
 
       {/* ── HERO (full-bleed image, text centered directly on the image) ─── */}
