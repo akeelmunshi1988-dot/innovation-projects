@@ -146,17 +146,26 @@ async function main() {
           },
         }
       : {}),
-    ...(settings?.contact_address ? { address: settings.contact_address } : {}),
+    ...(settings?.contact_address ? { address: { '@type': 'PostalAddress', streetAddress: settings.contact_address, addressCountry: 'IN' } } : {}),
     ...(socialProfiles.length ? { sameAs: socialProfiles } : {}),
   };
 
+  // Lets Google show the business name (not the bare domain) as the site name in results.
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: businessName,
+    url: `${SITE_URL}/`,
+  };
+
+  // Title/description mirror HOME_SEO_TITLE / HOME_SEO_DESCRIPTION in src/pages/CustomerHome.tsx.
   writeRoute('/', renderHead({
     routePath: '/',
-    title: 'Handcrafted Custom Rugs, Made to Order',
-    description: "Premium handcrafted rugs custom-made to your exact size, material, and design — wool, silk, cotton, and synthetic weaves from India's finest workshops. Visualize any rug in your room before you order.",
+    title: 'Handmade & Custom Rugs Online in India',
+    description: 'Shop handmade rugs online: wool, silk and cotton rugs custom-made in India to your exact size and design. See any rug in your room before you order.',
     image: heroImage,
-    jsonLd: organizationJsonLd,
-  }), '<h1>Handcrafted Custom Rugs, Made to Order</h1><p>Premium handcrafted rugs custom-made to your exact size, material, and design in wool, silk, cotton, and considered blends.</p><nav><a href="/catalog">Explore the rug collection</a> <a href="/custom-rug-request">Request a custom rug</a> <a href="/about">About our workshop</a></nav>');
+    jsonLd: [websiteJsonLd, organizationJsonLd],
+  }), '<h1>Handmade &amp; Custom Rugs, Made to Order in India</h1><p>Shop handmade rugs online: wool, silk and cotton rugs custom-made to your exact size, material and design by master weavers in India.</p><nav><a href="/catalog">Explore the rug collection</a> <a href="/custom-rug-request">Request a custom rug</a> <a href="/about">About our workshop</a></nav>');
 
   writeRoute('/about', renderHead({
     routePath: '/about',
