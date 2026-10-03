@@ -91,6 +91,8 @@ export default function CustomerRugDetail() {
     product_accordion_sections: [],
     catalog_pdf_url: null,
   });
+  // Flat storefront shipping charge (null/0 = free) — feeds the Offer's shippingDetails markup.
+  const [shippingRate, setShippingRate] = useState(0);
 
   const [activeQuote, setActiveQuote] = useState<{ quote_id: number; status: string; final_price: number | null; price_currency: string } | null>(null);
 
@@ -181,6 +183,7 @@ export default function CustomerRugDetail() {
           product_accordion_sections: data.product_accordion_sections,
           catalog_pdf_url: data.catalog_pdf_url,
         });
+        setShippingRate(data.default_shipping_rate ?? 0);
       })
       .catch(() => {});
   }, []);
@@ -493,6 +496,17 @@ export default function CustomerRugDetail() {
                   ? 'https://schema.org/InStock'
                   : 'https://schema.org/OutOfStock',
                 url: canonicalProductUrl,
+                // Custom-made rugs: no returns once delivered (see /refund-cancellation-policy).
+                hasMerchantReturnPolicy: {
+                  '@type': 'MerchantReturnPolicy',
+                  applicableCountry: 'IN',
+                  returnPolicyCategory: 'https://schema.org/MerchantReturnNotPermitted',
+                },
+                shippingDetails: {
+                  '@type': 'OfferShippingDetails',
+                  shippingRate: { '@type': 'MonetaryAmount', value: shippingRate, currency },
+                  shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
+                },
               },
             } : {}),
           },
