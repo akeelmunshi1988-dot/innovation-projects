@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.core.database import init_db, SessionLocal
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, trade_enquiries, reviews, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads
+from app.api.routes import collection_display, chat, catalog, quotes, orders, inventory, customers, dashboard, customer, auth, billing, invoices, email_templates, showcase, workshop, journey, testimonials, gallery, newsletter, enquiries, trade_enquiries, reviews, custom_rug_page, promo_codes, api_clients, public_api, announcements, faqs, mcp_oauth, mcp_uploads, stories
 from app.models.models import Tenant
 from app.services.fx_rates import refresh_tenant_rates
 from app.services import geo_ip
@@ -109,6 +109,7 @@ os.makedirs(os.path.join(STATIC_DIR, "showcase"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "workshop"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "testimonials"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "gallery"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "stories"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "custom-requests"), exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "custom-rug-page"), exist_ok=True)
 app.mount("/static", CachedStaticFiles(directory=STATIC_DIR), name="static")
@@ -180,6 +181,7 @@ app.include_router(testimonials.router, prefix="/api", tags=["Testimonials"])
 app.include_router(faqs.router, prefix="/api", tags=["FAQs"])
 app.include_router(announcements.router, prefix="/api", tags=["Announcements"])
 app.include_router(gallery.router, prefix="/api", tags=["Project Gallery"])
+app.include_router(stories.router, prefix="/api", tags=["Rug Stories"])
 app.include_router(newsletter.router, prefix="/api", tags=["Newsletter"])
 app.include_router(enquiries.router, prefix="/api", tags=["Homepage Enquiries"])
 app.include_router(trade_enquiries.router, prefix="/api", tags=["Trade Enquiries"])
@@ -268,6 +270,7 @@ STATIC_SITEMAP_ROUTES = [
     "/catalog",
     "/custom-rug-request",
     "/project-gallery",
+    "/stories",
     "/colour-matching",
     "/rug-size-guide",
     "/trade-enquiry",
@@ -310,7 +313,7 @@ async def sitemap():
     """
     from urllib.parse import quote
     from app.api.routes.customer import get_menu_options
-    from app.models.models import ProjectGalleryItem, RugCatalog
+    from app.models.models import ProjectGalleryItem, RugCatalog, RugStory
 
     base_url = settings.FRONTEND_URL.rstrip("/")
     db = SessionLocal()
@@ -325,6 +328,12 @@ async def sitemap():
             row.id
             for row in db.query(ProjectGalleryItem.id)
             .filter(ProjectGalleryItem.tenant_id == tenant_id, ProjectGalleryItem.is_active == True)
+            .all()
+        ]
+        story_slugs = [
+            row.slug
+            for row in db.query(RugStory.slug)
+            .filter(RugStory.tenant_id == tenant_id, RugStory.is_published == True)
             .all()
         ]
         # Collection landing pages — same URLs as the storefront mega-menu
@@ -357,6 +366,7 @@ async def sitemap():
     urls += [f"{base_url}{path}" for path in landing_paths]
     urls += [f"{base_url}/catalog/{slug}" for slug in rug_slugs]
     urls += [f"{base_url}/project-gallery/{project_id}" for project_id in project_ids]
+    urls += [f"{base_url}/stories/{quote(slug)}" for slug in story_slugs]
 
     from xml.sax.saxutils import escape
     entries = "\n".join(f"  <url><loc>{escape(url)}</loc></url>" for url in urls)

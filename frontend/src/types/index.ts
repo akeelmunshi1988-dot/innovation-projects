@@ -84,6 +84,45 @@ export interface ProjectGalleryItem {
   images: ProjectGalleryImage[];
 }
 
+export interface RugStoryMedia {
+  type: 'image' | 'video';
+  url: string;
+  poster_url: string | null;
+  caption: string | null;
+}
+
+export interface RugStoryLinkedRug {
+  id: number;
+  name: string;
+  slug: string | null;
+  image_url: string | null;
+}
+
+export interface RugStory {
+  id: number;
+  slug: string;
+  title: string;
+  inspiration: string | null;
+  body_html: string | null;
+  cover_image_url: string | null;
+  media: RugStoryMedia[];
+  rug_id: number | null;
+  rug: RugStoryLinkedRug | null;
+  is_published: boolean;
+  sort_order: number;
+  updated_at?: string | null;
+}
+
+/** Lightweight shape returned by the public GET /customer/stories listing. */
+export interface RugStorySummary {
+  id: number;
+  slug: string;
+  title: string;
+  inspiration: string | null;
+  cover_image_url: string | null;
+  rug_id: number | null;
+}
+
 export interface PromoCode {
   id: number;
   code: string;

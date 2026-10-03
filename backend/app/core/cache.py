@@ -25,6 +25,7 @@ _TTL_SECONDS = {
     "faqs": 90,
     "announcements": 90,
     "gallery_items": 90,
+    "rug_stories": 90,
     "custom_rug_page_images": 90,
     "settings": 60,
     "tenant": 60,

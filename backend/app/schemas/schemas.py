@@ -1364,6 +1364,80 @@ class ProjectGalleryItem(ProjectGalleryItemBase):
         from_attributes = True
 
 
+# ── Rug Stories ────────────────────────────────────────────────────────────────
+
+def _check_media_url(url: Optional[str]) -> Optional[str]:
+    """Media is rendered straight into <img>/<video> src on the public story
+    page, so only our own uploads or https URLs are accepted."""
+    if url is None:
+        return url
+    url = url.strip()
+    if not (url.startswith("/static/") or url.startswith("https://")):
+        raise ValueError("Media URLs must be an uploaded file (/static/…) or an https:// link")
+    return url
+
+
+class RugStoryMedia(BaseModel):
+    type: str = Field(..., pattern="^(image|video)$")
+    url: str = Field(..., max_length=300)
+    poster_url: Optional[str] = Field(None, max_length=300)
+    caption: Optional[str] = Field(None, max_length=300)
+
+    _check_urls = field_validator("url", "poster_url")(_check_media_url)
+
+
+class RugStoryLinkedRug(BaseModel):
+    id: int
+    name: str
+    slug: Optional[str] = None
+    image_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RugStoryBase(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    inspiration: Optional[str] = Field(None, max_length=300)
+    body_html: Optional[str] = None
+    cover_image_url: Optional[str] = Field(None, max_length=300)
+    media: List[RugStoryMedia] = Field(default_factory=list, max_length=40)
+    rug_id: Optional[int] = None
+    is_published: bool = True
+    sort_order: int = 0
+
+    _check_cover = field_validator("cover_image_url")(_check_media_url)
+
+
+class RugStoryCreate(RugStoryBase):
+    slug: Optional[str] = Field(None, max_length=200)  # generated from the title when empty
+
+
+class RugStoryUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    slug: Optional[str] = Field(None, max_length=200)
+    inspiration: Optional[str] = Field(None, max_length=300)
+    body_html: Optional[str] = None
+    cover_image_url: Optional[str] = Field(None, max_length=300)
+    media: Optional[List[RugStoryMedia]] = Field(None, max_length=40)
+    rug_id: Optional[int] = None
+    is_published: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+    _check_cover = field_validator("cover_image_url")(_check_media_url)
+
+
+class RugStory(RugStoryBase):
+    id: int
+    slug: str
+    rug: Optional[RugStoryLinkedRug] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # ── Newsletter ─────────────────────────────────────────────────────────────────
 
 class NewsletterSubscriberCreate(BaseModel):

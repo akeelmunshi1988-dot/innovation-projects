@@ -27,6 +27,7 @@ import type {
   AnnouncementMessage,
   ProjectGalleryItem,
   ProjectGalleryImage,
+  RugStory,
   NewsletterSubscriber,
   HomepageEnquiry,
   TradeEnquiry,
@@ -256,6 +257,27 @@ export const updateGalleryImageOrder = async (imageId: number, sortOrder: number
 
 export const deleteGalleryImage = async (imageId: number): Promise<void> => {
   await api.delete(`/gallery-items/images/${imageId}`);
+};
+
+// ── Rug Stories ───────────────────────────────────────────────────────────────
+
+export const getStories = async (): Promise<RugStory[]> => {
+  const { data } = await api.get<RugStory[]>('/stories');
+  return data;
+};
+
+export const createStory = async (s: Partial<RugStory>): Promise<RugStory> => {
+  const { data } = await api.post<RugStory>('/stories', s);
+  return data;
+};
+
+export const updateStory = async (id: number, s: Partial<RugStory>): Promise<RugStory> => {
+  const { data } = await api.put<RugStory>(`/stories/${id}`, s);
+  return data;
+};
+
+export const deleteStory = async (id: number): Promise<void> => {
+  await api.delete(`/stories/${id}`);
 };
 
 // ── Newsletter ────────────────────────────────────────────────────────────────

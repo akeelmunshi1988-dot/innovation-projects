@@ -569,6 +569,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <div className="space-y-2.5">
               {[
                 { to: '/about', label: 'About Us' },
+                { to: '/stories', label: 'Design Stories' },
                 { to: '/login', label: 'Sign In' },
                 { to: '/my-orders', label: 'My Orders' },
                 { to: '/my-quotes', label: 'My Quotes' },

@@ -730,6 +730,34 @@ class RugReview(Base):
     )
 
 
+class RugStory(Base):
+    """Admin-written story behind a unique design (e.g. what inspired the
+    World Map rug), published at /stories/<slug> with its own photos and
+    videos. Optionally linked to the catalog rug it describes."""
+    __tablename__ = "rug_stories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    slug = Column(String(220), nullable=False)  # unique per tenant, see uq_rug_story_slug_tenant
+    title = Column(String(200), nullable=False)
+    inspiration = Column(String(300), nullable=True)  # one-line "Inspired by …" shown under the title and on listing cards
+    body_html = Column(Text, nullable=True)  # admin-authored rich text (RichTextEditor), sanitized on render
+    cover_image_url = Column(String(300), nullable=True)
+    media = Column(JSON, nullable=True)  # list[{"type": "image" | "video", "url": str, "poster_url": str | None, "caption": str | None}] in display order
+    rug_id = Column(Integer, ForeignKey("rug_catalog.id", ondelete="SET NULL"), nullable=True)
+    is_published = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    rug = relationship("RugCatalog")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_rug_story_slug_tenant"),
+        Index("ix_rug_stories_tenant_published_sort", "tenant_id", "is_published", "sort_order"),
+    )
+
+
 class TradeEnquiry(Base):
     __tablename__ = "trade_enquiries"
 
