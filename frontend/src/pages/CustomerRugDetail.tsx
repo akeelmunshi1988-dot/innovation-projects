@@ -20,7 +20,7 @@ import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPoli
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
 import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitize';
-import type { CatalogSize, RugColorOption } from '../types';
+import type { CatalogSize, RugColorOption, RugStorySummary } from '../types';
 import { useBotProtection } from '../hooks/useBotProtection';
 import RugReviews, { StarRating, useRugReviews } from '../components/RugReviews';
 
@@ -117,6 +117,15 @@ export default function CustomerRugDetail() {
   const [quoteModal, setQuoteModal] = useState(false);
   const [quoteMaterials, setQuoteMaterials] = useState<{ id: number; name: string }[]>([]);
   const [quoteMaterialsError, setQuoteMaterialsError] = useState(false);
+  // Design story written for this rug, if any (admin /admin/stories).
+  const [story, setStory] = useState<RugStorySummary | null>(null);
+  useEffect(() => {
+    if (!rug?.id) return;
+    axios.get<RugStorySummary[]>('/api/customer/stories')
+      .then(({ data }) => setStory(data.find((s) => s.rug_id === rug.id) ?? null))
+      .catch(() => setStory(null));
+  }, [rug?.id]);
+
   useEffect(() => {
     axios.get<{ id: number; name: string }[]>('/api/customer/materials')
       .then(({ data }) => setQuoteMaterials(data))
@@ -686,9 +695,28 @@ export default function CustomerRugDetail() {
             )}
           </section>
 
+          {story && (
+            <Link
+              to={`/stories/${story.slug}`}
+              className="group mt-10 grid max-w-4xl grid-cols-[96px_1fr] sm:grid-cols-[140px_1fr] items-center gap-5 border border-stone-200 bg-[#f7f5ef] p-4 transition-colors hover:border-stone-400"
+            >
+              <div className="aspect-square overflow-hidden bg-stone-100">
+                {story.cover_image_url && <img src={story.cover_image_url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">The Story Behind This Design</p>
+                <p className="font-serif text-xl font-light text-stone-900 leading-snug">{story.title}</p>
+                {story.inspiration && <p className="text-sm text-stone-500 line-clamp-2">{story.inspiration}</p>}
+                <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-900">
+                  Read the story <ChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </div>
+            </Link>
+          )}
+
           {/* Direct-purchase configurator */}
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-            <div className="space-y-5 w-full">
+            <div className="space-y-5 w-full lg:order-2">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
@@ -833,7 +861,7 @@ export default function CustomerRugDetail() {
               )}
             </div>
 
-            <div className="divide-y divide-stone-200 border-y border-stone-200">
+            <div className="divide-y divide-stone-200 border-y border-stone-200 lg:order-1">
               {productInfoSections.map((section) => {
                 const expanded = openProductInfo === section.id;
                 const content = section.html || section.fallback;

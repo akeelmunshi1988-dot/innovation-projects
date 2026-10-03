@@ -41,6 +41,8 @@ const GuidePage = lazy(() => import('./pages/GuidePage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const CustomerRugDetail = lazy(() => import('./pages/CustomerRugDetail'));
 const CustomerProjectGallery = lazy(() => import('./pages/CustomerProjectGallery'));
+const CustomerStories = lazy(() => import('./pages/CustomerStories'));
+const StoryDetail = lazy(() => import('./pages/StoryDetail'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
 const CustomerCheckout = lazy(() => import('./pages/CustomerCheckout'));
 const CustomerCart = lazy(() => import('./pages/CustomerCart'));
@@ -83,6 +85,7 @@ const JourneySteps = lazy(() => import('./pages/JourneySteps'));
 const Testimonials = lazy(() => import('./pages/Testimonials'));
 const AnnouncementBar = lazy(() => import('./pages/AnnouncementBar'));
 const ProjectGallery = lazy(() => import('./pages/ProjectGallery'));
+const RugStories = lazy(() => import('./pages/RugStories'));
 const NewsletterSubscribers = lazy(() => import('./pages/NewsletterSubscribers'));
 const PromoCodes = lazy(() => import('./pages/PromoCodes'));
 const ApiAccess = lazy(() => import('./pages/ApiAccess'));
@@ -130,6 +133,8 @@ function App() {
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/project-gallery" element={<CustomerProjectGallery />} />
           <Route path="/project-gallery/:id" element={<ProjectDetail />} />
+          <Route path="/stories" element={<CustomerStories />} />
+          <Route path="/stories/:slug" element={<StoryDetail />} />
           <Route path="/cart" element={FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? <CustomerCart /> : <Navigate to="/catalog" replace />} />
           <Route path="/custom-rug-request" element={<CustomerCustomRugRequest />} />
           <Route path="/checkout" element={FEATURE_FLAGS.SHOW_DIRECT_PURCHASE ? <CustomerCheckout /> : <Navigate to="/catalog" replace />} />
@@ -180,6 +185,7 @@ function App() {
                     <Route path="testimonials" element={<Testimonials />} />
                     <Route path="announcement-bar" element={<AnnouncementBar />} />
                     <Route path="project-gallery" element={<ProjectGallery />} />
+                    <Route path="stories" element={<RugStories />} />
                     <Route path="newsletter-subscribers" element={<NewsletterSubscribers />} />
                     <Route path="trade-enquiries" element={<TradeEnquiries />} />
                     <Route path="reviews" element={<Reviews />} />
