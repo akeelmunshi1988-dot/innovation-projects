@@ -716,7 +716,7 @@ export default function CustomerRugDetail() {
 
           {/* Direct-purchase configurator */}
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-            <div className="space-y-5 w-full">
+            <div className="space-y-5 w-full lg:order-2">
               {submitted && quoteResult ? (
                 <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
                   <CheckCircle size={40} className="text-green-600 mx-auto" />
@@ -861,7 +861,7 @@ export default function CustomerRugDetail() {
               )}
             </div>
 
-            <div className="divide-y divide-stone-200 border-y border-stone-200">
+            <div className="divide-y divide-stone-200 border-y border-stone-200 lg:order-1">
               {productInfoSections.map((section) => {
                 const expanded = openProductInfo === section.id;
                 const content = section.html || section.fallback;
