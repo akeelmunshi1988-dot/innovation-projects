@@ -38,6 +38,7 @@ const CustomerCatalog = lazy(() => import('./pages/CustomerCatalog'));
 const WeaveTypePage = lazy(() => import('./pages/WeaveTypePage'));
 const GuidesIndex = lazy(() => import('./pages/GuidesIndex'));
 const GuidePage = lazy(() => import('./pages/GuidePage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const CustomerRugDetail = lazy(() => import('./pages/CustomerRugDetail'));
 const CustomerProjectGallery = lazy(() => import('./pages/CustomerProjectGallery'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
@@ -87,6 +88,7 @@ const PromoCodes = lazy(() => import('./pages/PromoCodes'));
 const ApiAccess = lazy(() => import('./pages/ApiAccess'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 import { FEATURE_FLAGS } from './config/featureFlags';
+import { LANDING_PAGES } from './data/landingPages';
 
 function RouteFallback() {
   return (
@@ -124,6 +126,7 @@ function App() {
           <Route path="/collections/:facet/:value" element={<WeaveTypePage />} />
           <Route path="/guides" element={<GuidesIndex />} />
           <Route path="/guides/:slug" element={<GuidePage />} />
+          {LANDING_PAGES.map((page) => <Route key={page.path} path={page.path} element={<LandingPage page={page} />} />)}
           <Route path="/catalog/:slug" element={<CustomerRugDetail />} />
           <Route path="/project-gallery" element={<CustomerProjectGallery />} />
           <Route path="/project-gallery/:id" element={<ProjectDetail />} />

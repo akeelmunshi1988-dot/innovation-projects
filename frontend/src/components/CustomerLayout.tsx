@@ -552,6 +552,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <div className="space-y-2.5">
               {[
                 { to: '/catalog', label: 'All Rugs' },
+                { to: '/moroccan-rugs', label: 'Moroccan Style Rugs' },
                 ...menuOptions.materials.map((name) => ({ to: `/collections/material/${encodeURIComponent(name)}`, label: name })),
               ].map((l) => (
                 <Link key={l.to} to={l.to}

@@ -964,11 +964,32 @@ export default function CustomerHome() {
 
       {/* ── LATEST TRENDING RUG DESIGNS ──────────────────────────────────── */}
       {(trendingRugs.length > 0 ? trendingRugs : catalog.slice(0, 5)).length > 0 && (
-        <section className="w-[94vw] max-w-none mx-auto px-4 py-20">
-          <h2 className="storefront-heading text-4xl text-center mb-12">Latest Trending Rug Designs</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10">
-            {(trendingRugs.length > 0 ? trendingRugs : catalog.slice(0, 5)).map((rug) => (
-              <Link key={rug.id} to={`/catalog/${rug.slug}`} className="group block">
+        <section className="bg-[#f3f1e8] py-20 md:py-28">
+          <div className="mx-auto w-[90vw]">
+          <header className="mb-16 md:mb-20">
+            <p className="mb-8 text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">Trending Now</p>
+            <div className="grid gap-10 md:grid-cols-12 md:items-end">
+              <h2 className="font-condensed text-[clamp(3rem,5.1vw,6.2rem)] font-medium uppercase leading-[0.98] tracking-[-0.035em] text-[#191d27] md:col-span-10">
+                Latest trending.{' '}
+                <span className="text-[#9b9a93]">Rug designs our clients love.</span>
+              </h2>
+              <div className="md:col-span-6 md:col-start-7">
+                <p className="text-base leading-relaxed text-stone-500 md:text-lg">
+                  Hand-picked from our newest collection — every design made to order in your size, colours and materials.
+                </p>
+                <Link
+                  to="/catalog"
+                  className="mt-8 inline-flex items-center justify-center bg-[#191d27] px-10 py-4 font-condensed text-lg font-medium uppercase tracking-[0.04em] text-white transition-colors hover:bg-rug-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#191d27]"
+                >
+                  View All Rugs
+                </Link>
+              </div>
+            </div>
+          </header>
+          {/* Staggered row: every other card drops down on desktop, like an editorial gallery. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10 lg:gap-x-8">
+            {(trendingRugs.length > 0 ? trendingRugs : catalog.slice(0, 5)).map((rug, index) => (
+              <Link key={rug.id} to={`/catalog/${rug.slug}`} className={`group block ${index % 2 === 1 ? 'lg:mt-14' : ''}`}>
                 <div className="relative overflow-hidden bg-transparent aspect-[3/4.5]">
                   {rug.image_url ? (
                     <>
@@ -976,7 +997,7 @@ export default function CustomerHome() {
                         src={rug.image_url}
                         alt={rug.name}
                         loading="lazy"
-                        className={`w-full h-full object-contain transition-opacity duration-500 ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
+                        className={`w-full h-full object-contain transition-[opacity,transform] duration-700 motion-safe:group-hover:scale-[1.03] ${rug.images?.length > 0 ? 'group-hover:opacity-0' : ''}`}
                       />
                       {rug.images?.length > 0 && (
                         <img
@@ -999,6 +1020,7 @@ export default function CustomerHome() {
                 </div>
               </Link>
             ))}
+          </div>
           </div>
         </section>
       )}
