@@ -15,7 +15,7 @@ import { FEATURE_FLAGS } from '../config/featureFlags';
 import { fmtSize, catalogSizeDims, toMetres, inputUnit, SIZE_UNITS } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import type { ProductAccordionSection } from '../types';
-import { COUNTRIES, detectCountry } from '../utils/countries';
+import { COUNTRIES, SHIPPING_COUNTRY_CODES, detectCountry } from '../utils/countries';
 import { PASSWORD_POLICY_HINT, passwordPolicyError } from '../utils/passwordPolicy';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useMeasurementUnit } from '../contexts/MeasurementContext';
@@ -499,13 +499,13 @@ export default function CustomerRugDetail() {
                 // Custom-made rugs: no returns once delivered (see /refund-cancellation-policy).
                 hasMerchantReturnPolicy: {
                   '@type': 'MerchantReturnPolicy',
-                  applicableCountry: 'IN',
+                  applicableCountry: SHIPPING_COUNTRY_CODES,
                   returnPolicyCategory: 'https://schema.org/MerchantReturnNotPermitted',
                 },
                 shippingDetails: {
                   '@type': 'OfferShippingDetails',
                   shippingRate: { '@type': 'MonetaryAmount', value: shippingRate, currency },
-                  shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
+                  shippingDestination: SHIPPING_COUNTRY_CODES.map((addressCountry) => ({ '@type': 'DefinedRegion', addressCountry })),
                 },
               },
             } : {}),
