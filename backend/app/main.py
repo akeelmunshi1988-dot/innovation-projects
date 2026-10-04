@@ -3,6 +3,7 @@ import time
 import asyncio
 import re
 import uuid
+from urllib.parse import parse_qs, urlsplit
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -240,7 +241,11 @@ async def access_check(request: Request):
     if request.cookies.get(ACCESS_GATE_COOKIE) in allowed_keys:
         return Response(status_code=200)
 
-    key_param = request.query_params.get("key")
+    # An auth_request subrequest carries none of the visitor's query string
+    # (nginx's $args there is the subrequest's own, always empty), so ?key=
+    # has to come from the original URI nginx forwards in X-Original-URI.
+    original_query = urlsplit(request.headers.get("x-original-uri", "")).query
+    key_param = parse_qs(original_query).get("key", [None])[0] or request.query_params.get("key")
     if key_param in allowed_keys:
         response = Response(status_code=200)
         response.set_cookie(

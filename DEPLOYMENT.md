@@ -428,6 +428,9 @@ server {
         proxy_set_header Content-Length "";
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
+        # $args above is this subrequest's own (always empty) — the visitor's
+        # ?key= only reaches access_check() through the original URI.
+        proxy_set_header X-Original-URI $request_uri;
         # nginx checks the original request's Content-Length against
         # client_max_body_size for whichever location handles the auth_request
         # subrequest — BEFORE proxy_pass_request_body off skips forwarding it —
