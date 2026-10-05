@@ -50,13 +50,31 @@ def validate_password_strength(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.JWT_EXPIRE_MINUTES))
+    expire = utc_now() + (expires_delta or timedelta(minutes=settings.JWT_EXPIRE_MINUTES))
     to_encode["exp"] = expire
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
 def _hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+def utc_now() -> datetime:
+    """Timezone-aware current UTC time. Use this, not datetime.utcnow(), for any
+    value written to or compared with a DateTime(timezone=True) column: PostgreSQL
+    reads a naive value in the session time zone, and psycopg returns aware values
+    that can't be compared with naive ones."""
+    return datetime.now(timezone.utc)
+
+
+def is_expired(expires_at: Optional[datetime]) -> bool:
+    """True if expires_at is missing or in the past. Naive values (legacy SQLite
+    rows) are treated as UTC."""
+    if expires_at is None:
+        return True
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at <= utc_now()
 
 
 def create_refresh_token(db: Session, user_type: str, user_id: int) -> str:
@@ -66,7 +84,7 @@ def create_refresh_token(db: Session, user_type: str, user_id: int) -> str:
         user_type=user_type,
         user_id=user_id,
         token_hash=_hash_token(raw_token),
-        expires_at=datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=utc_now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
     )
     db.add(row)
     db.commit()
@@ -86,7 +104,7 @@ def rotate_refresh_token(db: Session, raw_token: str) -> Tuple[str, int, str]:
     credentials_error = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
     row = db.query(RefreshToken).filter(RefreshToken.token_hash == _hash_token(raw_token)).first()
-    if row is None or row.expires_at < datetime.utcnow():
+    if row is None or is_expired(row.expires_at):
         raise credentials_error
 
     if row.revoked_at is not None:
@@ -94,17 +112,17 @@ def rotate_refresh_token(db: Session, raw_token: str) -> Tuple[str, int, str]:
             RefreshToken.user_type == row.user_type,
             RefreshToken.user_id == row.user_id,
             RefreshToken.revoked_at.is_(None),
-        ).update({"revoked_at": datetime.utcnow()})
+        ).update({"revoked_at": utc_now()})
         db.commit()
         raise credentials_error
 
-    row.revoked_at = datetime.utcnow()
+    row.revoked_at = utc_now()
     new_raw_token = secrets.token_urlsafe(48)
     new_row = RefreshToken(
         user_type=row.user_type,
         user_id=row.user_id,
         token_hash=_hash_token(new_raw_token),
-        expires_at=datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=utc_now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
     )
     db.add(new_row)
     db.flush()
@@ -117,7 +135,7 @@ def rotate_refresh_token(db: Session, raw_token: str) -> Tuple[str, int, str]:
 def revoke_refresh_token(db: Session, raw_token: str) -> None:
     row = db.query(RefreshToken).filter(RefreshToken.token_hash == _hash_token(raw_token)).first()
     if row is not None and row.revoked_at is None:
-        row.revoked_at = datetime.utcnow()
+        row.revoked_at = utc_now()
         db.commit()
 
 
