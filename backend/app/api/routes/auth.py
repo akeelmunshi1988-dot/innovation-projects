@@ -14,7 +14,7 @@ from app.core.database import get_db
 from app.core.cache import cache_get, cache_set, cache_clear
 from app.core.auth import (
     hash_password, verify_password, create_access_token, get_current_user, get_current_customer,
-    create_refresh_token, rotate_refresh_token, revoke_refresh_token,
+    create_refresh_token, rotate_refresh_token, revoke_refresh_token, utc_now, is_expired,
 )
 from app.models.models import Tenant, StaffUser, Customer, RugCatalog
 from app.schemas.schemas import (
@@ -56,7 +56,7 @@ MAX_FAVICON_SIZE_MB = 2
 def _send_verification_email(db: Session, customer: Customer, tenant: Tenant) -> None:
     token = secrets.token_urlsafe(32)
     customer.verification_token = token
-    customer.verification_token_expires_at = datetime.utcnow() + timedelta(hours=VERIFICATION_TOKEN_TTL_HOURS)
+    customer.verification_token_expires_at = utc_now() + timedelta(hours=VERIFICATION_TOKEN_TTL_HOURS)
     customer.is_verified = False
 
     verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
@@ -144,7 +144,7 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     if user:
         token = secrets.token_urlsafe(32)
         user.reset_token = token
-        user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
+        user.reset_token_expires_at = utc_now() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
         reset_link = f"{settings.FRONTEND_URL}/admin/reset-password/{token}"
         subject, body_text, body_html = email_service.render_template(
             db, user.tenant_id, "staff_password_reset",
@@ -161,7 +161,7 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(StaffUser).filter(StaffUser.reset_token == body.token).first()
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or already-used reset link.")
-    if not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+    if is_expired(user.reset_token_expires_at):
         raise HTTPException(status_code=400, detail="This reset link has expired. Please request a new one.")
 
     user.hashed_password = hash_password(body.new_password)
@@ -254,7 +254,7 @@ def customer_verify_email(body: CustomerVerifyEmailRequest, response: Response, 
     customer = db.query(Customer).filter(Customer.verification_token == body.token).first()
     if not customer:
         raise HTTPException(status_code=400, detail="Invalid or already-used verification link.")
-    if not customer.verification_token_expires_at or customer.verification_token_expires_at < datetime.utcnow():
+    if is_expired(customer.verification_token_expires_at):
         raise HTTPException(status_code=400, detail="This verification link has expired. Please register again to get a new one.")
 
     customer.is_verified = True
@@ -288,7 +288,7 @@ def customer_forgot_password(body: ForgotPasswordRequest, db: Session = Depends(
     if customer and customer.hashed_password:
         token = secrets.token_urlsafe(32)
         customer.reset_token = token
-        customer.reset_token_expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
+        customer.reset_token_expires_at = utc_now() + timedelta(hours=RESET_TOKEN_TTL_HOURS)
         tenant = db.query(Tenant).filter(Tenant.id == customer.tenant_id).first() or db.query(Tenant).first()
         reset_link = f"{settings.FRONTEND_URL}/reset-password/{token}"
         subject, body_text, body_html = email_service.render_template(
@@ -306,7 +306,7 @@ def customer_reset_password(body: ResetPasswordRequest, db: Session = Depends(ge
     customer = db.query(Customer).filter(Customer.reset_token == body.token).first()
     if not customer:
         raise HTTPException(status_code=400, detail="Invalid or already-used reset link.")
-    if not customer.reset_token_expires_at or customer.reset_token_expires_at < datetime.utcnow():
+    if is_expired(customer.reset_token_expires_at):
         raise HTTPException(status_code=400, detail="This reset link has expired. Please request a new one.")
 
     customer.hashed_password = hash_password(body.new_password)

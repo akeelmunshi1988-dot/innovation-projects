@@ -479,7 +479,7 @@ export default function CustomerHome() {
               {[
                 { v: `${catalogTotal || 8}+`, l: 'Designs' },
                 { v: `${materialsCount || 4}`, l: 'Materials' },
-                { v: '7–60', l: 'Day Delivery' },
+                { v: '4–15', l: 'Weeks Delivery' },
               ].map((s) => (
                 <div key={s.l}>
                   <p className="font-serif text-2xl text-stone-900 font-light">{s.v}</p>
