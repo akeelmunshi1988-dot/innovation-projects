@@ -31,6 +31,7 @@ _TTL_SECONDS = {
     "tenant": 60,
     "dashboard_stats": 45,
     "geo_country": 86400,  # IP -> country lookups; bounds calls to the free geolocation API
+    "verified_crawler": 86400,  # IP -> reverse/forward-DNS crawler check for the India gate
 }
 
 _caches: dict[str, TTLCache] = {
