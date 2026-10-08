@@ -49,8 +49,8 @@ export default function CustomerStories() {
           </div>
         ) : stories.length === 0 ? (
           <div className="text-center py-24 space-y-3">
-            <ScrollText size={32} className="mx-auto text-stone-300" />
-            <p className="text-stone-400 text-sm">No stories published yet — check back soon.</p>
+            <ScrollText size={40} className="mx-auto text-stone-300" />
+            <p className="text-base text-stone-500 md:text-lg">No stories published yet — check back soon.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14">
