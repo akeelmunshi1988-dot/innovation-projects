@@ -1,4 +1,5 @@
 import os
+import socket
 import time
 import asyncio
 import re
@@ -216,6 +217,29 @@ async def health():
 
 ACCESS_GATE_COOKIE = "drc_access"
 
+# Search-engine crawlers sometimes fetch from IPs that geolocate to India. If
+# the India gate catches them they index access-required.html — a 200 with
+# `noindex` — in place of the real page (Search Console: "Excluded by
+# 'noindex' tag" on random /catalog/* URLs). Exempt them, but only after the
+# reverse+forward DNS check each engine documents, so a spoofed User-Agent
+# can't bypass the gate.
+_CRAWLER_UA_RE = re.compile(r"googlebot|google-inspectiontool|googleother|adsbot-google|bingbot|bingpreview|duckduckbot|applebot|yandex", re.I)
+_CRAWLER_HOST_SUFFIXES = (
+    ".googlebot.com", ".google.com", ".googleusercontent.com",
+    ".search.msn.com", ".duckduckgo.com", ".applebot.apple.com",
+    ".yandex.ru", ".yandex.net", ".yandex.com",
+)
+
+
+def _is_verified_crawler_ip(ip: str) -> bool:
+    try:
+        host = socket.gethostbyaddr(ip)[0].lower().rstrip(".")
+        if not host.endswith(_CRAWLER_HOST_SUFFIXES):
+            return False
+        return ip in socket.gethostbyname_ex(host)[2]
+    except (OSError, UnicodeError):
+        return False
+
 
 @app.get("/internal/access-check")
 async def access_check(request: Request):
@@ -257,6 +281,14 @@ async def access_check(request: Request):
     ip = request.headers.get("x-real-ip") or (request.client.host if request.client else None)
     if not ip:
         return Response(status_code=200)
+
+    if _CRAWLER_UA_RE.search(request.headers.get("user-agent", "")):
+        verified = cache_get("verified_crawler", ip)
+        if verified is None:
+            verified = await asyncio.to_thread(_is_verified_crawler_ip, ip)
+            cache_set("verified_crawler", verified, ip)
+        if verified:
+            return Response(status_code=200)
 
     cached = cache_get("geo_country", ip)
     country = cached if cached is not None else geo_ip.lookup_country(ip)
