@@ -545,6 +545,58 @@ or per-rug and collection pages silently fall back to the homepage head.
 After the first fixed deploy, resubmit `https://dreamrugscreation.com/sitemap.xml`
 in Google Search Console.
 
+### WebP image copies
+
+Uploads are stored as-is (often 2–4 MB PNG/JPEG). `backend/optimize_images.py`
+writes a compressed WebP copy beside each one (`abc.png` -> `abc.png.webp`,
+longest side capped at 2400px, originals untouched), and nginx serves that
+copy to browsers that accept WebP. No DB, upload-route or frontend changes.
+
+1. Generate the copies (idempotent; dry run first, then `--apply`):
+
+   ```bash
+   cd /var/www/dreamrugscreation/innovation-projects/backend
+   sudo -u dreamrugsuser ./venv/bin/python optimize_images.py
+   sudo -u dreamrugsuser ./venv/bin/python optimize_images.py --apply
+   ```
+
+   New uploads have no copy until the next run (nginx serves the original
+   meanwhile), so add it to cron (`sudo crontab -u dreamrugsuser -e`):
+
+   ```cron
+   */10 * * * * cd /var/www/dreamrugscreation/innovation-projects/backend && flock -n /tmp/drc-optimize-images.lock ./venv/bin/python optimize_images.py --apply > /dev/null 2>&1
+   ```
+
+2. One-time nginx setup:
+
+   ```bash
+   sudo tee /etc/nginx/conf.d/dreamrugs-webp.conf > /dev/null <<'NGINX'
+   map $http_accept $drc_webp_suffix {
+       default        "";
+       "~*image/webp" ".webp";
+   }
+   NGINX
+   ```
+
+   Then replace the `location /static/ { ... }` block in the site config with:
+
+   ```nginx
+       location /static/ {
+           alias /var/www/dreamrugscreation/innovation-projects/backend/static/;
+           # Upload names are random hex, so a URL's bytes never change —
+           # safe to cache for a year. Vary: the same URL is WebP or the
+           # original depending on the browser's Accept header.
+           add_header Cache-Control "public, max-age=31536000, immutable";
+           add_header Vary Accept;
+           add_header X-Content-Type-Options nosniff;
+           try_files $uri$drc_webp_suffix $uri =404;
+       }
+   ```
+
+   Apply with `sudo nginx -t && sudo systemctl reload nginx`, then check:
+   `curl -sI -H 'Accept: image/webp' https://dreamrugscreation.com/static/rugs/<file>.png`
+   should show `Content-Type: image/webp` and a much smaller `Content-Length`.
+
 ### Bot protection & rate limits
 
 Three layers protect the public forms (login, sign-up, password reset,
@@ -612,6 +664,23 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 ```
 
 Certbot automatically updates nginx config for HTTPS and sets up auto-renewal.
+
+**Then redirect www to the bare domain.** Serving the site on both hosts makes
+Google index www pages as duplicates ("Duplicate, Google chose different
+canonical than user" in Search Console). The live config
+(`/etc/nginx/sites-enabled/00-dreamrugscreation.com.conf`) must end up as
+exactly three server blocks:
+
+| Block | `listen` | `server_name` | Body |
+|---|---|---|---|
+| 1 | 80 | `dreamrugscreation.com www.dreamrugscreation.com` | `return 301 https://dreamrugscreation.com$request_uri;` |
+| 2 | 443 ssl | `dreamrugscreation.com` | the whole site: `root`, every `location` — **no `return`** |
+| 3 | 443 ssl | `www.dreamrugscreation.com` | `ssl_certificate*` lines + `return 301 https://dreamrugscreation.com$request_uri;` |
+
+A `return 301` in block 2 redirects the site to itself and takes it down
+(this happened once). Always back up first, and after
+`sudo nginx -t && sudo systemctl reload nginx` confirm
+`curl -sI https://dreamrugscreation.com/ | head -1` is `200`, not `301`.
 
 Verify auto-renewal works:
 
