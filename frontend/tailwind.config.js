@@ -7,6 +7,14 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Product detail page showroom palette (CustomerRugDetail + components/rug-detail).
+        showroom: {
+          ivory: '#F8F6F2',
+          gold: '#B2926D',
+          charcoal: '#211F1D',
+          grey: '#867B70',
+          border: '#E8E2DA',
+        },
         // Deep luxury rug palette
         rug: {
           50:  '#fdf8f0',

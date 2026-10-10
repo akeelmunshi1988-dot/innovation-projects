@@ -120,3 +120,10 @@
   .storefront-cta-outline { @apply border border-stone-300 hover:border-stone-900 text-stone-700 hover:text-stone-900 text-xs font-medium tracking-[0.2em] uppercase transition-colors; }
   .storefront-link-arrow { @apply inline-flex items-center gap-2 text-xs font-medium tracking-[0.15em] uppercase text-stone-900 hover:gap-3 transition-all; }
 }
+
+/* Product detail page: image swap / section reveal. Only applied through
+   Tailwind's motion-safe: variant, so reduced-motion users never see it. */
+@keyframes showroom-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

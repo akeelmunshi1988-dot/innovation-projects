@@ -1,18 +1,17 @@
-import { sortSizes } from '../utils/size';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DOMPurify from 'dompurify';
 import {
   Layers, Send, CheckCircle, AlertTriangle, Zap, Eye,
   ChevronRight, X, LogIn, UserPlus, EyeOff, FileText, ExternalLink,
-  ChevronLeft, Upload, ChevronDown,
+  ChevronLeft, Upload, ChevronDown, Grid3x3, Ruler, MapPin, PencilRuler,
 } from 'lucide-react';
 import CustomerLayout from '../components/CustomerLayout';
 import SEO from '../components/SEO';
 import SocialLoginButtons from '../components/SocialLoginButtons';
 import { FEATURE_FLAGS } from '../config/featureFlags';
-import { fmtSize, catalogSizeDims, toMetres, inputUnit, SIZE_UNITS } from '../utils/size';
+import { catalogSizeDims, toMetres, fmtDim, inputUnit, SIZE_UNITS } from '../utils/size';
 import { getPublicSettings } from '../services/api';
 import type { ProductAccordionSection } from '../types';
 import { COUNTRIES, SHIPPING_COUNTRY_CODES, detectCountry } from '../utils/countries';
@@ -23,6 +22,10 @@ import { PROSE_ALLOWED_TAGS, PROSE_ALLOWED_ATTR } from '../utils/richTextSanitiz
 import type { CatalogSize, RugColorOption, RugStorySummary } from '../types';
 import { useBotProtection } from '../hooks/useBotProtection';
 import RugReviews, { StarRating, useRugReviews } from '../components/RugReviews';
+import RugGallery from '../components/rug-detail/RugGallery';
+import RugSizeSelector from '../components/rug-detail/RugSizeSelector';
+import RelatedRugs from '../components/rug-detail/RelatedRugs';
+import CraftsmanshipSection from '../components/rug-detail/CraftsmanshipSection';
 
 const QUOTE_ROOM_TYPES = ['Living Room', 'Bedroom', 'Dining Room', 'Hallway / Entryway', 'Office', 'Outdoor', 'Other'];
 const QUOTE_DELIVERY = ['No preference', 'ASAP / Early Delivery', 'Within 6-7 weeks', '1–2 months', '2–3 months or more'];
@@ -101,6 +104,13 @@ export default function CustomerRugDetail() {
   // `ft` value is always present, unlike `cm`) — see the size-seeding effect
   // below for why the selection can't be tracked from form.size_w/size_h alone.
   const [selectedSizeKey, setSelectedSizeKey] = useState<string | null>(null);
+  // Custom Size tile: while on, form.size_w/size_h hold the customer's own
+  // typed dimensions instead of a catalog size's.
+  const [customSize, setCustomSize] = useState(false);
+  const [customSizeError, setCustomSizeError] = useState<string | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  // Lets the lightbox keyboard handler step through images computed at render time.
+  const lightboxStepRef = useRef<(delta: number) => void>(() => {});
   const [activeSlide, setActiveSlide] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
@@ -191,6 +201,9 @@ export default function CustomerRugDetail() {
   // Reset the tracked selection when navigating to a different rug.
   useEffect(() => {
     setSelectedSizeKey(null);
+    setCustomSize(false);
+    setCustomSizeError(null);
+    setDescriptionExpanded(false);
   }, [rug?.id]);
 
   // Re-derives form.size_w/size_h from the selected size (falling back to the
@@ -204,7 +217,7 @@ export default function CustomerRugDetail() {
   // no vendor-entered cm value, which is what broke pricing when toggling to
   // cm on such rugs.
   useEffect(() => {
-    if (!rug?.sizes.length) return;
+    if (!rug?.sizes.length || customSize) return;
     const target = (selectedSizeKey ? rug.sizes.find((size) => size.ft === selectedSizeKey) : undefined)
       ?? rug.sizes.find((size) => size.is_default) ?? rug.sizes[0];
     const dimensions = catalogSizeDims(target, inputUnit(sizeUnit));
@@ -216,12 +229,14 @@ export default function CustomerRugDetail() {
     }));
     // A previous estimate is for the old unit's dimensions and no longer
     // applies once we can't represent the selected size in the new unit.
-  }, [rug, sizeUnit, selectedSizeKey]);
+  }, [rug, sizeUnit, selectedSizeKey, customSize]);
 
   useEffect(() => {
     if (!expandedImage) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setExpandedImage(null);
+      if (event.key === 'ArrowLeft') lightboxStepRef.current(-1);
+      if (event.key === 'ArrowRight') lightboxStepRef.current(1);
     };
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -246,18 +261,40 @@ export default function CustomerRugDetail() {
     ?? rug?.sizes.find((size) => size.is_default) ?? rug?.sizes[0];
   const selectedLeadTimeDays = selectedCatalogSize?.lead_time_days ?? rug?.lead_time_days ?? 21;
 
-  const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+  const selectCatalogSize = (size: CatalogSize) => {
+    // Every listed size is selectable regardless of whether its label parses
+    // into numeric width/height (e.g. a free-text size like "3 round ft") —
+    // only the quote form's size_w/size_h prefill depends on that; when it
+    // can't be parsed, those are left blank for the customer to fill in.
+    const dims = catalogSizeDims(size, inputUnit(sizeUnit));
+    setCustomSize(false);
+    setCustomSizeError(null);
+    setSelectedSizeKey(size.ft);
+    setForm((current) => ({
+      ...current,
+      size_w: dims ? String(dims[0]) : '',
+      size_h: dims ? String(dims[1]) : '',
     }));
+  };
+
+  // Custom dimensions are re-expressed in the new unit (via the shared size
+  // helpers) rather than reinterpreted, so 6 ft never silently becomes 6 cm.
+  const changeSizeUnit = (next: 'ft' | 'cm') => {
+    const previous = inputUnit(sizeUnit);
+    if (customSize && previous !== next) {
+      const convert = (value: string) => (parseFloat(value) > 0 ? String(Number(fmtDim(toMetres(parseFloat(value), previous), next))) : value);
+      setForm((current) => ({ ...current, size_w: convert(current.size_w), size_h: convert(current.size_h) }));
+    }
+    setSizeUnit(next);
   };
 
   const openQuoteRequest = () => {
     if (!rug) return;
+    if (customSize && !(parseFloat(form.size_w) > 0 && parseFloat(form.size_h) > 0)) {
+      setCustomSizeError('Enter a width and length greater than zero to continue.');
+      document.getElementById('custom-size-width')?.focus();
+      return;
+    }
     const room = rug.room_types?.[0]?.replace(/_/g, ' ');
     const matchingRoom = QUOTE_ROOM_TYPES.find((option) => option.toLowerCase() === room?.toLowerCase());
     const material = quoteMaterials.find(option => option.name === rug.material)?.name || 'other';
@@ -432,21 +469,19 @@ export default function CustomerRugDetail() {
     setExpandedImageIndex(normalizedIndex);
     setExpandedImage(previewImages[normalizedIndex]);
   };
+  lightboxStepRef.current = (delta) => showCarouselImage(expandedImageIndex + delta);
   const scrollToConfigurator = () => {
-    document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('rug-configurator')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
+  // Material / weave / pile now live in the specifications list beside the
+  // gallery; the accordion keeps only the rug's own extra HTML, if any.
   const productInfoSections = [
-    {
+    ...(rug.additional_information_html ? [{
       id: 'product',
-      label: 'Product Details',
-      html: `<ul>
-        <li><strong>Material:</strong> ${rug.material}</li>
-        <li><strong>Weave:</strong> ${rug.weave_type || 'Handcrafted'}</li>
-        <li><strong>Pile:</strong> ${rug.pile_height || 'Made to order'}</li>
-        ${selectedColor ? `<li><strong>Color:</strong> ${selectedColor}</li>` : ''}
-      </ul>${rug.additional_information_html || ''}`,
+      label: 'Additional Information',
+      html: rug.additional_information_html,
       fallback: '',
-    },
+    }] : []),
     // Vendor-defined, open-ended list — as many (or as few) sections as the
     // admin adds in Product Detail Page settings; unlike "Product Details"
     // above, these carry no fixed identity or fallback copy.
@@ -457,6 +492,22 @@ export default function CustomerRugDetail() {
       fallback: '',
     })),
   ];
+  // Plain words ("high", "flat") read better capitalised; measured values ("8-9 MM") stay as entered.
+  const pileLabel = rug.pile_height && /^[a-z\s_-]+$/.test(rug.pile_height)
+    ? rug.pile_height.replace(/[_-]/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+    : rug.pile_height;
+  // const leadWeeks = Math.max(1, Math.ceil(selectedLeadTimeDays / 7));
+  const specifications = [
+    { icon: Layers, label: 'Material', value: rug.material },
+    { icon: Grid3x3, label: 'Weaving Technique', value: rug.weave_type },
+    { icon: Ruler, label: 'Pile Height', value: pileLabel },
+    { icon: MapPin, label: 'Origin', value: 'Handmade in Bhadohi, India' },
+    { icon: PencilRuler, label: 'Customisation', value: 'Custom sizes & colours on request' },
+    // Hidden for now at the owner's request; restore by uncommenting (and re-adding Clock to the lucide import).
+    // { icon: Clock, label: 'Production Lead Time', value: `Approx. ${leadWeeks} week${leadWeeks === 1 ? '' : 's'}, made to order` },
+  ].filter((spec) => spec.value);
+  const subtitleParts = [rug.weave_type, rug.material].filter((part): part is string => Boolean(part));
+  const hasStorySection = Boolean(story || rug.about_content_html);
   const canonicalProductUrl = `${window.location.origin}/catalog/${rug.slug}`;
   const structuredImageUrl = coverImage ? new URL(coverImage, window.location.origin).toString() : undefined;
   return (
@@ -526,234 +577,144 @@ export default function CustomerRugDetail() {
           }] : []),
         ]}
       />
-      <div className="w-[94vw] max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      <div className="w-[94vw] max-w-none mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16 space-y-16 lg:space-y-24 text-showroom-charcoal">
+        <div className="space-y-6">
+          {/* Breadcrumb */}
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-showroom-grey min-w-0">
+            <Link to="/" className="hover:text-showroom-charcoal transition-colors">Home</Link>
+            <ChevronRight size={11} aria-hidden="true" />
+            <Link to="/catalog" className="hover:text-showroom-charcoal transition-colors">Collection</Link>
+            <ChevronRight size={11} aria-hidden="true" />
+            <span className="text-showroom-charcoal truncate" aria-current="page">{rug.name}</span>
+          </nav>
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-stone-400 min-w-0">
-          <Link to="/" className="hover:text-stone-900 transition-colors">Home</Link>
-          <ChevronRight size={11} />
-          <Link to="/catalog" className="hover:text-stone-900 transition-colors">Collection</Link>
-          <ChevronRight size={11} />
-          <span className="text-stone-600 truncate">{rug.name}</span>
-        </div>
-
-        {/* Active quote banner */}
-        {activeQuote && (
-          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 py-3 border ${
-            activeQuote.status === 'sent'
-              ? 'bg-blue-50 border-blue-200'
-              : 'bg-stone-50 border-stone-200'
-          }`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <FileText size={15} className={activeQuote.status === 'sent' ? 'text-blue-500 flex-shrink-0' : 'text-stone-400 flex-shrink-0'} />
-              <div className="min-w-0">
-                <p className={`text-sm font-medium ${activeQuote.status === 'sent' ? 'text-blue-800' : 'text-stone-600'}`}>
-                  {activeQuote.status === 'sent' ? 'Your quote is ready for review' : 'Quote under review'}
-                </p>
-                <p className="text-xs text-stone-400">
-                  Quote #{activeQuote.quote_id}
-                </p>
+          {/* Active quote banner */}
+          {activeQuote && (
+            <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 py-3 border ${
+              activeQuote.status === 'sent'
+                ? 'bg-blue-50 border-blue-200'
+                : 'bg-showroom-ivory border-showroom-border'
+            }`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText size={15} className={activeQuote.status === 'sent' ? 'text-blue-500 flex-shrink-0' : 'text-showroom-grey flex-shrink-0'} />
+                <div className="min-w-0">
+                  <p className={`text-sm font-medium ${activeQuote.status === 'sent' ? 'text-blue-800' : 'text-showroom-charcoal'}`}>
+                    {activeQuote.status === 'sent' ? 'Your quote is ready for review' : 'Quote under review'}
+                  </p>
+                  <p className="text-xs text-showroom-grey">
+                    Quote #{activeQuote.quote_id}
+                  </p>
+                </div>
               </div>
-            </div>
-            <Link
-              to="/my-quotes"
-              className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 border transition-colors flex-shrink-0 w-full sm:w-auto ${
-                activeQuote.status === 'sent'
-                  ? 'bg-stone-900 border-stone-900 text-white hover:bg-stone-800'
-                  : 'border-stone-300 text-stone-600 hover:border-stone-600 hover:text-stone-900'
-              }`}
-            >
-              {activeQuote.status === 'sent' ? 'Accept / Decline' : 'View Quote'} <ExternalLink size={10} />
-            </Link>
-          </div>
-        )}
-
-        {/* Two-panel hero: portrait cover (left) + wide lifestyle photo (right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:items-stretch mb-10">
-          {/* Cover shot — fixed, no slider */}
-          <div className="lg:col-span-2 relative z-10 hover:z-30 group aspect-[4/5] lg:aspect-auto lg:h-[42vw]">
-            <div className="absolute inset-y-0 left-0 w-full overflow-hidden bg-stone-100 transition-[width,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(160%+1.25rem)] lg:group-hover:shadow-2xl">
-            {coverImage ? (
-              <button
-                type="button"
-                onClick={() => openImageCarousel(coverImage, `${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}`)}
-                aria-label={`Expand ${rug.name} image`}
-                className="block w-full h-full cursor-zoom-in"
+              <Link
+                to="/my-quotes"
+                className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 border transition-colors flex-shrink-0 w-full sm:w-auto ${
+                  activeQuote.status === 'sent'
+                    ? 'bg-showroom-charcoal border-showroom-charcoal text-white hover:bg-stone-800'
+                    : 'border-showroom-border text-showroom-charcoal hover:border-showroom-charcoal'
+                }`}
               >
-                <img key={coverImage} src={coverImage} alt={`${rug.name}${selectedColor ? ` — ${selectedColor}` : ''}, handmade ${rug.material} rug`} className="w-full h-full object-contain bg-white" fetchPriority="high" />
-              </button>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Layers size={48} className="text-stone-300" />
-              </div>
-            )}
+                {activeQuote.status === 'sent' ? 'Accept / Decline' : 'View Quote'} <ExternalLink size={10} />
+              </Link>
             </div>
-          </div>
-
-          {/* Lifestyle photo — first gallery image; falls back to the cover shot if none uploaded yet */}
-          {(() => {
-            const lifestyleImages = rug.images.length > 0 ? rug.images.map((img) => img.image_url) : (coverImage ? [coverImage] : []);
-            if (lifestyleImages.length === 0) {
-              return (
-                <div className="lg:col-span-3 overflow-hidden bg-stone-100 aspect-[4/3] lg:aspect-auto lg:h-[42vw]">
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Layers size={48} className="text-stone-300" />
-                  </div>
-                </div>
-              );
-            }
-            const current = Math.min(activeSlide, lifestyleImages.length - 1);
-            return (
-              <div className="lg:col-span-3 relative z-10 hover:z-30 group aspect-[4/3] lg:aspect-auto lg:h-[42vw]">
-                <div className="absolute inset-y-0 right-0 w-full overflow-hidden bg-stone-100 transition-[width,box-shadow] duration-500 ease-out lg:group-hover:w-[calc(140%+1.25rem)] lg:group-hover:shadow-2xl">
-                <button
-                  type="button"
-                  onClick={() => openImageCarousel(lifestyleImages[current], `${rug.name} in a room setting`)}
-                  aria-label={`Expand ${rug.name} gallery image`}
-                  className="block w-full h-full cursor-zoom-in"
-                >
-                  <img src={lifestyleImages[current]} alt={`${rug.name} in a room setting`} className="w-full h-full object-contain bg-white" loading="lazy" />
-                </button>
-                {lifestyleImages.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setActiveSlide((current - 1 + lifestyleImages.length) % lifestyleImages.length)}
-                      aria-label="Previous image"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-8 lg:h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveSlide((current + 1) % lifestyleImages.length)}
-                      aria-label="Next image"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 lg:w-8 lg:h-8 flex items-center justify-center bg-white/80 hover:bg-white text-stone-700 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                      {lifestyleImages.map((_, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setActiveSlide(i)}
-                          aria-label={`Go to image ${i + 1}`}
-                          className="w-5 h-5 flex items-center justify-center"
-                        >
-                          <span className={`block w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`} />
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Product information below the unchanged image gallery. */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-8 border-y border-stone-200">
-          <section className="lg:col-span-8 space-y-4 min-w-0">
-            <div>
-              <h1 className="font-serif text-4xl font-light text-stone-900 tracking-tight">{rug.name}</h1>
-              {reviewSummary && reviewSummary.review_count > 0 && (
-                <a href="#reviews" className="mt-2 inline-flex items-center gap-2 text-sm text-stone-600 hover:text-stone-900">
-                  <StarRating value={reviewSummary.average_rating ?? 0} size={15} />
-                  <span>{reviewSummary.average_rating?.toFixed(1)} · {reviewSummary.review_count} review{reviewSummary.review_count === 1 ? '' : 's'}</span>
-                </a>
-              )}
-            </div>
-
-            {!rug.available && <p className="text-red-500 text-sm font-medium">Out of stock</p>}
-            {rug.available && rug.inventory_quantity != null && rug.inventory_quantity <= 5 && (
-              <p className="text-amber-600 text-sm">Only {rug.inventory_quantity} left</p>
-            )}
-          </section>
-
-          <section className="lg:col-span-4 space-y-4">
-            <button
-              type="button"
-              onClick={openQuoteRequest}
-              disabled={!rug.available}
-              className="w-full storefront-cta-solid py-4"
-            >
-              Request a Quote
-            </button>
-            {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
-              <button type="button" onClick={scrollToConfigurator} disabled={!rug.available} className="w-full storefront-cta-outline disabled:border-stone-200 disabled:text-stone-300 py-4">
-                Add to Cart
-              </button>
-            )}
-          </section>
-        </div>
-
-        <div id="rug-configurator" className="scroll-mt-32 pt-8 border-t border-stone-100">
-
-          {/* Long-form product description */}
-          <section className="max-w-4xl min-w-0">
-            <h2 className="font-serif text-2xl font-light text-stone-900 mb-3">Description</h2>
-            {rug.description ? (
-              <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-line">{rug.description}</p>
-            ) : rug.about_content_html ? (
-              <div
-                className="prose-content"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
-                  ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
-                  ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
-                }) }}
-              />
-            ) : (
-              <p className="text-stone-400 text-sm">No additional description is available.</p>
-            )}
-          </section>
-
-          {story && (
-            <Link
-              to={`/stories/${story.slug}`}
-              className="group mt-10 grid max-w-4xl grid-cols-[96px_1fr] sm:grid-cols-[140px_1fr] items-center gap-5 border border-stone-200 bg-[#f7f5ef] p-4 transition-colors hover:border-stone-400"
-            >
-              <div className="aspect-square overflow-hidden bg-stone-100">
-                {story.cover_image_url && <img src={story.cover_image_url} alt="" loading="lazy" className="h-full w-full object-cover" />}
-              </div>
-              <div className="min-w-0 space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">The Story Behind This Design</p>
-                <p className="font-serif text-xl font-light text-stone-900 leading-snug">{story.title}</p>
-                {story.inspiration && <p className="text-sm text-stone-500 line-clamp-2">{story.inspiration}</p>}
-                <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-900">
-                  Read the story <ChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </div>
-            </Link>
           )}
 
-          {/* Direct-purchase configurator */}
-          <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-            <div className="space-y-5 w-full lg:order-2">
-              {submitted && quoteResult ? (
-                <div className="border border-green-200 bg-green-50 p-8 text-center space-y-4">
-                  <CheckCircle size={40} className="text-green-600 mx-auto" />
-                  <h3 className="font-serif text-2xl font-light text-stone-900">Quote Requested</h3>
-                  <p className="text-stone-600 text-sm">Quote #{quoteResult.quote_id}</p>
-                  <p className="text-stone-500 text-sm">We'll contact you within 24 hours to confirm details.</p>
-                  <p className="text-stone-400 text-xs">Expected delivery: {quoteResult.lead_time_days} days</p>
-                  <Link to="/catalog" className="inline-block text-sm text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-300 pb-0.5">
-                    Continue browsing
-                  </Link>
-                </div>
-              ) : (
-                <div className="border border-stone-200">
-                  <div className="px-5 py-4 border-b border-stone-100">
-                    <h2 className="font-serif text-2xl font-light text-stone-900">Select Size</h2>
-                    <p className="text-stone-400 text-sm mt-1">Choose your preferred dimensions, then request a tailored quote.</p>
-                  </div>
+          {/* Main product area: gallery 60% / details 40% */}
+          {/* DOM order (gallery, details, Good to Know) is the mobile order; on desktop
+              Good to Know moves under the gallery, beside the lower half of the details panel. */}
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-5 lg:gap-x-14 xl:gap-x-20 lg:gap-y-14">
+            <div className="lg:col-span-3 lg:col-start-1 lg:row-start-1 min-w-0">
+              <RugGallery
+                images={previewImages}
+                activeIndex={activeSlide}
+                onChange={setActiveSlide}
+                onExpand={(index) => openImageCarousel(previewImages[index].src, previewImages[index].alt)}
+              />
+            </div>
 
-                  <form onSubmit={(event) => event.preventDefault()} className="p-4 sm:p-5">
-                    <div className="space-y-4">
+            {/* Sticky only where the whole panel fits under the 102px fixed header, so it can never hide the quote button. */}
+            <div className="lg:col-span-2 lg:col-start-4 lg:row-start-1 lg:row-span-2 min-w-0 lg:self-start lg:[@media(min-height:900px)]:sticky lg:[@media(min-height:900px)]:top-[126px]">
+              <div className="space-y-8">
+                <header className="space-y-3">
+                  {rug.weave_type && (
+                    <Link
+                      to={`/weaves/${encodeURIComponent(rug.weave_type)}`}
+                      className="inline-block text-[11px] font-medium uppercase tracking-[0.28em] text-showroom-gold hover:text-showroom-charcoal transition-colors"
+                    >
+                      {rug.weave_type} Collection
+                    </Link>
+                  )}
+                  <h1 className="font-serif text-4xl font-light leading-[1.08] tracking-tight text-showroom-charcoal sm:text-5xl">{rug.name}</h1>
+                  {subtitleParts.length > 0 && (
+                    // Wraps normally: weave names like "Hand-knotted Indo-Tibetan" are long on phones.
+                    <p className="text-xs uppercase tracking-[0.2em] text-showroom-grey">
+                      {subtitleParts.map((part, index) => (
+                        <span key={part} className="inline-block">
+                          {index > 0 && <span className="px-3 text-showroom-border" aria-hidden="true">|</span>}
+                          {part}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  {reviewSummary && reviewSummary.review_count > 0 && (
+                    <a href="#reviews" className="inline-flex items-center gap-2 text-sm text-showroom-grey hover:text-showroom-charcoal transition-colors">
+                      <StarRating value={reviewSummary.average_rating ?? 0} size={14} />
+                      <span>{reviewSummary.average_rating?.toFixed(1)} · {reviewSummary.review_count} review{reviewSummary.review_count === 1 ? '' : 's'}</span>
+                    </a>
+                  )}
+                  {!rug.available && <p className="text-red-600 text-sm font-medium">Currently unavailable</p>}
+                  {rug.available && rug.inventory_quantity != null && rug.inventory_quantity <= 5 && (
+                    <p className="text-amber-700 text-sm">Only {rug.inventory_quantity} left</p>
+                  )}
+                </header>
+
+                {rug.description && (
+                  <div>
+                    <p className={`whitespace-pre-line text-[15px] leading-relaxed text-showroom-grey ${descriptionExpanded ? '' : 'line-clamp-3'}`}>
+                      {rug.description}
+                    </p>
+                    {rug.description.length > 180 && (
+                      <button
+                        type="button"
+                        onClick={() => setDescriptionExpanded((open) => !open)}
+                        aria-expanded={descriptionExpanded}
+                        className="mt-2 text-[11px] font-medium uppercase tracking-[0.2em] text-showroom-charcoal border-b border-showroom-gold pb-0.5 hover:text-showroom-gold transition-colors"
+                      >
+                        {descriptionExpanded ? 'Read less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Specifications */}
+                <dl className="divide-y divide-showroom-border border-y border-showroom-border">
+                  {specifications.map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="flex items-center gap-4 py-3">
+                      <Icon size={16} strokeWidth={1.25} className="flex-shrink-0 text-showroom-gold" aria-hidden="true" />
+                      <dt className="w-32 flex-shrink-0 text-[11px] uppercase tracking-[0.16em] text-showroom-grey sm:w-40">{label}</dt>
+                      <dd className="min-w-0 text-sm text-showroom-charcoal">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                {submitted && quoteResult ? (
+                  <div className="border border-showroom-border bg-showroom-ivory p-8 text-center space-y-3 motion-safe:animate-[showroom-fade_400ms_ease-out]" role="status">
+                    <CheckCircle size={34} strokeWidth={1.25} className="text-showroom-gold mx-auto" />
+                    <h2 className="font-serif text-2xl font-light text-showroom-charcoal">Quote Requested</h2>
+                    <p className="text-showroom-charcoal text-sm">Quote #{quoteResult.quote_id}</p>
+                    <p className="text-showroom-grey text-sm">We'll contact you within 24 hours to confirm details.</p>
+                    <p className="text-showroom-grey text-xs">Expected delivery: {quoteResult.lead_time_days} days</p>
+                    <Link to="/catalog" className="inline-block text-sm text-showroom-charcoal border-b border-showroom-gold pb-0.5 hover:text-showroom-gold transition-colors">
+                      Continue browsing
+                    </Link>
+                  </div>
+                ) : (
+                  <form id="rug-configurator" onSubmit={(event) => { event.preventDefault(); openQuoteRequest(); }} className="space-y-8 scroll-mt-32">
                     {rug.color_options.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Color</p>
+                      <div className="space-y-3">
+                        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-showroom-charcoal">
+                          Colour{selectedColor && <span className="ml-2 normal-case tracking-normal font-normal text-showroom-grey">{selectedColor}</span>}
+                        </p>
                         <div className="flex flex-wrap gap-2">
                           {rug.color_options.map((color) => {
                             const isSelected = selectedColor === color.name;
@@ -762,171 +723,164 @@ export default function CustomerRugDetail() {
                                 key={color.name}
                                 type="button"
                                 onClick={() => { setSelectedColor(color.name); setActiveSlide(0); }}
-                                className={`flex items-center gap-2 border px-3 py-2 text-xs transition-colors ${isSelected ? 'border-stone-900 text-stone-900' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}
+                                className={`flex items-center gap-2 border px-3 py-2 text-xs transition-colors duration-300 ${isSelected ? 'border-showroom-charcoal text-showroom-charcoal' : 'border-showroom-border text-showroom-grey hover:border-showroom-gold'}`}
                                 aria-pressed={isSelected}
                               >
                                 <span className="w-4 h-4 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
                                 {color.name}
-                                {isSelected && <CheckCircle size={12} />}
                               </button>
                             );
                           })}
                         </div>
                       </div>
                     )}
-                    {/* Standard Sizes — the unit toggle always stays visible (even with
-                        zero sizes for the currently-selected unit) so switching to cm
-                        on a rug with no vendor-entered cm values can't strand the user
-                        without a way back to ft. Only sizes with a value in the current
-                        unit are offered below it; a size missing a vendor-entered cm
-                        value simply isn't shown when browsing in cm, rather than falling
-                        back to a computed conversion (see utils/size.ts). */}
-                    {rug.sizes.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">Standard Sizes</p>
-                          <div className="flex items-center border border-stone-200 p-0.5 flex-shrink-0" aria-label="Measurement unit">
-                            {(['ft', 'cm'] as const).map((unit) => (
-                              <button
-                                key={unit}
-                                type="button"
-                                onClick={() => setSizeUnit(unit)}
-                                className={`px-2 py-1 text-[10px] uppercase tracking-wider transition-colors ${
-                                  sizeUnit === unit ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-900'
-                                }`}
-                              >
-                                {unit}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        {rug.sizes.filter((size) => fmtSize(size, sizeUnit)).length > 0 ? (
-                          <div className="relative">
-                            <select
-                              aria-label="Select standard rug size"
-                              value={selectedCatalogSize && fmtSize(selectedCatalogSize, sizeUnit) ? selectedCatalogSize.ft : ''}
-                              onChange={(event) => {
-                                const size = rug.sizes.find((item) => item.ft === event.target.value);
-                                if (!size) return;
-                                // Every listed size is selectable regardless of whether its
-                                // label parses into numeric width/height (e.g. a free-text
-                                // size like "3 round ft") — only the quote form's own
-                                // size_w/size_h prefill depends on that; when it can't be
-                                // parsed, those are left blank for the customer to fill in.
-                                const dims = catalogSizeDims(size, inputUnit(sizeUnit));
-                                setSelectedSizeKey(size.ft);
-                                setForm((current) => ({
-                                  ...current,
-                                  size_w: dims ? String(dims[0]) : '',
-                                  size_h: dims ? String(dims[1]) : '',
-                                }));
-                              }}
-                              className="w-full appearance-none border border-stone-300 bg-white px-4 pr-10 py-3.5 text-stone-900 text-sm focus:outline-none focus:border-stone-900 transition-colors"
-                            >
-                              <option value="" disabled>Select size</option>
-                              {sortSizes(rug.sizes).map((size) => fmtSize(size, sizeUnit) ? (
-                                <option key={size.ft} value={size.ft}>{fmtSize(size, sizeUnit)}</option>
-                              ) : null)}
-                            </select>
-                            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone-500" />
-                          </div>
-                        ) : (
-                          <p className="text-stone-400 text-xs italic">No sizes listed in {sizeUnit.toUpperCase()} yet.</p>
-                        )}
-                      </div>
-                    )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-stone-600 text-xs font-medium block mb-1.5 uppercase tracking-wider">Quantity</label>
-                        <input type="number" name="qty" value={form.qty} onChange={handleFormChange} min="1"
-                          className="w-full border border-stone-200 focus:border-stone-400 px-3 py-2.5 text-stone-900 text-sm focus:outline-none transition-colors"
-                        />
-                      </div>
-                      <div className="flex items-end pb-0.5">
-                        <label className="flex items-center gap-2 cursor-pointer w-full">
-                          <div className="relative flex-shrink-0">
-                            <input type="checkbox" name="rush_order" checked={form.rush_order} onChange={handleFormChange} className="sr-only" />
-                            <div className={`w-9 h-5 rounded-full transition-colors ${form.rush_order ? 'bg-stone-900' : 'bg-stone-200'}`}>
-                              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.rush_order ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-stone-700 text-xs font-medium">Early Delivery</p>
-                            <p className="text-stone-400 text-xs">Request priority production</p>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
+                    <RugSizeSelector
+                      sizes={rug.sizes}
+                      unit={inputUnit(sizeUnit)}
+                      onUnitChange={changeSizeUnit}
+                      selectedKey={selectedCatalogSize?.ft ?? null}
+                      onSelect={selectCatalogSize}
+                      custom={customSize}
+                      onSelectCustom={() => { setCustomSize(true); setCustomSizeError(null); }}
+                      customWidth={form.size_w}
+                      customLength={form.size_h}
+                      onCustomChange={(width, length) => {
+                        setCustomSizeError(null);
+                        setForm((current) => ({ ...current, size_w: width, size_h: length }));
+                      }}
+                      customError={customSizeError}
+                    />
 
-                    <button
-                      type="button"
-                      onClick={openQuoteRequest}
-                      disabled={!rug.available || !hasSize}
-                      className="w-full storefront-cta-solid py-3.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      Request a Quote
-                    </button>
-
+                    {/* Request a quote */}
+                    <div className="bg-showroom-ivory px-6 py-7 space-y-4">
+                      <h2 className="font-serif text-2xl font-light text-showroom-charcoal">Made for Your Space</h2>
+                      <p className="text-sm leading-relaxed text-showroom-grey">
+                        Every rug is thoughtfully handcrafted to order. Select your preferred dimensions or request a rug made specifically for your space.
+                      </p>
+                      <button
+                        type="submit"
+                        disabled={!rug.available}
+                        className="group w-full storefront-cta-solid bg-showroom-charcoal px-3 py-4 inline-flex items-center justify-center gap-2 sm:gap-3 text-[11px] sm:text-xs tracking-[0.1em] sm:tracking-[0.2em] disabled:cursor-not-allowed"
+                      >
+                        Request a Personalised Quote
+                        <span aria-hidden="true" className="transition-transform duration-300 motion-safe:group-hover:translate-x-1">→</span>
+                      </button>
+                      {FEATURE_FLAGS.SHOW_DIRECT_PURCHASE && (
+                        <button type="button" onClick={scrollToConfigurator} disabled={!rug.available} className="w-full storefront-cta-outline disabled:border-stone-200 disabled:text-stone-300 py-4">
+                          Add to Cart
+                        </button>
+                      )}
+                      <p className="text-center text-xs text-showroom-grey">No account needed · We reply within 24 hours</p>
                     </div>
                     {bot.fields}
                   </form>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            <div className="divide-y divide-stone-200 border-y border-stone-200 lg:order-1">
-              {productInfoSections.map((section) => {
-                const expanded = openProductInfo === section.id;
-                const content = section.html || section.fallback;
-                return (
-                  <div key={section.id}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenProductInfo(expanded ? null : section.id)}
-                      aria-expanded={expanded}
-                      className="w-full flex items-center justify-between gap-4 py-5 text-left text-stone-900 hover:text-stone-600 transition-colors"
+            {/* Vendor-managed information (samples, care, shipping, …) */}
+            {(productInfoSections.length > 0 || sharedProductContent.catalog_pdf_url) && (
+              <section aria-labelledby="rug-info-heading" className="lg:col-span-3 lg:col-start-1 lg:row-start-2 min-w-0 lg:self-start">
+                <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-showroom-gold">Care &amp; Delivery</p>
+                <h2 id="rug-info-heading" className="mt-2 mb-4 font-serif text-3xl font-light leading-tight text-showroom-charcoal">Good to Know</h2>
+                <div className="divide-y divide-showroom-border border-y border-showroom-border">
+                  {productInfoSections.map((section) => {
+                    const expanded = openProductInfo === section.id;
+                    const content = section.html || section.fallback;
+                    return (
+                      <div key={section.id}>
+                        <button
+                          type="button"
+                          onClick={() => setOpenProductInfo(expanded ? null : section.id)}
+                          aria-expanded={expanded}
+                          className="w-full flex items-center justify-between gap-4 py-5 text-left text-showroom-charcoal hover:text-showroom-gold transition-colors"
+                        >
+                          <span className="font-serif text-xl">{section.label}</span>
+                          <ChevronDown size={18} strokeWidth={1.5} className={`flex-shrink-0 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+                        </button>
+                        {expanded && (
+                          <div
+                            className="prose-content text-showroom-grey text-sm leading-relaxed pb-6 pr-6 motion-safe:animate-[showroom-fade_300ms_ease-out]"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content, {
+                              ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                              ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                            }) }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                  {sharedProductContent.catalog_pdf_url && (
+                    <a
+                      href={sharedProductContent.catalog_pdf_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-4 py-5 text-showroom-charcoal hover:text-showroom-gold transition-colors"
                     >
-                      <span className="text-base font-medium">{section.label}</span>
-                      <span className="text-xl font-light leading-none" aria-hidden="true">{expanded ? '−' : '+'}</span>
-                    </button>
-                    {expanded && (
-                      <div
-                        className="prose-content text-stone-600 text-sm leading-relaxed pb-6 pr-6"
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content, {
-                          ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
-                          ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
-                        }) }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              {sharedProductContent.catalog_pdf_url && (
-                <a
-                  href={sharedProductContent.catalog_pdf_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between gap-4 py-5 text-stone-900 hover:text-stone-600 transition-colors"
-                >
-                  <span className="text-base font-medium">Tearsheet</span>
-                  <ExternalLink size={15} />
-                </a>
-              )}
-            </div>
+                      <span className="font-serif text-xl">Tearsheet</span>
+                      <ExternalLink size={15} />
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </div>
+
+        {/* The story behind the rug */}
+        {hasStorySection && (
+          <section aria-labelledby="rug-story-heading" className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+            <div className="lg:col-span-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-showroom-gold">The Design</p>
+              <h2 id="rug-story-heading" className="mt-3 font-serif text-3xl font-light leading-tight text-showroom-charcoal sm:text-4xl">The Story Behind the Rug</h2>
+            </div>
+            <div className="lg:col-span-8 space-y-8 max-w-3xl">
+              {rug.about_content_html && (
+                <div
+                  className="prose-content text-showroom-grey"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rug.about_content_html, {
+                    ALLOWED_TAGS: PROSE_ALLOWED_TAGS,
+                    ALLOWED_ATTR: PROSE_ALLOWED_ATTR,
+                  }) }}
+                />
+              )}
+              {story && (
+                <Link
+                  to={`/stories/${story.slug}`}
+                  className="group grid grid-cols-[96px_1fr] sm:grid-cols-[160px_1fr] items-center gap-6 border-y border-showroom-border py-6"
+                >
+                  <div className="aspect-square overflow-hidden bg-showroom-ivory">
+                    {story.cover_image_url && <img src={story.cover_image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-700 motion-safe:group-hover:scale-[1.03]" />}
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <p className="font-serif text-2xl font-light text-showroom-charcoal leading-snug">{story.title}</p>
+                    {story.inspiration && <p className="text-sm text-showroom-grey line-clamp-2">{story.inspiration}</p>}
+                    <span className="storefront-link-arrow">
+                      Read the story <ChevronRight size={13} className="transition-transform motion-safe:group-hover:translate-x-0.5" />
+                    </span>
+                  </div>
+                </Link>
+              )}
+            </div>
+          </section>
+        )}
+
+        <CraftsmanshipSection />
+
         <RugReviews rugId={rug.id} rugName={rug.name} summary={reviewSummary} onSubmitted={reloadReviews} />
-        {faqs.length > 0 && <section className="max-w-4xl border-t border-stone-100 pt-10 pb-4">
-          <p className="storefront-eyebrow text-stone-400">Helpful answers</p>
-          <h2 className="font-serif text-3xl font-light text-stone-900 mt-2 mb-6">Frequently Asked Questions</h2>
-          <div className="divide-y divide-stone-200 border-y border-stone-200">{faqs.map(item => <div key={item.id}>
-            <button type="button" onClick={() => setOpenFaq(openFaq === item.id ? null : item.id)} aria-expanded={openFaq === item.id} className="w-full flex items-center justify-between gap-4 py-5 text-left text-stone-900">
-              <span className="font-medium">{item.question}</span><ChevronDown size={18} className={`flex-shrink-0 transition-transform ${openFaq === item.id ? 'rotate-180' : ''}`}/>
+        {faqs.length > 0 && <section className="max-w-4xl border-t border-showroom-border pt-10 pb-4">
+          <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-showroom-gold">Helpful answers</p>
+          <h2 className="font-serif text-3xl font-light text-showroom-charcoal mt-3 mb-6">Frequently Asked Questions</h2>
+          <div className="divide-y divide-showroom-border border-y border-showroom-border">{faqs.map(item => <div key={item.id}>
+            <button type="button" onClick={() => setOpenFaq(openFaq === item.id ? null : item.id)} aria-expanded={openFaq === item.id} className="w-full flex items-center justify-between gap-4 py-5 text-left text-showroom-charcoal">
+              <span className="font-medium">{item.question}</span><ChevronDown size={18} strokeWidth={1.5} className={`flex-shrink-0 transition-transform duration-300 ${openFaq === item.id ? 'rotate-180' : ''}`}/>
             </button>
-            {openFaq === item.id && <p className="pb-5 pr-10 text-stone-600 text-sm leading-relaxed whitespace-pre-line">{item.answer}</p>}
+            {openFaq === item.id && <p className="pb-5 pr-10 text-showroom-grey text-sm leading-relaxed whitespace-pre-line">{item.answer}</p>}
           </div>)}</div>
         </section>}
+
+        <RelatedRugs rugId={rug.id} weave={rug.weave_type} material={rug.material} />
       </div>
 
       {/* Full-screen image preview */}
