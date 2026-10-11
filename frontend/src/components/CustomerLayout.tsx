@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, User, Package, FileText, LogOut, LayoutDashboard, Mail, Download, Send, Check, ShoppingCart, Phone, MapPin } from 'lucide-react';
 import axios from 'axios';
 import CustomerChat from './CustomerChat';
+import ScrollToTopRug from './ScrollToTopRug';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -741,6 +742,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </div>
       )}
 
+      <ScrollToTopRug raised={chatEnabled} />
       {chatEnabled && <CustomerChat businessName={businessName} />}
     </div>
   );
